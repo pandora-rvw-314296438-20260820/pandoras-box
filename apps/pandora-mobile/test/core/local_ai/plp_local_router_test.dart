@@ -18,8 +18,14 @@ void main() {
           '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d',
       'safeModelMaxBytes': 2300 * 1024 * 1024,
       'availableRamBytes': 4 * 1024 * 1024 * 1024,
+      'generationVerified': true,
     },
   );
+
+  test('verified resident model is eligible for local turns', () {
+    expect(ready.generationVerified, isTrue);
+    expect(ready.readyForLocalTurns, isTrue);
+  });
 
   test('authorized synchronized PLP context can route today questions locally', () {
     final decision = PandoraLocalAiRouter.decide(
@@ -194,6 +200,9 @@ void main() {
       contains('activeGeneration?.cancelAndJoin()'),
     );
     expect(kotlinSource, contains('private const val WARM_DEADLINE_MS = 120_000L'));
+    expect(kotlinSource, contains('private const val GENERATION_DEADLINE_MS = 75_000L'));
+    expect(kotlinSource, contains('generationVerifiedForResidentModel'));
+    expect(kotlinSource, contains('"generationVerified" to'));
     expect(kotlinSource, contains('engine.requestCancel()'));
     expect(kotlinSource, contains('engine.clearCancelRequest()'));
     expect(kotlinSource, contains('activeWarm?.cancel()'));
@@ -244,13 +253,20 @@ void main() {
     );
     expect(
       screenSource,
-      contains('.timeout(const Duration(seconds: 30))'),
+      contains('.timeout(const Duration(seconds: 45))'),
     );
+    expect(screenSource, contains('status.readyForLocalTurns'));
+    expect(
+      screenSource,
+      contains('local_generation_unverified_background_self_test'),
+    );
+    expect(screenSource, contains('_recoverLocalAiAfterGenerationFailure()'));
 
     final localStart = screenSource.indexOf(
       'Future<bool> _trySubmitLocalAi(String objective) async {',
     );
-    final coldGuard = screenSource.indexOf('if (!status.loaded)', localStart);
+    final coldGuard =
+        screenSource.indexOf('if (!status.readyForLocalTurns)', localStart);
     final coldFallback =
         screenSource.indexOf('local_cold_background_prewarm', coldGuard);
     final warm = screenSource.indexOf(

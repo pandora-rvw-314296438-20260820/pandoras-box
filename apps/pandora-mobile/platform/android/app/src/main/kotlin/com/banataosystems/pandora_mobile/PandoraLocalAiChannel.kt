@@ -66,6 +66,10 @@ class PandoraLocalAiChannel(
         // phone storage. User turns never wait for this cold path: they fall
         // through to cloud while this bounded background warm completes.
         private const val WARM_DEADLINE_MS = 120_000L
+        // A resident Qwen model must emit tokens inside a bounded window. The
+        // Dart layer has a shorter TTFT guard for owner turns; this native
+        // deadline is the final fail-safe against orphaned inference work.
+        private const val GENERATION_DEADLINE_MS = 75_000L
         private const val SYSTEM_PROMPT = """
 You are Pandora's fast on-device conversational layer.
 Answer naturally, directly, and concisely.
@@ -104,6 +108,9 @@ If required information is missing locally, needs an authoritative provider muta
     private var lastGenerationBackend: String? = null
     private var lastGenerationGpuLayers: Int? = null
     private var acceleratorVerifiedByGeneration = false
+    // ModelReady proves residency only. Local routing is allowed only after
+    // this exact resident model has emitted at least one real token.
+    private var generationVerifiedForResidentModel = false
     private var lastWarmFailurePhase: String? = null
     private var lastWarmFailureClass: String? = null
     private var lastWarmFailureMessage: String? = null
@@ -170,9 +177,21 @@ If required information is missing locally, needs an authoritative provider muta
             "cancel" -> {
                 scope.launch {
                     engine.requestCancel()
-                    activeGeneration?.cancel()
-                    activeAcceptance?.cancel()
-                    activeWarm?.cancel()
+                    val generationJob = activeGeneration
+                    val acceptanceJob = activeAcceptance
+                    val warmJob = activeWarm
+                    generationJob?.cancel()
+                    acceptanceJob?.cancel()
+                    warmJob?.cancel()
+                    val settled = withTimeoutOrNull(5_000L) {
+                        generationJob?.join()
+                        acceptanceJob?.join()
+                        warmJob?.join()
+                        true
+                    } ?: false
+                    if (settled) {
+                        engine.clearCancelRequest()
+                    }
                     result.success(null)
                 }
             }
@@ -583,6 +602,10 @@ If required information is missing locally, needs an authoritative provider muta
             acceleratorVerifiedByGeneration = false
             lastGenerationOutcome = "running"
             lastGenerationPhase = "warming"
+            val generationWatchdog = scope.launch(Dispatchers.Default) {
+                delay(GENERATION_DEADLINE_MS)
+                engine.requestCancel()
+            }
             try {
                 if (!warmWithDeadline()) {
                     throw IllegalStateException("No local GGUF model is configured.")
@@ -613,6 +636,7 @@ If required information is missing locally, needs an authoritative provider muta
                 check(emittedTokenEvents > 0) {
                     "Local llama.cpp generation completed without emitting a token."
                 }
+                generationVerifiedForResidentModel = true
                 val runtime = nativeRuntimeDiagnostics()
                 lastGenerationBackend = runtime["activeBackend"]?.toString()
                 lastGenerationGpuLayers = (runtime["gpuLayersActive"] as? Number)?.toInt()
@@ -625,12 +649,14 @@ If required information is missing locally, needs an authoritative provider muta
                     mapOf("requestId" to requestId, "type" to "done"),
                 )
             } catch (_: CancellationException) {
+                generationVerifiedForResidentModel = false
                 lastGenerationPhase = "cancelled"
                 lastGenerationOutcome = "cancelled"
                 eventSink?.success(
                     mapOf("requestId" to requestId, "type" to "done"),
                 )
             } catch (error: Exception) {
+                generationVerifiedForResidentModel = false
                 lastGenerationPhase = "failed"
                 lastGenerationOutcome = "failed"
                 lastGenerationErrorClass = error.javaClass.simpleName
@@ -644,6 +670,7 @@ If required information is missing locally, needs an authoritative provider muta
                     ),
                 )
             } finally {
+                generationWatchdog.cancel()
                 val elapsedMs =
                     (SystemClock.elapsedRealtime() - generationStarted).coerceAtLeast(1L)
                 lastGenerationMs = elapsedMs
@@ -764,6 +791,7 @@ If required information is missing locally, needs an authoritative provider muta
         awaitEngineInitialized()
         if (loadedModelPath != null) unloadInternal()
 
+        generationVerifiedForResidentModel = false
         val loadStarted = SystemClock.elapsedRealtime()
         try {
             engine.loadModel(canonicalPath)
@@ -848,6 +876,7 @@ If required information is missing locally, needs an authoritative provider muta
             engine.cleanUp()
         }
         loadedModelPath = null
+        generationVerifiedForResidentModel = false
     }
 
     private fun importModel(uri: Uri): Map<String, Any?> {
@@ -1042,6 +1071,10 @@ If required information is missing locally, needs an authoritative provider muta
             "loaded" to
                 (loadedModelPath != null &&
                     engine.state.value is InferenceEngine.State.ModelReady),
+            "generationVerified" to
+                (loadedModelPath != null &&
+                    engine.state.value is InferenceEngine.State.ModelReady &&
+                    generationVerifiedForResidentModel),
             "modelName" to preferences.getString(MODEL_NAME, null),
             "modelPath" to if (configured) modelFile.absolutePath else null,
             "modelBytes" to

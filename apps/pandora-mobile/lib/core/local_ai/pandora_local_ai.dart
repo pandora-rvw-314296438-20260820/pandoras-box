@@ -23,6 +23,9 @@ class PandoraLocalAiStatus {
   final String? engineState;
   final Map<String, Object?> diagnostics;
 
+  bool get generationVerified => diagnostics['generationVerified'] == true;
+  bool get readyForLocalTurns => loaded && generationVerified;
+
   static const unavailable = PandoraLocalAiStatus(
     supported: false,
     configured: false,
@@ -231,6 +234,7 @@ class PandoraLocalAi {
         'local-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
     final controller = StreamController<String>();
     late final StreamSubscription<dynamic> subscription;
+    var terminalEventReceived = false;
 
     subscription = _eventStream.listen(
       (event) {
@@ -245,10 +249,12 @@ class PandoraLocalAi {
           return;
         }
         if (type == 'done') {
+          terminalEventReceived = true;
           if (!controller.isClosed) controller.close();
           return;
         }
         if (type == 'error' && !controller.isClosed) {
+          terminalEventReceived = true;
           controller.addError(
             PandoraLocalAiException(
               event['message']?.toString() ?? 'Pandora local inference failed.',
@@ -258,6 +264,7 @@ class PandoraLocalAi {
         }
       },
       onError: (Object error, StackTrace stack) {
+        terminalEventReceived = true;
         if (!controller.isClosed) {
           controller.addError(error, stack);
           controller.close();
@@ -289,6 +296,13 @@ class PandoraLocalAi {
       );
     } finally {
       await subscription.cancel();
+      if (!terminalEventReceived) {
+        try {
+          await _methods.invokeMethod<void>('cancel');
+        } catch (_) {
+          // Native generation has its own watchdog if cancellation races.
+        }
+      }
       if (!controller.isClosed) await controller.close();
     }
   }

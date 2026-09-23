@@ -269,6 +269,8 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
     final supported = status?.supported ?? true;
     final configured = status?.configured ?? false;
     final loaded = status?.loaded ?? false;
+    final generationVerified = status?.generationVerified ?? false;
+    final ready = loaded && generationVerified;
 
     return PandoraPage(
       title: 'On-device AI',
@@ -278,19 +280,27 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
         children: [
           OwnerBriefingHero(
             eyebrow: 'Local intelligence',
-            title: loaded
-                ? 'Local AI is warm'
+            title: ready
+                ? 'Local AI is ready'
+                : loaded
+                ? 'Local model is loaded'
                 : configured
                 ? 'Local model is ready to warm'
                 : 'Choose your local model',
-            message: loaded
+            message: ready
                 ? 'Routine chat can start on your phone and escalate to cloud intelligence only when needed.'
+                : loaded
+                ? 'The model is resident, but Pandora will not route owner replies locally until real token generation is verified.'
                 : 'For this phone, use Qwen2.5 3B Instruct Q4_K_M. Pandora loads it only for safe local turns and routes heavier or unsafe work to cloud intelligence.',
             icon: Icons.memory_rounded,
-            tone: loaded
+            tone: ready
                 ? PandoraStatusTone.verified
                 : PandoraStatusTone.informative,
-            statusLabel: loaded ? 'Ready' : 'Local-first setup',
+            statusLabel: ready
+                ? 'Ready'
+                : loaded
+                ? 'Verification required'
+                : 'Local-first setup',
           ),
           const SizedBox(height: PandoraSpacing.lg),
           Card(
@@ -440,6 +450,10 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                           (status.diagnostics['nnapiAccelerationUsed'] == true ? 'yes' : 'no') +
                           ' · Vulkan exposed ' +
                           (status.diagnostics['vulkanFeatureExposed']?.toString() ?? 'unknown'),
+                    ),
+                    Text(
+                      'Local generation verified ' +
+                          (generationVerified ? 'yes' : 'no'),
                     ),
                     Text(
                       'Generation ' +
