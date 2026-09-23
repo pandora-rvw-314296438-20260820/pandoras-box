@@ -23,7 +23,7 @@ jobs:
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       FLUTTER_VERSION: '3.47.0'
-      EXPECTED_APP_VERSION: '0.4.0-rc.13+20'
+      EXPECTED_APP_VERSION: '0.4.0-rc.14+21'
       EXPECTED_PACKAGE: 'com.banataosystems.pandora.plp'
       EXPECTED_LABEL: 'PLP Pandora Enterprise'
       LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
