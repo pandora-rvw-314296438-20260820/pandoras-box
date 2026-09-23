@@ -1698,7 +1698,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           Positioned(
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: keyboardInset,
             child: KeyedSubtree(
               key: _composerKey,
               child: _Composer(
