@@ -41,6 +41,8 @@ create table if not exists public.tax_rule_packs (
     (status <> 'approved')
     or (
       approved_at is not null
+      and reviewed_by is not null
+      and nullif(btrim(review_notes),'') is not null
       and jsonb_typeof(official_sources)='array'
       and jsonb_array_length(official_sources)>0
     )
@@ -60,7 +62,9 @@ create table if not exists public.tax_rules (
   created_at timestamptz not null default clock_timestamp(),
   updated_at timestamptz not null default clock_timestamp(),
   unique (rule_pack_id,rule_key),
-  check (effective_to is null or effective_from is null or effective_to >= effective_from)
+  check (effective_to is null or effective_from is null or effective_to >= effective_from),
+  check (jsonb_typeof(deterministic_spec)='object' and deterministic_spec <> '{}'::jsonb),
+  check (jsonb_typeof(official_source_ref)='object' and official_source_ref <> '{}'::jsonb)
 );
 
 create table if not exists public.tax_source_connections (
@@ -391,6 +395,14 @@ begin
   if old.status='approved' then
     if new.status='superseded'
        and new.superseded_by is not null
+       and new.superseded_by <> old.id
+       and exists(
+         select 1
+         from public.tax_rule_packs replacement
+         where replacement.id=new.superseded_by
+           and replacement.jurisdiction_code=old.jurisdiction_code
+           and replacement.status='approved'
+       )
        and new.jurisdiction_code is not distinct from old.jurisdiction_code
        and new.version is not distinct from old.version
        and new.effective_from is not distinct from old.effective_from
@@ -403,7 +415,7 @@ begin
     then
       return new;
     end if;
-    raise exception 'approved tax rule packs may only transition immutably to superseded' using errcode='42501';
+    raise exception 'approved tax rule packs may only transition immutably to a verified approved replacement' using errcode='42501';
   end if;
 
   return new;
