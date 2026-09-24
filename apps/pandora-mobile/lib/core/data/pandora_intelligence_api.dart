@@ -447,6 +447,7 @@ class PandoraIntelligenceApi {
           .select('id,project_key,name,repository,status,updated_at')
           .eq('organization_id', _organizationId)
           .neq('status', 'archived')
+          .neq('project_key', 'projectos-inbox')
           .neq('project_key', 'pandora-inbox')
           .order('updated_at', ascending: false)
           .limit(safeLimit);
