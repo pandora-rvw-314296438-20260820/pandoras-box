@@ -66,11 +66,11 @@ jobs:
       android-artifact-api-url: ${{ steps.android_provider_locator.outputs.artifact_api_url }}
       android-artifact-digest-sha256: ${{ steps.android_provider_locator.outputs.artifact_digest_sha256 }}
     env:
-      SOURCE_SHA: ${{ github.sha }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       FLUTTER_VERSION: '3.47.0'
       EXPECTED_APP_VERSION: '0.4.0-rc.14+21'
       LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
-      ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-${{ github.sha }}
+      ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Check out the exact candidate
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -499,7 +499,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 40
     env:
-      SOURCE_SHA: ${{ github.sha }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       FLUTTER_VERSION: '3.47.0'
       EXPECTED_APP_VERSION: '0.4.0-rc.14+21'
     steps:
