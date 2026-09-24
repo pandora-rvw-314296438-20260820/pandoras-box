@@ -1,4 +1,4 @@
-﻿-- Pandora system-audit repair v1.
+-- Pandora system-audit repair v1.
 -- PLP intentionally remains on the existing demo/staging organization.
 -- This migration does not bind or migrate the workspace to the unpaid customer tenant.
 
