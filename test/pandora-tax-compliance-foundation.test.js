@@ -193,11 +193,19 @@ test("tax audit trail is append-only even for service role", async (t) => {
   await actAs(db, null, "service_role");
   await assert.rejects(
     db.query("update public.tax_audit_events set event_type='tampered'"),
-    /tax audit events are append-only/,
+    /permission denied|tax audit events are append-only/,
   );
   await assert.rejects(
     db.query("delete from public.tax_audit_events"),
-    /tax audit events are append-only/,
+    /permission denied|tax audit events are append-only/,
+  );
+  assert.match(
+    migration,
+    /grant select,insert on table public\.tax_audit_events to service_role/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant[^;]*(?:update|delete|truncate)[^;]*public\.tax_audit_events[^;]*to service_role/i,
   );
 });
 
