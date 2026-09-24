@@ -5,7 +5,7 @@ This is the first implementation slice of the owner-approved Tax & Compliance Op
 ## Implemented in this slice
 
 - Organization-scoped tax evidence/data model.
-- Versioned jurisdiction and deterministic rule-pack authority.
+- Versioned jurisdiction and deterministic rule-pack authority, with approval provenance, reviewer identity, per-rule source references, immutable approved history, and same-jurisdiction approved supersession.
 - Philippines jurisdiction placeholder with **no hard-coded tax rates** and no approved production rules.
 - Canonical tax periods, source objects, documents, ledger entries, reconciliation runs, exceptions, calculation runs/lines, obligations, reviews, approvals, and append-only audit events.
 - RLS isolation for authenticated users.
