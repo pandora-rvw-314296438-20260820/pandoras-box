@@ -21,15 +21,15 @@ class PlpTeamAccessScreen extends StatefulWidget {
 }
 
 class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
-  static const _canvas = Color(0xFFFBF8F2);
-  static const _paper = Color(0xFFFFFDFC);
-  static const _ink = Color(0xFF171512);
-  static const _muted = Color(0xFF746F67);
-  static const _gold = Color(0xFF70643F);
-  static const _goldSoft = Color(0xFFF2EEE6);
-  static const _line = Color(0xFFE1DBD1);
-  static const _green = Color(0xFF657965);
-  static const _grayDot = Color(0xFF9EA3AA);
+  static const _canvas = Color(0xFF050505);
+  static const _paper = Color(0xFF0E0E0F);
+  static const _ink = Color(0xFFF2EEE7);
+  static const _muted = Color(0xFFA49D93);
+  static const _gold = Color(0xFFD6AD63);
+  static const _goldSoft = Color(0xFF17130D);
+  static const _line = Color(0xFF2C2924);
+  static const _green = Color(0xFF8FA889);
+  static const _grayDot = Color(0xFF8F8980);
 
   int _tab = 0;
   bool _searching = false;
@@ -225,33 +225,14 @@ class _Header extends StatelessWidget {
             )
           else
             const SizedBox.square(dimension: 44),
-          const SizedBox(width: 5),
-          SizedBox(
-            width: 42,
-            height: 48,
-            child: Image.asset(
-              'assets/workspaces/plp.webp',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Center(
-                child: Text(
-                  'PLP',
-                  style: TextStyle(
-                    color: _PlpTeamAccessScreenState._ink,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           const Expanded(
             child: Text(
               'PUEBLO\nLA PERLA\nBORACAY',
               maxLines: 3,
               overflow: TextOverflow.fade,
               style: TextStyle(
-                color: Color(0xFF4C3020),
+                color: Color(0xFFCFB27A),
                 fontSize: 8.5,
                 height: 1.06,
                 fontWeight: FontWeight.w800,
@@ -265,8 +246,8 @@ class _Header extends StatelessWidget {
             onPressed: onSearch,
             style: IconButton.styleFrom(
               foregroundColor: _PlpTeamAccessScreenState._ink,
-              backgroundColor: Colors.white.withValues(alpha: .74),
-              side: const BorderSide(color: Color(0xFFF0EBE3)),
+              backgroundColor: _PlpTeamAccessScreenState._paper,
+              side: const BorderSide(color: Color(0xFF2C2924)),
             ),
             icon: const Icon(Icons.search_rounded, size: 26),
           ),
@@ -348,15 +329,6 @@ class _PeopleHero extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 16),
-            SizedBox(
-              width: 78,
-              height: 96,
-              child: Image.asset(
-                'assets/workspaces/plp.webp',
-                fit: BoxFit.contain,
-              ),
-            ),
           ],
         ),
       );
@@ -380,7 +352,7 @@ class _Tabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         decoration: const BoxDecoration(
-          color: Color(0xFFFFFEFC),
+          color: Color(0xFF0E0E0F),
           border: Border(
             bottom: BorderSide(color: _PlpTeamAccessScreenState._line),
           ),
@@ -404,7 +376,7 @@ class _Tabs extends StatelessWidget {
                           size: 20,
                           color: active
                               ? _PlpTeamAccessScreenState._gold
-                              : const Color(0xFF5F6570),
+                              : const Color(0xFF98928A),
                         ),
                         const SizedBox(width: 6),
                         Flexible(
@@ -416,7 +388,7 @@ class _Tabs extends StatelessWidget {
                               style: TextStyle(
                                 color: active
                                     ? _PlpTeamAccessScreenState._ink
-                                    : const Color(0xFF656B73),
+                                    : const Color(0xFF9F9990),
                                 fontSize: 14,
                                 fontWeight: active
                                     ? FontWeight.w700
@@ -552,7 +524,7 @@ class _TeamTab extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: Color(0xFF735126),
+                          color: Color(0xFFD1A15F),
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -622,7 +594,7 @@ class _TeamMemberRow extends StatelessWidget {
               child: Text(
                 initials,
                 style: const TextStyle(
-                  color: Color(0xFF3E3A35),
+                  color: Color(0xFFCBC4BA),
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -664,7 +636,7 @@ class _TeamMemberRow extends StatelessWidget {
                         child: const Text(
                           'You',
                           style: TextStyle(
-                            color: Color(0xFF77501E),
+                            color: Color(0xFFD0A05C),
                             fontSize: 8.5,
                             fontWeight: FontWeight.w800,
                           ),
@@ -690,7 +662,7 @@ class _TeamMemberRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F7F5),
+              color: const Color(0xFF121213),
               borderRadius: BorderRadius.zero,
             ),
             child: Row(
@@ -712,7 +684,7 @@ class _TeamMemberRow extends StatelessWidget {
                 Text(
                   status[0].toUpperCase() + status.substring(1),
                   style: const TextStyle(
-                    color: Color(0xFF5D626A),
+                    color: Color(0xFF979189),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1055,13 +1027,13 @@ class _ActivityRow extends StatelessWidget {
               margin: const EdgeInsets.only(right: 6),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8E9C9),
+                color: const Color(0xFF1C170F),
                 borderRadius: BorderRadius.zero,
               ),
               child: const Text(
                 'QA',
                 style: TextStyle(
-                  color: Color(0xFF996A21),
+                  color: Color(0xFFD4A052),
                   fontSize: 8,
                   fontWeight: FontWeight.w800,
                 ),

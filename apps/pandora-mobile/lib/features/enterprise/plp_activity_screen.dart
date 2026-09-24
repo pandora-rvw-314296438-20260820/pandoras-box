@@ -32,15 +32,15 @@ class PlpActivityScreen extends StatefulWidget {
 }
 
 class _PlpActivityScreenState extends State<PlpActivityScreen> {
-  static const _canvas = Color(0xFFFAF7F1);
-  static const _paper = Color(0xFFFFFDFC);
-  static const _ink = Color(0xFF171512);
-  static const _muted = Color(0xFF746F67);
-  static const _gold = Color(0xFF70643F);
-  static const _goldSoft = Color(0xFFF2EEE6);
-  static const _line = Color(0xFFE1DBD1);
-  static const _green = Color(0xFF657965);
-  static const _red = Color(0xFFB94B43);
+  static const _canvas = Color(0xFF050505);
+  static const _paper = Color(0xFF0E0E0F);
+  static const _ink = Color(0xFFF2EEE7);
+  static const _muted = Color(0xFFA49D93);
+  static const _gold = Color(0xFFD6AD63);
+  static const _goldSoft = Color(0xFF17130D);
+  static const _line = Color(0xFF2C2924);
+  static const _green = Color(0xFF8FA889);
+  static const _red = Color(0xFFD8645B);
 
   final TextEditingController _search = TextEditingController();
   RealtimeChannel? _realtimeChannel;
@@ -423,7 +423,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: _paper.withValues(alpha: .82),
-          border: Border.all(color: const Color(0xFFD8CFC3)),
+          border: Border.all(color: const Color(0xFFB9B0A4)),
         ),
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
         child: Column(
@@ -467,7 +467,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
                 _selectTab(3);
               },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF75501F),
+                foregroundColor: const Color(0xFFD0A15E),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 2,
                   vertical: 10,
@@ -531,7 +531,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
           Container(
             decoration: BoxDecoration(
               color: _paper.withValues(alpha: .82),
-              border: Border.all(color: const Color(0xFFD8CFC3)),
+              border: Border.all(color: const Color(0xFFB9B0A4)),
             ),
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
             child: Column(
@@ -612,33 +612,14 @@ class _ActivityHeader extends StatelessWidget {
             )
           else
             const SizedBox.square(dimension: 44),
-          const SizedBox(width: 5),
-          SizedBox(
-            width: 42,
-            height: 48,
-            child: Image.asset(
-              'assets/workspaces/plp.webp',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Center(
-                child: Text(
-                  'PLP',
-                  style: TextStyle(
-                    color: _PlpActivityScreenState._ink,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 12),
           const Expanded(
             child: Text(
               'PUEBLO\nLA PERLA\nBORACAY',
               maxLines: 3,
               overflow: TextOverflow.fade,
               style: TextStyle(
-                color: Color(0xFF4C3020),
+                color: Color(0xFFCFB27A),
                 fontSize: 8.5,
                 height: 1.06,
                 fontWeight: FontWeight.w800,
@@ -652,8 +633,8 @@ class _ActivityHeader extends StatelessWidget {
             onPressed: onSearch,
             style: IconButton.styleFrom(
               foregroundColor: _PlpActivityScreenState._ink,
-              backgroundColor: Colors.white.withValues(alpha: .74),
-              side: const BorderSide(color: Color(0xFFF0EBE3)),
+              backgroundColor: _PlpActivityScreenState._paper,
+              side: const BorderSide(color: Color(0xFF2C2924)),
             ),
             icon: const Icon(Icons.search_rounded, size: 26),
           ),
@@ -716,15 +697,6 @@ class _ActivityHero extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 16),
-            SizedBox(
-              width: 78,
-              height: 96,
-              child: Image.asset(
-                'assets/workspaces/plp.webp',
-                fit: BoxFit.contain,
-              ),
-            ),
           ],
         ),
       );
@@ -749,7 +721,7 @@ class _ActivityTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         decoration: const BoxDecoration(
-          color: Color(0xFFFFFEFC),
+          color: Color(0xFF0E0E0F),
           border: Border(
             bottom: BorderSide(color: _PlpActivityScreenState._line),
           ),
@@ -777,7 +749,7 @@ class _ActivityTabs extends StatelessWidget {
                           style: TextStyle(
                             color: active
                                 ? _PlpActivityScreenState._ink
-                                : const Color(0xFF5D5D60),
+                                : const Color(0xFF94908A),
                             fontSize: index == 3 ? 12.5 : 14.5,
                             fontWeight:
                                 active ? FontWeight.w700 : FontWeight.w500,
@@ -914,13 +886,13 @@ class _BusinessActivityRow extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF6E5C9),
+                          color: const Color(0xFF1C170F),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: const Text(
                           'QA',
                           style: TextStyle(
-                            color: Color(0xFF8C5F1E),
+                            color: Color(0xFFD09B52),
                             fontSize: 8,
                             fontWeight: FontWeight.w800,
                           ),
@@ -995,7 +967,7 @@ class _PandoraLogRow extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: failed
-                  ? const Color(0xFFF7E6E3)
+                  ? const Color(0xFF251414)
                   : _PlpActivityScreenState._goldSoft,
             ),
             child: Icon(

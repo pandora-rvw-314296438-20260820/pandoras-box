@@ -21,14 +21,14 @@ class PlpEnterpriseHome extends StatelessWidget {
   final VoidCallback onOperations;
   final VoidCallback onVision;
 
-  static const _canvas = Color(0xFFFAF7F1);
-  static const _paper = Color(0xFFFFFDFC);
-  static const _ink = Color(0xFF171512);
-  static const _muted = Color(0xFF706B64);
-  static const _line = Color(0xFFE6DED2);
-  static const _accent = Color(0xFF70643F);
-  static const _good = Color(0xFF5E765F);
-  static const _warn = Color(0xFFA56B2C);
+  static const _canvas = Color(0xFF050505);
+  static const _paper = Color(0xFF0E0E0F);
+  static const _ink = Color(0xFFF2EEE7);
+  static const _muted = Color(0xFFA49D93);
+  static const _line = Color(0xFF2C2924);
+  static const _accent = Color(0xFFD6AD63);
+  static const _good = Color(0xFF8FA889);
+  static const _warn = Color(0xFFD4934C);
 
   Map<String, Object?> _map(Object? value) {
     if (value is Map<String, Object?>) return value;
@@ -285,31 +285,7 @@ class _HomeHeader extends StatelessWidget {
             )
           else
             const SizedBox.square(dimension: 44),
-          const SizedBox(width: 7),
-          Container(
-            width: 43,
-            height: 43,
-            decoration: BoxDecoration(
-              color: PlpEnterpriseHome._paper,
-              border: Border.all(color: PlpEnterpriseHome._line),
-            ),
-            child: Image.asset(
-              'assets/workspaces/plp.webp',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Center(
-                child: Text(
-                  'PLP',
-                  style: TextStyle(
-                    color: PlpEnterpriseHome._ink,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -505,7 +481,7 @@ class _Attention extends StatelessWidget {
   Widget build(BuildContext context) {
     final clear = conflicts == '0' && tasks == '0';
     return Material(
-      color: PlpEnterpriseHome._ink,
+      color: PlpEnterpriseHome._paper,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -516,7 +492,7 @@ class _Attention extends StatelessWidget {
               Text(
                 clear ? 'RESORT STATUS' : 'NEEDS YOUR ATTENTION',
                 style: const TextStyle(
-                  color: Color(0xFFD5CCB7),
+                  color: Color(0xFFDDBF86),
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2,
@@ -548,7 +524,7 @@ class _Attention extends StatelessWidget {
                     ? PlpEnterpriseHome._good
                     : PlpEnterpriseHome._warn,
               ),
-              const Divider(height: 25, color: Color(0xFF393631)),
+              const Divider(height: 25, color: Color(0xFF322B22)),
               _Status(
                 title: tasks +
                     ' open staff task' +
@@ -558,7 +534,7 @@ class _Attention extends StatelessWidget {
                     : 'Pandora can summarize, assign, or create the next task.',
                 tone: tasks == '0'
                     ? PlpEnterpriseHome._good
-                    : const Color(0xFFC8B98F),
+                    : const Color(0xFFD6AD63),
               ),
               const SizedBox(height: 18),
               const Row(
@@ -626,7 +602,7 @@ class _Status extends StatelessWidget {
                 Text(
                   detail,
                   style: const TextStyle(
-                    color: Color(0xFFBEB8AE),
+                    color: Color(0xFFAFA9A0),
                     fontSize: 11.5,
                     height: 1.4,
                   ),
@@ -654,7 +630,7 @@ class _Command extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: primary ? PlpEnterpriseHome._ink : Colors.transparent,
+        color: primary ? PlpEnterpriseHome._paper : Colors.transparent,
         child: InkWell(
           onTap: onTap,
           child: Container(
@@ -691,7 +667,7 @@ class _Command extends StatelessWidget {
                         detail,
                         style: TextStyle(
                           color: primary
-                              ? const Color(0xFFBEB8AE)
+                              ? const Color(0xFFAFA9A0)
                               : PlpEnterpriseHome._muted,
                           fontSize: 11.5,
                           height: 1.35,

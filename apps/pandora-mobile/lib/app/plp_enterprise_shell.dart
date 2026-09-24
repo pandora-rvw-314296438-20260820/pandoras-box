@@ -29,10 +29,10 @@ class PlpEnterpriseShell extends StatefulWidget {
 }
 
 class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
-  static const _canvas = Color(0xFFFAF8F3);
-  static const _muted = Color(0xFF746F67);
-  static const _text = Color(0xFF171512);
-  static const _accent = Color(0xFF82764F);
+  static const _canvas = Color(0xFF050505);
+  static const _muted = Color(0xFFA49D93);
+  static const _text = Color(0xFFF2EEE7);
+  static const _accent = Color(0xFFD6AD63);
 
   static const _surfaceByDestination = <String, int>{
     'home': 0,
@@ -738,7 +738,7 @@ class PlpCommandDock extends StatelessWidget {
                 decoration: const BoxDecoration(
                   color: _PlpEnterpriseShellState._canvas,
                   border: Border(
-                    top: BorderSide(color: Color(0xFFE1DBD1)),
+                    top: BorderSide(color: Color(0xFF2C2924)),
                   ),
                 ),
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
@@ -755,7 +755,7 @@ class PlpCommandDock extends StatelessWidget {
                     DecoratedBox(
                       key: const ValueKey<String>('plp-persistent-command-bar'),
                       decoration: const BoxDecoration(
-                        color: Color(0xFF171512),
+                        color: Color(0xFF0E0E0F),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -785,7 +785,7 @@ class PlpCommandDock extends StatelessWidget {
                               decoration: const InputDecoration(
                                 hintText: 'Message Pandora',
                                 hintStyle: TextStyle(
-                                  color: Color(0xFFB6B0A7),
+                                  color: Color(0xFFA49D93),
                                   fontSize: 15.5,
                                 ),
                                 border: InputBorder.none,
@@ -801,14 +801,14 @@ class PlpCommandDock extends StatelessWidget {
                             dimension: 46,
                             child: Icon(
                               Icons.mic_none_rounded,
-                              color: Color(0xFFD6D0C7),
+                              color: Color(0xFFC9C2B8),
                               size: 25,
                             ),
                           ),
                           Container(
                             width: 1,
                             height: 34,
-                            color: const Color(0xFF3D3934),
+                            color: const Color(0xFF2C2924),
                           ),
                           SizedBox.square(
                             dimension: 50,
@@ -864,11 +864,11 @@ class _PlpCommandResult extends StatelessWidget {
       key: const ValueKey<String>('plp-command-result'),
       width: double.infinity,
       decoration: const BoxDecoration(
-        color: Color(0xFFFFFDFC),
+        color: Color(0xFF0E0E0F),
         border: Border(
-          left: BorderSide(color: Color(0xFFE1DBD1)),
-          right: BorderSide(color: Color(0xFFE1DBD1)),
-          top: BorderSide(color: Color(0xFFE1DBD1)),
+          left: BorderSide(color: Color(0xFF2C2924)),
+          right: BorderSide(color: Color(0xFF2C2924)),
+          top: BorderSide(color: Color(0xFF2C2924)),
         ),
       ),
       padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
@@ -879,7 +879,7 @@ class _PlpCommandResult extends StatelessWidget {
             padding: EdgeInsets.only(top: 2),
             child: Icon(
               Icons.auto_awesome_outlined,
-              color: Color(0xFF70643F),
+              color: Color(0xFFD6AD63),
               size: 18,
             ),
           ),
@@ -891,7 +891,7 @@ class _PlpCommandResult extends StatelessWidget {
               maxLines: busy ? 1 : 4,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Color(0xFF35312C),
+                color: Color(0xFFD7D1C8),
                 fontSize: 12.5,
                 height: 1.35,
               ),
