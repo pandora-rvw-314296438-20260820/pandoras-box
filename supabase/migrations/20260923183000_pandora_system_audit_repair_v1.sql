@@ -213,22 +213,57 @@ where slug='plp-boracay'
 
 -- Security hardening discovered during the second audit pass.
 -- Anonymous execution is not required for provider-backed or enterprise SECURITY DEFINER RPCs.
-revoke execute on function public.pandora_eurofish_github_request_v1(text,text,jsonb) from public,anon;
-revoke execute on function public.pandora_eurofish_memory_github_request_v1(text,text,jsonb) from public,anon;
-revoke execute on function public.pandora_eurofish_github_ci_dispatch_v1() from public,anon;
-revoke execute on function public.pandora_eurofish_github_ci_read_v1(text) from public,anon;
-revoke execute on function public.pandora_eurofish_github_ci_rerun_v1(bigint) from public,anon;
-revoke execute on function public.pandora_eurofish_github_run_read_v1(bigint,text) from public,anon;
-revoke execute on function public.pandora_eurofish_workspace_v1(text) from public,anon;
-revoke execute on function public.pandora_vision_overview_v1(uuid) from public,anon;
-revoke execute on function public.pandora_vision_ack_alert_v1(uuid,uuid,text) from public,anon;
-revoke execute on function public.pandora_vision_request_clip_v1(uuid,uuid,timestamptz,timestamptz,text,uuid) from public,anon;
-revoke execute on function public.pandora_vision_search_v1(uuid,text,uuid,timestamptz,timestamptz,integer) from public,anon;
-revoke execute on function public.pandora_vision_verify_observation_v1(uuid,uuid,text) from public,anon;
-grant execute on function public.pandora_eurofish_github_request_v1(text,text,jsonb) to authenticated,service_role;
-grant execute on function public.pandora_eurofish_memory_github_request_v1(text,text,jsonb) to authenticated,service_role;
-grant execute on function public.pandora_eurofish_github_ci_dispatch_v1() to authenticated,service_role;
-grant execute on function public.pandora_eurofish_github_ci_read_v1(text) to authenticated,service_role;
-grant execute on function public.pandora_eurofish_github_ci_rerun_v1(bigint) to authenticated,service_role;
-grant execute on function public.pandora_eurofish_github_run_read_v1(bigint,text) to authenticated,service_role;
-grant execute on function public.pandora_eurofish_workspace_v1(text) to authenticated,service_role;
+-- Guard with to_regprocedure so isolated PGlite replay (where Euro-Fish / Vision
+-- RPCs are absent) remains portable; production still hardens when present.
+do $hardening$
+begin
+  if to_regprocedure('public.pandora_eurofish_github_request_v1(text,text,jsonb)') is not null then
+    execute 'revoke execute on function public.pandora_eurofish_github_request_v1(text,text,jsonb) from public,anon';
+    execute 'grant execute on function public.pandora_eurofish_github_request_v1(text,text,jsonb) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_eurofish_memory_github_request_v1(text,text,jsonb)') is not null then
+    execute 'revoke execute on function public.pandora_eurofish_memory_github_request_v1(text,text,jsonb) from public,anon';
+    execute 'grant execute on function public.pandora_eurofish_memory_github_request_v1(text,text,jsonb) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_eurofish_github_ci_dispatch_v1()') is not null then
+    execute 'revoke execute on function public.pandora_eurofish_github_ci_dispatch_v1() from public,anon';
+    execute 'grant execute on function public.pandora_eurofish_github_ci_dispatch_v1() to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_eurofish_github_ci_read_v1(text)') is not null then
+    execute 'revoke execute on function public.pandora_eurofish_github_ci_read_v1(text) from public,anon';
+    execute 'grant execute on function public.pandora_eurofish_github_ci_read_v1(text) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_eurofish_github_ci_rerun_v1(bigint)') is not null then
+    execute 'revoke execute on function public.pandora_eurofish_github_ci_rerun_v1(bigint) from public,anon';
+    execute 'grant execute on function public.pandora_eurofish_github_ci_rerun_v1(bigint) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_eurofish_github_run_read_v1(bigint,text)') is not null then
+    execute 'revoke execute on function public.pandora_eurofish_github_run_read_v1(bigint,text) from public,anon';
+    execute 'grant execute on function public.pandora_eurofish_github_run_read_v1(bigint,text) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_eurofish_workspace_v1(text)') is not null then
+    execute 'revoke execute on function public.pandora_eurofish_workspace_v1(text) from public,anon';
+    execute 'grant execute on function public.pandora_eurofish_workspace_v1(text) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_vision_overview_v1(uuid)') is not null then
+    execute 'revoke execute on function public.pandora_vision_overview_v1(uuid) from public,anon';
+    execute 'grant execute on function public.pandora_vision_overview_v1(uuid) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_vision_ack_alert_v1(uuid,uuid,text)') is not null then
+    execute 'revoke execute on function public.pandora_vision_ack_alert_v1(uuid,uuid,text) from public,anon';
+    execute 'grant execute on function public.pandora_vision_ack_alert_v1(uuid,uuid,text) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_vision_request_clip_v1(uuid,uuid,timestamptz,timestamptz,text,uuid)') is not null then
+    execute 'revoke execute on function public.pandora_vision_request_clip_v1(uuid,uuid,timestamptz,timestamptz,text,uuid) from public,anon';
+    execute 'grant execute on function public.pandora_vision_request_clip_v1(uuid,uuid,timestamptz,timestamptz,text,uuid) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_vision_search_v1(uuid,text,uuid,timestamptz,timestamptz,integer)') is not null then
+    execute 'revoke execute on function public.pandora_vision_search_v1(uuid,text,uuid,timestamptz,timestamptz,integer) from public,anon';
+    execute 'grant execute on function public.pandora_vision_search_v1(uuid,text,uuid,timestamptz,timestamptz,integer) to authenticated,service_role';
+  end if;
+  if to_regprocedure('public.pandora_vision_verify_observation_v1(uuid,uuid,text)') is not null then
+    execute 'revoke execute on function public.pandora_vision_verify_observation_v1(uuid,uuid,text) from public,anon';
+    execute 'grant execute on function public.pandora_vision_verify_observation_v1(uuid,uuid,text) to authenticated,service_role';
+  end if;
+end;
+$hardening$;
