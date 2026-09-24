@@ -20,7 +20,8 @@ function createOfficialMetaRuntime(options) {
     const webhookHealthStore = options.webhookHealthStore ?? new health_store_1.InMemoryMetaWebhookHealthStore();
     const provider = new official_read_provider_1.OfficialMetaReadProvider({
         apiVersion: config.graphApiVersion,
-        pageAccessTokenSecretRef: required(config.tokenSecretRef, 'META_TOKEN_SECRET_REF'),
+        pageAccessTokenSecretRef: required(config.tokenSecretRef, 'META_TOKEN_SECRET_REF or META_REMOTE_MCP_INSTALLATION_ID'),
+        marketingAccessTokenSecretRef: config.marketingTokenSecretRef ?? config.tokenSecretRef,
         secretResolver,
         transport: options.transport,
         requestTimeoutMs: config.requestTimeoutMs,
