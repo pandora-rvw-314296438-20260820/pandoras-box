@@ -375,7 +375,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path='pg_catalog','public','private'
-as $
+as $tax_rule_pack_guard$
 begin
   if tg_op='DELETE' then
     if old.status in ('approved','superseded') then
@@ -408,14 +408,14 @@ begin
 
   return new;
 end;
-$;
+$tax_rule_pack_guard$;
 
 create or replace function private.pandora_tax_rule_immutability_v1()
 returns trigger
 language plpgsql
 security definer
 set search_path='pg_catalog','public','private'
-as $
+as $tax_rule_guard$
 declare
   pack_id uuid;
   pack_status text;
@@ -430,9 +430,12 @@ begin
     raise exception 'tax rules in approved or superseded packs are immutable' using errcode='42501';
   end if;
 
-  return case when tg_op='DELETE' then old else new end;
+  if tg_op='DELETE' then
+    return old;
+  end if;
+  return new;
 end;
-$;
+$tax_rule_guard$;
 
 drop trigger if exists pandora_tax_rule_pack_immutability_v1 on public.tax_rule_packs;
 create trigger pandora_tax_rule_pack_immutability_v1
