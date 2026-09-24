@@ -1,0 +1,17 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Live version: 20260924192759
+-- Live name: pandora_system_audit_repair_v1
+--
+-- The repair SQL is canonically preserved in:
+--   20260923183000_pandora_system_audit_repair_v1.sql
+--
+-- On 2026-09-25, the canonical repair was applied through the Supabase
+-- migration API after two MCP transaction replays hit the short statement
+-- timeout and rolled back. Supabase recorded the successful live application
+-- under this generated migration version.
+--
+-- This file is history-only and MUST NOT replay the repair a second time.
+-- It exists solely to keep canonical source migration history aligned with
+-- the provider readback while retaining the original migration as the one
+-- authoritative SQL body.
