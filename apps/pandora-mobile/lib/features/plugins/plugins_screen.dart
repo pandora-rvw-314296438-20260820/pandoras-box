@@ -872,6 +872,8 @@ String _providerPurpose(String provider) => switch (provider) {
       'google_drive' =>
         'Files and documents through Google Workspace authorization.',
       'google_sheets' => 'Spreadsheets through Google Workspace authorization.',
+      'meta' =>
+        'Facebook Pages, Meta ad accounts, campaigns, and performance insights.',
       _ => 'Provider capability exposed by Pandora runtime truth.',
     };
 

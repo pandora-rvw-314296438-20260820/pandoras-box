@@ -824,6 +824,7 @@ class PandoraIntelligenceTurn {
     this.clarifyingQuestion,
     this.conversationLane,
     this.handoff,
+    this.authorizationUrl,
   });
 
   final String threadId;
@@ -834,9 +835,12 @@ class PandoraIntelligenceTurn {
   final String? clarifyingQuestion;
   final String? conversationLane;
   final PandoraIntelligenceHandoff? handoff;
+  final Uri? authorizationUrl;
 
   factory PandoraIntelligenceTurn.fromJson(Map<String, dynamic> json) {
     final handoffJson = _map(json['handoff']);
+    final providerReadback = _map(json['providerReadback']);
+    final authorization = _map(providerReadback['authorization']);
     return PandoraIntelligenceTurn(
       threadId: _requiredText(json['threadId']),
       reply: _requiredText(json['reply']),
@@ -852,6 +856,8 @@ class PandoraIntelligenceTurn {
               source: _optionalText(handoffJson['source']),
             )
           : null,
+      authorizationUrl:
+          _trustedProviderAuthorizationUri(authorization['authorizationUrl']),
     );
   }
 }
@@ -896,6 +902,21 @@ String _requiredText(Object? value) {
     );
   }
   return result;
+}
+
+Uri? _trustedProviderAuthorizationUri(Object? value) {
+  final raw = _optionalText(value);
+  if (raw == null) return null;
+  final uri = Uri.tryParse(raw);
+  if (uri == null || uri.scheme != 'https' || uri.userInfo.isNotEmpty) {
+    return null;
+  }
+  const allowedHosts = <String>{
+    'www.facebook.com',
+    'accounts.google.com',
+  };
+  if (!allowedHosts.contains(uri.host.toLowerCase())) return null;
+  return uri;
 }
 
 DateTime? _optionalDate(Object? value) {

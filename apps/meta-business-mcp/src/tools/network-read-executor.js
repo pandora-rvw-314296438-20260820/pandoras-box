@@ -22,6 +22,12 @@ function optionalLimit(argumentsValue) {
     }
     return value;
 }
+function optionalDatePreset(argumentsValue) {
+    const value = argumentsValue.datePreset;
+    if (value === undefined) return 'last_7d';
+    if (typeof value !== 'string' || !value.trim()) throw new Error('datePreset must be a string');
+    return value.trim();
+}
 function optionalStringArray(argumentsValue, key) {
     const value = argumentsValue[key];
     if (value === undefined) {
@@ -89,6 +95,18 @@ class MetaNetworkReadExecutor {
                 break;
             case 'meta_webhook_health':
                 data = await this.provider.getWebhookHealth(pageId);
+                break;
+            case 'meta_ad_accounts_list':
+                data = await this.provider.listAdAccounts(pageId, optionalLimit(argumentsValue));
+                break;
+            case 'meta_ad_campaigns_list':
+                data = await this.provider.listCampaigns(pageId, requiredString(argumentsValue, 'adAccountId'), optionalLimit(argumentsValue));
+                break;
+            case 'meta_ad_account_insights':
+                data = await this.provider.getAdAccountInsights(pageId, requiredString(argumentsValue, 'adAccountId'), optionalDatePreset(argumentsValue));
+                break;
+            case 'meta_campaign_insights':
+                data = await this.provider.getCampaignInsights(pageId, requiredString(argumentsValue, 'campaignId'), optionalDatePreset(argumentsValue));
                 break;
             default:
                 throw new executor_1.MetaPolicyDeniedError(toolName, ['unsupported_network_read_tool']);
