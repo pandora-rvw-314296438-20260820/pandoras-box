@@ -32,7 +32,7 @@ create table if not exists public.tax_rule_packs (
   review_notes text,
   reviewed_by uuid,
   approved_at timestamptz,
-  superseded_by uuid references public.tax_rule_packs(id) on delete set null,
+  superseded_by uuid references public.tax_rule_packs(id) on delete restrict,
   created_at timestamptz not null default clock_timestamp(),
   updated_at timestamptz not null default clock_timestamp(),
   unique (jurisdiction_code,version),
@@ -172,11 +172,11 @@ create table if not exists public.tax_ledger_entries (
   constraint tax_ledger_period_org_fkey
     foreign key (tax_period_id,organization_id)
     references public.tax_periods(id,organization_id)
-    on delete set null,
+    on delete restrict,
   constraint tax_ledger_source_org_fkey
     foreign key (source_object_id,organization_id)
     references public.tax_source_objects(id,organization_id)
-    on delete set null,
+    on delete restrict,
   constraint tax_ledger_document_org_fkey
     foreign key (document_id,organization_id)
     references public.tax_documents(id,organization_id)
