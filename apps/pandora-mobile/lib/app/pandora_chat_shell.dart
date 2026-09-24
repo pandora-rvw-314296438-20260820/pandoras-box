@@ -609,7 +609,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               drawerScrimColor: const Color(0x99000000),
               drawer: Drawer(
                 width: 304,
-                backgroundColor: PandoraV2Colors.surface,
+                backgroundColor: PandoraV2Colors.canvas,
                 surfaceTintColor: Colors.transparent,
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.only(
@@ -654,7 +654,7 @@ class _PandoraSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: PandoraV2Colors.surface,
+        color: PandoraV2Colors.canvas,
         child: Stack(
           fit: StackFit.expand,
           children: [
