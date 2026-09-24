@@ -216,11 +216,11 @@ test("approved deterministic rule pack is bound to a newly prepared period", asy
     await db.query(
       `insert into public.tax_rule_packs(
         jurisdiction_code,version,status,effective_from,effective_to,
-        official_sources,review_notes,approved_at
+        official_sources,review_notes,reviewed_by,approved_at
       ) values(
         'PH','ph-foundation-test-v1','approved','2026-01-01','2026-12-31',
         '[{"type":"official_bir_source","ref":"synthetic-test-only"}]'::jsonb,
-        'Synthetic contract fixture only',now()
+        'Synthetic contract fixture only','30000000-0000-4000-8000-000000000001',now()
       ) returning id`,
     )
   ).rows[0];
@@ -256,11 +256,11 @@ test("approved tax rule history becomes immutable and can only be superseded by 
     await db.query(
       `insert into public.tax_rule_packs(
         jurisdiction_code,version,status,effective_from,effective_to,
-        official_sources,review_notes,approved_at
+        official_sources,review_notes,reviewed_by,approved_at
       ) values(
         'PH','immutable-v1','approved','2026-01-01','2026-12-31',
         '[{"type":"official_bir_source","ref":"synthetic-immutable-test"}]'::jsonb,
-        'Synthetic immutable-history fixture',now()
+        'Synthetic immutable-history fixture','30000000-0000-4000-8000-000000000001',now()
       ) returning id`,
     )
   ).rows[0];
@@ -278,18 +278,18 @@ test("approved tax rule history becomes immutable and can only be superseded by 
       "update public.tax_rule_packs set review_notes='mutated' where id=$1",
       [approved.id],
     ),
-    /approved tax rule packs may only transition immutably to superseded/,
+    /approved tax rule packs may only transition immutably to a verified approved replacement/,
   );
 
   const replacement = (
     await db.query(
       `insert into public.tax_rule_packs(
         jurisdiction_code,version,status,effective_from,effective_to,
-        official_sources,review_notes,approved_at
+        official_sources,review_notes,reviewed_by,approved_at
       ) values(
         'PH','immutable-v2','approved','2027-01-01',null,
         '[{"type":"official_bir_source","ref":"synthetic-replacement-test"}]'::jsonb,
-        'Synthetic replacement fixture',now()
+        'Synthetic replacement fixture','30000000-0000-4000-8000-000000000002',now()
       ) returning id`,
     )
   ).rows[0];
@@ -316,10 +316,89 @@ test("approved packs require non-empty authoritative source provenance", async (
   await assert.rejects(
     db.query(
       `insert into public.tax_rule_packs(
-        jurisdiction_code,version,status,official_sources,approved_at
-      ) values('PH','invalid-approved','approved','[]'::jsonb,now())`,
+        jurisdiction_code,version,status,official_sources,review_notes,reviewed_by,approved_at
+      ) values('PH','invalid-approved','approved','[]'::jsonb,'Synthetic invalid fixture','30000000-0000-4000-8000-000000000003',now())`,
     ),
     /check constraint/,
+  );
+});
+
+
+test("draft rules require non-empty deterministic specification and source provenance", async (t) => {
+  const db = await makeDb(t);
+  const draft = (
+    await db.query(
+      `insert into public.tax_rule_packs(
+        jurisdiction_code,version,status,official_sources
+      ) values(
+        'PH','draft-source-check','draft',
+        '[{"type":"official_bir_source","ref":"synthetic-draft-test"}]'::jsonb
+      ) returning id`,
+    )
+  ).rows[0];
+
+  await assert.rejects(
+    db.query(
+      "insert into public.tax_rules(rule_pack_id,rule_key,rule_type,deterministic_spec,official_source_ref) values($1,'empty-spec','rate','{}'::jsonb,'{\"ref\":\"x\"}'::jsonb)",
+      [draft.id],
+    ),
+    /check constraint/,
+  );
+  await assert.rejects(
+    db.query(
+      "insert into public.tax_rules(rule_pack_id,rule_key,rule_type,deterministic_spec,official_source_ref) values($1,'empty-source','rate','{\"formula\":\"synthetic\"}'::jsonb,'{}'::jsonb)",
+      [draft.id],
+    ),
+    /check constraint/,
+  );
+});
+
+test("approved packs cannot be superseded by a draft or cross-jurisdiction replacement", async (t) => {
+  const db = await makeDb(t);
+  await db.exec(
+    "insert into public.tax_jurisdictions(code,display_name,currency_code,status) values('XX','Synthetic Other','XXX','draft')",
+  );
+  const approved = (
+    await db.query(
+      `insert into public.tax_rule_packs(
+        jurisdiction_code,version,status,official_sources,review_notes,reviewed_by,approved_at
+      ) values(
+        'PH','supersession-source','approved',
+        '[{"type":"official_bir_source","ref":"synthetic-source"}]'::jsonb,
+        'Synthetic approved source','30000000-0000-4000-8000-000000000004',now()
+      ) returning id`,
+    )
+  ).rows[0];
+  const draft = (
+    await db.query(
+      "insert into public.tax_rule_packs(jurisdiction_code,version,status) values('PH','supersession-draft','draft') returning id",
+    )
+  ).rows[0];
+  const other = (
+    await db.query(
+      `insert into public.tax_rule_packs(
+        jurisdiction_code,version,status,official_sources,review_notes,reviewed_by,approved_at
+      ) values(
+        'XX','cross-jurisdiction','approved',
+        '[{"type":"official_source","ref":"synthetic-other"}]'::jsonb,
+        'Synthetic cross-jurisdiction','30000000-0000-4000-8000-000000000005',now()
+      ) returning id`,
+    )
+  ).rows[0];
+
+  await assert.rejects(
+    db.query(
+      "update public.tax_rule_packs set status='superseded',superseded_by=$2 where id=$1",
+      [approved.id,draft.id],
+    ),
+    /verified approved replacement/,
+  );
+  await assert.rejects(
+    db.query(
+      "update public.tax_rule_packs set status='superseded',superseded_by=$2 where id=$1",
+      [approved.id,other.id],
+    ),
+    /verified approved replacement/,
   );
 });
 
