@@ -24,14 +24,14 @@ class PlpTeamManagementScreen extends StatefulWidget {
 }
 
 class _PlpTeamManagementScreenState extends State<PlpTeamManagementScreen> {
-  static const _canvas = Color(0xFF050505);
-  static const _paper = Color(0xFF0E0E0F);
-  static const _ink = Color(0xFFF2EEE7);
-  static const _muted = Color(0xFFA49D93);
-  static const _gold = Color(0xFFD6AD63);
-  static const _goldSoft = Color(0xFF17130D);
-  static const _line = Color(0xFF2C2924);
-  static const _green = Color(0xFF8FA889);
+  static const _canvas = Color(0xFFFBF8F2);
+  static const _paper = Color(0xFFFFFDFC);
+  static const _ink = Color(0xFF171512);
+  static const _muted = Color(0xFF746F67);
+  static const _gold = Color(0xFF70643F);
+  static const _goldSoft = Color(0xFFF2EEE6);
+  static const _line = Color(0xFFE1DBD1);
+  static const _green = Color(0xFF657965);
 
   late final PandoraUserAdminGateway _gateway;
   PandoraOrganizationAccess? _organization;
@@ -312,13 +312,13 @@ class _PlpTeamManagementScreenState extends State<PlpTeamManagementScreen> {
                         key: const ValueKey<String>('plp-team-manage-error'),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF241311),
-                          border: Border.all(color: const Color(0xFF5A312D)),
+                          color: const Color(0xFFFFF4F1),
+                          border: Border.all(color: const Color(0xFFE8C2BB)),
                         ),
                         child: Text(
                           _failure!.message,
                           style: const TextStyle(
-                            color: Color(0xFFD8645B),
+                            color: Color(0xFF92392F),
                             fontSize: 12.5,
                             height: 1.4,
                           ),
@@ -401,7 +401,7 @@ class _Header extends StatelessWidget {
               child: Text(
                 'PUEBLO LA PERLA',
                 style: TextStyle(
-                  color: Color(0xFFCFB27A),
+                  color: Color(0xFF4C3020),
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
@@ -471,11 +471,11 @@ class _MemberRow extends StatelessWidget {
       case 'active':
         return _PlpTeamManagementScreenState._green;
       case 'invited':
-        return const Color(0xFFD6AD63);
+        return const Color(0xFF9B7A36);
       case 'suspended':
-        return const Color(0xFFC98654);
+        return const Color(0xFFA76535);
       default:
-        return const Color(0xFFC6766E);
+        return const Color(0xFF8A5550);
     }
   }
 
