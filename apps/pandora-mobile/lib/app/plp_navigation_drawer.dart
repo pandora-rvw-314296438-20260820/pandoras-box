@@ -123,7 +123,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: DecoratedBox(
             decoration: const BoxDecoration(
-              color: Color(0xF20A0C10),
+              color: Color(0xFF000000),
               border: Border(
                 right: BorderSide(color: Color(0x1FFFFFFF)),
               ),
