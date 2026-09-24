@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../core/widgets/pandora_mark.dart';
 
 class PlpRecentChatItem {
   const PlpRecentChatItem({
@@ -198,7 +199,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                             leading: const Icon(
                               Icons.chat_bubble_outline_rounded,
                               size: 23,
-                              color: Color(0xFFC9C2B8),
+                              color: Color(0xFFC7CDD5),
                             ),
                             onTap: () => setState(
                               () => _recentExpanded = !_recentExpanded,
@@ -221,7 +222,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                                 Text(
                                   'Loading recent chats…',
                                   style: TextStyle(
-                                    color: Color(0xFF9A948C),
+                                    color: Color(0xFF929AA5),
                                     fontSize: 13,
                                   ),
                                 ),
@@ -238,7 +239,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                                   child: Text(
                                     'Recent chats unavailable',
                                     style: TextStyle(
-                                      color: Color(0xFF9A948C),
+                                      color: Color(0xFF929AA5),
                                       fontSize: 13,
                                     ),
                                   ),
@@ -257,7 +258,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                             child: Text(
                               'No recent chats',
                               style: TextStyle(
-                                color: Color(0xFF8E8881),
+                                color: Color(0xFF818A96),
                                 fontSize: 13,
                               ),
                             ),
@@ -276,7 +277,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                             leading: const Icon(
                               Icons.code_rounded,
                               size: 23,
-                              color: Color(0xFFB7B0A7),
+                              color: Color(0xFFB8C0CA),
                             ),
                             onTap: () => setState(
                               () => _systemExpanded = !_systemExpanded,
@@ -302,13 +303,15 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                           padding: const EdgeInsets.fromLTRB(18, 14, 8, 10),
                           child: Row(
                             children: [
+                              const PandoraMark(size: 42),
+                              const SizedBox(width: 12),
                               const Expanded(
                                 child: Text(
                                   'Pandora',
                                   maxLines: 1,
                                   overflow: TextOverflow.fade,
                                   style: TextStyle(
-                                    color: Color(0xFFF2EEE7),
+                                    color: Color(0xFFF8F8F6),
                                     fontSize: 29,
                                     height: 1,
                                     fontWeight: FontWeight.w700,
@@ -327,7 +330,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                                       ? Icons.close_rounded
                                       : Icons.search_rounded,
                                   size: 24,
-                                  color: const Color(0xFFD4CDC3),
+                                  color: const Color(0xFFD9DEE5),
                                 ),
                               ),
                             ],
@@ -343,19 +346,19 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                               textInputAction: TextInputAction.search,
                               onChanged: (value) => setState(() => _query = value.trim()),
                               style: const TextStyle(
-                                color: Color(0xFFF2EEE7),
+                                color: Color(0xFFF5F6F7),
                                 fontSize: 15,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Search navigation and chats',
-                                hintStyle: const TextStyle(color: Color(0xFF8C867E)),
+                                hintStyle: const TextStyle(color: Color(0xFF858E9A)),
                                 prefixIcon: const Icon(
                                   Icons.search_rounded,
-                                  color: Color(0xFFA9A198),
+                                  color: Color(0xFFAAB1BA),
                                   size: 21,
                                 ),
                                 filled: true,
-                                fillColor: const Color(0x730E0E0F),
+                                fillColor: const Color(0x7318202A),
                                 isDense: true,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
@@ -389,7 +392,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                       key: const ValueKey<String>('plp-drawer-bottom-overlay'),
                       padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
                       child: Material(
-                        color: const Color(0xE00E0E0F),
+                        color: const Color(0xD9181C22),
                         surfaceTintColor: Colors.transparent,
                         borderRadius: BorderRadius.circular(18),
                         child: InkWell(
@@ -400,9 +403,9 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                             child: Row(
                               children: [
-                                Icon(Icons.edit_square, size: 21, color: Color(0xFFF2EEE7)),
+                                Icon(Icons.edit_square, size: 21, color: Color(0xFFF4F6F8)),
                                 SizedBox(width: 12),
-                                Text('New chat', style: TextStyle(color: Color(0xFFF2EEE7), fontSize: 15, fontWeight: FontWeight.w700)),
+                                Text('New chat', style: TextStyle(color: Color(0xFFF4F6F8), fontSize: 15, fontWeight: FontWeight.w700)),
                               ],
                             ),
                           ),
@@ -419,10 +422,28 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     );
   }
 
-  Widget _plpLogo() => const Icon(
-        Icons.hotel_outlined,
-        color: Color(0xFFD6AD63),
-        size: 23,
+  Widget _plpLogo() => ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: SizedBox.square(
+          dimension: 34,
+          child: Image.asset(
+            'assets/workspaces/plp.webp',
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const DecoratedBox(
+              decoration: BoxDecoration(color: Color(0xFF1B2734)),
+              child: Center(
+                child: Text(
+                  'PLP',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       );
 
   Widget _expandableRow({
@@ -461,7 +482,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: Color(0xFFF2EEE7),
+                            color: Color(0xFFF2F4F6),
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -473,7 +494,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFF8C867E),
+                              color: Color(0xFF858E99),
                               fontSize: 12,
                               height: 1.2,
                             ),
@@ -488,7 +509,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                     duration: const Duration(milliseconds: 150),
                     child: const Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      color: Color(0xFF989188),
+                      color: Color(0xFF9099A5),
                       size: 22,
                     ),
                   ),
@@ -514,7 +535,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
         excludeSemantics: true,
         label: selected ? '${item.label}, selected' : item.label,
         child: Material(
-          color: selected ? const Color(0xCC1B1711) : Colors.transparent,
+          color: selected ? const Color(0xC52A313B) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           child: InkWell(
             key: ValueKey<String>('plp-drawer-${item.id}'),
@@ -532,8 +553,8 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                         item.icon,
                         size: 23,
                         color: selected
-                            ? const Color(0xFFD6AD63)
-                            : const Color(0xFFAAA39A),
+                            ? const Color(0xFFF7F8F9)
+                            : const Color(0xFFAFB7C1),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -544,8 +565,8 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: selected
-                              ? const Color(0xFFF2EEE7)
-                              : const Color(0xFFD1CBC2),
+                              ? const Color(0xFFFFFFFF)
+                              : const Color(0xFFD5DAE0),
                           fontSize: 16,
                           fontWeight:
                               selected ? FontWeight.w700 : FontWeight.w500,
@@ -583,7 +604,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFFAAA39A),
+                      color: Color(0xFFB0B8C2),
                       fontSize: 14,
                     ),
                   ),
