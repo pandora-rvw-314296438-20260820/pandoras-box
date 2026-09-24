@@ -653,7 +653,7 @@ begin
   select pg_get_functiondef('public.pandora_chat_capability_registry_v3(uuid)'::regprocedure) into v_registry;
   select pg_get_functiondef('public.pandora_chat_capability_dispatch_native_v1(uuid,text,uuid,uuid)'::regprocedure) into v_dispatch;
   if position('pandora_meta_connection_v1' in v_registry)=0
-     or position('''provider'', ''meta''' in lower(v_registry))=0 then
+     or position('ads.manage' in lower(v_registry))=0 then
     raise exception 'pandora_meta_registry_route_missing' using errcode='55000';
   end if;
   if position('pandora_meta_oauth_prepare_v1' in v_dispatch)=0
