@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js@2.4.5/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.57.2";
-const URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const admin = createClient(URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
+const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
 const GRAPH_VERSION = "v26.0";
 const headers = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" };
 const text = (v: unknown) => typeof v === "string" ? v.trim() : "";
