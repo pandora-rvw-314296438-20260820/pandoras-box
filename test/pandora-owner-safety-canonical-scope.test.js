@@ -47,7 +47,7 @@ test("safety does not read historical integration health organization-wide", () 
   const integrationQuery = between(
     safety,
     'context.client.from("projectos_integration_health")',
-    'admin.rpc("verify_execution_audit_chain"',
+    'admin.rpc("verify_execution_audit_head"',
   );
   assert.match(
     integrationQuery,
@@ -70,4 +70,15 @@ test("safety preserves stale and non-expiring evidence semantics", () => {
     ownerApi,
     /freshness: integrationFreshness\(item, now\)/,
   );
+});
+
+
+test("safety uses the constant-time audit head verifier, not a full chain scan", () => {
+  const safety = between(
+    ownerApi,
+    "async function safety(",
+    "const CONNECTED_SERVICES_OWNER_INTENT",
+  );
+  assert.match(safety, /admin\.rpc\("verify_execution_audit_head"/);
+  assert.doesNotMatch(safety, /verify_execution_audit_chain/);
 });
