@@ -112,7 +112,7 @@ test("physical network receipts remain source, build, and device bound", () => {
 test("mobile CI publishes an exact-source GitHub artifact locator", () => {
   assert.match(
     mobileWorkflow,
-    /ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-\\$\\{\\{ github\\.event\\.pull_request\\.head\\.sha \\|\\| github\\.sha \\}\\}/,
+    /ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
   );
   assert.match(mobileWorkflow, /id: upload_android_validation/);
   assert.match(mobileWorkflow, /name: \$\{\{ env\.ANDROID_ARTIFACT_NAME \}\}/);
