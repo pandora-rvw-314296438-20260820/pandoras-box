@@ -209,6 +209,61 @@ test("tax audit trail is append-only even for service role", async (t) => {
   );
 });
 
+
+test("approved deterministic rule pack is bound to a newly prepared period", async (t) => {
+  const db = await makeDb(t);
+  const pack = (
+    await db.query(
+      `insert into public.tax_rule_packs(
+        jurisdiction_code,version,status,effective_from,effective_to,
+        official_sources,review_notes,approved_at
+      ) values(
+        'PH','ph-foundation-test-v1','approved','2026-01-01','2026-12-31',
+        '[{"type":"official_bir_source","ref":"synthetic-test-only"}]'::jsonb,
+        'Synthetic contract fixture only',now()
+      ) returning id`,
+    )
+  ).rows[0];
+
+  await actAs(db, owner);
+  const result = (
+    await db.query(
+      "select public.pandora_tax_prepare_period_v1($1,$2,$3,$4,$5) as payload",
+      [org, "2026-10-01", "2026-10-31", "PH", "monthly"],
+    )
+  ).rows[0].payload;
+
+  assert.equal(result.status, "draft");
+  assert.equal(result.rulesReady, true);
+  assert.equal(result.calculationEnabled, true);
+  assert.equal(result.rulePackId, pack.id);
+
+  const period = (
+    await db.query(
+      "select rule_pack_id,status from public.tax_periods where organization_id=$1 and period_start='2026-10-01'",
+      [org],
+    )
+  ).rows[0];
+  assert.equal(period.rule_pack_id, pack.id);
+  assert.equal(period.status, "draft");
+});
+
+test("foundation preserves evidence lineage and avoids service-role truncate authority", () => {
+  assert.doesNotMatch(migration, /on delete set null/i);
+  assert.doesNotMatch(
+    migration,
+    /grant\s+all\s+on\s+table\s+public\.tax_/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant[^;]*truncate[^;]*public\.tax_/i,
+  );
+  assert.match(
+    migration,
+    /organization_id uuid not null references public\.organizations\(id\) on delete restrict,\s+tax_period_id uuid,\s+event_type text not null/is,
+  );
+});
+
 test("authenticated clients cannot mutate deterministic rule authority", async (t) => {
   const db = await makeDb(t);
   await actAs(db, owner);
