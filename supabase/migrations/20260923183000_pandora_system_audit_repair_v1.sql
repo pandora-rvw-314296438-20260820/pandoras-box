@@ -210,3 +210,25 @@ set source_status='stale',
     updated_at=clock_timestamp()
 where slug='plp-boracay'
   and organization_id='2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid;
+
+-- Security hardening discovered during the second audit pass.
+-- Anonymous execution is not required for provider-backed or enterprise SECURITY DEFINER RPCs.
+revoke execute on function public.pandora_eurofish_github_request_v1(text,text,jsonb) from public,anon;
+revoke execute on function public.pandora_eurofish_memory_github_request_v1(text,text,jsonb) from public,anon;
+revoke execute on function public.pandora_eurofish_github_ci_dispatch_v1() from public,anon;
+revoke execute on function public.pandora_eurofish_github_ci_read_v1(text) from public,anon;
+revoke execute on function public.pandora_eurofish_github_ci_rerun_v1(bigint) from public,anon;
+revoke execute on function public.pandora_eurofish_github_run_read_v1(bigint,text) from public,anon;
+revoke execute on function public.pandora_eurofish_workspace_v1(text) from public,anon;
+revoke execute on function public.pandora_vision_overview_v1(uuid) from public,anon;
+revoke execute on function public.pandora_vision_ack_alert_v1(uuid,uuid,text) from public,anon;
+revoke execute on function public.pandora_vision_request_clip_v1(uuid,uuid,timestamptz,timestamptz,text,uuid) from public,anon;
+revoke execute on function public.pandora_vision_search_v1(uuid,text,uuid,timestamptz,timestamptz,integer) from public,anon;
+revoke execute on function public.pandora_vision_verify_observation_v1(uuid,uuid,text) from public,anon;
+grant execute on function public.pandora_eurofish_github_request_v1(text,text,jsonb) to authenticated,service_role;
+grant execute on function public.pandora_eurofish_memory_github_request_v1(text,text,jsonb) to authenticated,service_role;
+grant execute on function public.pandora_eurofish_github_ci_dispatch_v1() to authenticated,service_role;
+grant execute on function public.pandora_eurofish_github_ci_read_v1(text) to authenticated,service_role;
+grant execute on function public.pandora_eurofish_github_ci_rerun_v1(bigint) to authenticated,service_role;
+grant execute on function public.pandora_eurofish_github_run_read_v1(bigint,text) to authenticated,service_role;
+grant execute on function public.pandora_eurofish_workspace_v1(text) to authenticated,service_role;
