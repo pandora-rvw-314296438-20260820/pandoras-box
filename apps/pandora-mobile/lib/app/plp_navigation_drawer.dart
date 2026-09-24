@@ -3,6 +3,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../core/widgets/pandora_mark.dart';
+
 
 class PlpRecentChatItem {
   const PlpRecentChatItem({
@@ -302,6 +304,8 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                           padding: const EdgeInsets.fromLTRB(18, 14, 8, 10),
                           child: Row(
                             children: [
+                              const PandoraMark(size: 42),
+                              const SizedBox(width: 12),
                               const Expanded(
                                 child: Text(
                                   'Pandora',
@@ -419,10 +423,28 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     );
   }
 
-  Widget _plpLogo() => const Icon(
-        Icons.hotel_outlined,
-        color: Color(0xFFD6AD63),
-        size: 23,
+  Widget _plpLogo() => ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: SizedBox.square(
+          dimension: 34,
+          child: Image.asset(
+            'assets/workspaces/plp.webp',
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const DecoratedBox(
+              decoration: BoxDecoration(color: Color(0xFF1B2734)),
+              child: Center(
+                child: Text(
+                  'PLP',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       );
 
   Widget _expandableRow({

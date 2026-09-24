@@ -32,15 +32,15 @@ class PlpActivityScreen extends StatefulWidget {
 }
 
 class _PlpActivityScreenState extends State<PlpActivityScreen> {
-  static const _canvas = Color(0xFF050505);
-  static const _paper = Color(0xFF0E0E0F);
-  static const _ink = Color(0xFFF2EEE7);
-  static const _muted = Color(0xFFA49D93);
-  static const _gold = Color(0xFFD6AD63);
-  static const _goldSoft = Color(0xFF17130D);
-  static const _line = Color(0xFF2C2924);
-  static const _green = Color(0xFF8FA889);
-  static const _red = Color(0xFFD8645B);
+  static const _canvas = Color(0xFFFAF7F1);
+  static const _paper = Color(0xFFFFFDFC);
+  static const _ink = Color(0xFF171512);
+  static const _muted = Color(0xFF746F67);
+  static const _gold = Color(0xFF70643F);
+  static const _goldSoft = Color(0xFFF2EEE6);
+  static const _line = Color(0xFFE1DBD1);
+  static const _green = Color(0xFF657965);
+  static const _red = Color(0xFFB94B43);
 
   final TextEditingController _search = TextEditingController();
   RealtimeChannel? _realtimeChannel;
@@ -423,7 +423,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: _paper.withValues(alpha: .82),
-          border: Border.all(color: const Color(0xFFB9B0A4)),
+          border: Border.all(color: const Color(0xFFD8CFC3)),
         ),
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
         child: Column(
@@ -467,7 +467,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
                 _selectTab(3);
               },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFD0A15E),
+                foregroundColor: const Color(0xFF75501F),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 2,
                   vertical: 10,
@@ -531,7 +531,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
           Container(
             decoration: BoxDecoration(
               color: _paper.withValues(alpha: .82),
-              border: Border.all(color: const Color(0xFFB9B0A4)),
+              border: Border.all(color: const Color(0xFFD8CFC3)),
             ),
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
             child: Column(
@@ -619,7 +619,7 @@ class _ActivityHeader extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.fade,
               style: TextStyle(
-                color: Color(0xFFCFB27A),
+                color: Color(0xFF4C3020),
                 fontSize: 8.5,
                 height: 1.06,
                 fontWeight: FontWeight.w800,
@@ -633,8 +633,8 @@ class _ActivityHeader extends StatelessWidget {
             onPressed: onSearch,
             style: IconButton.styleFrom(
               foregroundColor: _PlpActivityScreenState._ink,
-              backgroundColor: _PlpActivityScreenState._paper,
-              side: const BorderSide(color: Color(0xFF2C2924)),
+              backgroundColor: Colors.white.withValues(alpha: .74),
+              side: const BorderSide(color: Color(0xFFF0EBE3)),
             ),
             icon: const Icon(Icons.search_rounded, size: 26),
           ),
@@ -721,7 +721,7 @@ class _ActivityTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         decoration: const BoxDecoration(
-          color: Color(0xFF0E0E0F),
+          color: Color(0xFFFFFEFC),
           border: Border(
             bottom: BorderSide(color: _PlpActivityScreenState._line),
           ),
@@ -749,7 +749,7 @@ class _ActivityTabs extends StatelessWidget {
                           style: TextStyle(
                             color: active
                                 ? _PlpActivityScreenState._ink
-                                : const Color(0xFF94908A),
+                                : const Color(0xFF5D5D60),
                             fontSize: index == 3 ? 12.5 : 14.5,
                             fontWeight:
                                 active ? FontWeight.w700 : FontWeight.w500,
@@ -886,13 +886,13 @@ class _BusinessActivityRow extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1C170F),
+                          color: const Color(0xFFF6E5C9),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: const Text(
                           'QA',
                           style: TextStyle(
-                            color: Color(0xFFD09B52),
+                            color: Color(0xFF8C5F1E),
                             fontSize: 8,
                             fontWeight: FontWeight.w800,
                           ),
@@ -967,7 +967,7 @@ class _PandoraLogRow extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: failed
-                  ? const Color(0xFF251414)
+                  ? const Color(0xFFF7E6E3)
                   : _PlpActivityScreenState._goldSoft,
             ),
             child: Icon(
