@@ -112,7 +112,7 @@ test("physical network receipts remain source, build, and device bound", () => {
 test("mobile CI publishes an exact-source GitHub artifact locator", () => {
   assert.match(
     mobileWorkflow,
-    /ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-\$\{\{ github\.sha \}\}/,
+    /ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-\\$\\{\\{ github\\.event\\.pull_request\\.head\\.sha \\|\\| github\\.sha \\}\\}/,
   );
   assert.match(mobileWorkflow, /id: upload_android_validation/);
   assert.match(mobileWorkflow, /name: \$\{\{ env\.ANDROID_ARTIFACT_NAME \}\}/);
@@ -196,4 +196,20 @@ test("capture router rejects extra keys and mismatched canonical identities", as
     ...vercelInput,
     rollbackDeploymentId: `dpl_${"a".repeat(129)}`,
   }), undefined);
+});
+
+
+test("mobile PR exact-source jobs bind to the PR head, not GitHub's temporary merge ref", () => {
+  const sourceBindings = mobileWorkflow.match(
+    /SOURCE_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/g,
+  ) || [];
+  assert.equal(sourceBindings.length, 2);
+  assert.match(
+    mobileWorkflow,
+    /ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
+  );
+  assert.doesNotMatch(
+    mobileWorkflow,
+    /(?:^|\n)\s+SOURCE_SHA: \$\{\{ github\.sha \}\}/,
+  );
 });
