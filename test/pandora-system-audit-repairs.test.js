@@ -68,3 +68,11 @@ test('active mobile runtime uses Pandora project registry names', () => {
 test('next APK has a unique monotonic release identity', () => {
   assert.match(pubspec, /version: 0\.4\.0-rc\.14\+21/);
 });
+
+test('security-definer enterprise and provider RPCs are not anonymously executable', () => {
+  assert.match(repair, /revoke execute on function public\.pandora_eurofish_github_request_v1/);
+  assert.match(repair, /revoke execute on function public\.pandora_eurofish_memory_github_request_v1/);
+  assert.match(repair, /revoke execute on function public\.pandora_eurofish_github_ci_dispatch_v1/);
+  assert.match(repair, /revoke execute on function public\.pandora_eurofish_workspace_v1/);
+  assert.match(repair, /revoke execute on function public\.pandora_vision_overview_v1/);
+});
