@@ -17,7 +17,12 @@ test('Meta OAuth is owner-scoped, one-time, and Vault-backed', () => {
   assert.match(migration, /vault\.create_secret\(v_page_token/);
   assert.match(migration, /'vault:\/\/'\|\|v_page_secret/);
   assert.match(migration, /v_page-'access_token'/);
-  assert.doesNotMatch(migration, /user_token\s+text/);
+  const connectionTable = migration.slice(
+    migration.indexOf('create table if not exists private.pandora_meta_connections'),
+    migration.indexOf('create table if not exists private.pandora_meta_page_tokens'),
+  );
+  assert.doesNotMatch(connectionTable, /\buser_token\s+text\b/);
+  assert.match(connectionTable, /user_token_secret_id uuid not null/);
 });
 
 test('Meta callback verifies live identity, permissions, Pages, and ad accounts before commit', () => {
@@ -30,7 +35,9 @@ test('Meta callback verifies live identity, permissions, Pages, and ad accounts 
 });
 
 test('Meta runtime resolves Page and Marketing credentials from exact installation through service-only RPC', () => {
-  assert.match(resolver, /installation:\/\/[^\s]+\/(?:page|marketing)/);
+  assert.match(resolver, /INSTALLATION_REF/);
+  assert.match(resolver, /page\|marketing/);
+  assert.match(resolver, /Meta installation secret references must use installation:\/\/<uuid>\/<page\|marketing>/);
   assert.match(resolver, /pandora_meta_runtime_secret_v1/);
   assert.match(migration, /pandora_meta_runtime_service_role_required/);
   assert.match(migration, /p_installation_id/);
