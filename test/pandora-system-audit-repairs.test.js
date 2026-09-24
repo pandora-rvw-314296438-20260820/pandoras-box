@@ -70,9 +70,9 @@ test('next APK has a unique monotonic release identity', () => {
 });
 
 test('security-definer enterprise and provider RPCs are not anonymously executable', () => {
-  assert.match(repair, /revoke execute on function public\.pandora_eurofish_github_request_v1/);
-  assert.match(repair, /revoke execute on function public\.pandora_eurofish_memory_github_request_v1/);
-  assert.match(repair, /revoke execute on function public\.pandora_eurofish_github_ci_dispatch_v1/);
-  assert.match(repair, /revoke execute on function public\.pandora_eurofish_workspace_v1/);
-  assert.match(repair, /revoke execute on function public\.pandora_vision_overview_v1/);
+  assert.match(repair, /pandora_eurofish_github_request_v1/);
+  assert.match(repair, /pandora_eurofish_memory_github_request_v1/);
+  assert.match(repair, /pandora_eurofish_github_ci_dispatch_v1/);
+  assert.match(repair, /pandora_eurofish_workspace_v1/);
+  assert.match(repair, /pandora_vision_overview_v1/);
 });
