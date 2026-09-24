@@ -86,10 +86,10 @@ class MetaRemoteMcpHandler {
                             name: 'mcpmaster-meta-business',
                             title: 'MCPMaster Meta Business MCP',
                             version: '1.0.0',
-                            description: 'Authenticated read and internal-draft tools for an allowlisted Meta Business Page.',
+                            description: 'Authenticated Page, Marketing API read, and internal-draft tools for an allowlisted Meta Business connection.',
                         },
                         instructions: [
-                            'This server exposes Meta read tools and internal draft creation only.',
+                            'This server exposes Meta Page and Marketing API read tools plus internal draft creation only.',
                             'It does not publish, schedule, reply, send, or delete external content.',
                             'Drafts involving legal advice, deadlines, fees, conflicts, case facts, strategy, or outcomes require human legal review.',
                         ].join(' '),
