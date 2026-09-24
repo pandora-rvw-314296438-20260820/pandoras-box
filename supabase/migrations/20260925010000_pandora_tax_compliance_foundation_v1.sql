@@ -90,7 +90,7 @@ create table if not exists public.tax_source_objects (
   constraint tax_source_objects_connection_org_fkey
     foreign key (source_connection_id,organization_id)
     references public.tax_source_connections(id,organization_id)
-    on delete set null
+    on delete restrict
 );
 
 create table if not exists public.tax_documents (
@@ -115,7 +115,7 @@ create table if not exists public.tax_documents (
   constraint tax_documents_source_org_fkey
     foreign key (source_object_id,organization_id)
     references public.tax_source_objects(id,organization_id)
-    on delete set null
+    on delete restrict
 );
 
 create table if not exists public.tax_periods (
@@ -180,7 +180,7 @@ create table if not exists public.tax_ledger_entries (
   constraint tax_ledger_document_org_fkey
     foreign key (document_id,organization_id)
     references public.tax_documents(id,organization_id)
-    on delete set null
+    on delete restrict
 );
 
 create table if not exists public.tax_reconciliation_runs (
@@ -232,7 +232,7 @@ create table if not exists public.tax_exceptions (
   constraint tax_exceptions_ledger_org_fkey
     foreign key (ledger_entry_id,organization_id)
     references public.tax_ledger_entries(id,organization_id)
-    on delete set null
+    on delete restrict
 );
 
 create table if not exists public.tax_calculation_runs (
@@ -299,7 +299,7 @@ create table if not exists public.tax_obligations (
   constraint tax_obligations_calc_org_fkey
     foreign key (calculation_run_id,organization_id)
     references public.tax_calculation_runs(id,organization_id)
-    on delete set null
+    on delete restrict
 );
 
 create table if not exists public.tax_reviews (
@@ -346,7 +346,7 @@ create table if not exists public.tax_approvals (
 
 create table if not exists public.tax_audit_events (
   id bigint generated always as identity primary key,
-  organization_id uuid not null references public.organizations(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete restrict,
   tax_period_id uuid,
   event_type text not null,
   actor_user_id uuid,
@@ -360,7 +360,7 @@ create table if not exists public.tax_audit_events (
   constraint tax_audit_period_org_fkey
     foreign key (tax_period_id,organization_id)
     references public.tax_periods(id,organization_id)
-    on delete set null
+    on delete restrict
 );
 
 create index if not exists tax_rule_packs_lookup_idx
@@ -585,21 +585,21 @@ grant select on table public.tax_reviews to authenticated;
 grant select on table public.tax_approvals to authenticated;
 grant select on table public.tax_audit_events to authenticated;
 
-grant all on table public.tax_jurisdictions to service_role;
-grant all on table public.tax_rule_packs to service_role;
-grant all on table public.tax_rules to service_role;
-grant all on table public.tax_source_connections to service_role;
-grant all on table public.tax_source_objects to service_role;
-grant all on table public.tax_documents to service_role;
-grant all on table public.tax_periods to service_role;
-grant all on table public.tax_ledger_entries to service_role;
-grant all on table public.tax_reconciliation_runs to service_role;
-grant all on table public.tax_exceptions to service_role;
-grant all on table public.tax_calculation_runs to service_role;
-grant all on table public.tax_calculation_lines to service_role;
-grant all on table public.tax_obligations to service_role;
-grant all on table public.tax_reviews to service_role;
-grant all on table public.tax_approvals to service_role;
+grant select,insert,update,delete on table public.tax_jurisdictions to service_role;
+grant select,insert,update,delete on table public.tax_rule_packs to service_role;
+grant select,insert,update,delete on table public.tax_rules to service_role;
+grant select,insert,update,delete on table public.tax_source_connections to service_role;
+grant select,insert,update,delete on table public.tax_source_objects to service_role;
+grant select,insert,update,delete on table public.tax_documents to service_role;
+grant select,insert,update,delete on table public.tax_periods to service_role;
+grant select,insert,update,delete on table public.tax_ledger_entries to service_role;
+grant select,insert,update,delete on table public.tax_reconciliation_runs to service_role;
+grant select,insert,update,delete on table public.tax_exceptions to service_role;
+grant select,insert,update,delete on table public.tax_calculation_runs to service_role;
+grant select,insert,update,delete on table public.tax_calculation_lines to service_role;
+grant select,insert,update,delete on table public.tax_obligations to service_role;
+grant select,insert,update,delete on table public.tax_reviews to service_role;
+grant select,insert,update,delete on table public.tax_approvals to service_role;
 grant select,insert on table public.tax_audit_events to service_role;
 grant usage,select on sequence public.tax_audit_events_id_seq to service_role;
 
@@ -636,6 +636,7 @@ as $$
 declare
   uid uuid := auth.uid();
   period_row public.tax_periods%rowtype;
+  selected_rule_pack_id uuid;
   rules_ready boolean := false;
 begin
   if uid is null then
@@ -657,26 +658,37 @@ begin
     raise exception 'pandora_tax_unknown_jurisdiction' using errcode='22023';
   end if;
 
-  select exists(
-    select 1
-    from public.tax_rule_packs rp
-    where rp.jurisdiction_code=upper(trim(p_jurisdiction_code))
-      and rp.status='approved'
-      and (rp.effective_from is null or rp.effective_from<=p_period_end)
-      and (rp.effective_to is null or rp.effective_to>=p_period_start)
-  ) into rules_ready;
+  select rp.id
+  into selected_rule_pack_id
+  from public.tax_rule_packs rp
+  where rp.jurisdiction_code=upper(trim(p_jurisdiction_code))
+    and rp.status='approved'
+    and (rp.effective_from is null or rp.effective_from<=p_period_end)
+    and (rp.effective_to is null or rp.effective_to>=p_period_start)
+  order by rp.effective_from desc nulls last, rp.approved_at desc, rp.created_at desc, rp.id desc
+  limit 1;
+
+  rules_ready := selected_rule_pack_id is not null;
 
   insert into public.tax_periods(
     organization_id,jurisdiction_code,period_type,period_start,period_end,
-    status,source_sync_state,created_by
+    status,source_sync_state,rule_pack_id,created_by
   ) values (
     p_organization_id,upper(trim(p_jurisdiction_code)),p_period_type,
     p_period_start,p_period_end,
     case when rules_ready then 'draft' else 'review_required' end,
-    'not_started',uid
+    'not_started',selected_rule_pack_id,uid
   )
   on conflict (organization_id,jurisdiction_code,period_type,period_start,period_end)
-  do update set updated_at=clock_timestamp()
+  do update set
+    rule_pack_id=coalesce(public.tax_periods.rule_pack_id,excluded.rule_pack_id),
+    status=case
+      when public.tax_periods.status='review_required'
+       and excluded.rule_pack_id is not null
+        then 'draft'
+      else public.tax_periods.status
+    end,
+    updated_at=clock_timestamp()
   returning * into period_row;
 
   insert into public.tax_audit_events(
@@ -691,6 +703,7 @@ begin
       'periodType',p_period_type,
       'jurisdiction',upper(trim(p_jurisdiction_code)),
       'rulesReady',rules_ready,
+      'rulePackId',period_row.rule_pack_id,
       'filingEnabled',false,
       'paymentEnabled',false
     )
@@ -707,6 +720,7 @@ begin
     'status',period_row.status,
     'sourceSyncState',period_row.source_sync_state,
     'rulesReady',rules_ready,
+    'rulePackId',period_row.rule_pack_id,
     'calculationEnabled',rules_ready,
     'filingEnabled',false,
     'paymentEnabled',false,
