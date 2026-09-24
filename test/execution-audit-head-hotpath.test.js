@@ -9,7 +9,7 @@ const migration = readFileSync(
     "..",
     "supabase",
     "migrations",
-    "20260925035200_execution_audit_head_integrity_v1.sql",
+    "20260924195443_execution_audit_head_integrity_v1.sql",
   ),
   "utf8",
 );
