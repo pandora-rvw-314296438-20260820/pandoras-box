@@ -30,7 +30,7 @@ test('Meta callback verifies live identity, permissions, Pages, and ad accounts 
 });
 
 test('Meta runtime resolves Page and Marketing credentials from exact installation through service-only RPC', () => {
-  assert.match(resolver, /installation:\\/\\\/.*\(page\|marketing\)/);
+  assert.match(resolver, /installation:\\/\\/[^\\s]+\\/(?:page|marketing)/);
   assert.match(resolver, /pandora_meta_runtime_secret_v1/);
   assert.match(migration, /pandora_meta_runtime_service_role_required/);
   assert.match(migration, /p_installation_id/);
