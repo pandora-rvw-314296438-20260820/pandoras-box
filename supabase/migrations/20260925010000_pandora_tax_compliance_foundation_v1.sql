@@ -37,7 +37,14 @@ create table if not exists public.tax_rule_packs (
   updated_at timestamptz not null default clock_timestamp(),
   unique (jurisdiction_code,version),
   check (effective_to is null or effective_from is null or effective_to >= effective_from),
-  check ((status <> 'approved') or (approved_at is not null))
+  check (
+    (status <> 'approved')
+    or (
+      approved_at is not null
+      and jsonb_typeof(official_sources)='array'
+      and jsonb_array_length(official_sources)>0
+    )
+  )
 );
 
 create table if not exists public.tax_rules (
@@ -362,6 +369,85 @@ create table if not exists public.tax_audit_events (
     references public.tax_periods(id,organization_id)
     on delete restrict
 );
+
+create or replace function private.pandora_tax_rule_pack_immutability_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path='pg_catalog','public','private'
+as $
+begin
+  if tg_op='DELETE' then
+    if old.status in ('approved','superseded') then
+      raise exception 'approved tax rule packs are immutable history' using errcode='42501';
+    end if;
+    return old;
+  end if;
+
+  if old.status='superseded' then
+    raise exception 'superseded tax rule packs are immutable history' using errcode='42501';
+  end if;
+
+  if old.status='approved' then
+    if new.status='superseded'
+       and new.superseded_by is not null
+       and new.jurisdiction_code is not distinct from old.jurisdiction_code
+       and new.version is not distinct from old.version
+       and new.effective_from is not distinct from old.effective_from
+       and new.effective_to is not distinct from old.effective_to
+       and new.official_sources is not distinct from old.official_sources
+       and new.review_notes is not distinct from old.review_notes
+       and new.reviewed_by is not distinct from old.reviewed_by
+       and new.approved_at is not distinct from old.approved_at
+       and new.created_at is not distinct from old.created_at
+    then
+      return new;
+    end if;
+    raise exception 'approved tax rule packs may only transition immutably to superseded' using errcode='42501';
+  end if;
+
+  return new;
+end;
+$;
+
+create or replace function private.pandora_tax_rule_immutability_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path='pg_catalog','public','private'
+as $
+declare
+  pack_id uuid;
+  pack_status text;
+begin
+  pack_id := case when tg_op='DELETE' then old.rule_pack_id else new.rule_pack_id end;
+
+  select rp.status into pack_status
+  from public.tax_rule_packs rp
+  where rp.id=pack_id;
+
+  if pack_status in ('approved','superseded') then
+    raise exception 'tax rules in approved or superseded packs are immutable' using errcode='42501';
+  end if;
+
+  return case when tg_op='DELETE' then old else new end;
+end;
+$;
+
+drop trigger if exists pandora_tax_rule_pack_immutability_v1 on public.tax_rule_packs;
+create trigger pandora_tax_rule_pack_immutability_v1
+before update or delete on public.tax_rule_packs
+for each row execute function private.pandora_tax_rule_pack_immutability_v1();
+
+drop trigger if exists pandora_tax_rule_immutability_v1 on public.tax_rules;
+create trigger pandora_tax_rule_immutability_v1
+before insert or update or delete on public.tax_rules
+for each row execute function private.pandora_tax_rule_immutability_v1();
+
+revoke all on function private.pandora_tax_rule_pack_immutability_v1()
+  from public,anon,authenticated,service_role;
+revoke all on function private.pandora_tax_rule_immutability_v1()
+  from public,anon,authenticated,service_role;
 
 create index if not exists tax_rule_packs_lookup_idx
   on public.tax_rule_packs(jurisdiction_code,status,effective_from,effective_to);
