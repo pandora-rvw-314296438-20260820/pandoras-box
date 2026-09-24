@@ -1753,7 +1753,7 @@ async function safety(context: UserContext) {
       .eq("organization_id", context.organizationId)
       .eq("project_id", safetyProjectId)
       .order("provider"),
-    admin.rpc("verify_execution_audit_chain", {
+    admin.rpc("verify_execution_audit_head", {
       p_organization_id: context.organizationId,
     }),
   ]);
