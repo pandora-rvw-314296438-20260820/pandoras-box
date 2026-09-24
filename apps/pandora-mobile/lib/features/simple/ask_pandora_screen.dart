@@ -143,34 +143,13 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       if (!decision.useLocal) return;
 
       if (!status.loaded && !await PandoraLocalAi.instance.warm()) return;
-
-      // Exercise the exact native user-prompt + token-stream path once before
-      // the owner needs it. This is not a synthetic benchmark: it proves the
-      // installed Qwen model can actually emit a local inference result in the
-      // running APK. The generated smoke turn is discarded and the KV state is
-      // reset before any real conversation.
-      var smoke = '';
-      await for (final chunk in PandoraLocalAi.instance
-          .generate(
-            'Local readiness check. Reply with exactly LOCAL_READY.',
-            predictLength: 32,
-          )
-          .timeout(const Duration(seconds: 30))) {
-        smoke += chunk;
-      }
-      if (smoke.trim().isEmpty ||
-          smoke.trim() == '[[PANDORA_CLOUD_REQUIRED]]') {
-        throw const PandoraLocalAiException(
-          'Local Qwen readiness generation produced no usable result.',
-        );
-      }
-      await PandoraLocalAi.instance.resetConversation();
+      final warmed = await PandoraLocalAi.instance.status();
       unawaited(
         _recordLocalAiTurn(
-          phase: 'self_test',
+          phase: 'prewarm',
           outcome: 'success',
-          reason: 'token_generation_verified',
-          status: status,
+          reason: 'model_ready_without_synthetic_generation',
+          status: warmed,
         ),
       );
       PandoraLocalAiRuntime.instance.keepResident();
@@ -859,9 +838,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       await for (final chunk in PandoraLocalAi.instance
           .generate(
             localPrompt,
-            predictLength: _isPlpEnterpriseContext ? 128 : 192,
+            predictLength: _isPlpEnterpriseContext ? 96 : 192,
           )
-          .timeout(const Duration(seconds: 15))) {
+          .timeout(const Duration(seconds: 30))) {
         if (!mounted) return true;
         response += chunk;
         setState(() {
@@ -884,7 +863,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: status,
         ),
       );
-      await PandoraLocalAiRuntime.instance.unload();
+      if (error is TimeoutException) {
+        await PandoraLocalAi.instance.cancel();
+        PandoraLocalAiRuntime.instance.keepResident();
+      } else {
+        await PandoraLocalAiRuntime.instance.unload();
+      }
       if (!mounted) return true;
       if (started && _messages.length >= 2) {
         setState(() {

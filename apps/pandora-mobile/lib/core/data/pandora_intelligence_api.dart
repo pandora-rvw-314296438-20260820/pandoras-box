@@ -403,11 +403,15 @@ class PandoraIntelligenceApi {
           .eq('organization_id', _organizationId)
           .maybeSingle();
       final json = _map(row);
-      if (_text(json['terminal_state']) != 'result' ||
-          _text(json['execution_state']) != 'complete') {
+      if (_text(json['execution_state']) != 'complete') {
+        return null;
+      }
+      final terminalState = _text(json['terminal_state']);
+      if (terminalState.isNotEmpty && terminalState != 'result') {
         return null;
       }
       final result = _map(json['execution_result']);
+      if (result.isEmpty) return null;
       if (_text(result['reply']).isEmpty || _text(result['threadId']).isEmpty) {
         return null;
       }
@@ -439,11 +443,12 @@ class PandoraIntelligenceApi {
     final safeLimit = limit.clamp(1, 100).toInt();
     try {
       final rows = await _client
-          .from('projectos_projects')
+          .from('pandora_projects')
           .select('id,project_key,name,repository,status,updated_at')
           .eq('organization_id', _organizationId)
           .neq('status', 'archived')
           .neq('project_key', 'projectos-inbox')
+          .neq('project_key', 'pandora-inbox')
           .order('updated_at', ascending: false)
           .limit(safeLimit);
       return (rows as List<dynamic>)

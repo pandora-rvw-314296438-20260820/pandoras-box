@@ -174,8 +174,8 @@ void main() {
       apiSource,
       contains(".select('terminal_state,execution_state,execution_result')"),
     );
-    expect(apiSource, contains("terminal_state']) != 'result'"));
-    expect(apiSource, contains("execution_state']) != 'complete'"));
+    expect(apiSource, contains("_text(json['execution_state']) != 'complete'"));
+    expect(apiSource, contains("terminalState != 'result'"));
   });
 
   test('Qwen warm recovery clears poisoned Error state and serializes cleanup', () {
@@ -193,7 +193,7 @@ void main() {
       kotlinSource,
       contains('activeGeneration?.cancelAndJoin()'),
     );
-    expect(kotlinSource, contains('private const val WARM_DEADLINE_MS = 120_000L'));
+    expect(kotlinSource, contains('private const val WARM_DEADLINE_MS = 180_000L'));
     expect(kotlinSource, contains('engine.requestCancel()'));
     expect(kotlinSource, contains('engine.clearCancelRequest()'));
     expect(kotlinSource, contains('activeWarm?.cancel()'));

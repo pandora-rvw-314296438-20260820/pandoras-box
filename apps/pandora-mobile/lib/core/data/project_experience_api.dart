@@ -147,7 +147,7 @@ class ProjectExperienceApi {
 
       final specId = _requiredText(spec['id']);
       final projectState = await _client
-          .from('projectos_projects')
+          .from('pandora_projects')
           .select('name,config')
           .eq('organization_id', _organizationId)
           .eq('id', projectId)
@@ -249,7 +249,7 @@ class ProjectExperienceApi {
     }
     try {
       final updated = await _client
-          .from('projectos_projects')
+          .from('pandora_projects')
           .update(<String, Object?>{
             'name': nextName,
             'updated_at': DateTime.now().toUtc().toIso8601String(),

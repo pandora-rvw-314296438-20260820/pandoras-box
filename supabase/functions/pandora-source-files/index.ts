@@ -157,7 +157,7 @@ Deno.serve(async (req: Request) => {
     const capability = operation === "search" ? "search" : operation === "export" ? "export" : "read";
     const action = `source.${operation}`;
     const admin = serviceClient();
-    const { data: project, error: projectError } = await admin.from("projectos_projects").select("id,organization_id").eq("id", projectId).maybeSingle();
+    const { data: project, error: projectError } = await admin.from("pandora_projects").select("id,organization_id").eq("id", projectId).maybeSingle();
     if (projectError || !project) throw new Error("PROJECT_NOT_FOUND");
     const organizationId = text(project.organization_id);
     const { data: entitlement, error: entitlementError } = await userClient.rpc("pandora_get_source_entitlement_v1", { p_project_id: projectId, p_capability: capability });
