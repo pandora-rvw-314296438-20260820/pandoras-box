@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import 'enterprise_vision_embed.dart';
 
-const plpCanvas = Color(0xFFFAF8F3);
-const plpPaper = Color(0xFFFFFDFC);
-const plpWarm = Color(0xFFF2EEE6);
-const plpInk = Color(0xFF171512);
-const plpMuted = Color(0xFF746F67);
-const plpLine = Color(0xFFE1DBD1);
-const plpAccent = Color(0xFF70643F);
-const plpGood = Color(0xFF657965);
-const plpWarn = Color(0xFFA56B2C);
+const plpCanvas = Color(0xFF050505);
+const plpPaper = Color(0xFF0E0E0F);
+const plpWarm = Color(0xFF17130D);
+const plpInk = Color(0xFFF2EEE7);
+const plpMuted = Color(0xFFA49D93);
+const plpLine = Color(0xFF2C2924);
+const plpAccent = Color(0xFFD6AD63);
+const plpGood = Color(0xFF8FA889);
+const plpWarn = Color(0xFFD4934C);
 
 Map<String, Object?> _plpMap(Object? value) {
   if (value is Map<String, Object?>) return value;
@@ -415,7 +415,7 @@ class PlpBlackPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: plpInk,
+        color: plpPaper,
         child: InkWell(
           onTap: onTap,
           child: Padding(
@@ -426,7 +426,7 @@ class PlpBlackPanel extends StatelessWidget {
                 Text(
                   eyebrow.toUpperCase(),
                   style: const TextStyle(
-                    color: Color(0xFFD5CCB7),
+                    color: Color(0xFFDDBF86),
                     fontSize: 9.5,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 2,
@@ -447,7 +447,7 @@ class PlpBlackPanel extends StatelessWidget {
                 Text(
                   body,
                   style: const TextStyle(
-                    color: Color(0xFFBDB7AE),
+                    color: Color(0xFFAFA9A0),
                     fontSize: 12,
                     height: 1.5,
                   ),

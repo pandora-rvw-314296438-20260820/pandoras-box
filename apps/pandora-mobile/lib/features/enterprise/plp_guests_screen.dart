@@ -17,14 +17,14 @@ class PlpGuestsScreen extends StatefulWidget {
 }
 
 class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
-  static const _canvas = Color(0xFFFAF7F1);
-  static const _paper = Color(0xFFFFFDFC);
-  static const _ink = Color(0xFF171512);
-  static const _muted = Color(0xFF706B64);
-  static const _line = Color(0xFFE9E1D6);
-  static const _gold = Color(0xFF70643F);
-  static const _goldSoft = Color(0xFFF2EEE6);
-  static const _green = Color(0xFF657965);
+  static const _canvas = Color(0xFF050505);
+  static const _paper = Color(0xFF0E0E0F);
+  static const _ink = Color(0xFFF2EEE7);
+  static const _muted = Color(0xFFA49D93);
+  static const _line = Color(0xFF2C2924);
+  static const _gold = Color(0xFFD6AD63);
+  static const _goldSoft = Color(0xFF17130D);
+  static const _green = Color(0xFF8FA889);
 
   String _filter = 'in-house';
   final TextEditingController _searchController = TextEditingController();
@@ -263,48 +263,6 @@ class _GuestHeader extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 6),
-          const _PlpWordmark(),
-        ],
-      );
-}
-
-class _PlpWordmark extends StatelessWidget {
-  const _PlpWordmark();
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 42,
-            height: 48,
-            child: Image.asset(
-              'assets/workspaces/plp.webp',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Center(
-                child: Text(
-                  'PLP',
-                  style: TextStyle(
-                    color: _PlpGuestsScreenState._ink,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 7),
-          const Text(
-            'PUEBLO\nLA PERLA\nBORACAY',
-            style: TextStyle(
-              color: Color(0xFF4C3020),
-              fontSize: 7.5,
-              height: 1.08,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.25,
-            ),
-          ),
         ],
       );
 }
@@ -349,7 +307,7 @@ class _PropertyIdentity extends StatelessWidget {
             'Extraordinary stays.\nA more human tomorrow.',
             textAlign: TextAlign.right,
             style: TextStyle(
-              color: Color(0xFF7A593E),
+              color: Color(0xFFB99564),
               fontSize: 9.5,
               height: 1.2,
               fontStyle: FontStyle.italic,
@@ -411,15 +369,6 @@ class _GuestExperienceHero extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            SizedBox(
-              width: 74,
-              height: 92,
-              child: Image.asset(
-                'assets/workspaces/plp.webp',
-                fit: BoxFit.contain,
               ),
             ),
           ],
@@ -540,7 +489,7 @@ class _FilterPill extends StatelessWidget {
                     maxLines: 1,
                     style: TextStyle(
                       color: selected
-                          ? const Color(0xFF70471E)
+                          ? const Color(0xFFD0A05C)
                           : _PlpGuestsScreenState._ink,
                       fontSize: compact ? 10 : 11.5,
                       fontWeight:
@@ -648,7 +597,7 @@ class _GuestRow extends StatelessWidget {
                   child: Text(
                     initials,
                     style: const TextStyle(
-                      color: Color(0xFF4C2F1A),
+                      color: Color(0xFFCEB078),
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                     ),
@@ -684,13 +633,13 @@ class _GuestRow extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8E9C9),
+                              color: const Color(0xFF1C170F),
                               borderRadius: BorderRadius.zero,
                             ),
                             child: const Text(
                               'QA',
                               style: TextStyle(
-                                color: Color(0xFF996A21),
+                                color: Color(0xFFD4A052),
                                 fontSize: 8.5,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -718,7 +667,7 @@ class _GuestRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFF867F76),
+                          color: Color(0xFF8F8980),
                           fontSize: 11,
                         ),
                       ),
@@ -910,8 +859,8 @@ class _AttentionItem extends StatelessWidget {
             height: 33,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFFF7EEE2),
-              border: Border.all(color: const Color(0xFFF0E1D0)),
+              color: const Color(0xFF171511),
+              border: Border.all(color: const Color(0xFF2A2117)),
             ),
             child: Icon(
               housekeeping
@@ -955,16 +904,16 @@ class _AttentionItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
             decoration: BoxDecoration(
               color: high
-                  ? const Color(0xFFF8E2D5)
-                  : const Color(0xFFFFEDC3),
+                  ? const Color(0xFF2A1714)
+                  : const Color(0xFF211A0F),
               borderRadius: BorderRadius.zero,
             ),
             child: Text(
               high ? 'Pending' : 'Due today',
               style: TextStyle(
                 color: high
-                    ? const Color(0xFFAF6A3E)
-                    : const Color(0xFF996A1B),
+                    ? const Color(0xFFC98654)
+                    : const Color(0xFFD2A054),
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
@@ -1057,12 +1006,12 @@ class _ArrivalItem extends StatelessWidget {
               height: 33,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFFEFD8B8),
+                color: Color(0xFF2B2115),
               ),
               child: const Icon(
                 Icons.person_rounded,
                 size: 17,
-                color: Color(0xFF7A4A23),
+                color: Color(0xFFC88A50),
               ),
             ),
             const SizedBox(width: 9),
