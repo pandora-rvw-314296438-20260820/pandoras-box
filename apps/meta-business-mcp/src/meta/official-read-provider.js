@@ -107,6 +107,27 @@ function participantName(value, pageId) {
 function insightPeriod(value) {
     return value === 'week' || value === 'month' || value === 'lifetime' ? value : 'day';
 }
+function numericMetaId(value, fieldName) {
+    const normalized = value.trim().replace(/^act_/, '');
+    if (!/^\d+$/.test(normalized)) {
+        throw new Error(`${fieldName} must be a numeric Meta identifier`);
+    }
+    return normalized;
+}
+function marketingDatePreset(value) {
+    const preset = value ?? 'last_7d';
+    const allowed = new Set(['today', 'yesterday', 'last_7d', 'last_14d', 'last_30d', 'this_month', 'last_month']);
+    if (!allowed.has(preset)) {
+        throw new Error('datePreset is unsupported');
+    }
+    return preset;
+}
+function metricArray(value) {
+    return graphArray(value).map((row) => ({
+        actionType: stringValue(row.action_type) ?? 'unknown',
+        value: stringValue(row.value) ?? String(numberValue(row.value) ?? 0),
+    }));
+}
 class OfficialMetaReadProvider {
     constructor(options) {
         this.providerKind = 'official-meta';
@@ -115,6 +136,10 @@ class OfficialMetaReadProvider {
         this.pageAccessTokenSecretRef = options.pageAccessTokenSecretRef.trim();
         if (!this.pageAccessTokenSecretRef) {
             throw new Error('A Page access token secret reference is required');
+        }
+        this.marketingAccessTokenSecretRef = (options.marketingAccessTokenSecretRef ?? options.pageAccessTokenSecretRef).trim();
+        if (!this.marketingAccessTokenSecretRef) {
+            throw new Error('A Marketing API access token secret reference is required');
         }
         this.secretResolver = options.secretResolver;
         this.transport = options.transport ?? new FetchMetaHttpTransport();
@@ -235,6 +260,85 @@ class OfficialMetaReadProvider {
             };
         });
     }
+    async listAdAccounts(_pageId, limit) {
+        const value = await this.marketingGraphGet('me/adaccounts', {
+            fields: 'id,account_id,name,account_status,currency,business{id,name}',
+            limit: String(limit),
+        });
+        return graphArray(value).map((account) => {
+            const business = record(account.business);
+            return {
+                id: stringValue(account.id) ?? 'unknown-account',
+                accountId: stringValue(account.account_id),
+                name: stringValue(account.name) ?? 'Meta ad account',
+                accountStatus: numberValue(account.account_status),
+                currency: stringValue(account.currency),
+                business: stringValue(business.id) ? {
+                    id: stringValue(business.id),
+                    name: stringValue(business.name),
+                } : undefined,
+            };
+        });
+    }
+    async listCampaigns(_pageId, adAccountId, limit) {
+        const accountId = numericMetaId(adAccountId, 'adAccountId');
+        const value = await this.marketingGraphGet(`act_${accountId}/campaigns`, {
+            fields: 'id,name,status,effective_status,objective,buying_type,daily_budget,lifetime_budget,start_time,stop_time,updated_time',
+            limit: String(limit),
+        });
+        return graphArray(value).map((campaign) => ({
+            id: stringValue(campaign.id) ?? 'unknown-campaign',
+            name: stringValue(campaign.name) ?? 'Meta campaign',
+            status: stringValue(campaign.status),
+            effectiveStatus: stringValue(campaign.effective_status),
+            objective: stringValue(campaign.objective),
+            buyingType: stringValue(campaign.buying_type),
+            dailyBudget: stringValue(campaign.daily_budget),
+            lifetimeBudget: stringValue(campaign.lifetime_budget),
+            startTime: stringValue(campaign.start_time),
+            stopTime: stringValue(campaign.stop_time),
+            updatedTime: stringValue(campaign.updated_time),
+        }));
+    }
+    async getAdAccountInsights(_pageId, adAccountId, datePreset) {
+        const accountId = numericMetaId(adAccountId, 'adAccountId');
+        const value = await this.marketingGraphGet(`act_${accountId}/insights`, {
+            fields: 'account_id,account_name,account_currency,impressions,reach,clicks,spend,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop',
+            date_preset: marketingDatePreset(datePreset),
+            limit: '100',
+        });
+        return graphArray(value).map((row) => this.mapMarketingInsight(row));
+    }
+    async getCampaignInsights(_pageId, campaignId, datePreset) {
+        const id = numericMetaId(campaignId, 'campaignId');
+        const value = await this.marketingGraphGet(`${id}/insights`, {
+            fields: 'campaign_id,campaign_name,account_currency,impressions,reach,clicks,spend,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop',
+            date_preset: marketingDatePreset(datePreset),
+            limit: '100',
+        });
+        return graphArray(value).map((row) => this.mapMarketingInsight(row));
+    }
+    mapMarketingInsight(row) {
+        return {
+            accountId: stringValue(row.account_id),
+            accountName: stringValue(row.account_name),
+            campaignId: stringValue(row.campaign_id),
+            campaignName: stringValue(row.campaign_name),
+            currency: stringValue(row.account_currency),
+            impressions: stringValue(row.impressions) ?? '0',
+            reach: stringValue(row.reach) ?? '0',
+            clicks: stringValue(row.clicks) ?? '0',
+            spend: stringValue(row.spend) ?? '0',
+            cpc: stringValue(row.cpc),
+            cpm: stringValue(row.cpm),
+            ctr: stringValue(row.ctr),
+            frequency: stringValue(row.frequency),
+            actions: metricArray(row.actions),
+            actionValues: metricArray(row.action_values),
+            dateStart: stringValue(row.date_start),
+            dateStop: stringValue(row.date_stop),
+        };
+    }
     async getWebhookHealth(pageId) {
         if (this.webhookHealthReader) {
             return this.webhookHealthReader.getWebhookHealth(pageId);
@@ -259,7 +363,13 @@ class OfficialMetaReadProvider {
         };
     }
     async graphGet(path, query) {
-        const token = await (0, resolver_1.resolveRequiredSecret)(this.secretResolver, this.pageAccessTokenSecretRef);
+        return this.graphGetWithSecret(path, query, this.pageAccessTokenSecretRef);
+    }
+    async marketingGraphGet(path, query) {
+        return this.graphGetWithSecret(path, query, this.marketingAccessTokenSecretRef);
+    }
+    async graphGetWithSecret(path, query, secretRef) {
+        const token = await (0, resolver_1.resolveRequiredSecret)(this.secretResolver, secretRef);
         const url = new URL(`${GRAPH_API_ORIGIN}/${this.apiVersion}/${path}`);
         for (const [name, value] of Object.entries(query)) {
             url.searchParams.set(name, value);
