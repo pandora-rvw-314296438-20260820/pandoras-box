@@ -248,6 +248,81 @@ test("approved deterministic rule pack is bound to a newly prepared period", asy
   assert.equal(period.status, "draft");
 });
 
+
+test("approved tax rule history becomes immutable and can only be superseded by reference", async (t) => {
+  const db = await makeDb(t);
+
+  const approved = (
+    await db.query(
+      `insert into public.tax_rule_packs(
+        jurisdiction_code,version,status,effective_from,effective_to,
+        official_sources,review_notes,approved_at
+      ) values(
+        'PH','immutable-v1','approved','2026-01-01','2026-12-31',
+        '[{"type":"official_bir_source","ref":"synthetic-immutable-test"}]'::jsonb,
+        'Synthetic immutable-history fixture',now()
+      ) returning id`,
+    )
+  ).rows[0];
+
+  await assert.rejects(
+    db.query(
+      "insert into public.tax_rules(rule_pack_id,rule_key,rule_type,deterministic_spec,official_source_ref) values($1,'late-rule','rate','{}'::jsonb,'{}'::jsonb)",
+      [approved.id],
+    ),
+    /tax rules in approved or superseded packs are immutable/,
+  );
+
+  await assert.rejects(
+    db.query(
+      "update public.tax_rule_packs set review_notes='mutated' where id=$1",
+      [approved.id],
+    ),
+    /approved tax rule packs may only transition immutably to superseded/,
+  );
+
+  const replacement = (
+    await db.query(
+      `insert into public.tax_rule_packs(
+        jurisdiction_code,version,status,effective_from,effective_to,
+        official_sources,review_notes,approved_at
+      ) values(
+        'PH','immutable-v2','approved','2027-01-01',null,
+        '[{"type":"official_bir_source","ref":"synthetic-replacement-test"}]'::jsonb,
+        'Synthetic replacement fixture',now()
+      ) returning id`,
+    )
+  ).rows[0];
+
+  await db.query(
+    "update public.tax_rule_packs set status='superseded',superseded_by=$2,updated_at=clock_timestamp() where id=$1",
+    [approved.id,replacement.id],
+  );
+
+  const state = (
+    await db.query("select status,superseded_by from public.tax_rule_packs where id=$1", [approved.id])
+  ).rows[0];
+  assert.equal(state.status, "superseded");
+  assert.equal(state.superseded_by, replacement.id);
+
+  await assert.rejects(
+    db.query("delete from public.tax_rule_packs where id=$1", [approved.id]),
+    /approved tax rule packs are immutable history/,
+  );
+});
+
+test("approved packs require non-empty authoritative source provenance", async (t) => {
+  const db = await makeDb(t);
+  await assert.rejects(
+    db.query(
+      `insert into public.tax_rule_packs(
+        jurisdiction_code,version,status,official_sources,approved_at
+      ) values('PH','invalid-approved','approved','[]'::jsonb,now())`,
+    ),
+    /check constraint/,
+  );
+});
+
 test("foundation preserves evidence lineage and avoids service-role truncate authority", () => {
   assert.doesNotMatch(migration, /on delete set null/i);
   assert.doesNotMatch(
