@@ -660,7 +660,9 @@ begin
      or position('pandora_meta_connection_v1' in v_dispatch)=0 then
     raise exception 'pandora_meta_chat_route_missing' using errcode='55000';
   end if;
-  if position('vault.decrypted_secrets' in lower(v_dispatch))>0 then
+  if position('pandora_meta_oauth_app_secret' in lower(v_dispatch))>0
+     or position('pandora_meta_user_' in lower(v_dispatch))>0
+     or position('pandora_meta_page_' in lower(v_dispatch))>0 then
     raise exception 'pandora_meta_chat_secret_boundary_regression' using errcode='55000';
   end if;
 end

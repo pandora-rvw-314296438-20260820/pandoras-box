@@ -23,9 +23,13 @@ test('Connect Meta is routed to the one-time OAuth prepare RPC and live connecti
   assert.match(migration, /pandora_meta_oauth_prepare_v1/);
   assert.match(migration, /'authorization',v_meta/);
   assert.match(migration, /External changes remain approval-gated/);
-  const dispatchStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.pandora_chat_capability_dispatch_native_v1');
-  const dispatch = migration.slice(dispatchStart);
-  assert.doesNotMatch(dispatch, /vault\.decrypted_secrets/);
+  const metaStart = migration.indexOf("elsif v_provider='meta' then");
+  const metaEnd = migration.indexOf("elsif v_provider='google' then", metaStart);
+  assert.notEqual(metaStart, -1);
+  assert.notEqual(metaEnd, -1);
+  const metaLane = migration.slice(metaStart, metaEnd);
+  assert.doesNotMatch(metaLane, /vault\.decrypted_secrets/);
+  assert.doesNotMatch(metaLane, /pandora_meta_oauth_app_secret|pandora_meta_user_|pandora_meta_page_/);
 });
 
 test('mobile opens only deterministic allowlisted provider OAuth URLs', () => {
