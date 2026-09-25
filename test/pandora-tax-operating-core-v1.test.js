@@ -422,6 +422,45 @@ test("command center exposes operational truth without claiming filing or paymen
   assert.doesNotMatch(JSON.stringify(center), /service_role|access_token|refresh_token/i);
 });
 
+test("PH draft rule tests execute deterministically but do not self-approve the pack", async (t) => {
+  const db = await makeDb(t);
+  await db.exec("reset role");
+  const pack = (
+    await db.query(
+      "select id,status from public.tax_rule_packs where jurisdiction_code='PH' and version='ph-2026-authoritative-draft-v1'",
+    )
+  ).rows[0];
+
+  await actAs(db, null, "service_role");
+  const result = (
+    await db.query(
+      "select public.pandora_tax_run_rule_tests_v1($1) as payload",
+      [pack.id],
+    )
+  ).rows[0].payload;
+
+  assert.equal(result.total, 6);
+  assert.equal(result.passed, 6);
+  assert.equal(result.failed, 0);
+  assert.equal(result.allPassed, true);
+
+  await db.exec("reset role");
+  const state = (
+    await db.query(
+      "select status from public.tax_rule_packs where id=$1",
+      [pack.id],
+    )
+  ).rows[0];
+  assert.equal(state.status, "in_review");
+
+  const tests = await db.query(
+    "select test_key,status,last_result from public.tax_rule_tests where rule_pack_id=$1 order by test_key",
+    [pack.id],
+  );
+  assert.equal(tests.rows.length, 6);
+  assert.ok(tests.rows.every((row) => row.status === "passed"));
+});
+
 test("draft PH source pack cannot be approved without passing tests and professional source review", async (t) => {
   const db = await makeDb(t);
   await db.exec("reset role");
@@ -457,6 +496,14 @@ test("operating core grants keep privileged writes out of authenticated clients"
   assert.doesNotMatch(
     operating,
     /grant execute on function public\.pandora_tax_post_ledger_entry_v1[\s\S]{0,500}to authenticated/i,
+  );
+  assert.match(
+    operating,
+    /grant execute on function public\.pandora_tax_run_rule_tests_v1\(uuid\)[\s\S]*to service_role/i,
+  );
+  assert.doesNotMatch(
+    operating,
+    /grant execute on function public\.pandora_tax_run_rule_tests_v1\(uuid\)[\s\S]{0,300}to authenticated/i,
   );
   assert.match(
     operating,
