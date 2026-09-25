@@ -1,0 +1,94 @@
+name: Pandora audit behavioral regression
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'test/sql/audit-security-*.sql'
+      - 'test/audit-final-migration-order.test.js'
+      - 'apps/pandora-mobile/lib/core/local_ai/plp_chat_fallback.dart'
+      - 'apps/pandora-mobile/test/core/local_ai/plp_*test.dart'
+      - '.github/workflows/pandora-audit-behavior.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: audit-behavior-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  authorization:
+    name: Audit / PostgreSQL authorization behavior
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.6@sha256:00bc86618629af00d2937fdc5a5d63db3ff8450acf52f0636ec813c7f4902929
+        env:
+          POSTGRES_PASSWORD: disposable-ci-only
+          POSTGRES_DB: pandora_audit_fixture
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: disposable-ci-only
+      PGDATABASE: pandora_audit_fixture
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Run fixture, actual migrations, and denial behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-fixture.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260925054238_pandora_fail_closed_membership_guards_v1.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260925054517_pandora_provider_tenant_binding_v1.sql
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-behavior.sql
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-trigger-fixture.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260925062441_pandora_tax_internal_trigger_execute_boundary.sql
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-trigger-behavior.sql
+          node --test test/audit-final-migration-order.test.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('supabase/migrations/20260925063000_pandora_meta_native_capability_v1.sql').read_text()
+          match = re.search(r'CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.pandora_chat_capability_dispatch_native_v1\b', source, re.I)
+          assert match, 'Actual late native dispatcher definition missing'
+          tail = source[match.start():]
+          opener = re.search(r'\bAS\s+(\$[A-Za-z_0-9]*\$)', tail, re.I)
+          assert opener, 'Function body delimiter missing'
+          end = tail.index(opener.group(1), opener.end()) + len(opener.group(1))
+          definition = tail[:end] + ';\n'
+          Path('/tmp/late-dispatcher.sql').write_text('CREATE TYPE extensions.http_response AS (status integer, content_type text, headers text[], content text);\n' + definition + '\nGRANT EXECUTE ON FUNCTION public.pandora_chat_capability_dispatch_native_v1(uuid,text,uuid,uuid) TO authenticated;\n')
+          PY
+          psql -X -v ON_ERROR_STOP=1 -f /tmp/late-dispatcher.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260925090001_pandora_authorization_replay_finalizer.sql
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-final-behavior.sql
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-trigger-behavior.sql
+  business-data:
+    name: Audit / PLP missing-data behavior
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Run actual fallback behavioral tests
+        working-directory: apps/pandora-mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get --enforce-lockfile
+          flutter analyze --no-pub lib/core/local_ai/plp_chat_fallback.dart test/core/local_ai/plp_missing_data_test.dart
+          flutter test --no-pub test/core/local_ai/plp_chat_fallback_test.dart test/core/local_ai/plp_missing_data_test.dart

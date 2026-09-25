@@ -1,0 +1,241 @@
+{
+  "schemaVersion": "1.0.0",
+  "taskIds": [
+    "P0-01",
+    "P0-02",
+    "P0-03"
+  ],
+  "recordedAt": "2026-09-25T15:56:23.698891+00:00",
+  "auditedSources": {
+    "box": "fd037d0f3329ad295dc8f3b2b84ad473e538ff7d",
+    "memory": "2d193c0667a037e815f50a1c1c81fd578eaf9d92"
+  },
+  "auditStartedAt": "2026-09-25T15:53:39.912897+00:00",
+  "toolFiles": {
+    "scripts/audit-learning-foundation.mjs": "51503958104aa98156d033f2e9a097b74427aad0b4bc9db8b7335140c8ba9908",
+    "test/pandora-learning-foundation-audit.test.js": "82037b3da94bd940b25c5e55548d68ce8bc48f7bd4d5f5573918e923240e349e"
+  },
+  "nodeVersion": "v24.21.0",
+  "gitVersion": "git version 2.55.0.windows.5",
+  "baseline": [
+    {
+      "command": [
+        "node",
+        "scripts/validate-pandora-skills.mjs"
+      ],
+      "sourceSha": "fd037d0f3329ad295dc8f3b2b84ad473e538ff7d",
+      "startedAt": "2026-09-25T15:42:06.166690+00:00",
+      "exitCode": 0,
+      "logSha256": "caa7c9be9b075115f151d0bd0dbfd5d4570ddffcfbfcff39ea959c1a3a15f2dd"
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "test/pandora-skills-registry.test.js",
+        "test/pandora-skills-runtime.test.js",
+        "test/pandora-internal-skill-exact-source-contract.test.js"
+      ],
+      "sourceSha": "fd037d0f3329ad295dc8f3b2b84ad473e538ff7d",
+      "startedAt": "2026-09-25T15:42:06.496163+00:00",
+      "exitCode": 0,
+      "logSha256": "d6e42911b43a3715fb9474137f6f2ba4b13c6c70619235440cead9d83b405b14"
+    }
+  ],
+  "preFixRun": {
+    "command": [
+      "node",
+      "--test",
+      "test/pandora-learning-foundation-audit.test.js"
+    ],
+    "startedAt": "2026-09-25T15:49:55.573534+00:00",
+    "exitCode": 1,
+    "logSha256": "e1430ab1a8a1a129f2ec5635c517351ebda7bcf012944a6e1f6f77e0e89606f0",
+    "failureClass": "Windows Git global-config null-device incompatibility",
+    "failureStage": "fixture setup; test bodies not established",
+    "rootCause": "Node os.devNull uses Windows device namespace; this Git build rejects it as GIT_CONFIG_GLOBAL",
+    "retainedLog": "RDP evidence/P0-FOUNDATION-20260925/audit-focused.log"
+  },
+  "fixedRun": {
+    "startedAt": "2026-09-25T15:50:47.586869+00:00",
+    "exitCode": 0,
+    "logSha256": "ebb80ad84ea8628b4f3e87aa6b86af8e5fc703d230af771b4d0c8fbcae68b711",
+    "tests": 23,
+    "passed": 23,
+    "failed": 0,
+    "sampleType": "synthetic offline Git fixtures; not a provider/model evaluation",
+    "fix": "Use NUL on Windows and os.devNull elsewhere; global config remains isolated"
+  },
+  "inventoryRuns": {
+    "boxExitCode": 0,
+    "memoryExitCode": 0,
+    "boxEvidenceSha256": "c5ddae1dc3518005a6d798b703f43217a171188a80ae9c14ad3d5e01e2cb795e",
+    "memoryEvidenceSha256": "8d4985fb05a7e306d7436bf90b51f6a964e311aac783812328be1d9a16edf974"
+  },
+  "ownerBoundary": {
+    "source": "Current owner execution instruction in this task, 2026-09-25",
+    "rdpRole": "engineering forge and controlled research only",
+    "productionLocalAI": "phone-resident architecture unchanged",
+    "newModelApproval": false,
+    "newComputeSpendingAuthorized": false,
+    "trainingStarted": false
+  },
+  "rdpObservation": {
+    "observedAt": "2026-09-25T15:30:18.4693963Z",
+    "provider": "Desktop Commander connected device online plus guest CIM reads",
+    "os": "Windows Server 2025 Datacenter",
+    "processor": "Intel Xeon Platinum 8259CL",
+    "logicalProcessors": 4,
+    "totalMemoryKiB": 16465964,
+    "freeMemoryKiB": 12111636,
+    "diskBytes": 214207279104,
+    "freeDiskBytes": 30235070464,
+    "exclusiveHostLease": false,
+    "modelUsabilityVerified": false,
+    "cloudBillingOrInstanceSizingVerified": false
+  },
+  "ownership": {
+    "actualSession": "P0-FOUNDATION-20260925",
+    "tracker": "19_1tfUVVTOvYGGnWR_mUfuRkiu3l44dGDW01U8ocMlA",
+    "excludedIncumbent": "OPS-INTEGRATION-ROUTER-20260925; Operations Room rows33-34; Resource Leases row30",
+    "memory93Head": "4ee4573a06083eb201a9b2e3fd0676dcab94a5f6",
+    "reservationType": "authoritative tracker ACK; no distributed mutex claimed",
+    "coordinationCommentPublished": false,
+    "commentFailure": "GitHub connector returned403; attempted existing broker comment was tool-blocked before a result; no publication claimed"
+  },
+  "acceptance": {
+    "independentReview": "PENDING",
+    "merged": false,
+    "deployed": false,
+    "runtimeAcceptance": "NOT_RUN",
+    "trackerExperimentsRun": 0,
+    "canonicalMemoryPromotion": "NOT_PERFORMED"
+  },
+  "sourceReconciliation": {
+    "from": "fd037d0f3329ad295dc8f3b2b84ad473e538ff7d",
+    "to": "b63e3a710534aa530ba26f8a654f60aabc6e7a93",
+    "method": "unpublished feature branch fast-forward only",
+    "changedMainPaths": [
+      "apps/melodee-chat/index.html",
+      "apps/melodee-chat/package.json",
+      "docs/growth/FB004_IDENTITY_CONTRACT.md",
+      "docs/growth/evidence/fb004-20260925.json",
+      "scripts/audit-fb004-identity.cjs",
+      "scripts/sql/fb004-memory-readback.sql",
+      "scripts/sql/fb004-primary-readback.sql",
+      "test/pandora-fb004-identity-contract.test.js",
+      "test/pandora-fb004-input-boundary.test.js",
+      "test/pandora-m1-006-concurrent-jobs-db.test.js"
+    ],
+    "observedAt": "2026-09-25T16:02:26.940916+00:00"
+  },
+  "broaderRun": {
+    "command": [
+      "node",
+      "--test",
+      "test/pandora-learning-foundation-audit.test.js",
+      "test/pandora-skills-registry.test.js",
+      "test/pandora-skills-runtime.test.js",
+      "test/pandora-internal-skill-exact-source-contract.test.js"
+    ],
+    "startedAt": "2026-09-25T15:59:08.484055+00:00",
+    "sourceBaseSha": "fd037d0f3329ad295dc8f3b2b84ad473e538ff7d",
+    "exitCode": 0,
+    "tests": 41,
+    "passed": 41,
+    "failed": 0,
+    "logSha256": "f256a4335e492a4a9e7c5a8f47abe1bbead8ff8ae145823435326daa09d85346"
+  },
+  "liveGitHubRules": {
+    "observedAt": "2026-09-25T16:02:26.941006+00:00",
+    "rules": [
+      {
+        "type": "deletion",
+        "ruleset_source_type": "Repository",
+        "ruleset_source": "pandora-rvw-314296438-20260820/pandoras-box",
+        "ruleset_id": 21532267
+      },
+      {
+        "type": "non_fast_forward",
+        "ruleset_source_type": "Repository",
+        "ruleset_source": "pandora-rvw-314296438-20260820/pandoras-box",
+        "ruleset_id": 21532267
+      },
+      {
+        "type": "pull_request",
+        "parameters": {
+          "required_approving_review_count": 0,
+          "dismiss_stale_reviews_on_push": true,
+          "required_reviewers": [],
+          "require_code_owner_review": false,
+          "require_last_push_approval": false,
+          "required_review_thread_resolution": true,
+          "require_extra_approval_for_unattributed_changes": true,
+          "allowed_merge_methods": [
+            "squash",
+            "merge",
+            "rebase"
+          ]
+        },
+        "ruleset_source_type": "Repository",
+        "ruleset_source": "pandora-rvw-314296438-20260820/pandoras-box",
+        "ruleset_id": 21532267
+      },
+      {
+        "type": "required_status_checks",
+        "parameters": {
+          "strict_required_status_checks_policy": true,
+          "do_not_enforce_on_create": false,
+          "required_status_checks": [
+            {
+              "context": "canonical-release-source-contract"
+            },
+            {
+              "context": "node24"
+            },
+            {
+              "context": "Windows worker contract"
+            },
+            {
+              "context": "Exact source / Flutter / Android"
+            },
+            {
+              "context": "Dependency review"
+            },
+            {
+              "context": "Exact source / Flutter / iOS"
+            },
+            {
+              "context": "Pandora coordinator / integration",
+              "integration_id": 4785021
+            }
+          ]
+        },
+        "ruleset_source_type": "Repository",
+        "ruleset_source": "pandora-rvw-314296438-20260820/pandoras-box",
+        "ruleset_id": 21532267
+      },
+      {
+        "type": "code_scanning",
+        "parameters": {
+          "code_scanning_tools": [
+            {
+              "tool": "CodeQL",
+              "security_alerts_threshold": "high_or_higher",
+              "alerts_threshold": "errors"
+            }
+          ]
+        },
+        "ruleset_source_type": "Repository",
+        "ruleset_source": "pandora-rvw-314296438-20260820/pandoras-box",
+        "ruleset_id": 21532267
+      }
+    ],
+    "note": "No rule changed; native required approval count is zero at this observation. Tracker acceptance and coordinator requirements are separate; no one-approval gate is invented."
+  },
+  "reconciledInventory": {
+    "sourceSha": "b63e3a710534aa530ba26f8a654f60aabc6e7a93",
+    "exitCode": 0,
+    "evidenceSha256": "b54e93f5c9d3d9e1494f92e23a4d071af845f26077d401b62ed2e378522d384e"
+  }
+}
