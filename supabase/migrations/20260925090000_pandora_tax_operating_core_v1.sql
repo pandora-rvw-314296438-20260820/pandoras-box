@@ -618,8 +618,8 @@ begin
   end if;
 
   fingerprint := encode(
-    digest(
-      concat_ws('|',
+    extensions.digest(
+      convert_to(concat_ws('|',
         p_transaction_date::text,
         p_entry_kind,
         p_currency_code,
@@ -628,7 +628,7 @@ begin
         coalesce(round(p_tax_amount,4)::text,''),
         coalesce(p_document_id::text,''),
         coalesce(p_source_object_id::text,'')
-      ),
+      ),'UTF8'),
       'sha256'
     ),
     'hex'
@@ -883,8 +883,8 @@ security definer
 set search_path='pg_catalog','public'
 as $$
   select encode(
-    digest(
-      coalesce(
+    extensions.digest(
+      convert_to(coalesce(
         string_agg(
           concat_ws('|',
             le.id::text,
@@ -904,7 +904,7 @@ as $$
           order by le.transaction_date,le.id
         ),
         ''
-      ),
+      ),'UTF8'),
       'sha256'
     ),
     'hex'
@@ -1735,12 +1735,12 @@ begin
   end loop;
 
   select encode(
-    digest(
-      coalesce(string_agg(
+    extensions.digest(
+      convert_to(coalesce(string_agg(
         concat_ws('|',line_key,coalesce(amount::text,''),coalesce(currency_code,''),coalesce(rule_key,'')),
         E'\n'
         order by line_key
-      ),''),
+      ),''),'UTF8'),
       'sha256'
     ),
     'hex'
@@ -1959,8 +1959,8 @@ begin
   ) q;
 
   package_hash := encode(
-    digest(
-      return_payload::text||'|'||evidence_index::text||'|'||version_value::text,
+    extensions.digest(
+      convert_to(return_payload::text||'|'||evidence_index::text||'|'||version_value::text,'UTF8'),
       'sha256'
     ),
     'hex'
@@ -1980,7 +1980,7 @@ begin
   ) values (
     p_organization_id,return_row.id,'evidence-index',
     jsonb_build_object('documents',evidence_index),
-    encode(digest(evidence_index::text,'sha256'),'hex')
+    encode(extensions.digest(convert_to(evidence_index::text,'UTF8'),'sha256'),'hex')
   );
 
   insert into public.tax_filing_packages(
