@@ -423,6 +423,39 @@ test("filing package requires completed deterministic calculation and remains su
   ).rows[0].payload;
   assert.equal(professional.status, "accountant_approved");
 
+  await db.exec("reset role");
+  const returnBinding = (
+    await db.query(
+      "select return_version_id from public.tax_filing_packages where id=$1",
+      [pkg.filingPackageId],
+    )
+  ).rows[0];
+  const originalReturn = (
+    await db.query(
+      "select return_payload_redacted from public.tax_return_versions where id=$1",
+      [returnBinding.return_version_id],
+    )
+  ).rows[0].return_payload_redacted;
+  await db.query(
+    "update public.tax_return_versions set return_payload_redacted=$2::jsonb where id=$1",
+    [returnBinding.return_version_id, JSON.stringify({...originalReturn,tampered:true})],
+  );
+
+  await actAs(db, owner);
+  await assert.rejects(
+    db.query(
+      "select public.pandora_tax_approve_filing_package_v1($1,$2)",
+      [org,pkg.filingPackageId],
+    ),
+    /pandora_tax_filing_package_integrity_failed/,
+  );
+
+  await db.exec("reset role");
+  await db.query(
+    "update public.tax_return_versions set return_payload_redacted=$2::jsonb where id=$1",
+    [returnBinding.return_version_id, JSON.stringify(originalReturn)],
+  );
+
   await actAs(db, owner);
   const approved = (
     await db.query(
@@ -601,6 +634,10 @@ test("operating core grants keep privileged writes out of authenticated clients"
     /grant select,insert on table public\.tax_rule_reviews to service_role/i,
   );
   assert.match(operating, /unhashed_source_count>0/);
+  assert.match(operating, /reviewed_package_sha256/);
+  assert.match(operating, /pandora_tax_filing_package_integrity_failed/);
+  assert.match(operating, /revoke insert,update,delete on table public\.tax_reviews from service_role/i);
+  assert.match(operating, /revoke insert,update,delete on table public\.tax_approvals from service_role/i);
   assert.match(operating, /tested_rule_count<rule_count/);
   assert.match(
     operating,
