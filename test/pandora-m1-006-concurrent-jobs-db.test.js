@@ -11,11 +11,14 @@ const migrations = join(__dirname, "..", "supabase", "migrations");
 const transport = readFileSync(join(migrations, "20260914100000_pandora_activity_realtime_transport_v1.sql"), "utf8");
 const controls = readFileSync(join(migrations, "20260915001000_pandora_activity_controls_v1.sql"), "utf8");
 const recovery = readFileSync(join(migrations, "20260915013000_pandora_activity_recovery_v1.sql"), "utf8");
+const nativeProjects = readFileSync(join(migrations, "20260918031500_pandora_native_project_registry_surface_v1.sql"), "utf8");
 const ORG = "10000000-0000-4000-8000-000000000001";
 const OWNER = "20000000-0000-4000-8000-000000000001";
 const PEER = "20000000-0000-4000-8000-000000000002";
 const CLAIM_A = "30000000-0000-4000-8000-000000000001";
 const CLAIM_B = "30000000-0000-4000-8000-000000000002";
+const THREAD = "40000000-0000-4000-8000-000000000001";
+const PROJECT = "50000000-0000-4000-8000-000000000001";
 
 async function setup(db) {
   await db.exec([
@@ -30,12 +33,15 @@ async function setup(db) {
     "create function auth.role() returns text language sql stable as $$ select nullif(current_setting('request.jwt.claim.role', true), '') $$;",
     "create table public.memberships (organization_id uuid not null, user_id uuid not null, status text not null);",
     "create table public.pandora_intelligence_threads (id uuid primary key, organization_id uuid not null, created_by uuid not null, status text not null);",
-    "create table public.projectos_projects (id uuid primary key, organization_id uuid not null, status text not null);",
+    "create table public.projectos_projects (id uuid primary key, organization_id uuid not null, project_key text, name text, repository text, workspace_path text, status text not null, objective text, roadmap_version text, current_phase_key text, current_task_key text, progress_percent integer, config jsonb, created_by uuid, last_reconciled_at timestamptz, created_at timestamptz, updated_at timestamptz);",
+    "insert into public.pandora_intelligence_threads (id,organization_id,created_by,status) values ('" + THREAD + "','" + ORG + "','" + OWNER + "','active');",
+    "insert into public.projectos_projects (id,organization_id,status) values ('" + PROJECT + "','" + ORG + "','active');",
     "insert into public.memberships (organization_id,user_id,status) values ('" + ORG + "','" + OWNER + "','active'),('" + ORG + "','" + PEER + "','active');",
   ].join("\n"));
   await db.exec(transport);
   await db.exec(controls);
   await db.exec(recovery);
+  await db.exec(nativeProjects);
 }
 
 async function identity(db, role, userId) {
@@ -45,8 +51,8 @@ async function identity(db, role, userId) {
 
 async function begin(db, requestId) {
   const { rows } = await db.query(
-    "select public.pandora_activity_job_begin_v1($1::uuid,$2::text,null::uuid,null::uuid) as job",
-    [ORG, requestId],
+    "select public.pandora_activity_job_begin_v1($1::uuid,$2::text,$3::uuid,$4::uuid) as job",
+    [ORG, requestId, THREAD, PROJECT],
   );
   return rows[0].job;
 }
@@ -73,6 +79,20 @@ function event(job, sequence, state, eventId) {
     message: "Evidence for " + job.requestId + " step " + sequence,
     occurredAt: at,
     admittedAt: at,
+    provenance: {
+      sourceType: "runtime",
+      sourceId: "pandora-activity-runtime",
+      sourceEventId: eventId,
+      observedAt: at,
+    },
+    evidence: [{
+      type: "runtime_event",
+      relation: "source",
+      ref: "activity-job:" + job.jobId + "/events/" + sequence,
+    }],
+    domain: "chat",
+    capability: "intelligence.chat",
+    executionId: job.jobId,
   };
 }
 
@@ -102,6 +122,10 @@ test("M1-006 keeps two live Activity jobs, controls and replay cursors independe
     assert.notEqual(alpha.jobId, beta.jobId);
     assert.equal(alpha.lastSequence, 1);
     assert.equal(beta.lastSequence, 1);
+    assert.equal(alpha.threadId, THREAD);
+    assert.equal(beta.threadId, THREAD);
+    assert.equal(alpha.projectId, PROJECT);
+    assert.equal(beta.projectId, PROJECT);
     assert.equal((await begin(db, "m1006-alpha-001")).jobId, alpha.jobId);
 
     await identity(db, "service_role");
@@ -148,7 +172,7 @@ test("M1-006 keeps two live Activity jobs, controls and replay cursors independe
     );
     assert.equal(alphaControl[0].control.jobId, alpha.jobId);
 
-    await admit(db, alpha, 4, "result", "alpha-terminal-4");
+    await admit(db, alpha, 4, "failed", "alpha-failed-4");
     await admit(db, beta, 4, "acting", "beta-still-running-4");
 
     await identity(db, "authenticated", OWNER);
@@ -160,7 +184,10 @@ test("M1-006 keeps two live Activity jobs, controls and replay cursors independe
     assert.ok(bReplay.events.every((item) => item.jobId === beta.jobId));
     assert.equal(aReplay.watermarkSequence, 4);
     assert.equal(bReplay.watermarkSequence, 4);
-    assert.equal(aReplay.terminalState, "result");
+    assert.equal(aReplay.terminalState, "failed");
+    assert.equal(aReplay.events[2].provenance.sourceEventId, "alpha-failed-4");
+    assert.equal(aReplay.events[2].evidence[0].type, "runtime_event");
+    assert.equal(aReplay.events[2].evidence[0].ref, "activity-job:" + alpha.jobId + "/events/4");
     assert.equal(bReplay.terminalState, null);
     assert.equal((await begin(db, "m1006-alpha-001")).lastSequence, 4);
 
