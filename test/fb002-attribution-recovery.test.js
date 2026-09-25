@@ -16,6 +16,14 @@ test('FB-002 preserves provider history without replaying stale ProjectOS author
   }
 });
 
+test('FB-002 records the live provider-generated migration version without replay', () => {
+  const source = read('supabase/migrations/20260925073639_pandora_tracking_dashboard_recovery_v1.sql');
+  assert.match(source, /Version: 20260925073639/);
+  assert.match(source, /Canonical executable authority: supabase\/migrations\/20260925072000_pandora_tracking_dashboard_recovery_v1\.sql/);
+  assert.match(source, /history_receipt_noop/);
+  assert.match(source, /select 1;/);
+});
+
 test('FB-002 forward repair uses Pandora project authority and preserves reporting truth', () => {
   const source = read('supabase/migrations/20260925072000_pandora_tracking_dashboard_recovery_v1.sql');
   assert.match(source, /references private\.project_canonical_registry\(project_id\)/);
@@ -38,6 +46,8 @@ test('FB-002 records a disposition for every PR 682 changed file', () => {
   assert.equal(new Set(evidence.disposition.map((item) => item.path)).size, 15);
   assert.equal(evidence.boundaries.visibleDashboardActivated, false);
   assert.equal(evidence.boundaries.projectosRuntimeAuthorityRestored, false);
+  assert.equal(evidence.providerReadback.appliedMigrationVersion, '20260925073639');
+  assert.equal(evidence.boundaries.providerHistoryReconciled, true);
 });
 
 test('FB-002 does not lose already-recovered tracking HTTP aliases', () => {
