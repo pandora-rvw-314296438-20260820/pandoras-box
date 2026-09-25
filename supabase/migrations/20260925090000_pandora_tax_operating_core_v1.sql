@@ -498,6 +498,130 @@ grant select,insert,update,delete on table public.tax_filing_packages to service
 revoke insert,update,delete on table public.tax_reviews from service_role;
 revoke insert,update,delete on table public.tax_approvals from service_role;
 
+create or replace function private.pandora_tax_rule_pack_immutability_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path='pg_catalog','public','private'
+as $tax_rule_pack_guard_v2$
+declare
+  official_source_count integer;
+  unhashed_source_count integer;
+  rule_count integer;
+  tested_rule_count integer;
+begin
+  if tg_op='DELETE' then
+    if old.status in ('approved','superseded','rejected') then
+      raise exception 'terminal tax rule packs are immutable history' using errcode='42501';
+    end if;
+    return old;
+  end if;
+
+  if old.status in ('superseded','rejected') then
+    raise exception 'terminal tax rule packs are immutable history' using errcode='42501';
+  end if;
+
+  if old.status='approved' then
+    if new.status='superseded'
+       and new.superseded_by is not null
+       and new.superseded_by <> old.id
+       and exists(
+         select 1
+         from public.tax_rule_packs replacement
+         where replacement.id=new.superseded_by
+           and replacement.jurisdiction_code=old.jurisdiction_code
+           and replacement.status='approved'
+       )
+       and new.jurisdiction_code is not distinct from old.jurisdiction_code
+       and new.version is not distinct from old.version
+       and new.effective_from is not distinct from old.effective_from
+       and new.effective_to is not distinct from old.effective_to
+       and new.official_sources is not distinct from old.official_sources
+       and new.review_notes is not distinct from old.review_notes
+       and new.reviewed_by is not distinct from old.reviewed_by
+       and new.approved_at is not distinct from old.approved_at
+       and new.created_at is not distinct from old.created_at
+    then
+      return new;
+    end if;
+    raise exception 'approved tax rule packs may only transition immutably to a verified approved replacement' using errcode='42501';
+  end if;
+
+  if new.status='approved' and old.status<>'approved' then
+    if new.reviewed_by is null
+       or new.approved_at is null
+       or nullif(btrim(coalesce(new.review_notes,'')),'') is null
+       or not exists(
+         select 1
+         from public.tax_rule_reviews rr
+         where rr.rule_pack_id=old.id
+           and rr.decision='approve'
+           and rr.reviewer_user_id=new.reviewed_by
+           and rr.source_reviewed is true
+           and rr.tests_reviewed is true
+       )
+    then
+      raise exception 'pandora_tax_rule_pack_professional_review_required' using errcode='42501';
+    end if;
+
+    select count(*)::integer,
+           count(*) filter (where content_sha256 is null)::integer
+    into official_source_count,unhashed_source_count
+    from public.tax_rule_sources
+    where rule_pack_id=old.id and source_scope='official';
+
+    select count(*)::integer into rule_count
+    from public.tax_rules
+    where rule_pack_id=old.id;
+
+    select count(distinct rt.rule_key)::integer into tested_rule_count
+    from public.tax_rule_tests rt
+    join public.tax_rules r
+      on r.rule_pack_id=rt.rule_pack_id
+     and r.rule_key=rt.rule_key
+    where rt.rule_pack_id=old.id
+      and rt.status='passed';
+
+    if official_source_count=0
+       or unhashed_source_count>0
+       or rule_count=0
+       or tested_rule_count<rule_count
+    then
+      raise exception 'pandora_tax_rule_pack_evidence_incomplete' using errcode='55000';
+    end if;
+  end if;
+
+  return new;
+end;
+$tax_rule_pack_guard_v2$;
+
+create or replace function private.pandora_tax_rule_immutability_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path='pg_catalog','public','private'
+as $tax_rule_guard_v2$
+declare
+  pack_id uuid;
+  pack_status text;
+begin
+  pack_id := case when tg_op='DELETE' then old.rule_pack_id else new.rule_pack_id end;
+
+  select rp.status into pack_status
+  from public.tax_rule_packs rp
+  where rp.id=pack_id;
+
+  if pack_status in ('approved','superseded','rejected') then
+    raise exception 'tax rules in terminal packs are immutable' using errcode='42501';
+  end if;
+
+  if tg_op='DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$tax_rule_guard_v2$;
+
 create or replace function public.pandora_tax_guard_rule_support_mutation_v1()
 returns trigger
 language plpgsql
@@ -1268,7 +1392,7 @@ begin
   if pack.id is null then
     raise exception 'pandora_tax_rule_pack_not_found' using errcode='P0002';
   end if;
-  if pack.status in ('approved','superseded') then
+  if pack.status in ('approved','superseded','rejected') then
     raise exception 'pandora_tax_rule_pack_immutable' using errcode='42501';
   end if;
 
