@@ -13,6 +13,8 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       String? selected;
+      final scrollController = ScrollController();
+      addTearDown(scrollController.dispose);
       final semantics = tester.ensureSemantics();
       try {
         await tester.pumpWidget(
@@ -21,6 +23,7 @@ void main() {
             home: Scaffold(
               body: PlpNavigationDrawer(
                 selectedDestination: 'home',
+                scrollController: scrollController,
                 recentChats: const <PlpRecentChatItem>[
                   PlpRecentChatItem(
                     id: 'thread-1',
@@ -65,6 +68,10 @@ void main() {
         );
         expect(scrollView, findsOneWidget);
         expect(headerOverlay, findsOneWidget);
+        expect(
+          find.byKey(const ValueKey<String>('plp-drawer-header-mask')),
+          findsOneWidget,
+        );
         expect(find.byKey(const ValueKey<String>('plp-drawer-bottom-overlay')), findsOneWidget);
         expect(find.byKey(const ValueKey<String>('plp-drawer-new-chat')), findsOneWidget);
         expect(
