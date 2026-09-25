@@ -58,6 +58,11 @@ class AskPandoraScreen extends StatefulWidget {
 }
 
 class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingObserver {
+  // CPU Qwen2.5 can legitimately spend more than 30 seconds in prompt prefill
+  // before the first streamed token. Keep a bounded idle deadline, but do not
+  // cancel a healthy on-device decode at the old 30-second wall.
+  static const _localInferenceIdleTimeout = Duration(seconds: 120);
+
   static const _suggestions = <String>[
     'What can you do for me now?',
     'Check my GitHub for failing CI',
@@ -841,7 +846,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
             localPrompt,
             predictLength: _isPlpEnterpriseContext ? 96 : 192,
           )
-          .timeout(const Duration(seconds: 30))) {
+          .timeout(_localInferenceIdleTimeout)) {
         if (!mounted) return true;
         response += chunk;
         setState(() {
