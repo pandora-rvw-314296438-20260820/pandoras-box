@@ -122,11 +122,78 @@ function marketingDatePreset(value) {
     }
     return preset;
 }
+// Marketing observations are not zero-filled: null means unavailable/invalid.
+// Keep decimal strings verbatim (apart from whitespace), without binary-float
+// parsing. Numeric JSON values cannot recover precision lost upstream; reject
+// unsafe integers rather than publish an invented exact quantity.
+function marketingMetricValue(value) {
+    if (typeof value === 'string') {
+        const normalized = value.trim();
+        return /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(normalized) ? normalized : null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)
+        && (!Number.isInteger(value) || Number.isSafeInteger(value))) {
+        return String(value);
+    }
+    return null;
+}
+// Marketing collection failures must not become observed empty reports. This
+// guard does not establish attribution, row coverage, or provider completeness.
+// Insight reads fail closed on explicit continuation until a versioned bounded
+// pagination contract is implemented. Limited asset listings remain listings.
+function marketingCollectionRows(value, httpStatus, requireComplete) {
+    const objectValue = (item) => typeof item === 'object' && item !== null && !Array.isArray(item);
+    const fail = (reason, message) => {
+        throw new MetaGraphApiError(message, { httpStatus, reason });
+    };
+    if (!objectValue(value) || !Object.hasOwn(value, 'data') || !Array.isArray(value.data)) {
+        fail('invalid_collection_envelope', 'Meta returned an invalid marketing collection');
+    }
+    if (value.data.some((row) => !objectValue(row))) {
+        fail('invalid_collection_rows', 'Meta returned invalid marketing collection rows');
+    }
+    if (Object.hasOwn(value, 'paging')) {
+        const paging = value.paging;
+        if (!objectValue(paging)) {
+            fail('invalid_paging_envelope', 'Meta returned invalid marketing paging metadata');
+        }
+        if (Object.hasOwn(paging, 'cursors')) {
+            if (!objectValue(paging.cursors)) {
+                fail('invalid_paging_envelope', 'Meta returned invalid marketing paging metadata');
+            }
+            for (const key of ['before', 'after']) {
+                if (Object.hasOwn(paging.cursors, key)
+                    && (typeof paging.cursors[key] !== 'string' || !paging.cursors[key].trim())) {
+                    fail('invalid_paging_envelope', 'Meta returned invalid marketing paging metadata');
+                }
+            }
+        }
+        if (Object.hasOwn(paging, 'next')) {
+            if (typeof paging.next !== 'string' || !paging.next.trim()) {
+                fail('invalid_paging_envelope', 'Meta returned invalid marketing paging metadata');
+            }
+            if (requireComplete) {
+                // Never follow, echo, or retain provider URLs: they may contain
+                // credentials, foreign origins, or query/asset substitutions.
+                fail('incomplete_report', 'Meta insight report has additional pages; complete reporting is unavailable');
+            }
+        }
+    }
+    return value.data;
+}
 function metricArray(value) {
-    return graphArray(value).map((row) => ({
-        actionType: stringValue(row.action_type) ?? 'unknown',
-        value: stringValue(row.value) ?? String(numberValue(row.value) ?? 0),
-    }));
+    const rows = Array.isArray(value) ? value : record(value).data;
+    // An explicit empty collection is observed; an absent collection is not.
+    if (!Array.isArray(rows)) {
+        return null;
+    }
+    return rows.map((value) => {
+        const row = record(value);
+        return {
+            actionType: stringValue(row.action_type) ?? null,
+            value: marketingMetricValue(row.value),
+        };
+    });
 }
 class OfficialMetaReadProvider {
     constructor(options) {
@@ -306,7 +373,7 @@ class OfficialMetaReadProvider {
             fields: 'account_id,account_name,account_currency,impressions,reach,clicks,spend,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop',
             date_preset: marketingDatePreset(datePreset),
             limit: '100',
-        });
+        }, true);
         return graphArray(value).map((row) => this.mapMarketingInsight(row));
     }
     async getCampaignInsights(_pageId, campaignId, datePreset) {
@@ -315,7 +382,7 @@ class OfficialMetaReadProvider {
             fields: 'campaign_id,campaign_name,account_currency,impressions,reach,clicks,spend,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop',
             date_preset: marketingDatePreset(datePreset),
             limit: '100',
-        });
+        }, true);
         return graphArray(value).map((row) => this.mapMarketingInsight(row));
     }
     mapMarketingInsight(row) {
@@ -325,14 +392,14 @@ class OfficialMetaReadProvider {
             campaignId: stringValue(row.campaign_id),
             campaignName: stringValue(row.campaign_name),
             currency: stringValue(row.account_currency),
-            impressions: stringValue(row.impressions) ?? '0',
-            reach: stringValue(row.reach) ?? '0',
-            clicks: stringValue(row.clicks) ?? '0',
-            spend: stringValue(row.spend) ?? '0',
-            cpc: stringValue(row.cpc),
-            cpm: stringValue(row.cpm),
-            ctr: stringValue(row.ctr),
-            frequency: stringValue(row.frequency),
+            impressions: marketingMetricValue(row.impressions),
+            reach: marketingMetricValue(row.reach),
+            clicks: marketingMetricValue(row.clicks),
+            spend: marketingMetricValue(row.spend),
+            cpc: marketingMetricValue(row.cpc),
+            cpm: marketingMetricValue(row.cpm),
+            ctr: marketingMetricValue(row.ctr),
+            frequency: marketingMetricValue(row.frequency),
             actions: metricArray(row.actions),
             actionValues: metricArray(row.action_values),
             dateStart: stringValue(row.date_start),
@@ -365,10 +432,11 @@ class OfficialMetaReadProvider {
     async graphGet(path, query) {
         return this.graphGetWithSecret(path, query, this.pageAccessTokenSecretRef);
     }
-    async marketingGraphGet(path, query) {
-        return this.graphGetWithSecret(path, query, this.marketingAccessTokenSecretRef);
+    async marketingGraphGet(path, query, requireComplete = false) {
+        return this.graphGetWithSecret(path, query, this.marketingAccessTokenSecretRef,
+            requireComplete ? 'report' : 'bounded-list');
     }
-    async graphGetWithSecret(path, query, secretRef) {
+    async graphGetWithSecret(path, query, secretRef, collectionMode = null) {
         const token = await (0, resolver_1.resolveRequiredSecret)(this.secretResolver, secretRef);
         const url = new URL(`${GRAPH_API_ORIGIN}/${this.apiVersion}/${path}`);
         for (const [name, value] of Object.entries(query)) {
@@ -393,8 +461,8 @@ class OfficialMetaReadProvider {
                 httpStatus: response.status,
             });
         }
-        if (response.status < 200 || response.status >= 300 || parsed.error) {
-            const graphError = parsed.error ?? {};
+        if (response.status < 200 || response.status >= 300 || parsed?.error) {
+            const graphError = parsed?.error ?? {};
             throw new MetaGraphApiError(stringValue(graphError.message) ?? `Meta Graph API request failed with HTTP ${response.status}`, {
                 httpStatus: response.status,
                 type: stringValue(graphError.type),
@@ -402,6 +470,9 @@ class OfficialMetaReadProvider {
                 subcode: numberValue(graphError.error_subcode),
                 traceId: stringValue(graphError.fbtrace_id),
             });
+        }
+        if (collectionMode) {
+            return marketingCollectionRows(parsed, response.status, collectionMode === 'report');
         }
         return parsed.data ?? parsed;
     }
