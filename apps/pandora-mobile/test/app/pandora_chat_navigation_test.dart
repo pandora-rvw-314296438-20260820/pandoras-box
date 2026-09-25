@@ -122,6 +122,36 @@ void main() {
     });
   }
 
+  testWidgets('focused composer opens bounded drawer and reopening resets its scroll', (tester) async {
+    await mount(tester, const Size(390, 844));
+    addTearDown(tester.view.resetViewInsets);
+    final objective = find.byKey(const ValueKey<String>('ask-pandora-objective'));
+    await tester.enterText(objective, 'Keep the keyboard draft');
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    await tester.pumpAndSettle();
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(objective).focusNode!.hasFocus, isFalse);
+    tester.view.viewInsets = const FakeViewPadding();
+    await tester.pumpAndSettle();
+    final header = find.byKey(const ValueKey<String>('pandora-side-panel-top-overlay'));
+    final viewport = find.byKey(const ValueKey<String>('pandora-side-panel-scroll'));
+    expect(tester.getRect(viewport).top, greaterThanOrEqualTo(tester.getRect(header).bottom));
+    final position = tester.state<ScrollableState>(find.descendant(of: viewport, matching: find.byType(Scrollable)).first).position;
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    final reopened = tester.state<ScrollableState>(find.descendant(of: viewport, matching: find.byType(Scrollable)).first).position;
+    expect(reopened.pixels, 0);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Keep the keyboard draft'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('tablet keeps the persistent sidebar without a drawer trigger',
       (tester) async {
     await mount(tester, const Size(1024, 800));

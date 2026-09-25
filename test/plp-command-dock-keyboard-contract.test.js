@@ -98,10 +98,8 @@ test('opening the PLP drawer dismisses keyboard focus, resets scroll, and gates 
 
 test('PLP drawer owns deterministic scroll state and masks content below its fixed header', () => {
   assert.match(drawer, /controller: widget\.scrollController/);
-  assert.match(drawer, /ScrollViewKeyboardDismissBehavior\.onDrag/);
-  assert.match(drawer, /double get _headerExtent => _searchOpen \? 136 : 76/);
-  assert.match(
-    drawer,
-    /plp-drawer-header-mask[\s\S]*Color\(0xFF000000\)/,
-  );
+  assert.match(drawer, /PandoraNavigationLayout\(/);
+  assert.doesNotMatch(drawer, /_headerExtent|_footerExtent|plp-drawer-header-mask/);
+  assert.match(drawer, /_workspaceExpanded \|\| searching/);
+  assert.match(drawer, /focusNode: _searchFocus/);
 });
