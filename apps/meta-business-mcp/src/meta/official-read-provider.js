@@ -122,11 +122,34 @@ function marketingDatePreset(value) {
     }
     return preset;
 }
+// Marketing observations are not zero-filled: null means unavailable/invalid.
+// Keep decimal strings verbatim (apart from whitespace), without binary-float
+// parsing. Numeric JSON values cannot recover precision lost upstream; reject
+// unsafe integers rather than publish an invented exact quantity.
+function marketingMetricValue(value) {
+    if (typeof value === 'string') {
+        const normalized = value.trim();
+        return /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(normalized) ? normalized : null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)
+        && (!Number.isInteger(value) || Number.isSafeInteger(value))) {
+        return String(value);
+    }
+    return null;
+}
 function metricArray(value) {
-    return graphArray(value).map((row) => ({
-        actionType: stringValue(row.action_type) ?? 'unknown',
-        value: stringValue(row.value) ?? String(numberValue(row.value) ?? 0),
-    }));
+    const rows = Array.isArray(value) ? value : record(value).data;
+    // An explicit empty collection is observed; an absent collection is not.
+    if (!Array.isArray(rows)) {
+        return null;
+    }
+    return rows.map((value) => {
+        const row = record(value);
+        return {
+            actionType: stringValue(row.action_type) ?? null,
+            value: marketingMetricValue(row.value),
+        };
+    });
 }
 class OfficialMetaReadProvider {
     constructor(options) {
@@ -325,14 +348,14 @@ class OfficialMetaReadProvider {
             campaignId: stringValue(row.campaign_id),
             campaignName: stringValue(row.campaign_name),
             currency: stringValue(row.account_currency),
-            impressions: stringValue(row.impressions) ?? '0',
-            reach: stringValue(row.reach) ?? '0',
-            clicks: stringValue(row.clicks) ?? '0',
-            spend: stringValue(row.spend) ?? '0',
-            cpc: stringValue(row.cpc),
-            cpm: stringValue(row.cpm),
-            ctr: stringValue(row.ctr),
-            frequency: stringValue(row.frequency),
+            impressions: marketingMetricValue(row.impressions),
+            reach: marketingMetricValue(row.reach),
+            clicks: marketingMetricValue(row.clicks),
+            spend: marketingMetricValue(row.spend),
+            cpc: marketingMetricValue(row.cpc),
+            cpm: marketingMetricValue(row.cpm),
+            ctr: marketingMetricValue(row.ctr),
+            frequency: marketingMetricValue(row.frequency),
             actions: metricArray(row.actions),
             actionValues: metricArray(row.action_values),
             dateStart: stringValue(row.date_start),
