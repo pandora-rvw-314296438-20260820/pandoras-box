@@ -430,15 +430,11 @@ test("filing package requires completed deterministic calculation and remains su
       [pkg.filingPackageId],
     )
   ).rows[0];
-  const originalReturn = (
-    await db.query(
-      "select return_payload_redacted from public.tax_return_versions where id=$1",
-      [returnBinding.return_version_id],
-    )
-  ).rows[0].return_payload_redacted;
   await db.query(
-    "update public.tax_return_versions set return_payload_redacted=$2::jsonb where id=$1",
-    [returnBinding.return_version_id, JSON.stringify({...originalReturn,tampered:true})],
+    `update public.tax_return_versions
+     set return_payload_redacted=return_payload_redacted || '{"tampered":true}'::jsonb
+     where id=$1`,
+    [returnBinding.return_version_id],
   );
 
   await actAs(db, owner);
@@ -452,8 +448,8 @@ test("filing package requires completed deterministic calculation and remains su
 
   await db.exec("reset role");
   await db.query(
-    "update public.tax_return_versions set return_payload_redacted=$2::jsonb where id=$1",
-    [returnBinding.return_version_id, JSON.stringify(originalReturn)],
+    "update public.tax_return_versions set return_payload_redacted=return_payload_redacted-'tampered' where id=$1",
+    [returnBinding.return_version_id],
   );
 
   await actAs(db, owner);
