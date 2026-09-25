@@ -1206,6 +1206,140 @@ grant execute on function public.pandora_tax_resolve_exception_v1(
   uuid,uuid,text,text,jsonb
 ) to authenticated;
 
+create or replace function public.pandora_tax_run_rule_tests_v1(
+  p_rule_pack_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path='pg_catalog','public'
+as $
+declare
+  pack public.tax_rule_packs%rowtype;
+  test_row public.tax_rule_tests%rowtype;
+  rule_row public.tax_rules%rowtype;
+  op text;
+  actual_amount numeric;
+  actual_output jsonb;
+  passed integer := 0;
+  failed integer := 0;
+  total integer := 0;
+begin
+  select * into pack
+  from public.tax_rule_packs
+  where id=p_rule_pack_id
+  for update;
+  if pack.id is null then
+    raise exception 'pandora_tax_rule_pack_not_found' using errcode='P0002';
+  end if;
+  if pack.status in ('approved','superseded') then
+    raise exception 'pandora_tax_rule_pack_immutable' using errcode='42501';
+  end if;
+
+  for test_row in
+    select * from public.tax_rule_tests
+    where rule_pack_id=p_rule_pack_id
+    order by test_key
+  loop
+    total := total+1;
+    select * into rule_row
+    from public.tax_rules
+    where rule_pack_id=p_rule_pack_id and rule_key=test_row.rule_key;
+    if rule_row.id is null then
+      actual_output := jsonb_build_object('error','rule_not_found');
+    else
+      op := rule_row.deterministic_spec->>'operation';
+      actual_amount := null;
+
+      if op='sum' then
+        if jsonb_typeof(test_row.input_fixture->'values')<>'array' then
+          actual_output := jsonb_build_object('error','values_required');
+        else
+          select coalesce(sum(value::numeric),0)
+          into actual_amount
+          from jsonb_array_elements_text(test_row.input_fixture->'values') valueset(value);
+          actual_output := jsonb_build_object('amount',round(actual_amount,2));
+        end if;
+      elsif op='rate' then
+        if (test_row.input_fixture->>'base') is null
+           or (rule_row.deterministic_spec->>'rate') is null
+        then
+          actual_output := jsonb_build_object('error','base_and_rate_required');
+        else
+          actual_amount := round(
+            (test_row.input_fixture->>'base')::numeric *
+            (rule_row.deterministic_spec->>'rate')::numeric,
+            2
+          );
+          actual_output := jsonb_build_object('amount',actual_amount);
+        end if;
+      elsif op='difference' then
+        if (test_row.input_fixture->>'left') is null
+           or (test_row.input_fixture->>'right') is null
+        then
+          actual_output := jsonb_build_object('error','left_and_right_required');
+        else
+          actual_output := jsonb_build_object(
+            'amount',
+            round(
+              (test_row.input_fixture->>'left')::numeric -
+              (test_row.input_fixture->>'right')::numeric,
+              2
+            )
+          );
+        end if;
+      elsif op='max_zero' then
+        if (test_row.input_fixture->>'base') is null then
+          actual_output := jsonb_build_object('error','base_required');
+        else
+          actual_output := jsonb_build_object(
+            'amount',
+            greatest((test_row.input_fixture->>'base')::numeric,0)
+          );
+        end if;
+      elsif op='fixed' then
+        actual_output := jsonb_build_object(
+          'amount',
+          round((rule_row.deterministic_spec->>'amount')::numeric,2)
+        );
+      else
+        actual_output := jsonb_build_object('error','unsupported_test_operation','operation',op);
+      end if;
+    end if;
+
+    update public.tax_rule_tests
+    set status=case when actual_output=test_row.expected_output then 'passed' else 'failed' end,
+        last_result=actual_output,
+        last_run_at=clock_timestamp()
+    where id=test_row.id;
+
+    if actual_output=test_row.expected_output then
+      passed := passed+1;
+    else
+      failed := failed+1;
+    end if;
+  end loop;
+
+  if total=0 then
+    raise exception 'pandora_tax_rule_tests_missing' using errcode='55000';
+  end if;
+
+  return jsonb_build_object(
+    'schemaVersion','pandora.tax.rule-tests.v1',
+    'rulePackId',p_rule_pack_id,
+    'total',total,
+    'passed',passed,
+    'failed',failed,
+    'allPassed',failed=0
+  );
+end;
+$;
+
+revoke all on function public.pandora_tax_run_rule_tests_v1(uuid)
+  from public,anon,authenticated;
+grant execute on function public.pandora_tax_run_rule_tests_v1(uuid)
+  to service_role;
+
 create or replace function public.pandora_tax_record_rule_review_v1(
   p_rule_pack_id uuid,
   p_reviewer_user_id uuid,
@@ -1453,6 +1587,16 @@ begin
       end,
       rule_key
   loop
+    if jsonb_typeof(rule_row.deterministic_spec->'periodTypes')='array'
+       and not (rule_row.deterministic_spec->'periodTypes' ? period_row.period_type)
+    then
+      continue;
+    end if;
+
+    if rule_row.deterministic_spec ? 'eligibility' then
+      raise exception 'pandora_tax_rule_eligibility_profile_required' using errcode='55000';
+    end if;
+
     op := rule_row.deterministic_spec->>'operation';
     line_key_value := coalesce(rule_row.deterministic_spec->>'lineKey',rule_row.rule_key);
     amount_value := null;
@@ -2270,6 +2414,18 @@ select
     ),
     jsonb_build_object(
       'authority','Bureau of Internal Revenue',
+      'title','BIR Form 2551Q Guidelines and Instructions',
+      'url','https://efps.bir.gov.ph/efps-war/EFPSWeb_war/forms2018Version/2551Q/2551q_guidelines.html',
+      'capturedOn','2026-09-25'
+    ),
+    jsonb_build_object(
+      'authority','Bureau of Internal Revenue',
+      'title','RMC No. 3-2024 Annex A / Section 116',
+      'url','https://bir-cdn.bir.gov.ph/local/pdf/RMC%20No.%203-2024%20Annex%20A.pdf',
+      'capturedOn','2026-09-25'
+    ),
+    jsonb_build_object(
+      'authority','Bureau of Internal Revenue',
       'title','BIR Form 1702-RT / 1702Q information',
       'url','https://www.bir.gov.ph/bir-forms',
       'capturedOn','2026-09-25'
@@ -2301,6 +2457,8 @@ from public.tax_rule_packs rp
 cross join (
   values
     ('bir-2550q','BIR Form 2550Q Guidelines and Instructions','https://efps.bir.gov.ph/efps-war/help/help2550q2006.html',null::date,'Official BIR source states 12% VAT on taxable sales/services/imports and quarterly filing within 25 days after quarter close.'),
+    ('bir-2551q','BIR Form 2551Q Guidelines and Instructions','https://efps.bir.gov.ph/efps-war/EFPSWeb_war/forms2018Version/2551Q/2551q_guidelines.html',null::date,'Official BIR 2551Q guidance covers quarterly percentage-tax filing and taxpayer applicability; application still requires taxpayer-profile review.'),
+    ('bir-sec116-2024','RMC No. 3-2024 Annex A / Section 116','https://bir-cdn.bir.gov.ph/local/pdf/RMC%20No.%203-2024%20Annex%20A.pdf','2024-01-15'::date,'Official BIR circular text states Section 116 percentage tax at three percent of gross quarterly sales for qualifying non-VAT persons.'),
     ('bir-1702','BIR corporate income tax forms','https://www.bir.gov.ph/bir-forms',null::date,'Official BIR forms page identifies 25% regular corporate rate and 20% rate for qualifying small corporations, and 1702Q within 60 days after first three quarters.'),
     ('bir-1601eq','BIR Form 1601-EQ Guidelines','https://efps.bir.gov.ph/efps-war/forms2018Version/1601EQ/1601eq_guidelines.html',null::date,'Official BIR guidance states 1601-EQ is due not later than the last day of the month following quarter close.'),
     ('bir-create','RMC No. 89-2021 - CREATE','https://bir-cdn.bir.gov.ph/local/pdf/RMC%20No.%2089-2021.pdf','2021-07-19'::date,'Official BIR circularizes CREATE corporate income tax rate changes.')
@@ -2318,32 +2476,32 @@ cross join (
   values
     (
       'ph.vat.taxable_sales_base','formula',
-      '{"operation":"sum","sequence":10,"lineKey":"vat_taxable_sales","field":"net_amount","taxCategory":"vat_taxable_sale"}'::jsonb,
+      '{"operation":"sum","sequence":10,"lineKey":"vat_taxable_sales","field":"net_amount","taxCategory":"vat_taxable_sale","periodTypes":["quarterly"]}'::jsonb,
       '{"sourceKey":"bir-2550q","statement":"Taxable sale/service base for standard VAT draft rule."}'::jsonb
     ),
     (
       'ph.vat.output_tax_12','rate',
-      '{"operation":"rate","sequence":20,"lineKey":"output_vat","baseLineKey":"vat_taxable_sales","rate":0.12,"obligationKey":"vat_output_tax","deadlineDaysAfterPeriodEnd":25}'::jsonb,
+      '{"operation":"rate","sequence":20,"lineKey":"output_vat","baseLineKey":"vat_taxable_sales","rate":0.12,"obligationKey":"vat_output_tax","deadlineDaysAfterPeriodEnd":25,"periodTypes":["quarterly"]}'::jsonb,
       '{"sourceKey":"bir-2550q","statement":"Official BIR 2550Q guidance states 12% VAT and quarterly filing within 25 days after quarter close."}'::jsonb
     ),
     (
       'ph.percentage_tax.sales_base','formula',
-      '{"operation":"sum","sequence":30,"lineKey":"percentage_tax_sales","field":"gross_amount","taxCategory":"percentage_taxable_sale"}'::jsonb,
-      '{"sourceKey":"bir-2550q","statement":"Separate draft line reserved for non-VAT percentage-tax treatment; professional review required before approval."}'::jsonb
+      '{"operation":"sum","sequence":30,"lineKey":"percentage_tax_sales","field":"gross_amount","taxCategory":"percentage_taxable_sale","periodTypes":["quarterly"]}'::jsonb,
+      '{"sourceKey":"bir-2551q","statement":"Percentage-tax base is a separate draft category. Taxpayer registration and Section 116 applicability require professional review before approval."}'::jsonb
     ),
     (
       'ph.percentage_tax.standard_3','rate',
-      '{"operation":"rate","sequence":40,"lineKey":"percentage_tax_due","baseLineKey":"percentage_tax_sales","rate":0.03,"obligationKey":"percentage_tax","deadlineDaysAfterPeriodEnd":25}'::jsonb,
-      '{"sourceKey":"bir-2550q","statement":"Draft 3% Sec. 116 percentage-tax rule requires professional confirmation for taxpayer applicability before approval."}'::jsonb
+      '{"operation":"rate","sequence":40,"lineKey":"percentage_tax_due","baseLineKey":"percentage_tax_sales","rate":0.03,"obligationKey":"percentage_tax","deadlineDaysAfterPeriodEnd":25,"periodTypes":["quarterly"]}'::jsonb,
+      '{"sourceKey":"bir-sec116-2024","statement":"Draft 3% Section 116 rule. Eligibility, VAT status, and any elective income-tax treatment must be professionally confirmed before approval."}'::jsonb
     ),
     (
       'ph.cit.taxable_income_base','formula',
-      '{"operation":"sum","sequence":50,"lineKey":"corporate_taxable_income","field":"net_amount","taxCategory":"corporate_taxable_income"}'::jsonb,
+      '{"operation":"sum","sequence":50,"lineKey":"corporate_taxable_income","field":"net_amount","taxCategory":"corporate_taxable_income","periodTypes":["quarterly"]}'::jsonb,
       '{"sourceKey":"bir-create","statement":"Draft corporate taxable-income base category; accounting mapping requires professional review."}'::jsonb
     ),
     (
       'ph.cit.general_25','rate',
-      '{"operation":"rate","sequence":60,"lineKey":"corporate_income_tax_general","baseLineKey":"corporate_taxable_income","rate":0.25,"obligationKey":"corporate_income_tax","deadlineDaysAfterPeriodEnd":60}'::jsonb,
+      '{"operation":"rate","sequence":60,"lineKey":"corporate_income_tax_general","baseLineKey":"corporate_taxable_income","rate":0.25,"obligationKey":"corporate_income_tax","deadlineDaysAfterPeriodEnd":60,"periodTypes":["quarterly"],"eligibility":"regular_corporation_not_qualifying_for_20_percent_rate"}'::jsonb,
       '{"sourceKey":"bir-1702","statement":"Official BIR corporate forms describe the regular 25% rate; small-corporation eligibility is separate and must be reviewed."}'::jsonb
     )
 ) as v(rule_key,rule_type,spec,source_ref)
@@ -2358,8 +2516,11 @@ select rp.id,v.test_key,v.rule_key,v.input_fixture,v.expected_output,'pending',n
 from public.tax_rule_packs rp
 cross join (
   values
-    ('vat-1000','ph.vat.output_tax_12','{"base":1000.00}'::jsonb,'{"amount":120.00}'::jsonb),
-    ('percentage-1000','ph.percentage_tax.standard_3','{"base":1000.00}'::jsonb,'{"amount":30.00}'::jsonb),
+    ('vat-base-1000','ph.vat.taxable_sales_base','{"values":[600.00,400.00]}'::jsonb,'{"amount":1000.00}'::jsonb),
+    ('vat-rate-1000','ph.vat.output_tax_12','{"base":1000.00}'::jsonb,'{"amount":120.00}'::jsonb),
+    ('percentage-base-1000','ph.percentage_tax.sales_base','{"values":[700.00,300.00]}'::jsonb,'{"amount":1000.00}'::jsonb),
+    ('percentage-rate-1000','ph.percentage_tax.standard_3','{"base":1000.00}'::jsonb,'{"amount":30.00}'::jsonb),
+    ('cit-base-1000','ph.cit.taxable_income_base','{"values":[1200.00,-200.00]}'::jsonb,'{"amount":1000.00}'::jsonb),
     ('cit-general-1000','ph.cit.general_25','{"base":1000.00}'::jsonb,'{"amount":250.00}'::jsonb)
 ) as v(test_key,rule_key,input_fixture,expected_output)
 where rp.jurisdiction_code='PH'
