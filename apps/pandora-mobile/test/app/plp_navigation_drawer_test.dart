@@ -100,6 +100,12 @@ void main() {
           greaterThan(headerRect.bottom),
         );
 
+        // Opening the production drawer resets this controller to zero. Reset
+        // here too before validating primary navigation hit targets so the
+        // opaque fixed header is never treated as a tappable underlay.
+        scrollController.jumpTo(0);
+        await tester.pumpAndSettle();
+
         expect(find.text('Pandora'), findsOneWidget);
         expect(find.text('PLP Boracay'), findsOneWidget);
         expect(find.text('Owner workspace'), findsOneWidget);
