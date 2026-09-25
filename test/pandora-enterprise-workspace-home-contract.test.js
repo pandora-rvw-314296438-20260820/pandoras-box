@@ -55,12 +55,12 @@ test("Euro-fish workspace keeps Home first and the requested business order", ()
   const expected = [
     "Home",
     "Overview",
+    "Tax & Compliance",
     "Orders & Shipments",
     "Suppliers & Buyers",
     "Inventory & Products",
     "Logistics & Customs",
     "Sales & Finance",
-    "Tax & Compliance",
     "Documents & Compliance",
     "Team & Access",
     "Activity",
@@ -97,7 +97,7 @@ test("workspace navigation uses admitted structured Enterprise context", () => {
   assert.match(hub, /'identityScope': 'enterprise_workspace'/);
   assert.match(hub, /'selectedObject': <String, String>/);
   assert.match(hub, /'surface': section\.surface/);
-  assert.match(hub, /'route': '\/enterprise\/workspaces\/'/);
+  assert.ok(hub.includes("'route': '/enterprise/workspaces/${workspace.key}/${section.routeSlug}'"));
 });
 
 test("shell boots to Home and preserves Operations Room", () => {
@@ -141,11 +141,11 @@ test("workspace home matches the screenshot header hierarchy", () => {
 });
 
 
-test("tax is visible on every workspace card without opening the section list", () => {
-  assert.match(hub, /String\? _expandedKey = 'plp-boracay'/);
-  assert.match(hub, /workspace-tax-quick-/);
-  assert.match(hub, /pandora_tax_command_center_v1/);
-  assert.match(hub, /Professional review gate/);
+test("tax stays visible without duplicated or cross-workspace readiness claims", () => {
+  assert.match(hub, /String\? _expandedKey;/);
+  assert.match(hub, /if \(!expanded\)[\s\S]*workspace-tax-quick-/);
+  assert.match(hub, /if \(expanded\)[\s\S]*workspace\.sections/);
+  assert.doesNotMatch(hub, /pandora_tax_command_center_v1|Professional review gate|Calculation ready/);
   assert.match(hub, /onTap: \(\) => onOpen\(tax\)/);
   assert.match(hub, /final tax = workspace\.sections\.firstWhere/);
 });
