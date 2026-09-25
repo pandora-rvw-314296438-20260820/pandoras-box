@@ -78,6 +78,6 @@ begin
   end if;
   return private.pandora_integration_github_api_20260825(v_method,v_path,p_body);
 end;
-$function$
+$function$;
 
 REVOKE ALL ON FUNCTION public.pandora_enterprise_direct_github_v1(uuid,text,text,jsonb) FROM public,anon; GRANT EXECUTE ON FUNCTION public.pandora_enterprise_direct_github_v1(uuid,text,text,jsonb) TO authenticated; GRANT USAGE ON SCHEMA auth TO authenticated;

@@ -30,7 +30,7 @@ class PlpChatFallback {
       if ([occupancy, occupied, rooms, available].contains('unavailable')) {
         return 'PLP occupancy: $occupancy; occupied rooms: $occupied; total rooms: $rooms; available rooms: $available.$suffix';
       }
-      return 'PLP occupancy is ${occupancy}: ${occupied} of ${rooms} rooms occupied, with ${available} available.${suffix}';
+      return 'PLP occupancy is $occupancy: $occupied of $rooms rooms occupied, with $available available.$suffix';
     }
     if (normalized.contains('arrival') ||
         normalized.contains('checking in') ||
@@ -38,7 +38,7 @@ class PlpChatFallback {
       if (arrivals == 'unavailable') {
         return 'PLP arrival data is unavailable in this snapshot.$suffix';
       }
-      return 'PLP has ${arrivals} arrival${arrivals == '1' ? '' : 's'} today.${suffix}';
+      return 'PLP has $arrivals arrival${arrivals == '1' ? '' : 's'} today.$suffix';
     }
     if (normalized.contains('departure') ||
         normalized.contains('checking out') ||
@@ -46,7 +46,7 @@ class PlpChatFallback {
       if (departures == 'unavailable') {
         return 'PLP departure data is unavailable in this snapshot.$suffix';
       }
-      return 'PLP has ${departures} departure${departures == '1' ? '' : 's'} today.${suffix}';
+      return 'PLP has $departures departure${departures == '1' ? '' : 's'} today.$suffix';
     }
     if (normalized.contains('revenue') ||
         normalized.contains('sales') ||
@@ -55,20 +55,20 @@ class PlpChatFallback {
       if (sales == 'unavailable') {
         return 'PLP sales data is unavailable; this snapshot has no valid sales total.$suffix';
       }
-      return 'PLP sales today are ${sales}.${suffix}';
+      return 'PLP sales today are $sales.$suffix';
     }
     if (normalized.contains('ota') || normalized.contains('conflict')) {
       if (conflicts == 'unavailable') {
         return 'PLP OTA conflict data is unavailable in this snapshot.$suffix';
       }
-      return 'PLP has ${conflicts} open OTA conflict${conflicts == '1' ? '' : 's'}.${suffix}';
+      return 'PLP has $conflicts open OTA conflict${conflicts == '1' ? '' : 's'}.$suffix';
     }
     if (normalized.contains('available room') ||
         (normalized.contains('room') && normalized.contains('available'))) {
       if ([available, rooms].contains('unavailable')) {
         return 'PLP room availability: $available; total rooms: $rooms.$suffix';
       }
-      return 'PLP has ${available} of ${rooms} rooms available in the snapshot.${suffix}';
+      return 'PLP has $available of $rooms rooms available in the snapshot.$suffix';
     }
     if (normalized.contains('task') ||
         normalized.contains('needs attention') ||
@@ -77,7 +77,7 @@ class PlpChatFallback {
       if ([tasks, conflicts, arrivals, departures].contains('unavailable')) {
         return 'PLP attention snapshot: open staff tasks: $tasks; OTA conflicts: $conflicts; arrivals: $arrivals; departures: $departures.$suffix';
       }
-      return 'PLP currently has ${tasks} open staff task${tasks == '1' ? '' : 's'} and ${conflicts} open OTA conflict${conflicts == '1' ? '' : 's'}. There are ${arrivals} arrival${arrivals == '1' ? '' : 's'} and ${departures} departure${departures == '1' ? '' : 's'} today.${suffix}';
+      return 'PLP currently has $tasks open staff task${tasks == '1' ? '' : 's'} and $conflicts open OTA conflict${conflicts == '1' ? '' : 's'}. There are $arrivals arrival${arrivals == '1' ? '' : 's'} and $departures departure${departures == '1' ? '' : 's'} today.$suffix';
     }
     if (normalized.contains('source') ||
         normalized.contains('connected') ||
@@ -86,7 +86,7 @@ class PlpChatFallback {
         normalized.contains('data current')) {
       final state = _text(source['state'], fallback: 'unknown');
       final detail = _text(source['message'], fallback: 'No provider status message');
-      return 'PLP source state is ${state}. ${detail}.${suffix}';
+      return 'PLP source state is $state. $detail.$suffix';
     }
     if (normalized == 'today' ||
         normalized.contains('summarize') ||
@@ -100,7 +100,7 @@ class PlpChatFallback {
           .contains('unavailable')) {
         return 'PLP snapshot: occupancy: $occupancy; arrivals: $arrivals; departures: $departures; sales: $sales; open staff tasks: $tasks; OTA conflicts: $conflicts.$suffix';
       }
-      return 'PLP today: ${occupancy} occupancy, ${arrivals} arrival${arrivals == '1' ? '' : 's'}, ${departures} departure${departures == '1' ? '' : 's'}, ${sales} in sales, ${tasks} open staff task${tasks == '1' ? '' : 's'}, and ${conflicts} open OTA conflict${conflicts == '1' ? '' : 's'}.${suffix}';
+      return 'PLP today: $occupancy occupancy, $arrivals arrival${arrivals == '1' ? '' : 's'}, $departures departure${departures == '1' ? '' : 's'}, $sales in sales, $tasks open staff task${tasks == '1' ? '' : 's'}, and $conflicts open OTA conflict${conflicts == '1' ? '' : 's'}.$suffix';
     }
     return null;
   }
