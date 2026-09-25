@@ -557,19 +557,14 @@ test("approved tax rule support artifacts are immutable", async (t) => {
   const periodId = await insertPeriod(db);
   const packId = await makeApprovedSyntheticPack(db, periodId);
 
-  await db.query(
-    `insert into public.tax_rule_sources(
-      rule_pack_id,source_key,authority,title,source_url,retrieved_on,
-      content_sha256,source_scope
-    ) values($1,'synthetic-source','synthetic','Synthetic source',
-      'https://example.invalid/tax-source','2026-09-25',$2,'official')`,
-    [packId,"a".repeat(64)],
-  ).catch(() => {});
-
   await assert.rejects(
     db.query(
-      "update public.tax_rule_tests set status='failed' where rule_pack_id=$1",
-      [packId],
+      `insert into public.tax_rule_sources(
+        rule_pack_id,source_key,authority,title,source_url,retrieved_on,
+        content_sha256,source_scope
+      ) values($1,'synthetic-source','synthetic','Synthetic source',
+        'https://example.invalid/tax-source','2026-09-25',$2,'official')`,
+      [packId,"a".repeat(64)],
     ),
     /pandora_tax_rule_support_immutable/,
   );
