@@ -1,6 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../core/widgets/pandora_mark.dart';
@@ -134,9 +132,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: DecoratedBox(
+        child: DecoratedBox(
             decoration: const BoxDecoration(
               color: Color(0xFF000000),
               border: Border(
@@ -450,7 +446,6 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
               ),
             ),
           ),
-        ),
       ),
     );
   }
