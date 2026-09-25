@@ -2709,8 +2709,11 @@ begin
   v_plp_explicit := v_norm ~ '\m(plp|pueblo[[:space:]]+la[[:space:]]+perla)\M';
   v_box_explicit := v_norm ~ '\m(pandoras-box|pandora''?s[[:space:]-]+box|mcpmaster|ask[[:space:]]+pandora|pandora[[:space:]]+chat|activity[[:space:]]+theatre|build[[:space:]]+theatre|canonical[[:space:]]+repo|this[[:space:]]+repo)\M';
   v_tax_operation := (
-    v_norm ~ '\m(reconcile|reconciliation|calculate|calculation|compute|filing|2550q|2551q|1702q|1702-rt|1601-eq)\M'
-    or v_norm ~ '\m(tax|taxes|vat|bir)\M.*\m(status|overview|position|ready|owe|due|file|submit|sign|pay|payment|prepare|package)\M'
+    v_norm ~ '\m(2550q|2551q|1702q|1702-rt|1601-eq)\M'
+    or (
+      v_norm ~ '\m(tax|taxes|vat|bir)\M'
+      and v_norm ~ '\m(status|overview|position|ready|owe|due|reconcile|reconciliation|calculate|calculation|compute|file|filing|submit|sign|otp|pay|payment|prepare|build|create|package|return)\M'
+    )
   );
 
   if v_tax_operation then
