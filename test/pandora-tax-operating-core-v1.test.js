@@ -166,12 +166,34 @@ async function makeApprovedSyntheticPack(db, periodId) {
   );
 
   await db.query(
-    `update public.tax_rule_packs
-     set status='approved',
-         review_notes='Synthetic approved fixture only',
-         reviewed_by=$2,
-         approved_at=clock_timestamp()
-     where id=$1`,
+    `insert into public.tax_rule_sources(
+      rule_pack_id,source_key,authority,title,source_url,retrieved_on,
+      content_sha256,source_scope
+    ) values(
+      $1,'synthetic-authority','Synthetic authority','Synthetic source',
+      'https://example.invalid/synthetic-tax-source','2026-09-25',$2,'official'
+    )`,
+    [pack.id,"c".repeat(64)],
+  );
+  await db.query(
+    `insert into public.tax_rule_tests(
+      rule_pack_id,test_key,rule_key,input_fixture,expected_output
+    ) values
+    ($1,'synthetic-base-test','synthetic.sales.base',
+      '{"values":[600.00,400.00]}'::jsonb,'{"amount":1000.00}'::jsonb),
+    ($1,'synthetic-rate-test','synthetic.output.tax',
+      '{"base":1000.00}'::jsonb,'{"amount":120.00}'::jsonb)`,
+    [pack.id],
+  );
+  await db.query(
+    "select public.pandora_tax_run_rule_tests_v1($1)",
+    [pack.id],
+  );
+  await db.query(
+    `select public.pandora_tax_record_rule_review_v1(
+      $1,$2,'cpa','synthetic-credential','approve',
+      'Synthetic approved fixture only',true,true,'{}'::jsonb
+    )`,
     [pack.id,reviewer],
   );
   await db.query(
@@ -580,6 +602,34 @@ test("universal chat gives deterministic tax status and refuses filing or paymen
   assert.equal(messages.rows.length, 4);
 });
 
+test("service authority cannot bypass professional tax rule approval evidence", async (t) => {
+  const db = await makeDb(t);
+  await db.exec("reset role");
+  const pack = (
+    await db.query(
+      `insert into public.tax_rule_packs(
+        jurisdiction_code,version,status,official_sources
+      ) values(
+        'PH','synthetic-bypass-attempt','draft',
+        '[{"authority":"synthetic","ref":"bypass-test"}]'::jsonb
+      ) returning id`,
+    )
+  ).rows[0];
+
+  await assert.rejects(
+    db.query(
+      `update public.tax_rule_packs
+       set status='approved',
+           review_notes='Bypass attempt',
+           reviewed_by=$2,
+           approved_at=clock_timestamp()
+       where id=$1`,
+      [pack.id,reviewer],
+    ),
+    /pandora_tax_rule_pack_professional_review_required/,
+  );
+});
+
 test("approved tax rule support artifacts are immutable", async (t) => {
   const db = await makeDb(t);
   await db.exec("reset role");
@@ -629,6 +679,9 @@ test("operating core grants keep privileged writes out of authenticated clients"
     operating,
     /grant select,insert on table public\.tax_rule_reviews to service_role/i,
   );
+  assert.match(operating, /pandora_tax_rule_pack_professional_review_required/);
+  assert.match(operating, /pandora_tax_rule_pack_evidence_incomplete/);
+  assert.match(operating, /terminal tax rule packs are immutable history/);
   assert.match(operating, /unhashed_source_count>0/);
   assert.match(operating, /reviewed_package_sha256/);
   assert.match(operating, /pandora_tax_filing_package_integrity_failed/);
