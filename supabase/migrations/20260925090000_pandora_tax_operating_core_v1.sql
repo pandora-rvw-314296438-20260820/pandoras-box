@@ -327,6 +327,7 @@ create table if not exists public.tax_filing_packages (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   tax_period_id uuid not null,
   calculation_run_id uuid not null,
+  form_key text not null,
   package_version integer not null check (package_version >= 1),
   status text not null default 'review_required'
     check (status in (
@@ -343,7 +344,7 @@ create table if not exists public.tax_filing_packages (
   created_by uuid,
   created_at timestamptz not null default clock_timestamp(),
   updated_at timestamptz not null default clock_timestamp(),
-  unique (organization_id,tax_period_id,package_version),
+  unique (organization_id,tax_period_id,form_key,package_version),
   unique (id,organization_id),
   constraint tax_filing_packages_period_org_fkey
     foreign key (tax_period_id,organization_id)
@@ -353,6 +354,7 @@ create table if not exists public.tax_filing_packages (
     foreign key (calculation_run_id,organization_id)
     references public.tax_calculation_runs(id,organization_id)
     on delete restrict,
+  check (length(btrim(form_key)) between 2 and 80),
   check (jsonb_typeof(summary_redacted)='object'),
   check (jsonb_typeof(evidence_index_redacted)='array')
 );
@@ -1974,11 +1976,11 @@ begin
   );
 
   insert into public.tax_filing_packages(
-    organization_id,tax_period_id,calculation_run_id,package_version,
+    organization_id,tax_period_id,calculation_run_id,form_key,package_version,
     status,package_sha256,summary_redacted,evidence_index_redacted,
     filing_adapter_state,created_by
   ) values (
-    p_organization_id,p_tax_period_id,calc.id,version_value,
+    p_organization_id,p_tax_period_id,calc.id,btrim(p_form_key),version_value,
     'review_required',package_hash,
     jsonb_build_object(
       'formKey',btrim(p_form_key),
@@ -2326,7 +2328,7 @@ begin
 
     select to_jsonb(x) into latest_package
     from (
-      select id,package_version,status,package_sha256,filing_adapter_state,
+      select id,form_key,package_version,status,package_sha256,filing_adapter_state,
              accountant_review_id,owner_approval_id,updated_at
       from public.tax_filing_packages
       where organization_id=p_organization_id
