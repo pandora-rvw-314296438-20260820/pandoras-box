@@ -83,10 +83,40 @@ test('Operations Room binds all fourteen specialist identities in one registry',
 
 test('automatic routing selects a bounded relevant team rather than all specialists', () => {
   assert.match(room, /operationsRoomRecommendedRoles/);
+  assert.ok(room.includes('operationsRoomRequestsTeam'));
+  assert.ok(room.includes("['HERMES', 'HEPHAESTUS', 'ARTEMIS']"));
   assert.match(room, /return selected\.take\(4\)/);
   assert.match(room, /HECATE.*NIKE.*PROMETHEUS/s);
   assert.match(room, /HEPHAESTUS.*HESTIA.*ASCLEPIUS.*ARTEMIS/s);
   assert.match(room, /HEPHAESTUS.*THEMIS.*ARTEMIS.*ASCLEPIUS.*HESTIA/s);
+});
+
+test('Operations Room context stays inside the live selected-object cap', () => {
+  for (const field of [
+    'roomMode',
+    'mentions',
+    'orchestrationStage',
+    'targetRole',
+    'roomRosterVersion',
+    'architecturePolicy',
+    'localModel',
+    'localRuntimeEvidence',
+  ]) {
+    assert.ok(room.includes("'" + field + "':"));
+  }
+  for (const removed of [
+    'acceptedLocalModelSha256',
+    'infrastructurePolicy',
+    'accelerationPolicy',
+    'forbiddenCompute',
+  ]) {
+    assert.ok(!room.includes("'" + removed + "':"));
+  }
+  assert.ok(
+    intelligence.includes(
+      'if(entries.length>8)throw Error("INVALID_ENTERPRISE_CONTEXT")',
+    ),
+  );
 });
 
 test('real specialist turns precede Athena coordination', () => {
