@@ -256,6 +256,13 @@ class NativePromptTransactionTest(unittest.TestCase):
         self.assertIn("return result.code;", decoder)
         self.assertIn("llama_set_abort_callback(context", source)
         self.assertIn("return user_result;", source)
+        user_prompt = source.split(
+            "Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(", 1
+        )[1].split("static bool is_valid_utf8", 1)[0]
+        self.assertIn("if (user_result == 4)", user_prompt)
+        self.assertIn("turn_start_position = current_position;", user_prompt)
+        self.assertIn("turn_start_message_count = original_message_count;", user_prompt)
+        self.assertIn("turn_in_progress = true;", user_prompt)
         self.assertIn("return system_result;", source)
         self.assertIn("chat_msgs.resize(original_message_count)", source)
         self.assertIn("available_prompt_tokens <= 0", source)

@@ -748,6 +748,14 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
         g_context, g_batch, user_tokens, current_position, true);
     if (user_result != 0) {
         chat_msgs.resize(original_message_count);
+        if (user_result == 4) {
+            // A failed rollback means native KV may still contain uncommitted
+            // prompt cells. Latch the turn so the next prompt must retry the
+            // rollback (or fail closed) before reusing this context.
+            turn_start_position = current_position;
+            turn_start_message_count = original_message_count;
+            turn_in_progress = true;
+        }
         return user_result;
     }
     turn_start_position = current_position;
