@@ -89,6 +89,9 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
           'Sales & Revenue', 'enterprise_analytics', 'sales-revenue',
           icon: Icons.payments_rounded),
       EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
+      EnterpriseWorkspaceSection(
           'Team & Access', 'enterprise_security', 'team-access',
           icon: Icons.group_rounded),
       EnterpriseWorkspaceSection(
@@ -131,6 +134,9 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
       EnterpriseWorkspaceSection(
           'Sales & Finance', 'enterprise_analytics', 'sales-finance',
           icon: Icons.payments_rounded),
+      EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
       EnterpriseWorkspaceSection(
           'Documents & Compliance', 'enterprise_security', 'documents-compliance',
           icon: Icons.fact_check_rounded),
@@ -191,6 +197,9 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
           'Billing & Finance', 'enterprise_analytics', 'billing-finance',
           icon: Icons.receipt_long_rounded),
       EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
+      EnterpriseWorkspaceSection(
           'Reports', 'enterprise_analytics', 'reports',
           icon: Icons.assessment_rounded),
       EnterpriseWorkspaceSection(
@@ -238,6 +247,9 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
       EnterpriseWorkspaceSection(
           'Sales & Finance', 'enterprise_analytics', 'sales-finance',
           icon: Icons.payments_rounded),
+      EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
       EnterpriseWorkspaceSection(
           'Team & Access', 'enterprise_security', 'team-access',
           icon: Icons.group_rounded),
