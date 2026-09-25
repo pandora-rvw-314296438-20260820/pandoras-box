@@ -20,9 +20,30 @@ async function request(path, options = {}) {
   return payload;
 }
 
-async function loadProjection() {
+// Bound refresh reads only. Mutations using request() retain their existing contract.
+const REFRESH_READ_TIMEOUT_MS = 12_000;
+let refreshGeneration = 0;
+
+function readForRefresh(operation) {
+  const controller = new AbortController();
+  let timer;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(Object.assign(new Error('Status read timed out. Try refreshing again.'), { code: 'STATUS_TIMEOUT' }));
+      controller.abort();
+    }, REFRESH_READ_TIMEOUT_MS);
+  });
+  // Race the entire read, including JSON decoding. Some auth transports do not
+  // forward AbortSignal; their late results must not hold the refresh lock.
+  return Promise.race([
+    Promise.resolve().then(() => operation(controller.signal)),
+    deadline,
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function loadProjection({ signal } = {}) {
   const response = await fetch('/api/operator/status', {
-    credentials: 'same-origin', cache: 'no-store', headers: { accept: 'application/json' },
+    credentials: 'same-origin', cache: 'no-store', headers: { accept: 'application/json' }, signal,
   });
   const projection = await response.json().catch(() => null);
   if (![200, 503].includes(response.status) || projection?.schemaVersion !== '1.0.0' || !Array.isArray(projection?.tasks)) {
@@ -33,76 +54,120 @@ async function loadProjection() {
 
 async function refresh({ announce = false } = {}) {
   if (state.refreshing) return;
+  const generation = ++refreshGeneration;
+  // owner-app replaces this object on auth changes. Never restore a previous
+  // session's results, or let an older refresh release a newer refresh's lock.
+  const businessState = state.business;
+  const isCurrent = () => generation === refreshGeneration && state.business === businessState;
   state.refreshing = true;
   state.loading = !state.projection;
+  state.live = false;
   state.error = null;
+  state.connections = [];
+  state.plans = [];
+  state.logs = [];
   state.business.loading = true;
   state.business.error = null;
-  rerender();
   try {
-    state.projection = await loadProjection();
     rerender();
-    const businessPromise = window.MCPMasterAuth?.edgeRequest
-      ? window.MCPMasterAuth.edgeRequest('pandora-owner-api', ['business'], { method: 'GET' })
+    // Independent reads start together: neither the projection nor a protected
+    // status failure may prevent a successful Business response from rendering.
+    const projectionPromise = readForRefresh((signal) => loadProjection({ signal }))
+      .then((projection) => {
+        if (isCurrent()) {
+          state.projection = projection;
+          state.loading = false;
+          rerender();
+        }
+        return projection;
+      });
+    const businessPromise = (window.MCPMasterAuth?.edgeRequest
+      ? readForRefresh(() => window.MCPMasterAuth.edgeRequest('pandora-owner-api', ['business'], { method: 'GET' }))
           .then((data) => ({ data, error: null }))
           .catch((error) => ({ data: null, error }))
-      : Promise.resolve({ data: null, error: new Error('Business owner contract is unavailable') });
-    const [health, tools, connections, metrics, plans, logs, chain, businessResult] = await Promise.all([
-      request('/health'), request('/tools'), request('/connections'), request('/metrics'),
-      request('/plans?limit=100'), request('/logs?limit=100'), request('/logs/verify'), businessPromise,
+      : Promise.resolve({ data: null, error: new Error('Business owner contract is unavailable') }))
+      .then((result) => {
+        if (!isCurrent()) return result;
+        const businessData = result.data;
+        if (businessData?.contractVersion === 'pandora-owner-business-v1') {
+          state.business.data = businessData;
+          state.business.error = null;
+          state.business.loadedAt = businessData.observedAt || new Date().toISOString();
+        } else {
+          state.business.data = null;
+          state.business.error = result.error?.code === 'STATUS_TIMEOUT'
+            ? 'Business data timed out. Try refreshing again.'
+            : 'Business data could not be refreshed. Try again.';
+          state.business.loadedAt = null;
+        }
+        state.business.loading = false;
+        rerender();
+        return result;
+      });
+    const results = await Promise.allSettled([
+      projectionPromise,
+      ...['/health', '/tools', '/connections', '/metrics', '/plans?limit=100', '/logs?limit=100', '/logs/verify']
+        .map((path) => readForRefresh((signal) => request(path, { signal }))),
+      businessPromise,
     ]);
+    if (!isCurrent()) return;
+    const protectedResults = results.slice(0, 8);
+    const [projection, health, tools, connections, metrics, plans, logs, chain] = protectedResults
+      .map((result) => result.status === 'fulfilled' ? result.value : null);
+    const failure = protectedResults.find((result) => result.status === 'rejected')?.reason;
     const candidate = {
-      projection: state.projection,
+      projection,
       health,
       tools,
-      connections: Array.isArray(connections?.connections) ? connections.connections : [],
+      // Missing/malformed responses are unknown, not a valid empty result.
+      connections: Array.isArray(connections?.connections) ? connections.connections : null,
       metrics,
-      plans: Array.isArray(plans?.plans) ? plans.plans : [],
-      logs: Array.isArray(logs?.events) ? logs.events : [],
+      plans: Array.isArray(plans?.plans) ? plans.plans : null,
+      logs: Array.isArray(logs?.events) ? logs.events : null,
       chain: chain?.verification || chain,
-      error: null,
+      error: failure || null,
     };
+    state.projection = candidate.projection;
     state.health = candidate.health;
     state.tools = candidate.tools;
-    state.connections = candidate.connections;
+    state.connections = candidate.connections || [];
     state.metrics = candidate.metrics;
-    state.plans = candidate.plans;
-    state.logs = candidate.logs;
+    state.plans = candidate.plans || [];
+    state.logs = candidate.logs || [];
     state.chain = candidate.chain;
-    const businessData = businessResult?.data;
-    if (businessData?.contractVersion === 'pandora-owner-business-v1') {
-      state.business.data = businessData;
-      state.business.error = null;
-      state.business.loadedAt = businessData.observedAt || new Date().toISOString();
-    } else {
-      state.business.data = null;
-      state.business.error = businessResult?.error?.message || 'Business data is unavailable.';
-      state.business.loadedAt = null;
-    }
     state.live = readiness(candidate);
     if (!state.live) {
       state.connections = [];
       state.plans = [];
       state.logs = [];
-      state.error = { code: 'LIVE_STATUS_INCOMPLETE', message: 'Some protected live checks did not complete. No live approval or connection status is being shown.' };
+      state.error = {
+        code: failure?.code || 'LIVE_STATUS_INCOMPLETE',
+        message: failure?.code === 'STATUS_TIMEOUT'
+          ? 'Live status checks timed out. Try refreshing again. Protected actions remain unavailable.'
+          : 'Some protected live checks did not complete. Try refreshing again. No live approval or connection status is being shown.',
+      };
     }
     state.session = window.MCPMasterAuth?.session?.() || {};
-    if (announce) showToast('Status refreshed from connected services.', 'success');
+    if (announce) {
+      if (state.live && !state.business.error) showToast('Status refreshed from connected services.', 'success');
+      else if (state.live) showToast('Live status refreshed, but Business data is unavailable. Try refreshing again.', 'error');
+      else showToast('Live status could not be refreshed. Try again. Protected actions remain unavailable.', 'error');
+    }
   } catch (error) {
+    if (!isCurrent()) return;
     state.live = false;
-    state.business.data = null;
-    state.business.error = error?.message || 'Business data is unavailable.';
-    state.business.loadedAt = null;
     state.connections = [];
     state.plans = [];
     state.logs = [];
-    state.error = { code: error.code || 'STATUS_UNAVAILABLE', message: error.message || 'Live status is unavailable.' };
-    if (announce) showToast('Live status could not be refreshed. Nothing was changed.', 'error');
+    state.error = { code: error?.code || 'STATUS_UNAVAILABLE', message: 'Live status could not be refreshed. Try again.' };
+    if (announce) showToast('Live status could not be refreshed. Try again.', 'error');
   } finally {
-    state.loading = false;
-    state.refreshing = false;
-    state.business.loading = false;
-    rerender();
+    if (generation === refreshGeneration) {
+      state.loading = false;
+      state.refreshing = false;
+      if (isCurrent()) state.business.loading = false;
+      rerender();
+    }
   }
 }
 
