@@ -105,6 +105,7 @@ void main() {
         const ordered = <String>[
           'Home',
           'Overview',
+          'Tax & Compliance',
           'Operations',
           'Vision',
           'Guest Experience',
@@ -122,6 +123,11 @@ void main() {
           expect(center.dy, greaterThan(previous));
           previous = center.dy;
         }
+
+        await tester.ensureVisible(find.text('Tax & Compliance'));
+        await tester.tap(find.text('Tax & Compliance'));
+        await tester.pump();
+        expect(selected, 'tax-compliance');
 
         await tester.ensureVisible(find.text('Overview'));
         await tester.tap(find.text('Overview'));
