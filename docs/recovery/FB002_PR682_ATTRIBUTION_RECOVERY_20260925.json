@@ -21,7 +21,7 @@
       "pandora_tracking_campaign_financial_daily_v2"
     ],
     "projectBinding": "one live bound project UUID exists in both legacy projectos_projects and current pandora_projects",
-    "repairDecision": "preserve UUID and rebind active FK/validation to pandora_projects"
+    "repairDecision": "preserve UUID and rebind active FK/validation to private.project_canonical_registry"
   },
   "disposition": [
     {
