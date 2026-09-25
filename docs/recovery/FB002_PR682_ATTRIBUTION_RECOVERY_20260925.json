@@ -21,7 +21,22 @@
       "pandora_tracking_campaign_financial_daily_v2"
     ],
     "projectBinding": "one live bound project UUID exists in both legacy projectos_projects and current pandora_projects",
-    "repairDecision": "preserve UUID and rebind active FK/validation to private.project_canonical_registry"
+    "repairDecision": "preserve UUID and rebind active FK/validation to private.project_canonical_registry",
+    "appliedMigrationVersion": "20260925073639",
+    "appliedMigrationName": "pandora_tracking_dashboard_recovery_v1",
+    "liveVerification": {
+      "projectFk": "private.project_canonical_registry(project_id)",
+      "trigger": "private.pandora_tracking_validate_tenant_scope_v2",
+      "legacyValidatorExists": false,
+      "viewAcl": "service_role only (plus postgres owner)",
+      "counts": {
+        "tenants": 2,
+        "campaigns": 2,
+        "clicks": 1,
+        "events": 0,
+        "costs": 0
+      }
+    }
   },
   "disposition": [
     {
@@ -104,6 +119,7 @@
     "visibleDashboardActivated": false,
     "liveAdMutation": false,
     "spendAuthority": false,
-    "projectosRuntimeAuthorityRestored": false
+    "projectosRuntimeAuthorityRestored": false,
+    "providerHistoryReconciled": true
   }
 }
