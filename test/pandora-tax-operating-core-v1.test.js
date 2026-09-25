@@ -37,8 +37,9 @@ async function makeDb(t) {
     create role service_role nologin;
     create schema auth;
     create schema private;
-    create extension pgcrypto with schema public;
-    grant usage on schema public,auth,private to authenticated,service_role;
+    create schema extensions;
+    create extension pgcrypto with schema extensions;
+    grant usage on schema public,auth,private,extensions to authenticated,service_role;
     create function auth.uid() returns uuid language sql stable as $$
       select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
     $$;
