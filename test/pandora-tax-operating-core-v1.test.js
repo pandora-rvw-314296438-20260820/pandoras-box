@@ -403,6 +403,15 @@ test("filing package requires completed deterministic calculation and remains su
   assert.equal(pkg.filingEnabled, false);
   assert.equal(pkg.paymentEnabled, false);
 
+  const secondPkg = (
+    await db.query(
+      "select public.pandora_tax_build_filing_package_v1($1,$2,'SYNTHETIC-SECOND-RETURN') as payload",
+      [org,periodId],
+    )
+  ).rows[0].payload;
+  assert.equal(secondPkg.packageVersion, 1);
+  assert.notEqual(secondPkg.filingPackageId, pkg.filingPackageId);
+
   await actAs(db, null, "service_role");
   const professional = (
     await db.query(
