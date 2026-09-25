@@ -50,6 +50,29 @@ async function makeDb(t) {
       status text not null,
       primary key(organization_id,user_id)
     );
+    create table public.pandora_intelligence_threads(
+      id uuid primary key default gen_random_uuid(),
+      organization_id uuid not null,
+      project_id uuid,
+      created_by uuid not null,
+      title text not null,
+      status text not null default 'active',
+      last_message_at timestamptz default clock_timestamp(),
+      updated_at timestamptz default clock_timestamp()
+    );
+    create table public.pandora_intelligence_messages(
+      id uuid primary key default gen_random_uuid(),
+      thread_id uuid not null references public.pandora_intelligence_threads(id),
+      organization_id uuid not null,
+      project_id uuid,
+      author_role text not null,
+      content text not null,
+      attachment_manifest jsonb not null default '[]'::jsonb,
+      structured_response jsonb,
+      provider text,
+      model text,
+      created_at timestamptz not null default clock_timestamp()
+    );
     insert into public.organizations values ('${org}'),('${otherOrg}');
     insert into public.memberships values
       ('${org}','${owner}','owner','active'),
@@ -482,6 +505,39 @@ test("draft PH source pack cannot be approved without passing tests and professi
     ),
     /pandora_tax_rule_pack_not_approvable/,
   );
+});
+
+test("universal chat gives deterministic tax status and refuses filing or payment claims", async (t) => {
+  const db = await makeDb(t);
+  await actAs(db, owner);
+
+  const status = (
+    await db.query(
+      "select public.pandora_chat_universal_dispatch_v9($1,'tax status',null,null) as payload",
+      [org],
+    )
+  ).rows[0].payload;
+  assert.equal(status.handled, true);
+  assert.equal(status.conversationLane, "tax_compliance");
+  assert.equal(status.providerReadback.capability, "tax.command-center.read");
+  assert.match(status.reply, /rule pack|tax command center/i);
+
+  const guarded = (
+    await db.query(
+      "select public.pandora_chat_universal_dispatch_v9($1,'pay our taxes now',null,null) as payload",
+      [org],
+    )
+  ).rows[0].payload;
+  assert.equal(guarded.handled, true);
+  assert.equal(guarded.providerReadback.capability, "tax.legal_action.guardrail");
+  assert.equal(guarded.providerReadback.filingEnabled, false);
+  assert.equal(guarded.providerReadback.paymentEnabled, false);
+  assert.match(guarded.reply, /not submitted or paid|disabled/i);
+
+  const messages = await db.query(
+    "select author_role,content from public.pandora_intelligence_messages order by created_at,id",
+  );
+  assert.equal(messages.rows.length, 4);
 });
 
 test("operating core grants keep privileged writes out of authenticated clients", () => {
