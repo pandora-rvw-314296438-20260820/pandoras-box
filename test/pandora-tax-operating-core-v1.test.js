@@ -551,6 +551,30 @@ test("universal chat gives deterministic tax status and refuses filing or paymen
   assert.equal(messages.rows.length, 4);
 });
 
+test("approved tax rule support artifacts are immutable", async (t) => {
+  const db = await makeDb(t);
+  await db.exec("reset role");
+  const periodId = await insertPeriod(db);
+  const packId = await makeApprovedSyntheticPack(db, periodId);
+
+  await db.query(
+    `insert into public.tax_rule_sources(
+      rule_pack_id,source_key,authority,title,source_url,retrieved_on,
+      content_sha256,source_scope
+    ) values($1,'synthetic-source','synthetic','Synthetic source',
+      'https://example.invalid/tax-source','2026-09-25',$2,'official')`,
+    [packId,"a".repeat(64)],
+  ).catch(() => {});
+
+  await assert.rejects(
+    db.query(
+      "update public.tax_rule_tests set status='failed' where rule_pack_id=$1",
+      [packId],
+    ),
+    /pandora_tax_rule_support_immutable/,
+  );
+});
+
 test("professional rule-review credential evidence is service-only", async (t) => {
   const db = await makeDb(t);
   await actAs(db, owner);
@@ -577,6 +601,12 @@ test("operating core grants keep privileged writes out of authenticated clients"
     operating,
     /grant select on table public\.tax_rule_reviews to authenticated/i,
   );
+  assert.doesNotMatch(
+    operating,
+    /grant select,insert on table public\.tax_rule_reviews to service_role/i,
+  );
+  assert.match(operating, /unhashed_source_count>0/);
+  assert.match(operating, /tested_rule_count<rule_count/);
   assert.match(
     operating,
     /grant execute on function public\.pandora_tax_run_rule_tests_v1\(uuid\)[\s\S]*to service_role/i,
