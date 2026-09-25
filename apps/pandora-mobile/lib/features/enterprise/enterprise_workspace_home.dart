@@ -53,10 +53,7 @@ class EnterpriseWorkspaceSelection {
 
   Map<String, Object?> get enterpriseContext => <String, Object?>{
         'surface': section.surface,
-        'route': '/enterprise/workspaces/' +
-            workspace.key +
-            '/' +
-            section.routeSlug,
+        'route': '/enterprise/workspaces/${workspace.key}/${section.routeSlug}',
         'capabilities': const <String>[],
         'identityScope': 'enterprise_workspace',
         'selectedObject': <String, String>{
@@ -464,7 +461,7 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: _WorkspaceCard(
-                            key: ValueKey<String>('workspace-card-' + workspace.key),
+                            key: ValueKey<String>('workspace-card-${workspace.key}'),
                             headerKey: _headerKeys[workspace.key]!,
                             workspace: workspace,
                             expanded: _expandedKey == workspace.key,
@@ -522,7 +519,7 @@ class _WorkspaceCard extends StatelessWidget {
                   child: Semantics(
                     expanded: expanded,
                     child: InkWell(
-                      key: ValueKey<String>('workspace-expand-' + workspace.key),
+                      key: ValueKey<String>('workspace-expand-${workspace.key}'),
                       onTap: onToggle,
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(14, 14, 0, 14),
@@ -555,7 +552,7 @@ class _WorkspaceCard extends StatelessWidget {
                   ),
                 ),
                 PopupMenuButton<_WorkspaceAction>(
-                  key: ValueKey<String>('workspace-more-' + workspace.key),
+                  key: ValueKey<String>('workspace-more-${workspace.key}'),
                   tooltip: 'Workspace options',
                   color: const Color(0xFF171C22),
                   icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
@@ -588,7 +585,7 @@ class _WorkspaceCard extends StatelessWidget {
                   color: const Color(0x14D5A16E),
                   borderRadius: BorderRadius.circular(14),
                   child: ListTile(
-                    key: ValueKey<String>('workspace-tax-quick-' + workspace.key),
+                    key: ValueKey<String>('workspace-tax-quick-${workspace.key}'),
                     minLeadingWidth: 22,
                     horizontalTitleGap: 10,
                     leading: Icon(Icons.account_balance_rounded, color: workspace.accent, size: 22),
@@ -604,7 +601,7 @@ class _WorkspaceCard extends StatelessWidget {
               const Divider(height: 1, color: Color(0x29FFFFFF)),
               for (final section in workspace.sections)
                 ListTile(
-                  key: ValueKey<String>(workspace.key + '-' + section.routeSlug),
+                  key: ValueKey<String>('${workspace.key}-${section.routeSlug}'),
                   contentPadding: const EdgeInsets.fromLTRB(20, 4, 14, 4),
                   minLeadingWidth: 24,
                   horizontalTitleGap: 12,

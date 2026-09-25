@@ -23,7 +23,7 @@ void main() {
   }
 
   Future<void> expand(WidgetTester tester, String key) async {
-    final target = find.byKey(ValueKey<String>('workspace-expand-' + key));
+    final target = find.byKey(ValueKey<String>('workspace-expand-$key'));
     await tester.ensureVisible(target);
     await tester.pumpAndSettle();
     await tester.tap(target);
@@ -45,7 +45,7 @@ void main() {
           expect(text.didExceedMaxLines, isFalse, reason: workspace.name);
           final subtitle = tester.renderObject<RenderParagraph>(find.text(workspace.subtitle));
           expect(subtitle.didExceedMaxLines, isFalse, reason: workspace.subtitle);
-          expect(find.byKey(ValueKey<String>('workspace-tax-quick-' + workspace.key)), findsOneWidget);
+          expect(find.byKey(ValueKey<String>('workspace-tax-quick-${workspace.key}')), findsOneWidget);
         }
         final search = tester.widget<IconButton>(find.byKey(const ValueKey<String>('workspace-home-search')));
         expect(search.color, Colors.white);
@@ -60,12 +60,12 @@ void main() {
     for (final key in ['plp-boracay', '1064-euro-fish-traders', 'batalla-associates', 'bok', 'plp-boracay']) {
       await expand(tester, key);
       final profile = enterpriseWorkspaces.firstWhere((workspace) => workspace.key == key);
-      expect(find.byKey(ValueKey<String>('workspace-tax-quick-' + key)), findsNothing);
-      expect(find.byKey(ValueKey<String>(key + '-tax-compliance')), findsOneWidget);
+      expect(find.byKey(ValueKey<String>('workspace-tax-quick-$key')), findsNothing);
+      expect(find.byKey(ValueKey<String>('$key-tax-compliance')), findsOneWidget);
       expect(profile.sections[0].routeSlug, 'home');
       expect(profile.sections[2].routeSlug, 'tax-compliance');
       for (final other in enterpriseWorkspaces.where((workspace) => workspace.key != key)) {
-        expect(find.byKey(ValueKey<String>(other.key + '-home')), findsNothing);
+        expect(find.byKey(ValueKey<String>('${other.key}-home')), findsNothing);
       }
       expect(tester.takeException(), isNull);
     }
@@ -75,7 +75,7 @@ void main() {
     EnterpriseWorkspaceSelection? selected;
     await mount(tester, onOpen: (value) => selected = value);
     for (final workspace in enterpriseWorkspaces) {
-      final quick = find.byKey(ValueKey<String>('workspace-tax-quick-' + workspace.key));
+      final quick = find.byKey(ValueKey<String>('workspace-tax-quick-${workspace.key}'));
       await tester.ensureVisible(quick);
       await tester.pumpAndSettle();
       await tester.tap(quick);
