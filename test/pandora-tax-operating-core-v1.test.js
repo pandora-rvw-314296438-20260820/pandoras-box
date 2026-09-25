@@ -542,6 +542,15 @@ test("universal chat gives deterministic tax status and refuses filing or paymen
   assert.equal(messages.rows.length, 4);
 });
 
+test("professional rule-review credential evidence is service-only", async (t) => {
+  const db = await makeDb(t);
+  await actAs(db, owner);
+  await assert.rejects(
+    db.query("select * from public.tax_rule_reviews"),
+    /permission denied/,
+  );
+});
+
 test("operating core grants keep privileged writes out of authenticated clients", () => {
   assert.doesNotMatch(
     operating,
@@ -554,6 +563,10 @@ test("operating core grants keep privileged writes out of authenticated clients"
   assert.doesNotMatch(
     operating,
     /grant execute on function public\.pandora_tax_post_ledger_entry_v1[\s\S]{0,500}to authenticated/i,
+  );
+  assert.doesNotMatch(
+    operating,
+    /grant select on table public\.tax_rule_reviews to authenticated/i,
   );
   assert.match(
     operating,
