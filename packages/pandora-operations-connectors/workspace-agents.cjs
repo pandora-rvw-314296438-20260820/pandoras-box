@@ -25,7 +25,8 @@ class WorkspaceAgentClient {
   constructor({ binding, getAccessToken, fetchImpl, timeoutMs }) {
     exactKeys(binding, ["organizationId", "projectId", "workerId", "principalKey", "channelId"]);
     demand(UUID.test(binding.organizationId) && UUID.test(binding.projectId) &&
-      ID.test(binding.workerId) && ID.test(binding.principalKey) &&
+      typeof binding.workerId === "string" && ID.test(binding.workerId) &&
+      typeof binding.principalKey === "string" && ID.test(binding.principalKey) &&
       CHANNEL.test(binding.channelId), "WORKER_BINDING_INVALID");
     demand(typeof getAccessToken === "function", "WORKER_ACCESS_TOKEN_REQUIRED");
     this.#binding = frozen(structuredClone(binding));
@@ -44,7 +45,7 @@ class WorkspaceAgentClient {
       "taskId", "dispatchId", "leaseId", "generation"]);
     for (const key of ["organizationId", "projectId", "workerId", "principalKey"])
       demand(raw[key] === this.#binding[key], "WORKER_SCOPE_DENIED");
-    demand(ID.test(raw.taskId) && UUID.test(raw.dispatchId) && UUID.test(raw.leaseId),
+    demand(typeof raw.taskId === "string" && ID.test(raw.taskId) && UUID.test(raw.dispatchId) && UUID.test(raw.leaseId),
       "WORKER_DISPATCH_INVALID");
     integer(raw.generation, 1, Number.MAX_SAFE_INTEGER, "WORKER_GENERATION_INVALID");
     return frozen({ ...structuredClone(raw), channelId: this.#binding.channelId });

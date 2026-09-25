@@ -132,8 +132,10 @@ function createOperationsWakeHandler({ runtime, getWakeToken }) {
       return reply(403, { code: "OPS_WAKE_DENIED" });
     try {
       const expected = await bounded((signal) => getWakeToken(signal));
-      const presented = (request.headers.get("authorization") || "").replace(/^Bearer /, "");
-      demand(typeof expected === "string" && expected.length >= 32 && expected.length <= 512 &&
+      const authorization = request.headers.get("authorization") || "";
+      const presented = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+      demand(typeof expected === "string" && /^[A-Za-z0-9._~+\/-]{32,512}$/.test(expected) &&
+        /^[A-Za-z0-9._~+\/-]{32,512}$/.test(presented) &&
         presented.length === expected.length && timingSafeEqual(Buffer.from(expected), Buffer.from(presented)),
         "OPS_WAKE_AUTH_REQUIRED");
       // GET is a server-side scheduled wake; POST intentionally has no task or scope payload.

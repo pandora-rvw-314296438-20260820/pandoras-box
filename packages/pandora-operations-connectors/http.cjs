@@ -107,6 +107,8 @@ class NativeJsonClient {
         const reader = response.body.getReader();
         const chunks = [];
         let length = 0;
+        const cancelReader = () => { reader.cancel().catch(() => {}); };
+        abortSignal.addEventListener("abort", cancelReader, { once: true });
         try {
           for (;;) {
             const { done, value } = await reader.read();
@@ -121,6 +123,7 @@ class NativeJsonClient {
           catch { throw failure("CONNECTOR_RESPONSE_INVALID"); }
           return { status: response.status, data };
         } finally {
+          abortSignal.removeEventListener("abort", cancelReader);
           reader.cancel().catch(() => {});
           reader.releaseLock();
         }
