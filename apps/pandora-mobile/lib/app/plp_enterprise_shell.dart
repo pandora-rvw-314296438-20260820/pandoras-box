@@ -14,6 +14,7 @@ import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_team_access_screen.dart';
 import '../features/enterprise/plp_team_management_screen.dart';
+import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -40,6 +41,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     'vision': 3,
     'local-ai': 4,
     'overview': 5,
+    'tax-compliance': 13,
     'guests': 6,
     'team-access': 7,
     'revenue': 8,
@@ -590,6 +592,24 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               },
             ),
             const DeveloperDiagnosticsScreen(key: ValueKey('plp-developer')),
+            TaxComplianceScreen(
+              key: const ValueKey('plp-tax-compliance'),
+              workspaceKey: 'plp-boracay',
+              workspaceName: 'PLP Boracay',
+              enterpriseContext: const <String, Object?>{
+                'surface': 'enterprise_tax',
+                'route': '/enterprise/workspaces/plp-boracay/tax-compliance',
+                'capabilities': <String>[],
+                'identityScope': 'enterprise_workspace',
+                'selectedObject': <String, String>{
+                  'workspaceKey': 'plp-boracay',
+                  'workspaceName': 'PLP Boracay',
+                  'workspaceType': 'Luxury Resort',
+                  'section': 'Tax & Compliance',
+                },
+              },
+              onHome: _openHome,
+            ),
           ];
 
           return KeyedSubtree(
@@ -626,7 +646,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                   },
                 ),
                 body: PandoraNavigationScope(
-                  openDrawer: _index == 1 ? _openDrawer : null,
+                  openDrawer:
+                      _index == 1 || _index == 13 ? _openDrawer : null,
                   child: Stack(
                     children: [
                       Navigator(
@@ -657,7 +678,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                           _closeTool();
                         },
                       ),
-                      if (_index != 1)
+                      if (_index != 1 && _index != 13)
                         Positioned(
                           top: 0,
                           left: 0,

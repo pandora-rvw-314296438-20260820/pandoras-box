@@ -105,6 +105,7 @@ void main() {
         const ordered = <String>[
           'Home',
           'Overview',
+          'Tax & Compliance',
           'Operations',
           'Vision',
           'Guest Experience',
@@ -114,7 +115,7 @@ void main() {
           'Activity',
           'Settings',
         ];
-        var previous = -1.0;
+        var previous = double.negativeInfinity;
         for (final label in ordered) {
           final finder = find.text(label);
           expect(finder, findsOneWidget);
@@ -122,6 +123,11 @@ void main() {
           expect(center.dy, greaterThan(previous));
           previous = center.dy;
         }
+
+        await tester.ensureVisible(find.text('Tax & Compliance'));
+        await tester.tap(find.text('Tax & Compliance'));
+        await tester.pump();
+        expect(selected, 'tax-compliance');
 
         await tester.ensureVisible(find.text('Overview'));
         await tester.tap(find.text('Overview'));

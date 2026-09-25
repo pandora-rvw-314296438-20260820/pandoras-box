@@ -23,6 +23,14 @@ const tax = fs.readFileSync(
   "apps/pandora-mobile/lib/features/enterprise/tax_compliance_screen.dart",
   "utf8",
 );
+const plpDrawer = fs.readFileSync(
+  "apps/pandora-mobile/lib/app/plp_navigation_drawer.dart",
+  "utf8",
+);
+const plpShell = fs.readFileSync(
+  "apps/pandora-mobile/lib/app/plp_enterprise_shell.dart",
+  "utf8",
+);
 
 test("owner workspace home exposes the four requested businesses", () => {
   for (const value of [
@@ -140,4 +148,19 @@ test("tax is visible on every workspace card without opening the section list", 
   assert.match(hub, /Professional review gate/);
   assert.match(hub, /onTap: \(\) => onOpen\(tax\)/);
   assert.match(hub, /final tax = workspace\.sections\.firstWhere/);
+});
+
+
+test("PLP primary drawer exposes Tax & Compliance and routes it to the live tax screen", () => {
+  assert.match(plpDrawer, /'tax-compliance',[\s\S]*'Tax & Compliance'/);
+  const homeAt = plpDrawer.indexOf("'home'");
+  const overviewAt = plpDrawer.indexOf("'overview'");
+  const taxAt = plpDrawer.indexOf("'tax-compliance'");
+  const operationsAt = plpDrawer.indexOf("'operations'");
+  assert.ok(homeAt >= 0 && overviewAt > homeAt);
+  assert.ok(taxAt > overviewAt && taxAt < operationsAt);
+  assert.match(plpShell, /'tax-compliance': 13/);
+  assert.match(plpShell, /TaxComplianceScreen\(/);
+  assert.match(plpShell, /'surface': 'enterprise_tax'/);
+  assert.match(plpShell, /_index == 1 \|\| _index == 13/);
 });
