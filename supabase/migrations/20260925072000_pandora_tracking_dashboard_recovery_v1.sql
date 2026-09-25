@@ -27,7 +27,7 @@ alter table public.pandora_tracking_tenants
 alter table public.pandora_tracking_tenants
   add constraint pandora_tracking_tenants_project_fk
   foreign key (project_id)
-  references public.pandora_projects(id)
+  references private.project_canonical_registry(project_id)
   on delete set null;
 
 create index if not exists pandora_tracking_tenants_organization_idx
@@ -37,11 +37,12 @@ create index if not exists pandora_tracking_tenants_project_idx
   on public.pandora_tracking_tenants (project_id)
   where project_id is not null;
 
-create or replace function public.pandora_tracking_validate_tenant_scope_v2()
+create or replace function private.pandora_tracking_validate_tenant_scope_v2()
 returns trigger
 language plpgsql
-set search_path = pg_catalog, public
-as $$
+security definer
+set search_path = pg_catalog, public, private
+as $
 begin
   if new.project_id is not null then
     if new.organization_id is null then
@@ -50,8 +51,8 @@ begin
     end if;
     if not exists (
       select 1
-      from public.pandora_projects p
-      where p.id=new.project_id
+      from private.project_canonical_registry p
+      where p.project_id=new.project_id
         and p.organization_id=new.organization_id
     ) then
       raise exception 'tracking project does not belong to tracking organization'
@@ -67,9 +68,14 @@ drop trigger if exists pandora_tracking_tenant_scope_guard
 create trigger pandora_tracking_tenant_scope_guard
 before insert or update of organization_id,project_id
 on public.pandora_tracking_tenants
-for each row execute function public.pandora_tracking_validate_tenant_scope_v2();
+for each row execute function private.pandora_tracking_validate_tenant_scope_v2();
 
 drop function if exists public.pandora_tracking_validate_tenant_scope_v1();
+
+revoke all on function private.pandora_tracking_validate_tenant_scope_v2()
+  from public, anon, authenticated;
+grant execute on function private.pandora_tracking_validate_tenant_scope_v2()
+  to service_role;
 
 create or replace view public.pandora_tracking_campaign_traffic_daily_v2 as
 with click_agg as (
