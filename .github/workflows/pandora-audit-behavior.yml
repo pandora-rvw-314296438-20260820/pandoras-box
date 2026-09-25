@@ -52,6 +52,24 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-trigger-fixture.sql
           psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260925062441_pandora_tax_internal_trigger_execute_boundary.sql
           psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-trigger-behavior.sql
+          node --test test/audit-final-migration-order.test.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('supabase/migrations/20260925063000_pandora_meta_native_capability_v1.sql').read_text()
+          match = re.search(r'CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.pandora_chat_capability_dispatch_native_v1\b', source, re.I)
+          assert match, 'Actual late native dispatcher definition missing'
+          tail = source[match.start():]
+          opener = re.search(r'\bAS\s+(\$[A-Za-z_0-9]*\$)', tail, re.I)
+          assert opener, 'Function body delimiter missing'
+          end = tail.index(opener.group(1), opener.end()) + len(opener.group(1))
+          definition = tail[:end] + ';\n'
+          Path('/tmp/late-dispatcher.sql').write_text('CREATE TYPE extensions.http_response AS (status integer, content_type text, headers text[], content text);\n' + definition + '\nGRANT EXECUTE ON FUNCTION public.pandora_chat_capability_dispatch_native_v1(uuid,text,uuid,uuid) TO authenticated;\n')
+          PY
+          psql -X -v ON_ERROR_STOP=1 -f /tmp/late-dispatcher.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260925090001_pandora_authorization_replay_finalizer.sql
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-final-behavior.sql
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-trigger-behavior.sql
   business-data:
     name: Audit / PLP missing-data behavior
     runs-on: ubuntu-24.04

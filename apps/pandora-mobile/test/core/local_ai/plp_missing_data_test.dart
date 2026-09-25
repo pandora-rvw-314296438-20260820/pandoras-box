@@ -13,6 +13,26 @@ String reply(String message, Map<String, Object?> today) =>
     )!;
 
 void main() {
+  test('polite delegated actions never fall through to a snapshot answer', () {
+    for (final message in [
+      'Could you please update sales today?',
+      'Can you please refund the guest?',
+      'Would you please cancel the booking?',
+      'Will you please approve the invoice?',
+    ]) {
+      final actionLike = !PlpChatFallback.isReadOnlyTurn(message);
+      expect(actionLike, isTrue, reason: message);
+      final deterministic = PlpChatFallback.deterministicReply(
+        message: message, enterpriseContext: snapshot({'sales_today_php': 0}));
+      final text = deterministic ??
+          PlpChatFallback.continuityNotice(actionLike: actionLike);
+      expect(deterministic, isNull);
+      expect(text, contains('without repeating the action or claiming completion'));
+      expect(text, contains('Check Activity'));
+      expect(text, isNot(contains('₱0')));
+    }
+  });
+
   test('missing sales is unavailable, never a measured zero', () {
     final text = reply('sales today', {});
     expect(text, contains('unavailable'));
@@ -50,8 +70,8 @@ void main() {
   });
   test('negative or fractional room counts are unavailable', () {
     for (final value in [-1, 1.5, 'NaN']) {
-      expect(reply('available rooms', {'rooms_available': value}),
-          contains('unavailable'));
+      expect(reply('available rooms', {'rooms_available': value, 'rooms_total': 3}),
+          contains('room availability: unavailable; total rooms: 3'));
     }
   });
   test('out of range occupancy is unavailable but zero is valid', () {
