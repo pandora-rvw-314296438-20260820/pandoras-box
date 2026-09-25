@@ -618,3 +618,63 @@ test("DB owner request rechecks current membership and denies privileged operati
 		/OPS_OWNER_SCOPE_DENIED/,
 	);
 });
+
+// Review regression: the database must validate raw callers, not trust JS normalization.
+for (const [name, mutate] of [
+  ['string priority', s=>{s.priority='1';}],
+  ['string max attempts', s=>{s.maxAttempts='2';}],
+  ['string duration', s=>{s.maxDurationSeconds='60';}],
+  ['string budget', s=>{s.maxCostMicros='10';}],
+  ['leading title space', s=>{s.title=' title';}],
+  ['trailing title tab', s=>{s.title='title\t';}],
+  ['title control', s=>{s.title='ti\u0001tle';}],
+  ['title NBSP', s=>{s.title='\u00a0title';}],
+  ['acceptance whitespace', s=>{s.acceptance=[' test'];}],
+  ['acceptance control', s=>{s.acceptance=['te\u001fst'];}],
+  ['duplicate dependency', s=>{s.dependsOn=['B','B'];}],
+  ['duplicate capability', s=>{s.requiredCapabilities=['source.write','source.write'];}],
+  ['duplicate acceptance', s=>{s.acceptance=['test','test'];}],
+  ['extra source field', s=>{s.source.extra='forbidden';}],
+  ['array source', s=>{s.source=[];}],
+  ['numeric title', s=>{s.title=12;}],
+]) {
+ test('DB rejects raw spec divergence: '+name,async()=>{
+   const raw=structuredClone(spec()); mutate(raw);
+   assert.throws(()=>normalizeTask(raw));
+   await assert.rejects(()=>db.query('select private.pandora_ops_validate_spec_v1($1::jsonb)',[JSON.stringify(raw)]),/OPS_/);
+ });
+}
+for(const state of ['queued','handed_off','verifying']) {
+ test('DB cancellation terminalizes lease-free '+state, async()=>{
+   const s=await setup();
+   if(state==='queued') {await ingest(s,[spec()]); await resume(s);}
+   else {await startAndHandoff(s); if(state==='verifying') await db.query("update private.pandora_ops_tasks set status='verifying' where project_id=$1 and task_key='A'",[s.project]);}
+   const before=await snapshot(s);
+   await rpc('pandora_ops_control_v1',{...s.args,p_expected_revision:before.controls.revision,p_action:'cancel_task',p_task_key:'A'});
+   const after=await snapshot(s), task=after.tasks.find(t=>t.spec.id==='A');
+   assert.equal(task.status,'cancelled'); assert.equal(task.cancelRequested,true);
+   assert.equal(after.leases.length,0); assert.equal(after.budget.availableMicros,before.budget.availableMicros);
+ });
+}
+for (const [error,code] of [
+ [{message:'OPS_CONTROL_REVISION_CONFLICT',code:'P0001'},'OPS_CONTROL_REVISION_CONFLICT'],
+ [{message:'OPS_WORKSPACE_MISSING',code:'P0001'},'OPS_WORKSPACE_MISSING'],
+ [{message:'unexpected provider diagnostic',code:'42501'},'42501'],
+ [{message:'OPS_INVALID secret-looking suffix',code:'P0001'},'P0001'],
+]) test('store preserves bounded operation reason '+code,async()=>{
+ const store=new SupabaseOperationsStore({rpc:async()=>({error})});
+ await assert.rejects(()=>store.snapshot({organizationId:'o',projectId:'p'}), e=>e.code===code&&e.sqlState===error.code&&e.message==='OPERATIONS_STORE_FAILURE');
+});
+test('scheduler handles full project larger than the intake batch limit',()=>{
+ const {validateGraph}=require('../packages/pandora-operations-room/contracts');
+ const {planAssignments}=require('../packages/pandora-operations-room/scheduler');
+ const tasks=Array.from({length:5001},(_,i)=>spec('T'+i));
+ assert.throws(()=>validateGraph(tasks),/TASK_BATCH_INVALID/);
+ const r=planAssignments({tasks:tasks.map(s=>({spec:s,status:'queued',attempt:0,revision:0})),workers:[],leases:[],controls:{revision:0,maxConcurrency:1},budget:{availableMicros:0},now:100});
+ assert.equal(r.assignments.length,0);assert.equal(r.blocked.length,5001);
+});
+test('dedicated main workflow watches verification profile changes',()=>{
+ const workflow=fs.readFileSync(path.join(__dirname,'../.github/workflows/operations-room-runtime.yml'),'utf8');
+ const push=workflow.split('  push:')[1].split('  workflow_dispatch:')[0];
+ assert.ok(push.includes('packages/pandora-verification/src/registry.js'));
+});

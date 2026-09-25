@@ -223,9 +223,10 @@ function normalizeTask(raw) {
 	};
 	return frozen(out);
 }
-function validateGraph(raws) {
+function validateGraph(raws, { maxTasks = 5000 } = {}) {
+	integer(maxTasks, 1, Number.MAX_SAFE_INTEGER, "TASK_BATCH_LIMIT_INVALID");
 	demand(
-		Array.isArray(raws) && raws.length > 0 && raws.length <= 5000,
+		Array.isArray(raws) && raws.length > 0 && raws.length <= maxTasks,
 		"TASK_BATCH_INVALID",
 	);
 	const tasks = raws.map(normalizeTask),

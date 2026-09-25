@@ -20,7 +20,8 @@ class SupabaseOperationsStore {
 		});
 		if (r.error)
 			throw Object.assign(new Error("OPERATIONS_STORE_FAILURE"), {
-				code: r.error.code,
+				code: /^OPS_[A-Z0-9_]+$/.test(r.error.message || "") ? r.error.message : r.error.code,
+				sqlState: r.error.code,
 			});
 		return r.data;
 	}

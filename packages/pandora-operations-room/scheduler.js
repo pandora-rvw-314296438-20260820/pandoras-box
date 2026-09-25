@@ -29,7 +29,7 @@ function planAssignments(snapshot) {
 			blocked: [],
 			controlRevision: controls.revision,
 		});
-	const g = validateGraph(records.map((r) => r.spec));
+	const g = validateGraph(records.map((r) => r.spec), { maxTasks: records.length });
 	const states = new Map(records.map((r) => [r.spec.id, r]));
 	demand(
 		new Set(workers.map((w) => w.id)).size === workers.length,

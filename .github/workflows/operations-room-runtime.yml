@@ -12,6 +12,7 @@ on:
     branches: [main]
     paths:
       - 'packages/pandora-operations-room/**'
+      - 'packages/pandora-verification/src/registry.js'
       - 'supabase/functions/pandora-operations-runtime/**'
       - 'supabase/migrations/*pandora_operations_room_runtime*'
       - 'test/pandora-operations-room-runtime*.test.js'

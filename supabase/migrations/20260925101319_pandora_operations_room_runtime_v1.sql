@@ -110,12 +110,14 @@ begin raise exception 'OPS_EVENT_IMMUTABLE' using errcode='55000'; end; $$;
 create trigger pandora_ops_event_immutable before update or delete on private.pandora_ops_events for each row execute function private.pandora_ops_immutable_event_v1();
 
 create function private.pandora_ops_validate_spec_v1(s jsonb) returns void language plpgsql set search_path='' as $$
-declare r jsonb; k text;
+declare r jsonb; k text; v text; trim_chars text := E' \t\n\r\f\013'||chr(160)||chr(5760)||chr(8192)||chr(8193)||chr(8194)||chr(8195)||chr(8196)||chr(8197)||chr(8198)||chr(8199)||chr(8200)||chr(8201)||chr(8202)||chr(8232)||chr(8233)||chr(8239)||chr(8287)||chr(12288)||chr(65279);
 begin
  if jsonb_typeof(s) is distinct from 'object' or not(s ?& array['id','title','lane','priority','dependsOn','resources','requiredCapabilities','maxCostMicros','maxDurationSeconds','maxAttempts','risk','acceptance','source','verificationProfile']) then raise exception 'OPS_SPEC_INVALID'; end if;
  for k in select jsonb_object_keys(s) loop if k<>all(array['id','title','lane','priority','dependsOn','resources','requiredCapabilities','maxCostMicros','maxDurationSeconds','maxAttempts','risk','acceptance','source','verificationProfile']) then raise exception 'OPS_SPEC_UNKNOWN_FIELD'; end if; end loop;
  if not coalesce(s->>'id' ~ '^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$',false) or not coalesce(length(s->>'title') between 1 and 240,false) then raise exception 'OPS_SPEC_ID_INVALID'; end if;
  if not coalesce(s->>'lane'=any(array['web','backend','mobile','growth','reliability','release','ares']),false) or not coalesce(s->>'risk'=any(array['read','source','preview','production','destructive']),false) then raise exception 'OPS_SPEC_CLASS_INVALID'; end if;
+ if jsonb_typeof(s->'title') is distinct from 'string' or (s->>'title')<>btrim(s->>'title',trim_chars) or (s->>'title') ~ '[\x01-\x1f]' then raise exception 'OPS_SPEC_TITLE_INVALID'; end if;
+ for k in select unnest(array['priority','maxAttempts','maxDurationSeconds','maxCostMicros']) loop if jsonb_typeof(s->k) is distinct from 'number' then raise exception 'OPS_SPEC_BUDGET_INVALID'; end if; end loop;
  if not coalesce((s->>'priority') ~ '^[0-3]$',false) or not coalesce((s->>'maxAttempts') ~ '^[1-3]$',false) or not coalesce((s->>'maxDurationSeconds') ~ '^[0-9]{1,4}$' and (s->>'maxDurationSeconds')::integer between 1 and 3600,false) or not coalesce((s->>'maxCostMicros') ~ '^[0-9]{1,13}$' and (s->>'maxCostMicros')::bigint<=1000000000000,false) then raise exception 'OPS_SPEC_BUDGET_INVALID'; end if;
  if jsonb_typeof(s->'resources') is distinct from 'array' or jsonb_typeof(s->'dependsOn') is distinct from 'array' or jsonb_typeof(s->'requiredCapabilities') is distinct from 'array' or jsonb_typeof(s->'acceptance') is distinct from 'array' then raise exception 'OPS_SPEC_ARRAY_INVALID'; end if;
  if jsonb_array_length(s->'resources')>64 or jsonb_array_length(s->'dependsOn')>500 or jsonb_array_length(s->'requiredCapabilities')>64 or jsonb_array_length(s->'acceptance') not between 1 and 32 then raise exception 'OPS_SPEC_ARRAY_LIMIT'; end if;
@@ -127,8 +129,11 @@ begin
  for r in select value from jsonb_array_elements(s->'dependsOn') loop if jsonb_typeof(r)<>'string' or not coalesce(r#>>'{}' ~ '^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$',false) then raise exception 'OPS_DEPENDENCY_INVALID'; end if; end loop;
  for r in select value from jsonb_array_elements(s->'requiredCapabilities') loop if jsonb_typeof(r)<>'string' or not coalesce(r#>>'{}' ~ '^[a-z][a-z0-9._-]{1,100}$',false) then raise exception 'OPS_CAPABILITY_INVALID'; end if; end loop;
  if not coalesce(s->>'verificationProfile'=any(array['static_site','web_application','mobile_application','backend_service','business_system','automation','database_change','production_release']),false) or (s->>'risk' in ('production','destructive') and s->>'verificationProfile'<>'production_release') then raise exception 'OPS_VERIFICATION_PROFILE_INVALID'; end if;
- for r in select value from jsonb_array_elements(s->'acceptance') loop if jsonb_typeof(r)<>'string' or not coalesce(length(r#>>'{}') between 1 and 500,false) then raise exception 'OPS_ACCEPTANCE_INVALID'; end if; end loop;
+ for k in select unnest(array['dependsOn','requiredCapabilities','acceptance']) loop if (select count(*) from jsonb_array_elements(s->k))<>(select count(distinct value) from jsonb_array_elements(s->k)) then raise exception 'OPS_SPEC_ARRAY_DUPLICATE'; end if; end loop;
+ for r in select value from jsonb_array_elements(s->'acceptance') loop v:=r#>>'{}'; if jsonb_typeof(r)<>'string' or not coalesce(length(v) between 1 and 500,false) or v<>btrim(v,trim_chars) or v ~ '[\x01-\x1f]' then raise exception 'OPS_ACCEPTANCE_INVALID'; end if; end loop;
  if s->'source'<>'null'::jsonb then
+  if jsonb_typeof(s->'source') is distinct from 'object' then raise exception 'OPS_SOURCE_INVALID'; end if;
+  if not(s->'source' ?& array['repository','baseSha']) or (select count(*) from jsonb_object_keys(s->'source'))<>2 then raise exception 'OPS_SOURCE_INVALID'; end if;
   if not coalesce(s#>>'{source,repository}'=any(array['pandora-rvw-314296438-20260820/pandoras-box','pandora-rvw-314296438-20260820/pandoras-box-memory']),false) or not coalesce(s#>>'{source,baseSha}' ~ '^[a-f0-9]{40}$',false) then raise exception 'OPS_SOURCE_INVALID'; end if;
  elsif s->>'risk'='source' then raise exception 'OPS_EXACT_SOURCE_REQUIRED'; end if;
 end; $$;
@@ -276,7 +281,7 @@ begin
  elsif p_action='resume' then w.paused:=false;
  elsif p_action='no_production' then w.no_production:=true;
  elsif p_action='cancel_task' then
-  update private.pandora_ops_tasks set cancel_requested=true,status=case when status='queued' then 'cancelled' else status end,revision=revision+1 where organization_id=p_organization_id and project_id=p_project_id and task_key=p_task_key and status not in ('complete','cancelled','failed');
+  update private.pandora_ops_tasks set cancel_requested=true,status=case when status in ('queued','handed_off','verifying') then 'cancelled' else status end,revision=revision+1 where organization_id=p_organization_id and project_id=p_project_id and task_key=p_task_key and status not in ('complete','cancelled','failed');
   if not found then raise exception 'OPS_TASK_NOT_CANCELLABLE'; end if;
  else raise exception 'OPS_CONTROL_NOT_REGISTERED'; end if;
  update private.pandora_ops_workspaces set paused=w.paused,no_production=w.no_production,revision=revision+1,updated_at=clock_timestamp() where organization_id=p_organization_id and project_id=p_project_id returning * into w;
