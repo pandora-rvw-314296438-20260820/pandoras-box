@@ -367,7 +367,7 @@ test("deterministic calculation uses only an approved pack and produces reproduc
 
   const obligation = (
     await db.query(
-      "select obligation_key,amount_due,due_date from public.tax_obligations where organization_id=$1 and tax_period_id=$2",
+      "select obligation_key,amount_due,due_date::text as due_date from public.tax_obligations where organization_id=$1 and tax_period_id=$2",
       [org,periodId],
     )
   ).rows[0];
