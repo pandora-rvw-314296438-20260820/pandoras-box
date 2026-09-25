@@ -57,6 +57,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final _alfredKey = GlobalKey<AskPandoraScreenState>();
   final _commandController = TextEditingController();
   final _commandFocus = FocusNode();
+  final _drawerScrollController = ScrollController();
+  bool _drawerOpen = false;
 
   Future<Map<String, Object?>>? _bootstrapFuture;
   Map<String, Object?>? _lastBootstrap;
@@ -98,6 +100,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
     _commandController.dispose();
     _commandFocus.dispose();
+    _drawerScrollController.dispose();
     super.dispose();
   }
 
@@ -246,7 +249,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   bool _handleWorkspaceBack() {
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-      _scaffoldKey.currentState?.closeDrawer();
+      _closeDrawer();
       return true;
     }
     if (_routedTool != null) {
@@ -290,8 +293,30 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
   }
 
+  void _dismissWorkspaceKeyboard() {
+    _commandFocus.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _resetDrawerScroll() {
+    if (_drawerScrollController.hasClients) {
+      _drawerScrollController.jumpTo(0);
+    }
+  }
+
+  void _closeDrawer() {
+    _dismissWorkspaceKeyboard();
+    _scaffoldKey.currentState?.closeDrawer();
+  }
+
   void _openDrawer() {
-    _scaffoldKey.currentState?.openDrawer();
+    _dismissWorkspaceKeyboard();
+    _resetDrawerScroll();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _resetDrawerScroll();
+      _scaffoldKey.currentState?.openDrawer();
+    });
   }
 
   Future<void> _submitCommand([String? preset]) async {
@@ -346,7 +371,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   void _selectDrawerDestination(String destination) {
     final target = _surfaceByDestination[destination];
     if (target == null) return;
-    _scaffoldKey.currentState?.closeDrawer();
+    _closeDrawer();
     if (target == 0) {
       _openHome();
     } else {
@@ -355,7 +380,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   Future<void> _openRecentThread(PlpRecentChatItem item) async {
-    _scaffoldKey.currentState?.closeDrawer();
+    _closeDrawer();
     _open(1);
     await WidgetsBinding.instance.endOfFrame;
     await _alfredKey.currentState?.loadThread(item.id);
@@ -363,7 +388,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Future<void> _startNewChat() async {
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-      _scaffoldKey.currentState?.closeDrawer();
+      _closeDrawer();
     }
     _open(1);
     await WidgetsBinding.instance.endOfFrame;
@@ -615,8 +640,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           return KeyedSubtree(
             key: const ValueKey('plp-enterprise-shell'),
             child: PopScope<void>(
-              canPop:
-                  _index == 0 && _surfaceHistory.isEmpty && _routedTool == null,
+              canPop: !_drawerOpen &&
+                  _index == 0 &&
+                  _surfaceHistory.isEmpty &&
+                  _routedTool == null,
               onPopInvokedWithResult: (didPop, result) {
                 if (!didPop) _handleWorkspaceBack();
               },
@@ -627,10 +654,18 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 drawerEdgeDragWidth: 32,
                 drawerScrimColor: const Color(0x99000000),
                 onDrawerChanged: (open) {
-                  if (open) unawaited(_loadRecentChats(force: true));
+                  if (_drawerOpen != open && mounted) {
+                    setState(() => _drawerOpen = open);
+                  }
+                  if (open) {
+                    _dismissWorkspaceKeyboard();
+                    _resetDrawerScroll();
+                    unawaited(_loadRecentChats(force: true));
+                  }
                 },
                 drawer: PlpNavigationDrawer(
                   selectedDestination: _drawerSelection,
+                  scrollController: _drawerScrollController,
                   recentChats: _recentChats,
                   recentChatsLoading: _recentChatsLoading,
                   recentChatsError: _recentChatsError,
