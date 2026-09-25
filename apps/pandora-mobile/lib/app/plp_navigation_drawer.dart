@@ -23,6 +23,7 @@ class PlpNavigationDrawer extends StatefulWidget {
     required this.recentChats,
     required this.recentChatsLoading,
     required this.recentChatsError,
+    required this.scrollController,
     required this.onRetryRecentChats,
     required this.onSelectDestination,
     required this.onSelectThread,
@@ -33,6 +34,7 @@ class PlpNavigationDrawer extends StatefulWidget {
   final List<PlpRecentChatItem> recentChats;
   final bool recentChatsLoading;
   final String? recentChatsError;
+  final ScrollController scrollController;
   final VoidCallback onRetryRecentChats;
   final ValueChanged<String> onSelectDestination;
   final ValueChanged<PlpRecentChatItem> onSelectThread;
@@ -77,6 +79,9 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   bool _searchOpen = false;
   String _query = '';
 
+  double get _headerExtent => _searchOpen ? 136 : 76;
+  static const double _footerExtent = 112;
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -90,6 +95,10 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
         _searchController.clear();
         _query = '';
       }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.scrollController.hasClients) return;
+      widget.scrollController.jumpTo(0);
     });
   }
 
@@ -139,8 +148,16 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                 fit: StackFit.expand,
                 children: [
                   SingleChildScrollView(
+                    controller: widget.scrollController,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     key: const ValueKey<String>('plp-drawer-scroll'),
-                    padding: EdgeInsets.fromLTRB(14, _searchOpen ? 136 : 76, 14, 112),
+                    padding: EdgeInsets.fromLTRB(
+                      14,
+                      _headerExtent,
+                      14,
+                      _footerExtent,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -294,6 +311,16 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                               _navigationRow(item, nested: true),
                         ],
                       ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: _headerExtent,
+                    child: const ColoredBox(
+                      key: ValueKey<String>('plp-drawer-header-mask'),
+                      color: Color(0xFF000000),
                     ),
                   ),
                   Positioned(
