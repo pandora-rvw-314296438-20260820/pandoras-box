@@ -118,6 +118,97 @@ int main(int argc, char **argv) {
 """
 
 
+CLOSURE_PRELUDE = r"""#include "prompt_decode_transaction.h"
+#include <atomic>
+#include <cassert>
+#include <initializer_list>
+#include <string>
+#include <iostream>
+using llama_token = int;
+struct JNIEnv {};
+struct Vocab { int eot=2, eos=1; } vocab;
+struct Batch { int token=-1, position=-1; bool logits=true; } g_batch;
+void *g_model=nullptr, *g_context=nullptr, *g_sampler=nullptr;
+int current_position=2044, g_context_size=2048, kv_tail=2043;
+bool turn_in_progress=true, reject_rollback=false, raised=false, was_cancelled=false;
+int decode_code=0, decode_calls=0, rollbacks=0, accepts=0;
+std::atomic_bool g_cancel_requested{false};
+pandora_local_ai::PromptDecodeResult recorded;
+const Vocab *llama_model_get_vocab(void *) { return &vocab; }
+int llama_vocab_eot(const Vocab *v) { return v->eot; }
+int llama_vocab_eos(const Vocab *v) { return v->eos; }
+bool llama_vocab_is_eog(const Vocab *,int token) { return token==1 || token==2; }
+void common_batch_clear(Batch &b) { b={}; }
+void common_batch_add(Batch &b,int token,int position,std::initializer_list<int>,bool logits) {
+    b.token=token; b.position=position; b.logits=logits;
+}
+int llama_decode(void *,Batch b) {
+    ++decode_calls;
+    assert(b.position==kv_tail+1 && b.position<g_context_size);
+    assert(!b.logits);
+    kv_tail=b.position; // Retain partial work even when injected decode aborts.
+    return decode_code;
+}
+bool rollback_unfinished_turn() {
+    if(!turn_in_progress) return true;
+    ++rollbacks;
+    if(reject_rollback) return false;
+    current_position=20; kv_tail=19; turn_in_progress=false;
+    return true;
+}
+void throw_native_generation_error(JNIEnv *,bool cancelled,const std::string &) {
+    raised=true; was_cancelled=cancelled;
+}
+void record_prompt_result(const pandora_local_ai::PromptDecodeResult &r,int,int) { recorded=r; }
+void common_sampler_accept(void *,int token,bool generated) {
+    assert(generated && (token==1 || token==2)); ++accepts;
+}
+"""
+
+CLOSURE_MAIN = r"""int main(int argc,char **argv) {
+    assert(argc==2);
+    const std::string name=argv[1];
+    if(name=="closure_eos_fallback") vocab.eot=-1;
+    if(name=="closure_no_end_token") {vocab.eot=-1;vocab.eos=-1;}
+    if(name=="closure_pre_cancel") g_cancel_requested=true;
+    if(name=="closure_decode_abort") decode_code=2;
+    if(name=="closure_decode_fatal") decode_code=-7;
+    if(name=="closure_rollback_failure") {decode_code=2;reject_rollback=true;}
+    if(name=="closure_no_active_turn") turn_in_progress=false;
+    if(name=="closure_no_capacity") {current_position=2048;kv_tail=2047;}
+    JNIEnv env;
+    const bool result=close_turn_at_limit(&env);
+    if(name=="closure_eot" || name=="closure_eos_fallback") {
+        assert(result && !raised && decode_calls==1 && accepts==1);
+        assert(current_position==2045 && kv_tail==2044 && rollbacks==0);
+        assert(g_batch.token==(name=="closure_eot"?2:1));
+    } else if(name=="closure_no_active_turn") {
+        assert(result && !raised && decode_calls==0 && accepts==0 && rollbacks==0);
+    } else {
+        assert(!result && raised && accepts==0);
+        if(name=="closure_rollback_failure") {
+            assert(!was_cancelled && recorded.code==4 && recorded.rollback_failed);
+            assert(turn_in_progress);
+        } else {
+            assert(!turn_in_progress && current_position==20 && kv_tail==19 && rollbacks==1);
+            assert(was_cancelled==(name=="closure_pre_cancel" || name=="closure_decode_abort"));
+        }
+        if(name=="closure_no_end_token" || name=="closure_pre_cancel" || name=="closure_no_capacity")
+            assert(decode_calls==0);
+        if(name=="closure_decode_fatal") assert(recorded.raw_decode_code==-7);
+        if(name=="closure_decode_abort") assert(recorded.raw_decode_code==2);
+    }
+    std::cout<<name<<" PASS\n";
+}
+"""
+
+CASES += [
+    "closure_eot", "closure_eos_fallback", "closure_no_end_token",
+    "closure_pre_cancel", "closure_decode_abort", "closure_decode_fatal",
+    "closure_rollback_failure", "closure_no_active_turn", "closure_no_capacity",
+]
+
+
 class NativePromptTransactionTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -137,6 +228,22 @@ class NativePromptTransactionTest(unittest.TestCase):
         )
         if result.returncode:
             raise AssertionError(result.stdout + result.stderr)
+        # Compile the ACTUAL production closure function against fault-injected
+        # backend/JNI stubs. This is control-flow testing, not model inference.
+        native = SOURCE.read_text(encoding="utf-8")
+        closure = "static bool close_turn_at_limit(" + native.split(
+            "static bool close_turn_at_limit(", 1
+        )[1].split("static int decode_tokens_in_batches(", 1)[0]
+        closure_source = root / "closure.cpp"
+        closure_source.write_text(CLOSURE_PRELUDE + closure + CLOSURE_MAIN, encoding="utf-8")
+        cls.closure_binary = root / "closure"
+        closure_result = subprocess.run(
+            [compiler, "-std=c++17", "-Wall", "-Wextra", "-Werror", "-O2",
+             str(closure_source), "-I", str(NATIVE), "-o", str(cls.closure_binary)],
+            capture_output=True, text=True, timeout=60, check=False,
+        )
+        if closure_result.returncode:
+            raise AssertionError(closure_result.stdout + closure_result.stderr)
 
     def test_native_wiring_preserves_raw_failure_and_transaction_boundaries(self) -> None:
         source = SOURCE.read_text(encoding="utf-8")
@@ -161,6 +268,9 @@ class NativePromptTransactionTest(unittest.TestCase):
         )[1].split('extern "C"', 1)[0]
         self.assertNotIn("shift_context();", generation)
         self.assertEqual(generation.count("finish_turn();"), 2)
+        self.assertIn("if (!close_turn_at_limit(env)) return nullptr;", generation)
+        self.assertIn("llama_vocab_eot(vocab)", source)
+        self.assertIn("llama_vocab_eos(vocab)", source)
         self.assertIn("const int token_decode_result = llama_decode", generation)
         self.assertIn("restored && token_decode_result == 2", generation)
 
@@ -168,7 +278,8 @@ class NativePromptTransactionTest(unittest.TestCase):
 def _case(name: str):
     def test(self: NativePromptTransactionTest) -> None:
         result = subprocess.run(
-            [str(self.binary), name], capture_output=True, text=True,
+            [str(self.closure_binary if name.startswith("closure_") else self.binary), name],
+            capture_output=True, text=True,
             timeout=10, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

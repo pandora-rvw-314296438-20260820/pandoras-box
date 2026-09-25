@@ -541,6 +541,52 @@ static void throw_native_generation_error(JNIEnv *env, const bool cancelled,
     if (exception_class != nullptr) env->ThrowNew(exception_class, message.c_str());
 }
 
+static bool close_turn_at_limit(JNIEnv *env) {
+    if (!turn_in_progress) return true;
+    const auto *vocab = llama_model_get_vocab(g_model);
+    llama_token end_token = llama_vocab_eot(vocab);
+    if (end_token < 0 || !llama_vocab_is_eog(vocab, end_token)) {
+        end_token = llama_vocab_eos(vocab);
+    }
+    if (end_token < 0 || !llama_vocab_is_eog(vocab, end_token)) {
+        const bool restored = rollback_unfinished_turn();
+        throw_native_generation_error(env, false, restored
+            ? "Native llama.cpp has no valid end-of-turn token; unfinished turn rolled back."
+            : "Native llama.cpp end-of-turn rollback failed; reload required.");
+        return false;
+    }
+
+    // Chat formatting assumes the preceding assistant turn really ended in KV.
+    // Use the reserved headroom to decode its actual EOT/EOS, never just label
+    // a length-limited prefix as a complete assistant message.
+    const int closing_position = current_position;
+    auto result = pandora_local_ai::decode_prompt_transaction(
+        1, closing_position, g_context_size, 1,
+        [&](const int, const int) {
+            common_batch_clear(g_batch);
+            common_batch_add(g_batch, end_token, closing_position, {0}, false);
+            return llama_decode(g_context, g_batch);
+        },
+        [] { return g_cancel_requested.load(std::memory_order_relaxed); },
+        [] { return rollback_unfinished_turn(); });
+    if (result.code != 0) {
+        // Cancellation before the first decode still has an existing user turn
+        // to undo, unlike a new prompt transaction with no submitted tokens.
+        if (!rollback_unfinished_turn()) {
+            result.code = 4;
+            result.rollback_failed = true;
+        }
+        record_prompt_result(result, closing_position, 1);
+        throw_native_generation_error(env, result.code == 9,
+            "Native llama.cpp end-of-turn failed: wrapper=" + std::to_string(result.code) +
+            ", raw_decode=" + std::to_string(result.raw_decode_code));
+        return false;
+    }
+    ++current_position;
+    common_sampler_accept(g_sampler, end_token, true);
+    return true;
+}
+
 static int decode_tokens_in_batches(
         llama_context *context,
         llama_batch &batch,
@@ -769,6 +815,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     // output limit is also a completed assistant message, not an abandoned turn.
     if (current_position >= stop_generation_position ||
         current_position >= g_context_size - OVERFLOW_HEADROOM) {
+        if (!close_turn_at_limit(env)) return nullptr;
         finish_turn();
         return nullptr;
     }
