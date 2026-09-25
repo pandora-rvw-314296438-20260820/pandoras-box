@@ -133,7 +133,10 @@ function auditIdentity(input, options = {}) {
 function main(argv) {
   try {
     if (argv.length !== 1) throw new Error("usage");
-    const fd = fs.openSync(argv[0], "r");
+    // A read-only FIFO can block during open, before fstat can reject it.
+    // Keep descriptor-based validation; a path precheck alone would be racy.
+    // O_NONBLOCK is optional on platforms such as Windows.
+    const fd = fs.openSync(argv[0], fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0));
     let raw;
     try {
       const stat = fs.fstatSync(fd);
