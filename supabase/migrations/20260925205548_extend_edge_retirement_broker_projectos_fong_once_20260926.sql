@@ -1,4 +1,8 @@
--- Pandora source-control reconciliation for live Supabase migration 20260925205548.\n-- Extends the guarded Edge retirement broker for the exact retired ProjectOS one-shot tombstone.\n-- Provider deletion receipt: DELETE 200, verification GET 404; credential remains Vault-backed.\n\nCREATE OR REPLACE FUNCTION private.pandora_retire_self_retired_edge_function_20260907(p_project_ref text, p_slug text)
+-- Pandora source-control reconciliation for live Supabase migration 20260925205548.
+-- Extends the guarded Edge retirement broker for the exact retired ProjectOS one-shot tombstone.
+-- Provider deletion receipt: DELETE 200, verification GET 404; credential remains Vault-backed.
+
+CREATE OR REPLACE FUNCTION private.pandora_retire_self_retired_edge_function_20260907(p_project_ref text, p_slug text)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
