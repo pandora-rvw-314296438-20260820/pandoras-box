@@ -115,7 +115,7 @@ void main() {
           'Activity',
           'Settings',
         ];
-        var previous = -1.0;
+        var previous = double.negativeInfinity;
         for (final label in ordered) {
           final finder = find.text(label);
           expect(finder, findsOneWidget);
