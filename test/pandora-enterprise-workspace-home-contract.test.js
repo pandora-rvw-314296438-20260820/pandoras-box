@@ -69,7 +69,7 @@ test("Euro-fish workspace keeps Home first and the requested business order", ()
 
 
 test("every enterprise workspace exposes the tax command center", () => {
-  assert.equal((hub.match(/'Tax & Compliance'/g) ?? []).length, 4);
+  assert.ok((hub.match(/'Tax & Compliance'/g) ?? []).length >= 5);
   assert.equal((hub.match(/'enterprise_tax', 'tax-compliance'/g) ?? []).length, 4);
   assert.match(shell, /TaxComplianceScreen\(/);
   assert.match(shell, /section\.routeSlug ==\s*'tax-compliance'/);
@@ -130,4 +130,14 @@ test("workspace home matches the screenshot header hierarchy", () => {
   assert.ok(hub.includes("workspace-home-search"));
   assert.ok(hub.includes("workspace-home-activity"));
   assert.ok(hub.includes("workspace-home-more"));
+});
+
+
+test("tax is visible on every workspace card without opening the section list", () => {
+  assert.match(hub, /String\? _expandedKey = 'plp-boracay'/);
+  assert.match(hub, /workspace-tax-quick-/);
+  assert.match(hub, /pandora_tax_command_center_v1/);
+  assert.match(hub, /Professional review gate/);
+  assert.match(hub, /onTap: \(\) => onOpen\(tax\)/);
+  assert.match(hub, /final tax = workspace\.sections\.firstWhere/);
 });
