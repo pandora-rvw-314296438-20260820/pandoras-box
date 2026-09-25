@@ -49,6 +49,9 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260925054238_pandora_fail_closed_membership_guards_v1.sql
           psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260925054517_pandora_provider_tenant_binding_v1.sql
           psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-behavior.sql
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-trigger-fixture.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260925062441_pandora_tax_internal_trigger_execute_boundary.sql
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/audit-security-trigger-behavior.sql
   business-data:
     name: Audit / PLP missing-data behavior
     runs-on: ubuntu-24.04

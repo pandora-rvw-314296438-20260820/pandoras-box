@@ -1,0 +1,44 @@
+{
+    "observedAt": "2026-09-25T06:28:55.119922+00:00",
+    "recordType": "operator_verified_provider_evidence",
+    "reviewPolicy": {
+        "bypassActors": [
+        ],
+        "lastPushApproval": true,
+        "approvalsRequired": 1,
+        "dismissStaleReviews": true,
+        "independentApproval": "not_claimed"
+    },
+    "schemaVersion": 1,
+    "sourceBaseline": "2ee41f644c4f63c832811adf7db12ff7c232df72",
+    "liveTenantBinding": {
+        "scope": "explicit canonical resources bound to authorized organizations",
+        "version": "20260925054517"
+    },
+    "physicalAcceptance": "not_claimed",
+    "learningReviewItems": [
+        "cb05c71c-de6a-4a19-b905-856516826cd1",
+        "9dcf29e3-b0bb-4d7c-8558-f6e9023b41ae"
+    ],
+    "liveMembershipPatch": {
+        "version": "20260925054238",
+        "routines": 12,
+        "authenticatedNegativeTestsPassed": 24
+    },
+    "liveTriggerHardening": {
+        "version": "20260925062441",
+        "customerRowsChanged": false,
+        "directClientExecute": false,
+        "enabledProductionTriggers": 2
+    },
+    "priorExactHeadBehavior": {
+        "sourceSha": "f9ed2f6c3f5185417815cda54c76cde67c78afa7",
+        "workflowRunId": 36101046334,
+        "flutterTestsPassed": 16,
+        "postgresDeniedCases": 9,
+        "targetedAnalyzerIssues": 0,
+        "postgresAuthorizedCases": 3,
+        "unauthorizedProviderCalls": 0
+    },
+    "fullHistoricalMigrationReconciliation": "not_claimed"
+}
