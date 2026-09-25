@@ -119,3 +119,50 @@ provider action verified and whole-sheet acceptance are distinct evidence states
 Provider capacity and exact source/history parity must be checked before rollout.
 Unknown inventory is not zero; a deny-only legacy endpoint is not a working
 scheduler; a denied cleanup action is not permission to find another route.
+
+
+## Provider activation update — 2026-09-26, 03:35 PHT
+
+The earlier missing-database observation is superseded by actual native Supabase
+migration success at 2026-09-25T19:29:02Z. Only the already-merged, unchanged
+49,083-byte #728 migration was executed. The atomic wrapper enforced the exact
+blob/SHA-256 identity, prerequisites and absent objects, held advisory transaction
+lock (20260925,101319), and checked all eight tables, service-only RPC privileges
+and zero seeded state before committing. No customer row or preexisting function
+was changed. No backup or restore drill is claimed by this step.
+
+The provider initially assigned receipt version20260925192902. Its one wrapper
+statement hash0fd7bbb8302fedf62c7dc2e1c8d98e21c0807ff3e2cb6e9ce9570c5fae759b85 and
+unique markerOPS-ACTIVATION-ACCEPTANCE-20260926-INSTALL-728-5838337428 were recorded
+in canonical Memory issue115/comment5838355743 before metadata reconciliation.
+Exactly that freshly created receipt, under a row lock and exact identity checks,
+was mapped to canonical version20260925101319 with the unchanged source SQL that
+actually ran. No historical alias was edited and no migration SQL was replayed.
+Fresh provider readback at19:35:55.725631Z confirms one canonical receipt with the
+correct digest, zero old generated receipts, eight tables, zero workers and zero
+workspaces. This one-time governed bootstrap is not a generic history-repair
+capability in the release adapter.
+
+All eight private tables have RLS enabled and no direct anon/authenticated or
+service_role table grants. Fifteen public RPCs and four private helpers exist.
+The advisor at19:31:05Z reports RLS-enabled/no-policy INFO for these intentionally
+deny-all service-owned tables; do not create permissive policies to clear it.
+No new Ops function appeared in authenticated-security-definer warnings. Other
+preexisting project advisory findings remain and are not certified resolved.
+
+PR737 initial exact head850a5390b59a621b6052a2a9f9d9480230b3f64e executed69/69 new
+and113/113 existing runtime tests in GitHub job108218299951, including the actual
+migration in disposable PostgreSQL. Those counts belong to that head. Follow-up
+source review found unbounded injected I/O and uncaught pre/final readback errors;
+new timeout/receipt-preservation regressions accompany the bounded-I/O correction.
+No production incident or prior failing run is asserted for that review finding.
+
+Each injected transport now has a 12-second default deadline, with an explicit
+trusted configuration bounded to1..30000milliseconds. Read ports receive an abort
+signal. A timed-out write is an unknown outcome, not cancellation or nonexecution:
+M3 retains its lease/reconciliation ownership, prior receipts are preserved and
+no next action is issued. Current database foundation must still exist immediately
+before a missing Edge function may be proposed for deployment.
+
+Edge deployment remains quota-blocked; no tombstone deletion, plan/spend-cap
+change, worker enrollment, scheduler unpause or whole-sheet acceptance occurred.

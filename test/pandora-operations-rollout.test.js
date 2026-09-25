@@ -218,3 +218,64 @@ test("existing active work blocks staging without any provider mutation", async 
 	assert.equal((await r.stageFoundation(h, scope(m))).state, "blocked");
 	assert.equal(h.calls.length, 0);
 });
+
+for (const [at, expectedReceipts] of [[1, 0], [2, 1], [3, 1], [4, 2], [5, 2]]) {
+	test(`observer failure at boundary ${at} retains known receipts and redacts errors`, async () => {
+		const [r, m] = await modules; const h = harness(m); const read = h.observe;
+		let reads = 0;
+		h.observe = async () => {
+			if (++reads === at) throw new Error("private transport diagnostics");
+			return read();
+		};
+		const result = await r.stageFoundation(h, scope(m));
+		assert.equal(result.receipts.length, expectedReceipts);
+		assert.equal(result.state, at === 1 ? "blocked" : "reconciliation_required");
+		assert.ok(!JSON.stringify(result).includes("private transport diagnostics"));
+		assert.equal(h.calls.length, expectedReceipts);
+	});
+}
+test("hung source reader receives abort signal and bounded failure", async () => {
+	const [r] = await modules; let signal;
+	await assert.rejects(r.verifyFoundationSource((request) => {
+		signal = request.signal; return new Promise(() => {});
+	}, { ioDeadlineMs: 5 }), /SOURCE_READ_UNAVAILABLE/);
+	assert.equal(signal.aborted, true);
+});
+test("hung database read is bounded without querying counts or invoking Edge", async () => {
+	const [r] = await modules; let edgeCalls = 0;
+	await assert.rejects(r.collectFoundation({ ioDeadlineMs: 5,
+		readDatabase: () => new Promise(() => {}),
+		readEdge: async () => { edgeCalls++; } }), /DATABASE_READ_UNAVAILABLE/);
+	assert.equal(edgeCalls, 0);
+});
+test("rejected Edge read never exposes provider diagnostics", async () => {
+	const [r, m] = await modules;
+	await assert.rejects(r.collectFoundation({ clock: () => NOW,
+		readDatabase: async () => ({ projectRef: m.PROJECT_REF, data: fixture(m).catalog }),
+		readEdge: async () => { throw new Error("private provider error"); } }),
+		(error) => error.message === "EDGE_READ_UNAVAILABLE");
+});
+test("hung write yields reconciliation without a second provider call or false cancellation", async () => {
+	const [r, m] = await modules; const h = harness(m); let calls = 0;
+	h.ioDeadlineMs = 5;
+	h.actions = new GovernedProviderActions({ verifyCurrentLease: async () => true,
+		executeGoverned: async () => { calls++; return new Promise(() => {}); },
+		readback: async () => { assert.fail("no result to read back"); } });
+	const result = await r.stageFoundation(h, scope(m));
+	assert.equal(result.state, "reconciliation_required");
+	assert.deepEqual(result.issues, ["PROVIDER_INVOCATION_UNCERTAIN"]);
+	assert.equal(calls, 1); assert.equal(result.receipts.length, 0);
+	assert.equal(Object.hasOwn(result, "cancelled"), false);
+});
+test("database disappearance before Edge prevents follow-on deployment", async () => {
+	const [r, m] = await modules; const h = harness(m); const read = h.observe; let reads = 0;
+	h.observe = async () => ++reads === 3 ? fixture(m) : read();
+	const result = await r.stageFoundation(h, scope(m));
+	assert.equal(result.state, "reconciliation_required");
+	assert.deepEqual(result.issues, ["DATABASE_FOUNDATION_CHANGED_BEFORE_EDGE"]);
+	assert.equal(h.calls.length, 1); assert.equal(result.receipts.length, 1);
+});
+for (const ms of [0, -1, 30001, 1.5, "5", null]) test(`invalid transport deadline: ${String(ms)}`, async () => {
+	const [r, m] = await modules;
+	await assert.rejects(r.stageFoundation({ ...harness(m), ioDeadlineMs: ms }, scope(m)), /IO_DEADLINE_INVALID/);
+});

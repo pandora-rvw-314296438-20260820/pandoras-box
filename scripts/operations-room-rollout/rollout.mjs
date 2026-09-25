@@ -17,6 +17,32 @@ const COUNT_KEYS = Object.freeze([
 const object = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const assert = (ok, code) => { if (!ok) throw new Error(code); };
 const hash = (s) => createHash("sha256").update(s, "utf8").digest("hex");
+
+const deadline = (ms) => {
+	assert(Number.isSafeInteger(ms) && ms >= 1 && ms <= 30000, "IO_DEADLINE_INVALID");
+	return ms;
+};
+async function bounded(call, ms, code) {
+	const controller = new AbortController();
+	let timer;
+	try {
+		return await Promise.race([
+			Promise.resolve().then(() => call(controller.signal)),
+			new Promise((_, reject) => {
+				timer = setTimeout(() => {
+					controller.abort();
+					reject(new Error(code));
+				}, ms);
+			}),
+		]);
+	} catch {
+		// Do not leak transport errors, response bodies or credentials to the caller.
+		throw new Error(code);
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 const recent = (value, now) => {
 	if (typeof value !== "string" || !/^\d{4}-\d\d-\d\dT.*(?:Z|[+-]\d\d:\d\d)$/.test(value)) return false;
 	const time = Date.parse(value);
@@ -97,29 +123,31 @@ export function inspectFoundation(snapshot, now = Date.now()) {
 }
 
 /** Trusted readers must bind project identity server-side and reject uncertain inventories. */
-export async function collectFoundation({ readDatabase, readEdge, clock = Date.now }) {
+export async function collectFoundation({ readDatabase, readEdge, clock = Date.now, ioDeadlineMs = 12000 }) {
+	deadline(ioDeadlineMs);
 	assert(typeof readDatabase === "function" && typeof readEdge === "function", "TRUSTED_READERS_REQUIRED");
 	const start = clock();
-	const db = await readDatabase({ projectRef: PROJECT_REF, query: INVENTORY_SQL, kind: "catalog" });
+	const db = await bounded((signal) => readDatabase({ projectRef: PROJECT_REF, query: INVENTORY_SQL, kind: "catalog", signal }), ioDeadlineMs, "DATABASE_READ_UNAVAILABLE");
 	assert(db?.projectRef === PROJECT_REF && object(db.data), "DATABASE_TRANSPORT_SCOPE_MISMATCH");
 	const catalog = db.data;
 	let counts = null;
 	if (exactRoster(catalog.tables, TABLES) && catalog.tables.every((r) => r.exists === true)) {
-		const state = await readDatabase({ projectRef: PROJECT_REF, query: COUNTS_SQL, kind: "counts" });
+		const state = await bounded((signal) => readDatabase({ projectRef: PROJECT_REF, query: COUNTS_SQL, kind: "counts", signal }), ioDeadlineMs, "DATABASE_READ_UNAVAILABLE");
 		assert(state?.projectRef === PROJECT_REF && object(state.data), "DATABASE_TRANSPORT_SCOPE_MISMATCH");
 		counts = state.data;
 	}
-	const edge = await readEdge({ projectRef: PROJECT_REF, slug: EDGE_SLUG, includeSourceHashes: true });
+	const edge = await bounded((signal) => readEdge({ projectRef: PROJECT_REF, slug: EDGE_SLUG, includeSourceHashes: true, signal }), ioDeadlineMs, "EDGE_READ_UNAVAILABLE");
 	const snapshot = { projectRef: PROJECT_REF, observedAt: new Date(start).toISOString(), catalog, counts, edge };
 	return { snapshot, assessment: inspectFoundation(snapshot, clock()) };
 }
 
 /** Only exact immutable source is admitted. A moving branch or matching filename is insufficient. */
-export async function verifyFoundationSource(readSource) {
+export async function verifyFoundationSource(readSource, { ioDeadlineMs = 12000 } = {}) {
+	deadline(ioDeadlineMs);
 	assert(typeof readSource === "function", "SOURCE_READER_REQUIRED");
 	const files = [];
 	for (const expected of FILES) {
-		const source = await readSource({ repository: REPOSITORY, sourceSha: SOURCE_SHA, path: expected.path });
+		const source = await bounded((signal) => readSource({ repository: REPOSITORY, sourceSha: SOURCE_SHA, path: expected.path, signal }), ioDeadlineMs, "SOURCE_READ_UNAVAILABLE");
 		assert(source?.repository === REPOSITORY && source.sourceSha === SOURCE_SHA
 			&& source.path === expected.path && typeof source.content === "string"
 			&& Buffer.byteLength(source.content, "utf8") <= 1048576
@@ -151,38 +179,51 @@ function proposal(kind, scope, files) {
  * changes billing, repairs historical migration aliases, unpauses or promotes Vercel.
  * Any ambiguous write stops the sequence without a retry.
  */
-export async function stageFoundation({ actions, observe, readSource, clock = Date.now }, trustedScope) {
+export async function stageFoundation({ actions, observe, readSource, clock = Date.now, ioDeadlineMs = 12000 }, trustedScope) {
+	deadline(ioDeadlineMs);
 	assert(actions instanceof GovernedProviderActions && typeof observe === "function", "GOVERNED_RELEASE_ADAPTER_REQUIRED");
 	const scope = structuredClone(trustedScope);
 	assert(scope?.sourceSha === SOURCE_SHA && Array.isArray(scope.targets)
 		&& Object.values(TARGETS).every((t) => scope.targets.includes(t))
 		&& typeof scope.taskId === "string" && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$/.test(scope.taskId)
 		&& Number.isSafeInteger(scope.generation) && scope.generation > 0, "RELEASE_SCOPE_INVALID");
-	const files = await verifyFoundationSource(readSource);
+	const files = await verifyFoundationSource(readSource, { ioDeadlineMs });
 	const receipts = [];
+	const read = async () => inspectFoundation(
+		await bounded((signal) => observe({ signal }), ioDeadlineMs, "FOUNDATION_READ_UNAVAILABLE"), clock(),
+	);
+	const unreadable = (code) => ({ state: receipts.length ? "reconciliation_required" : "blocked",
+		issues: [code], receipts, autonomyAccepted: false });
 	for (const kind of ["database", "edge"]) {
-		const before = inspectFoundation(await observe(), clock());
+		let before;
+		try { before = await read(); }
+		catch { return unreadable("PRE_WRITE_READBACK_UNAVAILABLE"); }
 		if (before.issues.length) return { state: "blocked", issues: before.issues, receipts, autonomyAccepted: false };
+		if (kind === "edge" && before.databaseState !== "installed_paused")
+			return unreadable("DATABASE_FOUNDATION_CHANGED_BEFORE_EDGE");
 		const alreadyStaged = kind === "database" ? before.databaseState === "installed_paused" : before.edgeState === "staged";
 		if (alreadyStaged) continue;
 		let result;
 		try {
-			result = await actions.invoke(proposal(kind, scope, files), scope);
+			// Deadline bounds waiting, not provider execution. M3 retains reconciliation ownership.
+			result = await bounded(() => actions.invoke(proposal(kind, scope, files), scope),
+				ioDeadlineMs, "PROVIDER_INVOCATION_UNCERTAIN");
 		} catch {
-			// Invocation may have crossed the network boundary. Never infer non-execution from a timeout.
 			return { state: "reconciliation_required", issues: ["PROVIDER_INVOCATION_UNCERTAIN"], receipts, autonomyAccepted: false };
 		}
 		if (result.state !== "completed") return { state: result.state === "reconciliation_required" ? result.state : "blocked",
 			issues: ["GOVERNED_PROVIDER_DID_NOT_COMPLETE"], receipts, autonomyAccepted: false };
 		receipts.push({ kind, actionHash: result.actionHash, receiptRef: result.receiptRef, readbackRef: result.readbackRef });
 		let after;
-		try { after = inspectFoundation(await observe(), clock()); }
-		catch { return { state: "reconciliation_required", issues: ["POST_WRITE_READBACK_UNAVAILABLE"], receipts, autonomyAccepted: false }; }
+		try { after = await read(); }
+		catch { return unreadable("POST_WRITE_READBACK_UNAVAILABLE"); }
 		if (after.issues.length || (kind === "database" ? after.databaseState !== "installed_paused" : after.edgeState !== "staged")) {
 			return { state: "reconciliation_required", issues: ["POST_WRITE_READBACK_MISMATCH"], receipts, autonomyAccepted: false };
 		}
 	}
-	const final = inspectFoundation(await observe(), clock());
+	let final;
+	try { final = await read(); }
+	catch { return unreadable("FINAL_READBACK_UNAVAILABLE"); }
 	return { state: final.foundationStaged && !final.issues.length ? "foundation_staged" : "reconciliation_required",
 		issues: final.issues, receipts, autonomyAccepted: false };
 }
