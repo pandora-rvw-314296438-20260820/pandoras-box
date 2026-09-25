@@ -1,5 +1,5 @@
 -- A cancelled build is terminal even when its last stage says live or publishing.
--- Preserve separately verified preview/live evidence and the current version.
+-- Preserve preexisting preview/live URLs and version; this does not verify them.
 -- Forward-only change: original migrations and historic projections are untouched.
 begin;
 
@@ -237,6 +237,6 @@ end
 $function$;
 
 comment on function private.pandora_sync_build_theatre_from_job() is
-  'Latest build job projects terminal cancelled truth without active progress; independently verified version and URL remain available.';
+  'Latest build job projects terminal cancelled truth without active progress; preexisting projection version and URLs are retained, not independently verified.';
 
 commit;

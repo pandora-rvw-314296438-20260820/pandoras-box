@@ -16,7 +16,7 @@ const ORG = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const PROJECT = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const OLD = '11111111-1111-4111-8111-111111111111';
 const NEW = '22222222-2222-4222-8222-222222222222';
-const VERSION_VERIFIED = '33333333-3333-4333-8333-333333333333';
+const VERSION_PREEXISTING = '33333333-3333-4333-8333-333333333333';
 const VERSION_CANDIDATE = '44444444-4444-4444-8444-444444444444';
 
 function extractFunction(source, name, closingDelimiter) {
@@ -116,7 +116,7 @@ async function insertJob(db, id, timestamp, status = 'running', stage = 'buildin
   [id, ORG, PROJECT, timestamp, status, stage, VERSION_CANDIDATE]);
 }
 
-test('upgrade path fixes actual cancelled projection while preserving verified version and URLs', async () => {
+test('upgrade path fixes cancelled projection while retaining preexisting version and URLs', async () => {
   const db = new PGlite();
   try {
     await setup(db);
@@ -125,7 +125,7 @@ test('upgrade path fixes actual cancelled projection while preserving verified v
     await db.query(`update public.pandora_build_theatre_projection
       set project_version_id=$1, preview_url='https://preview.example.test',
       live_url='https://example.test' where project_id=$2`,
-    [VERSION_VERIFIED, PROJECT]);
+    [VERSION_PREEXISTING, PROJECT]);
 
     await db.exec(correction);
     await db.query(`update public.pandora_build_jobs
@@ -133,7 +133,7 @@ test('upgrade path fixes actual cancelled projection while preserving verified v
       where id=$1`, [OLD]);
     assert.deepEqual(await projection(db), {
       build_job_id: OLD,
-      project_version_id: VERSION_VERIFIED,
+      project_version_id: VERSION_PREEXISTING,
       owner_state: 'blocked',
       owner_stage: 'cancelled',
       progress_percent: null,
@@ -153,7 +153,7 @@ test('upgrade path fixes actual cancelled projection while preserving verified v
   }
 });
 
-test('clean replay makes cancellation terminal across stale stages and retains noncancelled behavior', async () => {
+test('clean isolated fixture makes cancellation terminal across stale stages and retains controls', async () => {
   const db = new PGlite();
   try {
     await setup(db);
@@ -187,12 +187,14 @@ test('clean replay makes cancellation terminal across stale stages and retains n
       set status='cancelled',current_stage='awaiting_approval'
       where id=$1`, [NEW]);
     const cancelled = await projection(db);
+    assert.equal(cancelled.owner_state, 'blocked',
+      'a preexisting candidate version cannot make a cancelled job live');
     assert.equal(cancelled.owner_stage, 'cancelled');
     assert.equal(cancelled.progress_percent, null);
     assert.equal(cancelled.needs_you, false);
     assert.equal(cancelled.retry_available, true);
     assert.equal(cancelled.project_version_id, VERSION_CANDIDATE,
-      'preexisting version remains; cancelling does not claim a newly verified one');
+      'preexisting projection version remains; its verification is not established here');
 
     await db.query(`update public.pandora_build_jobs set status='failed',
       current_stage='failed',error_code='INVALID_GENERATED_SOURCE_X'
