@@ -98,6 +98,9 @@ alter table public.tax_ledger_entries
   add column if not exists counterparty_id uuid,
   add column if not exists account_id uuid;
 
+alter table public.tax_reviews
+  add column if not exists professional_credential_ref text;
+
 do $$
 begin
   if not exists (
@@ -1091,10 +1094,7 @@ begin
   returning * into run_row;
 
   update public.tax_periods
-  set status=case
-        when exception_count_value>0 then 'review_required'
-        else 'review_required'
-      end,
+  set status='review_required',
       updated_at=clock_timestamp()
   where id=p_tax_period_id and organization_id=p_organization_id;
 
@@ -2084,7 +2084,7 @@ begin
 
   insert into public.tax_reviews(
     organization_id,tax_period_id,review_type,status,
-    reviewer_user_id,notes,completed_at
+    reviewer_user_id,notes,completed_at,professional_credential_ref
   ) values (
     p_organization_id,package_row.tax_period_id,
     case when p_reviewer_role='cpa' then 'cpa' else 'accountant' end,
@@ -2094,8 +2094,9 @@ begin
       else 'rejected'
     end,
     p_reviewer_user_id,
-    btrim(p_notes)||' [credential-ref:'||btrim(p_reviewer_credential_ref)||']',
-    clock_timestamp()
+    btrim(p_notes),
+    clock_timestamp(),
+    btrim(p_reviewer_credential_ref)
   )
   returning * into review_row;
 
@@ -2458,7 +2459,7 @@ cross join (
   values
     ('bir-2550q','BIR Form 2550Q Guidelines and Instructions','https://efps.bir.gov.ph/efps-war/help/help2550q2006.html',null::date,'Official BIR source states 12% VAT on taxable sales/services/imports and quarterly filing within 25 days after quarter close.'),
     ('bir-2551q','BIR Form 2551Q Guidelines and Instructions','https://efps.bir.gov.ph/efps-war/EFPSWeb_war/forms2018Version/2551Q/2551q_guidelines.html',null::date,'Official BIR 2551Q guidance covers quarterly percentage-tax filing and taxpayer applicability; application still requires taxpayer-profile review.'),
-    ('bir-sec116-2024','RMC No. 3-2024 Annex A / Section 116','https://bir-cdn.bir.gov.ph/local/pdf/RMC%20No.%203-2024%20Annex%20A.pdf','2024-01-15'::date,'Official BIR circular text states Section 116 percentage tax at three percent of gross quarterly sales for qualifying non-VAT persons.'),
+    ('bir-sec116-2024','RMC No. 3-2024 Annex A / Section 116','https://bir-cdn.bir.gov.ph/local/pdf/RMC%20No.%203-2024%20Annex%20A.pdf',null::date,'Official BIR circular text states Section 116 percentage tax at three percent of gross quarterly sales for qualifying non-VAT persons.'),
     ('bir-1702','BIR corporate income tax forms','https://www.bir.gov.ph/bir-forms',null::date,'Official BIR forms page identifies 25% regular corporate rate and 20% rate for qualifying small corporations, and 1702Q within 60 days after first three quarters.'),
     ('bir-1601eq','BIR Form 1601-EQ Guidelines','https://efps.bir.gov.ph/efps-war/forms2018Version/1601EQ/1601eq_guidelines.html',null::date,'Official BIR guidance states 1601-EQ is due not later than the last day of the month following quarter close.'),
     ('bir-create','RMC No. 89-2021 - CREATE','https://bir-cdn.bir.gov.ph/local/pdf/RMC%20No.%2089-2021.pdf','2021-07-19'::date,'Official BIR circularizes CREATE corporate income tax rate changes.')
