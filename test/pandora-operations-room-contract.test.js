@@ -84,7 +84,7 @@ test('Operations Room binds all fourteen specialist identities in one registry',
 test('automatic routing selects a bounded relevant team rather than all specialists', () => {
   assert.match(room, /operationsRoomRecommendedRoles/);
   assert.ok(room.includes('operationsRoomRequestsTeam'));
-  assert.ok(room.includes('HERMES', 'HEPHAESTUS', 'ARTEMIS'));
+  assert.ok(room.includes("['HERMES', 'HEPHAESTUS', 'ARTEMIS']"));
   assert.match(room, /return selected\.take\(4\)/);
   assert.match(room, /HECATE.*NIKE.*PROMETHEUS/s);
   assert.match(room, /HEPHAESTUS.*HESTIA.*ASCLEPIUS.*ARTEMIS/s);
