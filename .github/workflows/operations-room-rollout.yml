@@ -1,0 +1,41 @@
+name: Operations Room staged rollout
+on:
+  pull_request:
+    paths:
+      - 'scripts/operations-room-rollout/**'
+      - 'test/pandora-operations-rollout*.test.js'
+      - 'supabase/migrations/20260925101319_pandora_operations_room_runtime_v1.sql'
+      - 'supabase/functions/pandora-operations-runtime/**'
+      - 'packages/pandora-operations-room/provider-actions.js'
+      - '.github/workflows/operations-room-rollout.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/operations-room-rollout/**'
+      - 'test/pandora-operations-rollout*.test.js'
+      - '.github/workflows/operations-room-rollout.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: operations-rollout-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  paused-foundation-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Exact-source staging boundary and actual PostgreSQL catalogue tests
+        run: node --test test/pandora-operations-rollout*.test.js
+      - name: Keep existing scheduler contracts intact
+        run: node --test test/pandora-operations-room-runtime*.test.js
