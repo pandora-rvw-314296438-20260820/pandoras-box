@@ -120,6 +120,10 @@ test("service evidence registration is hash-bound, idempotent and duplicate-awar
   assert.equal(duplicate.duplicate, true);
   assert.equal(duplicate.replayed, false);
 
+  // PGlite's synthetic service_role does not carry Supabase's production
+  // BYPASSRLS attribute. Switch to the authorized owner for readback.
+  await actAs(db, owner);
+
   assert.equal(
     (await db.query("select count(*)::int as n from public.tax_documents where organization_id=$1", [org])).rows[0].n,
     1,
@@ -184,6 +188,9 @@ test("provider extraction never auto-verifies even at maximum confidence", async
   assert.equal(extracted.status, "review_required");
   assert.equal(extracted.humanReviewRequired, true);
   assert.equal(extracted.autoVerified, false);
+
+  // Verify through the same fail-closed owner read boundary used by clients.
+  await actAs(db, owner);
 
   const row = (
     await db.query(
