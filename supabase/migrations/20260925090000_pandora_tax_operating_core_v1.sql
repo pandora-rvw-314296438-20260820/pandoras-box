@@ -434,14 +434,6 @@ using (
 );
 
 drop policy if exists tax_rule_reviews_authenticated_read on public.tax_rule_reviews;
-create policy tax_rule_reviews_authenticated_read on public.tax_rule_reviews
-for select to authenticated
-using (
-  exists(
-    select 1 from public.tax_rule_packs rp
-    where rp.id=tax_rule_reviews.rule_pack_id and rp.status='approved'
-  )
-);
 
 drop policy if exists tax_return_versions_org_read on public.tax_return_versions;
 create policy tax_return_versions_org_read on public.tax_return_versions
@@ -479,7 +471,6 @@ grant select on table public.tax_reconciliation_matches to authenticated;
 grant select on table public.tax_exception_resolutions to authenticated;
 grant select on table public.tax_rule_sources to authenticated;
 grant select on table public.tax_rule_tests to authenticated;
-grant select on table public.tax_rule_reviews to authenticated;
 grant select on table public.tax_return_versions to authenticated;
 grant select on table public.tax_return_schedules to authenticated;
 grant select on table public.tax_filing_packages to authenticated;
@@ -1593,10 +1584,6 @@ begin
       continue;
     end if;
 
-    if rule_row.deterministic_spec ? 'eligibility' then
-      raise exception 'pandora_tax_rule_eligibility_profile_required' using errcode='55000';
-    end if;
-
     op := rule_row.deterministic_spec->>'operation';
     line_key_value := coalesce(rule_row.deterministic_spec->>'lineKey',rule_row.rule_key);
     amount_value := null;
@@ -1643,6 +1630,9 @@ begin
       where calculation_run_id=run_row.id and line_key=base_line_key;
       if base_amount is null then
         raise exception 'pandora_tax_rule_missing_base_line' using errcode='55000';
+      end if;
+      if base_amount<>0 and rule_row.deterministic_spec ? 'eligibility' then
+        raise exception 'pandora_tax_rule_eligibility_profile_required' using errcode='55000';
       end if;
       amount_value := round(base_amount*rate_value,2);
 
