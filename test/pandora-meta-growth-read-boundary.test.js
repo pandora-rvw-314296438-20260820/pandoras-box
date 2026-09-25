@@ -256,6 +256,6 @@ test(PREFIX + 'explicit marketing identifiers, amounts and reporting context kee
   assert.deepEqual(row.actionValues, [{ actionType: 'purchase', value: '5000.50' }]);
   assert.equal(row.dateStart, '2026-09-18');
   assert.equal(row.dateStop, '2026-09-25');
-  assert.equal(row.cpc, undefined);
+  assert.equal(row.cpc, null);
   assert.equal(new URL(fixture.requests[0].url).pathname, `/v26.0/act_${largeId}/insights`);
 });
