@@ -109,10 +109,10 @@ class PlpChatFallback {
     final value = message.trim().toLowerCase();
     if (value.isEmpty) return true;
     final imperative = RegExp(
-      r'^(?:please\s+)?(?:create|add|assign|update|change|edit|delete|remove|cancel|book|reserve|send|call|message|email|publish|deploy|merge|approve|reject|pay|refund|charge|invite|grant|revoke|schedule|reschedule)\b',
+      r'^(?:please\s+)?(?:create|add|assign|set|update|change|edit|delete|remove|cancel|book|reserve|send|call|message|email|publish|deploy|merge|approve|reject|pay|refund|charge|invite|grant|revoke|schedule|reschedule)\b',
     );
     final delegated = RegExp(
-      r'\b(?:can|could|would|will)\s+you\s+(?:please\s+)?(?:create|add|assign|update|change|edit|delete|remove|cancel|book|reserve|send|call|message|email|publish|deploy|merge|approve|reject|pay|refund|charge|invite|grant|revoke|schedule|reschedule)\b',
+      r'\b(?:can|could|would|will)\s+you\s+(?:please\s+)?(?:create|add|assign|set|update|change|edit|delete|remove|cancel|book|reserve|send|call|message|email|publish|deploy|merge|approve|reject|pay|refund|charge|invite|grant|revoke|schedule|reschedule)\b',
     );
     return !imperative.hasMatch(value) && !delegated.hasMatch(value);
   }

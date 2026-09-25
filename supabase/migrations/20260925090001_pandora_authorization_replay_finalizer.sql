@@ -83,7 +83,7 @@ begin
   end if;
   if a<>b then execute a; end if;
   insert into private.pandora_security_patch_receipts(migration_key,function_identity,before_sha256,after_sha256,before_definition,after_definition)
-  values('pandora_final_provider_authorization_guards_v2',r.identity,
+  values('pandora_authorization_replay_finalizer_v1',r.identity,
    encode(extensions.digest(b,'sha256'),'hex'),encode(extensions.digest(a,'sha256'),'hex'),b,a)
   on conflict do nothing;
  end loop;

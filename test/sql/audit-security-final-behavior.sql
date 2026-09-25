@@ -7,7 +7,7 @@ DO $test$
 DECLARE denied boolean;
 BEGIN
  PERFORM set_config('request.jwt.claims','{"sub":"20000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
- PERFORM private.pandora_require_provider_resource_v1('10000000-0000-4000-8000-000000000001','github',' PANDORA-RVW-314296438-20260820/PANDORAS-BOX ',false);
+ PERFORM private.pandora_require_provider_resource_v1('2270b266-59da-4c39-bfd9-9f8d08352af0','github',' PANDORA-RVW-314296438-20260820/PANDORAS-BOX ',false);
  PERFORM set_config('request.jwt.claims','{"sub":"20000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
  denied:=false;
  BEGIN
@@ -24,7 +24,7 @@ DECLARE denied boolean:=false;
 BEGIN
  PERFORM set_config('request.jwt.claims','{"sub":"20000000-0000-4000-8000-000000000099","role":"authenticated"}',true);
  BEGIN
-  PERFORM public.pandora_chat_capability_dispatch_native_v1('10000000-0000-4000-8000-000000000001','check github',NULL,NULL);
+  PERFORM public.pandora_chat_capability_dispatch_native_v1('2270b266-59da-4c39-bfd9-9f8d08352af0','check github',NULL,NULL);
  EXCEPTION WHEN insufficient_privilege THEN denied:=true; END;
  IF NOT denied THEN RAISE EXCEPTION 'Replayed native dispatcher admitted a nonmember'; END IF;
 END; $test$;

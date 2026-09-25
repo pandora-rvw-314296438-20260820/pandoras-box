@@ -15,6 +15,10 @@ String reply(String message, Map<String, Object?> today) =>
 void main() {
   test('polite delegated actions never fall through to a snapshot answer', () {
     for (final message in [
+      'Set sales today to 5000',
+      'Please set sales today to 5000',
+      'Could you set sales today to 5000?',
+      'Can you please set sales today to 5000?',
       'Could you please update sales today?',
       'Can you please refund the guest?',
       'Would you please cancel the booking?',

@@ -4,6 +4,7 @@ on:
     paths:
       - 'supabase/migrations/**'
       - 'test/sql/audit-security-*.sql'
+      - 'test/audit-final-migration-order.test.js'
       - 'apps/pandora-mobile/lib/core/local_ai/plp_chat_fallback.dart'
       - 'apps/pandora-mobile/test/core/local_ai/plp_*test.dart'
       - '.github/workflows/pandora-audit-behavior.yml'

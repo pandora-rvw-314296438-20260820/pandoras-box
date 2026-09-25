@@ -20,7 +20,8 @@ select distinct p.organization_id,'github',r.resource_key,r.resource_key='pandor
  'audit-20260925:canonical-active-platform-project-binding'
 from public.pandora_projects p
 cross join (values('pandora-rvw-314296438-20260820/pandoras-box'),('pandora-rvw-314296438-20260820/pandoras-box-memory'),('pandora-rvw-314296438-20260820/plp')) r(resource_key)
-where p.project_key='mcpmaster' and p.repository='pandora-rvw-314296438-20260820/pandoras-box' and p.status='active'
+where p.organization_id='2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid
+ and p.project_key='mcpmaster' and p.repository='pandora-rvw-314296438-20260820/pandoras-box' and p.status='active'
 on conflict do nothing;
 insert into private.pandora_provider_resource_grants(organization_id,provider,resource_key,write_allowed,provenance)
 select o.id,'github','pandora-rvw-314296438-20260820/plp',true,'audit-20260925:PLP-customer-workspace-binding'
@@ -29,12 +30,14 @@ on conflict do nothing;
 insert into private.pandora_provider_resource_grants(organization_id,provider,resource_key,provenance)
 select distinct p.organization_id,'supabase',r.resource_key,'audit-20260925:canonical-platform-project-refs'
 from public.pandora_projects p cross join (values('jcyqixttuebxqqfkjonq'),('ivmvufhcsezyhczzondn')) r(resource_key)
-where p.project_key='mcpmaster' and p.repository='pandora-rvw-314296438-20260820/pandoras-box' and p.status='active'
+where p.organization_id='2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid
+ and p.project_key='mcpmaster' and p.repository='pandora-rvw-314296438-20260820/pandoras-box' and p.status='active'
 on conflict do nothing;
 insert into private.pandora_provider_resource_grants(organization_id,provider,resource_key,provenance)
 select distinct p.organization_id,'vercel',c.config_value,'audit-20260925:active-canonical-vercel-runtime-config'
 from public.pandora_projects p cross join public.pandora_runtime_provider_configs c
-where p.project_key='mcpmaster' and p.repository='pandora-rvw-314296438-20260820/pandoras-box' and p.status='active'
+where p.organization_id='2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid
+ and p.project_key='mcpmaster' and p.repository='pandora-rvw-314296438-20260820/pandoras-box' and p.status='active'
  and c.provider='vercel' and c.config_key='mcpmaster_project_id' and c.active=true and nullif(trim(c.config_value),'') is not null
 on conflict do nothing;
 
