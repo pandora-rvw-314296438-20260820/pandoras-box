@@ -137,13 +137,15 @@ void main() {
           previous = center.dy;
         }
 
-        await tester.ensureVisible(find.text('Tax & Compliance'));
-        await tester.tap(find.text('Tax & Compliance'));
+        final taxTarget = find.text('Tax & Compliance');
+        expect(tester.getRect(taxTarget).top, greaterThan(headerRect.bottom));
+        await tester.tap(taxTarget);
         await tester.pump();
         expect(selected, 'tax-compliance');
 
-        await tester.ensureVisible(find.text('Overview'));
-        await tester.tap(find.text('Overview'));
+        final overviewTarget = find.text('Overview');
+        expect(tester.getRect(overviewTarget).top, greaterThan(headerRect.bottom));
+        await tester.tap(overviewTarget);
         await tester.pump();
         expect(selected, 'overview');
 
