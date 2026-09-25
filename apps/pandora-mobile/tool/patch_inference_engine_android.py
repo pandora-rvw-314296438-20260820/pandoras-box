@@ -106,10 +106,43 @@ def patch_impl(path: Path) -> int:
             }
 """
     user_prompt_new = """            processUserPrompt(message, predictLength).let { result ->
+                if (result == 9) {
+                    throw CancellationException(
+                        "Native llama.cpp user prompt cancelled; prompt state restored.",
+                    )
+                }
                 if (result != 0) {
                     throw RuntimeException(
-                        "Native llama.cpp user prompt failed with code $result",
+                        "Native llama.cpp user prompt failed with code $result; " +
+                            nativeRuntimeDiagnostics(),
                     )
+                }
+            }
+"""
+
+    system_result_old = """            processSystemPrompt(prompt).let { result ->
+                if (result != 0) {
+                    RuntimeException("Failed to process system prompt: $result").also {
+                        _state.value = InferenceEngine.State.Error(it)
+                        throw it
+                    }
+                }
+            }
+"""
+    system_result_new = """            processSystemPrompt(prompt).let { result ->
+                if (result != 0) {
+                    // A failed system prompt has no admitted system policy.
+                    // Never return this context as ModelReady, even on cancel.
+                    val error = if (result == 9) {
+                        CancellationException("Native llama.cpp system prompt cancelled.")
+                    } else {
+                        RuntimeException(
+                            "Native llama.cpp system prompt failed with code $result; " +
+                                nativeRuntimeDiagnostics(),
+                        )
+                    }
+                    _state.value = InferenceEngine.State.Error(error)
+                    throw error
                 }
             }
 """
@@ -163,6 +196,7 @@ def patch_impl(path: Path) -> int:
             "system prompt warm-reset guard",
         )
         text = replace_exact(text, user_prompt_old, user_prompt_new, "user prompt fail-closed block")
+        text = replace_exact(text, system_result_old, system_result_new, "system prompt result block")
         text = replace_exact(text, bench_anchor, bench_replacement, "benchmark implementation")
         text = replace_exact(
             text,
@@ -197,6 +231,9 @@ def patch_impl(path: Path) -> int:
         "Native llama.cpp model load failed with code ",
         "Native llama.cpp context preparation failed with code ",
         "Native llama.cpp user prompt failed with code ",
+        "Native llama.cpp user prompt cancelled; prompt state restored.",
+        "Native llama.cpp system prompt failed with code ",
+        "Native llama.cpp system prompt cancelled.",
         "nativeRuntimeDiagnostics()",
         "requestCancelNative()",
         "clearCancelNative()",
