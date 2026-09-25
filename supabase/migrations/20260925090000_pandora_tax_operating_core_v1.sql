@@ -99,7 +99,8 @@ alter table public.tax_ledger_entries
   add column if not exists account_id uuid;
 
 alter table public.tax_reviews
-  add column if not exists professional_credential_ref text;
+  add column if not exists professional_credential_ref text,
+  add column if not exists reviewed_package_sha256 text;
 
 do $$
 begin
@@ -327,6 +328,7 @@ create table if not exists public.tax_filing_packages (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   tax_period_id uuid not null,
   calculation_run_id uuid not null,
+  return_version_id uuid not null,
   form_key text not null,
   package_version integer not null check (package_version >= 1),
   status text not null default 'review_required'
@@ -353,6 +355,10 @@ create table if not exists public.tax_filing_packages (
   constraint tax_filing_packages_calc_org_fkey
     foreign key (calculation_run_id,organization_id)
     references public.tax_calculation_runs(id,organization_id)
+    on delete restrict,
+  constraint tax_filing_packages_return_org_fkey
+    foreign key (return_version_id,organization_id)
+    references public.tax_return_versions(id,organization_id)
     on delete restrict,
   check (length(btrim(form_key)) between 2 and 80),
   check (jsonb_typeof(summary_redacted)='object'),
@@ -489,6 +495,8 @@ grant select on table public.tax_rule_reviews to service_role;
 grant select,insert,update,delete on table public.tax_return_versions to service_role;
 grant select,insert,update,delete on table public.tax_return_schedules to service_role;
 grant select,insert,update,delete on table public.tax_filing_packages to service_role;
+revoke insert,update,delete on table public.tax_reviews from service_role;
+revoke insert,update,delete on table public.tax_approvals from service_role;
 
 create or replace function public.pandora_tax_guard_rule_support_mutation_v1()
 returns trigger
@@ -2030,11 +2038,11 @@ begin
   );
 
   insert into public.tax_filing_packages(
-    organization_id,tax_period_id,calculation_run_id,form_key,package_version,
+    organization_id,tax_period_id,calculation_run_id,return_version_id,form_key,package_version,
     status,package_sha256,summary_redacted,evidence_index_redacted,
     filing_adapter_state,created_by
   ) values (
-    p_organization_id,p_tax_period_id,calc.id,btrim(p_form_key),version_value,
+    p_organization_id,p_tax_period_id,calc.id,return_row.id,btrim(p_form_key),version_value,
     'review_required',package_hash,
     jsonb_build_object(
       'formKey',btrim(p_form_key),
@@ -2130,7 +2138,8 @@ begin
 
   insert into public.tax_reviews(
     organization_id,tax_period_id,review_type,status,
-    reviewer_user_id,notes,completed_at,professional_credential_ref
+    reviewer_user_id,notes,completed_at,professional_credential_ref,
+    reviewed_package_sha256
   ) values (
     p_organization_id,package_row.tax_period_id,
     case when p_reviewer_role='cpa' then 'cpa' else 'accountant' end,
@@ -2142,7 +2151,8 @@ begin
     p_reviewer_user_id,
     btrim(p_notes),
     clock_timestamp(),
-    btrim(p_reviewer_credential_ref)
+    btrim(p_reviewer_credential_ref),
+    package_row.package_sha256
   )
   returning * into review_row;
 
@@ -2199,7 +2209,10 @@ as $$
 declare
   uid uuid := auth.uid();
   package_row public.tax_filing_packages%rowtype;
+  return_row public.tax_return_versions%rowtype;
+  professional_review public.tax_reviews%rowtype;
   approval_row public.tax_approvals%rowtype;
+  recomputed_package_sha256 text;
 begin
   if uid is null then
     raise exception 'pandora_tax_sign_in_required' using errcode='42501';
@@ -2219,6 +2232,42 @@ begin
      or package_row.accountant_review_id is null
   then
     raise exception 'pandora_tax_accountant_approval_required' using errcode='55000';
+  end if;
+
+  select * into return_row
+  from public.tax_return_versions
+  where id=package_row.return_version_id
+    and organization_id=p_organization_id;
+  if return_row.id is null then
+    raise exception 'pandora_tax_filing_package_integrity_failed' using errcode='55000';
+  end if;
+
+  recomputed_package_sha256 := encode(
+    extensions.digest(
+      convert_to(
+        return_row.return_payload_redacted::text||'|'||
+        package_row.evidence_index_redacted::text||'|'||
+        package_row.package_version::text,
+        'UTF8'
+      ),
+      'sha256'
+    ),
+    'hex'
+  );
+  if recomputed_package_sha256<>package_row.package_sha256
+     or return_row.package_sha256<>package_row.package_sha256
+  then
+    raise exception 'pandora_tax_filing_package_integrity_failed' using errcode='55000';
+  end if;
+
+  select * into professional_review
+  from public.tax_reviews
+  where id=package_row.accountant_review_id
+    and organization_id=p_organization_id
+    and status='approved'
+    and reviewed_package_sha256=package_row.package_sha256;
+  if professional_review.id is null then
+    raise exception 'pandora_tax_accountant_review_hash_mismatch' using errcode='55000';
   end if;
 
   insert into public.tax_approvals(
@@ -2382,7 +2431,7 @@ begin
 
     select to_jsonb(x) into latest_package
     from (
-      select id,form_key,package_version,status,package_sha256,filing_adapter_state,
+      select id,return_version_id,form_key,package_version,status,package_sha256,filing_adapter_state,
              accountant_review_id,owner_approval_id,updated_at
       from public.tax_filing_packages
       where organization_id=p_organization_id
