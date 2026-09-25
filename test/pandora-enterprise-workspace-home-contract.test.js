@@ -19,6 +19,18 @@ const backend = fs.readFileSync(
   "supabase/functions/pandora-intelligence-chat/index.ts",
   "utf8",
 );
+const tax = fs.readFileSync(
+  "apps/pandora-mobile/lib/features/enterprise/tax_compliance_screen.dart",
+  "utf8",
+);
+const plpDrawer = fs.readFileSync(
+  "apps/pandora-mobile/lib/app/plp_navigation_drawer.dart",
+  "utf8",
+);
+const plpShell = fs.readFileSync(
+  "apps/pandora-mobile/lib/app/plp_enterprise_shell.dart",
+  "utf8",
+);
 
 test("owner workspace home exposes the four requested businesses", () => {
   for (const value of [
@@ -48,6 +60,7 @@ test("Euro-fish workspace keeps Home first and the requested business order", ()
     "Inventory & Products",
     "Logistics & Customs",
     "Sales & Finance",
+    "Tax & Compliance",
     "Documents & Compliance",
     "Team & Access",
     "Activity",
@@ -60,6 +73,24 @@ test("Euro-fish workspace keeps Home first and the requested business order", ()
     assert.ok(next > cursor, label + " must follow the requested order");
     cursor = next;
   }
+});
+
+
+test("every enterprise workspace exposes the tax command center", () => {
+  assert.ok((hub.match(/'Tax & Compliance'/g) ?? []).length >= 5);
+  assert.equal((hub.match(/'enterprise_tax', 'tax-compliance'/g) ?? []).length, 4);
+  assert.match(shell, /TaxComplianceScreen\(/);
+  assert.match(shell, /section\.routeSlug ==\s*'tax-compliance'/);
+});
+
+test("tax command center reads live tenant-scoped backend truth and preserves legal action gates", () => {
+  assert.match(tax, /pandora_tax_command_center_v1/);
+  assert.match(tax, /PandoraConfig\.organizationId/);
+  assert.match(tax, /Message Pandora about taxes/);
+  assert.match(tax, /filingSubmission/);
+  assert.match(tax, /paymentExecution/);
+  assert.match(tax, /The Philippines rule pack is still under professional review/);
+  assert.doesNotMatch(tax, /service_role|SUPABASE_SERVICE_ROLE|access_token|refresh_token/);
 });
 
 test("workspace navigation uses admitted structured Enterprise context", () => {
@@ -107,4 +138,29 @@ test("workspace home matches the screenshot header hierarchy", () => {
   assert.ok(hub.includes("workspace-home-search"));
   assert.ok(hub.includes("workspace-home-activity"));
   assert.ok(hub.includes("workspace-home-more"));
+});
+
+
+test("tax is visible on every workspace card without opening the section list", () => {
+  assert.match(hub, /String\? _expandedKey = 'plp-boracay'/);
+  assert.match(hub, /workspace-tax-quick-/);
+  assert.match(hub, /pandora_tax_command_center_v1/);
+  assert.match(hub, /Professional review gate/);
+  assert.match(hub, /onTap: \(\) => onOpen\(tax\)/);
+  assert.match(hub, /final tax = workspace\.sections\.firstWhere/);
+});
+
+
+test("PLP primary drawer exposes Tax & Compliance and routes it to the live tax screen", () => {
+  assert.match(plpDrawer, /'tax-compliance',[\s\S]*'Tax & Compliance'/);
+  const homeAt = plpDrawer.indexOf("'home'");
+  const overviewAt = plpDrawer.indexOf("'overview'");
+  const taxAt = plpDrawer.indexOf("'tax-compliance'");
+  const operationsAt = plpDrawer.indexOf("'operations'");
+  assert.ok(homeAt >= 0 && overviewAt > homeAt);
+  assert.ok(taxAt > overviewAt && taxAt < operationsAt);
+  assert.match(plpShell, /'tax-compliance': 13/);
+  assert.match(plpShell, /TaxComplianceScreen\(/);
+  assert.match(plpShell, /'surface': 'enterprise_tax'/);
+  assert.match(plpShell, /_index == 1 \|\| _index == 13/);
 });

@@ -15,6 +15,18 @@ const limit = {
     maximum: 100,
     default: 25,
 };
+const adAccountId = {
+    type: 'string',
+    minLength: 1,
+    maxLength: 64,
+    pattern: '^(?:act_)?[0-9]+$',
+    description: 'Authorized Meta ad account identifier.',
+};
+const datePreset = {
+    type: 'string',
+    enum: ['today', 'yesterday', 'last_7d', 'last_14d', 'last_30d', 'this_month', 'last_month'],
+    default: 'last_7d',
+};
 const message = {
     type: 'string',
     minLength: 1,
@@ -55,6 +67,14 @@ const INPUT_SCHEMAS = {
         },
     }, ['pageId']),
     meta_webhook_health: objectSchema({ pageId }, ['pageId']),
+    meta_ad_accounts_list: objectSchema({ pageId, limit }, ['pageId']),
+    meta_ad_campaigns_list: objectSchema({ pageId, adAccountId, limit }, ['pageId', 'adAccountId']),
+    meta_ad_account_insights: objectSchema({ pageId, adAccountId, datePreset }, ['pageId', 'adAccountId']),
+    meta_campaign_insights: objectSchema({
+        pageId,
+        campaignId: { type: 'string', minLength: 1, maxLength: 64, pattern: '^[0-9]+$' },
+        datePreset,
+    }, ['pageId', 'campaignId']),
     meta_post_create_draft: objectSchema({ pageId, message }, ['pageId', 'message']),
     meta_comment_create_reply_draft: objectSchema({
         pageId,

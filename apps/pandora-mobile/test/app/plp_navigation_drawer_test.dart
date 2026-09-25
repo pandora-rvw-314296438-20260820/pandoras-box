@@ -13,6 +13,8 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       String? selected;
+      final scrollController = ScrollController();
+      addTearDown(scrollController.dispose);
       final semantics = tester.ensureSemantics();
       try {
         await tester.pumpWidget(
@@ -21,6 +23,7 @@ void main() {
             home: Scaffold(
               body: PlpNavigationDrawer(
                 selectedDestination: 'home',
+                scrollController: scrollController,
                 recentChats: const <PlpRecentChatItem>[
                   PlpRecentChatItem(
                     id: 'thread-1',
@@ -65,6 +68,10 @@ void main() {
         );
         expect(scrollView, findsOneWidget);
         expect(headerOverlay, findsOneWidget);
+        expect(
+          find.byKey(const ValueKey<String>('plp-drawer-header-mask')),
+          findsOneWidget,
+        );
         expect(find.byKey(const ValueKey<String>('plp-drawer-bottom-overlay')), findsOneWidget);
         expect(find.byKey(const ValueKey<String>('plp-drawer-new-chat')), findsOneWidget);
         expect(
@@ -93,6 +100,12 @@ void main() {
           greaterThan(headerRect.bottom),
         );
 
+        // Opening the production drawer resets this controller to zero. Reset
+        // here too before validating primary navigation hit targets so the
+        // opaque fixed header is never treated as a tappable underlay.
+        scrollController.jumpTo(0);
+        await tester.pumpAndSettle();
+
         expect(find.text('Pandora'), findsOneWidget);
         expect(find.text('PLP Boracay'), findsOneWidget);
         expect(find.text('Owner workspace'), findsOneWidget);
@@ -105,6 +118,7 @@ void main() {
         const ordered = <String>[
           'Home',
           'Overview',
+          'Tax & Compliance',
           'Operations',
           'Vision',
           'Guest Experience',
@@ -114,7 +128,7 @@ void main() {
           'Activity',
           'Settings',
         ];
-        var previous = -1.0;
+        var previous = double.negativeInfinity;
         for (final label in ordered) {
           final finder = find.text(label);
           expect(finder, findsOneWidget);
@@ -123,8 +137,15 @@ void main() {
           previous = center.dy;
         }
 
-        await tester.ensureVisible(find.text('Overview'));
-        await tester.tap(find.text('Overview'));
+        final taxTarget = find.text('Tax & Compliance');
+        expect(tester.getRect(taxTarget).top, greaterThan(headerRect.bottom));
+        await tester.tap(taxTarget);
+        await tester.pump();
+        expect(selected, 'tax-compliance');
+
+        final overviewTarget = find.text('Overview');
+        expect(tester.getRect(overviewTarget).top, greaterThan(headerRect.bottom));
+        await tester.tap(overviewTarget);
         await tester.pump();
         expect(selected, 'overview');
 

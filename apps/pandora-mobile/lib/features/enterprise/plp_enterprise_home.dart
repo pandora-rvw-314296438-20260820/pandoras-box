@@ -285,31 +285,7 @@ class _HomeHeader extends StatelessWidget {
             )
           else
             const SizedBox.square(dimension: 44),
-          const SizedBox(width: 7),
-          Container(
-            width: 43,
-            height: 43,
-            decoration: BoxDecoration(
-              color: PlpEnterpriseHome._paper,
-              border: Border.all(color: PlpEnterpriseHome._line),
-            ),
-            child: Image.asset(
-              'assets/workspaces/plp.webp',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Center(
-                child: Text(
-                  'PLP',
-                  style: TextStyle(
-                    color: PlpEnterpriseHome._ink,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -263,48 +263,6 @@ class _GuestHeader extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 6),
-          const _PlpWordmark(),
-        ],
-      );
-}
-
-class _PlpWordmark extends StatelessWidget {
-  const _PlpWordmark();
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 42,
-            height: 48,
-            child: Image.asset(
-              'assets/workspaces/plp.webp',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Center(
-                child: Text(
-                  'PLP',
-                  style: TextStyle(
-                    color: _PlpGuestsScreenState._ink,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 7),
-          const Text(
-            'PUEBLO\nLA PERLA\nBORACAY',
-            style: TextStyle(
-              color: Color(0xFF4C3020),
-              fontSize: 7.5,
-              height: 1.08,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.25,
-            ),
-          ),
         ],
       );
 }
@@ -411,15 +369,6 @@ class _GuestExperienceHero extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            SizedBox(
-              width: 74,
-              height: 92,
-              child: Image.asset(
-                'assets/workspaces/plp.webp',
-                fit: BoxFit.contain,
               ),
             ),
           ],

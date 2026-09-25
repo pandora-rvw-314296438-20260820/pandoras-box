@@ -14,6 +14,7 @@ import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_team_access_screen.dart';
 import '../features/enterprise/plp_team_management_screen.dart';
+import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -40,6 +41,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     'vision': 3,
     'local-ai': 4,
     'overview': 5,
+    'tax-compliance': 13,
     'guests': 6,
     'team-access': 7,
     'revenue': 8,
@@ -55,6 +57,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final _alfredKey = GlobalKey<AskPandoraScreenState>();
   final _commandController = TextEditingController();
   final _commandFocus = FocusNode();
+  final _drawerScrollController = ScrollController();
+  bool _drawerOpen = false;
 
   Future<Map<String, Object?>>? _bootstrapFuture;
   Map<String, Object?>? _lastBootstrap;
@@ -96,6 +100,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
     _commandController.dispose();
     _commandFocus.dispose();
+    _drawerScrollController.dispose();
     super.dispose();
   }
 
@@ -244,7 +249,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   bool _handleWorkspaceBack() {
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-      _scaffoldKey.currentState?.closeDrawer();
+      _closeDrawer();
       return true;
     }
     if (_routedTool != null) {
@@ -288,8 +293,30 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
   }
 
+  void _dismissWorkspaceKeyboard() {
+    _commandFocus.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _resetDrawerScroll() {
+    if (_drawerScrollController.hasClients) {
+      _drawerScrollController.jumpTo(0);
+    }
+  }
+
+  void _closeDrawer() {
+    _dismissWorkspaceKeyboard();
+    _scaffoldKey.currentState?.closeDrawer();
+  }
+
   void _openDrawer() {
-    _scaffoldKey.currentState?.openDrawer();
+    _dismissWorkspaceKeyboard();
+    _resetDrawerScroll();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _resetDrawerScroll();
+      _scaffoldKey.currentState?.openDrawer();
+    });
   }
 
   Future<void> _submitCommand([String? preset]) async {
@@ -344,7 +371,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   void _selectDrawerDestination(String destination) {
     final target = _surfaceByDestination[destination];
     if (target == null) return;
-    _scaffoldKey.currentState?.closeDrawer();
+    _closeDrawer();
     if (target == 0) {
       _openHome();
     } else {
@@ -353,7 +380,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   Future<void> _openRecentThread(PlpRecentChatItem item) async {
-    _scaffoldKey.currentState?.closeDrawer();
+    _closeDrawer();
     _open(1);
     await WidgetsBinding.instance.endOfFrame;
     await _alfredKey.currentState?.loadThread(item.id);
@@ -361,7 +388,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Future<void> _startNewChat() async {
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-      _scaffoldKey.currentState?.closeDrawer();
+      _closeDrawer();
     }
     _open(1);
     await WidgetsBinding.instance.endOfFrame;
@@ -590,13 +617,33 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               },
             ),
             const DeveloperDiagnosticsScreen(key: ValueKey('plp-developer')),
+            TaxComplianceScreen(
+              key: const ValueKey('plp-tax-compliance'),
+              workspaceKey: 'plp-boracay',
+              workspaceName: 'PLP Boracay',
+              enterpriseContext: const <String, Object?>{
+                'surface': 'enterprise_tax',
+                'route': '/enterprise/workspaces/plp-boracay/tax-compliance',
+                'capabilities': <String>[],
+                'identityScope': 'enterprise_workspace',
+                'selectedObject': <String, String>{
+                  'workspaceKey': 'plp-boracay',
+                  'workspaceName': 'PLP Boracay',
+                  'workspaceType': 'Luxury Resort',
+                  'section': 'Tax & Compliance',
+                },
+              },
+              onHome: _openHome,
+            ),
           ];
 
           return KeyedSubtree(
             key: const ValueKey('plp-enterprise-shell'),
             child: PopScope<void>(
-              canPop:
-                  _index == 0 && _surfaceHistory.isEmpty && _routedTool == null,
+              canPop: !_drawerOpen &&
+                  _index == 0 &&
+                  _surfaceHistory.isEmpty &&
+                  _routedTool == null,
               onPopInvokedWithResult: (didPop, result) {
                 if (!didPop) _handleWorkspaceBack();
               },
@@ -607,10 +654,18 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 drawerEdgeDragWidth: 32,
                 drawerScrimColor: const Color(0x99000000),
                 onDrawerChanged: (open) {
-                  if (open) unawaited(_loadRecentChats(force: true));
+                  if (_drawerOpen != open && mounted) {
+                    setState(() => _drawerOpen = open);
+                  }
+                  if (open) {
+                    _dismissWorkspaceKeyboard();
+                    _resetDrawerScroll();
+                    unawaited(_loadRecentChats(force: true));
+                  }
                 },
                 drawer: PlpNavigationDrawer(
                   selectedDestination: _drawerSelection,
+                  scrollController: _drawerScrollController,
                   recentChats: _recentChats,
                   recentChatsLoading: _recentChatsLoading,
                   recentChatsError: _recentChatsError,
@@ -626,7 +681,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                   },
                 ),
                 body: PandoraNavigationScope(
-                  openDrawer: _index == 1 ? _openDrawer : null,
+                  openDrawer:
+                      _index == 1 || _index == 13 ? _openDrawer : null,
                   child: Stack(
                     children: [
                       Navigator(
@@ -657,7 +713,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                           _closeTool();
                         },
                       ),
-                      if (_index != 1)
+                      if (_index != 1 && _index != 13)
                         Positioned(
                           top: 0,
                           left: 0,

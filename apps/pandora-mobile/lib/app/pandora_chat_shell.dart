@@ -13,6 +13,7 @@ import '../features/approvals/approvals_screen.dart';
 import '../features/enterprise/batalla_workspace_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/enterprise_workspace_home.dart';
+import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
@@ -466,21 +467,30 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
         index,
         () => switch (index) {
-          0 => _activeWorkspaceSelection?.workspace.key ==
-                  'batalla-associates'
-              ? BatallaWorkspaceScreen(
-                  initialRouteSlug:
-                      _activeWorkspaceSelection!.section.routeSlug,
-                  profileKey: _activeWorkspaceProfileKey(),
-                  onBackToWorkspaces: () => _select(9),
-                )
-              : AskPandoraScreen(
-                  key: _chatKey,
-                  onSearchChats: _searchChats,
-                  onMore: () => _select(3),
+          0 => _activeWorkspaceSelection?.section.routeSlug ==
+                  'tax-compliance'
+              ? TaxComplianceScreen(
+                  workspaceKey: _activeWorkspaceSelection!.workspace.key,
+                  workspaceName: _activeWorkspaceSelection!.workspace.name,
+                  enterpriseContext:
+                      _activeEnterpriseContext ?? _activeWorkspaceSelection!.enterpriseContext,
                   onHome: () => _select(9),
-                  enterpriseContext: _activeEnterpriseContext,
-                ),
+                )
+              : _activeWorkspaceSelection?.workspace.key ==
+                      'batalla-associates'
+                  ? BatallaWorkspaceScreen(
+                      initialRouteSlug:
+                          _activeWorkspaceSelection!.section.routeSlug,
+                      profileKey: _activeWorkspaceProfileKey(),
+                      onBackToWorkspaces: () => _select(9),
+                    )
+                  : AskPandoraScreen(
+                      key: _chatKey,
+                      onSearchChats: _searchChats,
+                      onMore: () => _select(3),
+                      onHome: () => _select(9),
+                      enterpriseContext: _activeEnterpriseContext,
+                    ),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
@@ -609,7 +619,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               drawerScrimColor: const Color(0x99000000),
               drawer: Drawer(
                 width: 304,
-                backgroundColor: PandoraV2Colors.surface,
+                backgroundColor: PandoraV2Colors.canvas,
                 surfaceTintColor: Colors.transparent,
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.only(
@@ -654,7 +664,7 @@ class _PandoraSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: PandoraV2Colors.surface,
+        color: PandoraV2Colors.canvas,
         child: Stack(
           fit: StackFit.expand,
           children: [

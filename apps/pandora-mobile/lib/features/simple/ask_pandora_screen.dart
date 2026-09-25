@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/activity/pandora_activity_presentation_policy.dart';
@@ -1173,6 +1174,20 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         _imageAttachment = null;
         _outcomeUnknown = false;
       });
+
+      final authorizationUrl = turn.authorizationUrl;
+      if (authorizationUrl != null) {
+        final launched = await launchUrl(
+          authorizationUrl,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched && mounted) {
+          setState(
+            () => _error =
+                'Pandora prepared the secure authorization page, but this device could not open it.',
+          );
+        }
+      }
 
       final handoff = turn.handoff;
       final experience = dependencies.projectExperienceRepository;

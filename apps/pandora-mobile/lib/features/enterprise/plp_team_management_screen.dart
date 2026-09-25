@@ -396,16 +396,7 @@ class _Header extends StatelessWidget {
               onPressed: onBack,
               icon: const Icon(Icons.arrow_back_rounded),
             ),
-            const SizedBox(width: 4),
-            SizedBox(
-              width: 36,
-              height: 42,
-              child: Image.asset(
-                'assets/workspaces/plp.webp',
-                fit: BoxFit.contain,
-              ),
-            ),
-            const SizedBox(width: 9),
+            const SizedBox(width: 10),
             const Expanded(
               child: Text(
                 'PUEBLO LA PERLA',

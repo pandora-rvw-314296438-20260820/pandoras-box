@@ -612,26 +612,7 @@ class _ActivityHeader extends StatelessWidget {
             )
           else
             const SizedBox.square(dimension: 44),
-          const SizedBox(width: 5),
-          SizedBox(
-            width: 42,
-            height: 48,
-            child: Image.asset(
-              'assets/workspaces/plp.webp',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Center(
-                child: Text(
-                  'PLP',
-                  style: TextStyle(
-                    color: _PlpActivityScreenState._ink,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 12),
           const Expanded(
             child: Text(
               'PUEBLO\nLA PERLA\nBORACAY',
@@ -714,15 +695,6 @@ class _ActivityHero extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            SizedBox(
-              width: 78,
-              height: 96,
-              child: Image.asset(
-                'assets/workspaces/plp.webp',
-                fit: BoxFit.contain,
               ),
             ),
           ],
