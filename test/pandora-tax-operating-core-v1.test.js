@@ -535,6 +535,7 @@ test("universal chat gives deterministic tax status and refuses filing or paymen
   assert.equal(guarded.providerReadback.paymentEnabled, false);
   assert.match(guarded.reply, /not submitted or paid|disabled/i);
 
+  await db.exec("reset role");
   const messages = await db.query(
     "select author_role,content from public.pandora_intelligence_messages order by created_at,id",
   );
