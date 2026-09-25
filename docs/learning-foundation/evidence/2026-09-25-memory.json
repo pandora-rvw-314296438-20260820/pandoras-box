@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0.0",
+  "auditVersion": "1.0.0",
+  "state": "INVENTORY_COMPLETE",
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box-memory",
+  "sourceSha": "2d193c0667a037e815f50a1c1c81fd578eaf9d92",
+  "treeSha": "2b464088bf084c3fb7adf855f41dc389784519f2",
+  "groups": {
+    "task_aware_retrieval": [
+      {
+        "path": "docs/architecture/M5_002_TASK_AWARE_RETRIEVAL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "b14c4fb1b21042f9b49156fa1a220756e33bf537"
+      },
+      {
+        "path": "scripts/verify_m5_task_aware_retrieval.py",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "7fdf584206ca78c16d883896f7cc27e7ae07075a"
+      },
+      {
+        "path": "supabase/migrations/20260913143500_m5_task_aware_retrieval_v1.sql",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "6499ded713bdd9be5d75a97504b88496c28e076e"
+      },
+      {
+        "path": "tests/sql/m5_task_aware_retrieval_behavior.sql",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "1ee3489eaca336cfad0dfc1d3924f1bc40e27d5d"
+      }
+    ],
+    "approved_canon": [
+      {
+        "path": "docs/capabilities/evidence/MEMORY_APPROVED_CANON_RETRIEVAL_GATE_2026-09-06.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "0a8aee0c949f4153316b82493bd758df46aef520"
+      },
+      {
+        "path": "supabase/migrations/20260906043655_memory_approved_canon_retrieval_gate_v1_repair.sql",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "5df9b03f31d75a6d61bcc05285b33f11bcbf1258"
+      }
+    ],
+    "machine_gateway": [
+      {
+        "path": "supabase/functions/pandora-machine-gateway/index.ts",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "facbfabf653519330c6b2b0ad4f64dbe0b42d189"
+      }
+    ]
+  },
+  "catalog": null,
+  "findings": [],
+  "evidenceSha256": "8d4985fb05a7e306d7436bf90b51f6a964e311aac783812328be1d9a16edf974",
+  "boundaries": {
+    "sourceBinding": "local_origin_configuration_plus_exact_git_objects_not_provider_attestation",
+    "workingTreeConsulted": false,
+    "providerState": "NOT_CHECKED",
+    "runtimeAcceptance": "NOT_CHECKED",
+    "testsExecutedByAudit": 0,
+    "trainingRights": "NOT_EVALUATED",
+    "mutationAuthorized": false,
+    "historicalProvenanceRewritten": false,
+    "missingPathIsNotProofOfMissingCapability": true
+  }
+}
