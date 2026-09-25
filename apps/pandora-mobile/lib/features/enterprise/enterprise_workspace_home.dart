@@ -331,7 +331,7 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
         _taxData = _map(value);
         _taxLoading = false;
       });
-    } on Exception {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _taxData = null;
