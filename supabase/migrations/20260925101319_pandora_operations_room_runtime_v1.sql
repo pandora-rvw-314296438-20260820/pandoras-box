@@ -141,7 +141,7 @@ end; $$;
 create function public.pandora_ops_initialize_v1(p_organization_id uuid,p_project_id uuid,p_budget_micros bigint,p_max_concurrency integer default 1)
 returns jsonb language plpgsql security definer set search_path='' as $$
 begin
- if not exists(select 1 from public.pandora_projects where id=p_project_id and organization_id=p_organization_id) then raise exception 'OPS_PROJECT_SCOPE_DENIED' using errcode='42501'; end if;
+ if not exists(select 1 from public.pandora_projects where id=p_project_id and organization_id=p_organization_id and status<>'archived') then raise exception 'OPS_PROJECT_SCOPE_DENIED' using errcode='42501'; end if;
  if p_budget_micros is null or p_budget_micros<0 or p_max_concurrency is null then raise exception 'OPS_BUDGET_REQUIRED'; end if;
  insert into private.pandora_ops_workspaces(organization_id,project_id,total_budget_micros,max_concurrency) values(p_organization_id,p_project_id,p_budget_micros,p_max_concurrency) on conflict do nothing;
  return jsonb_build_object('initialized',true,'activation','explicit_control_required');
@@ -196,7 +196,7 @@ returns jsonb language plpgsql security definer set search_path='' as $$
 declare w private.pandora_ops_workspaces%rowtype; t private.pandora_ops_tasks%rowtype; k private.pandora_ops_workers%rowtype; l private.pandora_ops_leases%rowtype; request_key text; cost bigint;
 begin
  perform pg_advisory_xact_lock(hashtextextended('pandora-operations:'||p_organization_id::text,0));
- perform 1 from public.pandora_projects where id=p_project_id and organization_id=p_organization_id for share;
+ perform 1 from public.pandora_projects where id=p_project_id and organization_id=p_organization_id and status<>'archived' for share;
  if not found then raise exception 'OPS_PROJECT_SCOPE_DENIED' using errcode='42501'; end if;
  select * into w from private.pandora_ops_workspaces where organization_id=p_organization_id and project_id=p_project_id for update;
  if not found then raise exception 'OPS_WORKSPACE_MISSING'; end if;
@@ -230,6 +230,9 @@ create function public.pandora_ops_dispatch_v1(p_organization_id uuid,p_project_
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare l private.pandora_ops_leases%rowtype; o private.pandora_ops_dispatch_outbox%rowtype; w private.pandora_ops_workspaces%rowtype; t private.pandora_ops_tasks%rowtype; can_send boolean:=false;
 begin
+ -- A claim is not delivery authority after project archival or removal. Covers send intent and ACK.
+ perform 1 from public.pandora_projects where id=p_project_id and organization_id=p_organization_id and status<>'archived' for share;
+ if not found then raise exception 'OPS_PROJECT_SCOPE_DENIED' using errcode='42501'; end if;
  select * into w from private.pandora_ops_workspaces where organization_id=p_organization_id and project_id=p_project_id for update;
  select * into l from private.pandora_ops_leases where id=p_lease_id and organization_id=p_organization_id and project_id=p_project_id for update;
  if not found or l.generation is distinct from p_generation or l.state not in ('held','dispatching','running') or l.expires_at<=clock_timestamp() then raise exception 'OPS_LEASE_FENCED'; end if;
@@ -402,7 +405,7 @@ returns jsonb language plpgsql security definer set search_path='' as $$
 begin
  perform 1 from public.memberships where organization_id=p_organization_id and user_id=p_actor_id and status='active' and role in ('owner','admin') for share;
  if not found then raise exception 'OPS_OWNER_SCOPE_DENIED' using errcode='42501'; end if;
- perform 1 from public.pandora_projects where id=p_project_id and organization_id=p_organization_id for share;
+ perform 1 from public.pandora_projects where id=p_project_id and organization_id=p_organization_id and status<>'archived' for share;
  if not found then raise exception 'OPS_OWNER_PROJECT_DENIED' using errcode='42501'; end if;
  if p_operation='overview' then return public.pandora_ops_snapshot_v1(p_organization_id,p_project_id);
  elsif p_operation='ingest' then return public.pandora_ops_ingest_v1(p_organization_id,p_project_id,p_payload->'tasks');

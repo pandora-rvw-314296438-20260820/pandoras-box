@@ -32,7 +32,7 @@ ChatGPT authored the implementation and tests on an isolated authorized RDP chec
 
 ## Integration contract
 
-The existing trusted service constructs `SupabaseOperationsStore` with a server-side Supabase client and `OperationsRuntime` with a real authenticated `workerDispatch` transport. A worker must have a real acknowledgement/registration receipt, principal, capabilities and current heartbeat before it can receive work.
+The existing trusted service constructs `SupabaseOperationsStore` with a server-side Supabase client and `OperationsRuntime` with a real authenticated `workerDispatch` transport. A worker must have a real acknowledgement/registration receipt, principal, capabilities and current heartbeat before it can receive work. SQL rechecks the current non-archived project before claiming, preparing dispatch or accepting an ACK. The trusted transport must also recheck current project scope, workspace controls, cancellation and lease generation at the actual send boundary; a database check cannot make a later network send atomic. If delivery outcome is uncertain, retain the lease and reconcile it before retrying.
 
 A dispatch proposal contains task identity, worker identity, expected task/control revisions and budget reservation. SQL atomically decides whether it may be claimed. `beginDispatch` returns `canSend=true` once; duplicate coordinators must not deliver again. The worker acknowledgement is bound to dispatch ID, worker, task and generation. Unknown network outcomes enter reconciliation without automatic replay.
 
