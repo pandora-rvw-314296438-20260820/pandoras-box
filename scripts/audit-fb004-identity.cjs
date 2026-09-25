@@ -141,8 +141,17 @@ function main(argv) {
     try {
       const stat = fs.fstatSync(fd);
       if (!stat.isFile() || stat.size > 1048576) throw new Error("size");
-      raw = fs.readFileSync(fd, "utf8");
-      if (Buffer.byteLength(raw) > 1048576) throw new Error("size");
+      // The file may grow after fstat. Read through the same descriptor into a
+      // fixed MAX+1 buffer so growth is detected without unbounded allocation.
+      const bounded = Buffer.allocUnsafe(1048577);
+      let total = 0;
+      while (total < bounded.length) {
+        const read = fs.readSync(fd, bounded, total, bounded.length - total, null);
+        if (read === 0) break;
+        total += read;
+      }
+      if (total > 1048576) throw new Error("size");
+      raw = bounded.subarray(0, total).toString("utf8");
     } finally { fs.closeSync(fd); }
     const result = auditIdentity(JSON.parse(raw));
     result.inputSha256 = crypto.createHash("sha256").update(raw).digest("hex");

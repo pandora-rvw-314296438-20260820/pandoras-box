@@ -158,7 +158,18 @@ function instrumented(overrides = {}) {
     constants: { O_RDONLY: 0, O_NONBLOCK: 2048 },
     openSync(target, flags) { calls.push(["open", target, flags]); return 7; },
     fstatSync(fd) { calls.push(["stat", fd]); return { isFile: () => true, size: raw.length }; },
-    readFileSync(fd, encoding) { calls.push(["read", fd, encoding]); return raw; },
+    readSync(fd, buffer, offset, length, position) {
+      calls.push(["read", fd, offset, length, position]);
+      const source = Buffer.from(raw);
+      if (offset >= buffer.length || position !== null) throw new Error("unexpected read contract");
+      const alreadyRead = calls.filter(([name]) => name === "read").slice(0, -1)
+        .reduce((sum, call) => sum + (call[5] || 0), 0);
+      if (alreadyRead >= source.length) { calls.at(-1).push(0); return 0; }
+      const count = Math.min(length, source.length - alreadyRead);
+      source.copy(buffer, offset, alreadyRead, alreadyRead + count);
+      calls.at(-1).push(count);
+      return count;
+    },
     closeSync(fd) { calls.push(["close", fd]); },
     ...overrides,
   };
@@ -180,7 +191,11 @@ test("FB004 input: verifies and reads the same nonblocking read-only descriptor,
   const result = instrumented();
   assertReport(result, "{}", 1);
   assert.deepEqual(result.calls, [
-    ["open", "synthetic-private-input", 2048], ["stat", 7], ["read", 7, "utf8"], ["close", 7],
+    ["open", "synthetic-private-input", 2048],
+    ["stat", 7],
+    ["read", 7, 0, 1048577, null, 2],
+    ["read", 7, 2, 1048575, null, 0],
+    ["close", 7],
   ]);
 });
 test("FB004 input: missing optional O_NONBLOCK preserves ordinary read-only flag", () => {
@@ -194,7 +209,21 @@ test("FB004 input: non-regular opened descriptor is closed without any read", ()
   refused(result);
   assert.deepEqual(result.calls, [["open", "synthetic-private-input", 2048], ["close", 7]]);
 });
-for (const operation of ["fstatSync", "readFileSync"]) {
+test("FB004 input: growth after fstat is rejected with a bounded descriptor read", () => {
+  let observedLength = null;
+  const result = instrumented({
+    readSync(fd, buffer, offset, length, position) {
+      observedLength = length;
+      buffer.fill(0x20, offset, offset + length);
+      return length;
+    },
+  });
+  refused(result);
+  assert.equal(observedLength, 1048577);
+  assert.deepEqual(result.calls.at(-1), ["close", 7]);
+});
+
+for (const operation of ["fstatSync", "readSync"]) {
   test(`FB004 input: ${operation} failure closes the opened descriptor and redacts diagnostics`, () => {
     const result = instrumented({ [operation]() { throw new Error("synthetic-private-error"); } });
     refused(result);
