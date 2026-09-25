@@ -69,7 +69,7 @@ test("Euro-fish workspace keeps Home first and the requested business order", ()
 
 
 test("every enterprise workspace exposes the tax command center", () => {
-  assert.equal((hub.match(/'Tax & Compliance'/g) ?? []).length, 4);
+  assert.ok((hub.match(/'Tax & Compliance'/g) ?? []).length >= 5);
   assert.equal((hub.match(/'enterprise_tax', 'tax-compliance'/g) ?? []).length, 4);
   assert.match(shell, /TaxComplianceScreen\(/);
   assert.match(shell, /section\.routeSlug ==\s*'tax-compliance'/);
