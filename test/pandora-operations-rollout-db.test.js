@@ -79,3 +79,29 @@ test("browser roles cannot register a worker through the installed service-only 
 			(error) => error.code === "42501");
 	} finally { await db.close(); }
 });
+
+
+test("function manifest matches independently executed immutable migration, not just catalogue names", async () => {
+	const db = await database(true);
+	try {
+		const m = await import("../scripts/operations-room-rollout/manifest.mjs");
+		const catalog = (await db.query(inventory)).rows[0].inventory;
+		assert.equal(catalog.migration.statementSha256, m.FILES[0].sha256);
+		assert.equal(Object.keys(m.FUNCTION_BODY_SHA256).length, 19);
+		for (const fn of catalog.functions)
+			assert.equal(fn.bodySha256, m.FUNCTION_BODY_SHA256[`${fn.schema}.${fn.name}`], fn.name);
+	} finally { await db.close(); }
+});
+test("out-of-band routine replacement is detected with unchanged migration receipt and ACL shape", async () => {
+	const db = await database(true);
+	try {
+		const m = await import("../scripts/operations-room-rollout/manifest.mjs");
+		await db.exec("create or replace function public.pandora_ops_project_scope_v1(p_organization_id uuid,p_project_id uuid) returns boolean language sql stable security definer set search_path='' as 'select true'");
+		const catalog = (await db.query(inventory)).rows[0].inventory;
+		const fn = catalog.functions.find((r) => r.name === "pandora_ops_project_scope_v1");
+		assert.equal(catalog.migration.statementSha256, m.FILES[0].sha256);
+		assert.equal(fn.overloads, 1); assert.equal(fn.anonExecute, false);
+		assert.equal(fn.authenticatedExecute, false); assert.equal(fn.serviceRoleExecute, true);
+		assert.notEqual(fn.bodySha256, m.FUNCTION_BODY_SHA256["public.pandora_ops_project_scope_v1"]);
+	} finally { await db.close(); }
+});

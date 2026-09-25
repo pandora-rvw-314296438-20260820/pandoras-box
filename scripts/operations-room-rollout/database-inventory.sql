@@ -37,6 +37,7 @@ with expected_tables(name) as (
 ), function_rows as (
  select e.schema_name,e.name,e.is_public,count(p.oid)::integer as overloads,
  bool_and(p.prosecdef) as security_definer,
+ min(encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')) as body_sha256,
  bool_and(exists(select 1 from unnest(p.proconfig) cfg where cfg='search_path=""')) as pinned_search_path,
  bool_or(case when r.anon is not null then has_function_privilege(r.anon,p.oid,'EXECUTE') end) as anon_access,
  bool_or(case when r.authenticated is not null then has_function_privilege(r.authenticated,p.oid,'EXECUTE') end) as authenticated_access,
@@ -53,6 +54,7 @@ select jsonb_build_object(
    'version','20260925101319',
    'count',(select count(*) from supabase_migrations.schema_migrations where version='20260925101319'),
    'name',(select name from supabase_migrations.schema_migrations where version='20260925101319'),
+   'statementSha256',(select encode(sha256(convert_to(array_to_string(statements,E'\n'),'UTF8')),'hex') from supabase_migrations.schema_migrations where version='20260925101319'),
    'aliases',coalesce((select jsonb_agg(version order by version) from supabase_migrations.schema_migrations
      where name='pandora_operations_room_runtime_v1' and version<>'20260925101319'),'[]'::jsonb)),
  'tables',(select jsonb_agg(jsonb_build_object(
@@ -60,7 +62,7 @@ select jsonb_build_object(
    'anonAccess',anon_access,'authenticatedAccess',authenticated_access,'serviceRoleAccess',service_access
  ) order by name) from table_rows),
  'functions',(select jsonb_agg(jsonb_build_object(
-   'schema',schema_name,'name',name,'overloads',overloads,'securityDefiner',security_definer,
+   'schema',schema_name,'name',name,'overloads',overloads,'securityDefiner',security_definer,'bodySha256',body_sha256,
    'searchPathPinned',pinned_search_path,'anonExecute',anon_access,
    'authenticatedExecute',authenticated_access,'serviceRoleExecute',service_access
  ) order by schema_name,name) from function_rows),

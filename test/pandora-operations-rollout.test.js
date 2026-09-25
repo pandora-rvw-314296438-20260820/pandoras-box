@@ -16,13 +16,14 @@ function fixture(m, installed = false, deployed = false) {
 		catalog: {
 			observedAt: time, rolesReady: true,
 			migration: { version: m.MIGRATION_VERSION, count: installed ? 1 : 0,
-				name: installed ? m.MIGRATION_NAME : null, aliases: [] },
+				name: installed ? m.MIGRATION_NAME : null, statementSha256: installed ? m.FILES[0].sha256 : null, aliases: [] },
 			tables: m.TABLES.map((name) => ({ name, exists: installed, kind: installed ? "r" : null,
 				rls: installed ? true : null, anonAccess: installed ? false : null,
 				authenticatedAccess: installed ? false : null, serviceRoleAccess: installed ? false : null })),
 			functions: [...m.RPCS, ...m.HELPERS].map((name) => ({ name,
 				schema: m.RPCS.includes(name) ? "public" : "private", overloads: installed ? 1 : 0,
 				securityDefiner: installed, searchPathPinned: installed,
+				bodySha256: installed ? m.FUNCTION_BODY_SHA256[`${m.RPCS.includes(name) ? "public" : "private"}.${name}`] : null,
 				anonExecute: installed ? false : null, authenticatedExecute: installed ? false : null,
 				serviceRoleExecute: installed ? m.RPCS.includes(name) : null })),
 			pausedDefault: installed ? true : null, noProductionDefault: installed ? true : null,
@@ -63,6 +64,9 @@ test("paused source parity is foundation staging, never whole-sheet acceptance",
 	assert.deepEqual(result.issues, []);
 });
 const mutations = [
+	["applied SQL receipt drift", (s) => { s.catalog.migration.statementSha256 = "0".repeat(64); }],
+	["function body drift", (s) => { s.catalog.functions[0].bodySha256 = "0".repeat(64); }],
+	["missing function body fingerprint", (s) => { delete s.catalog.functions[0].bodySha256; }],
 	["wrong project", (s) => { s.projectRef = "another_project"; }],
 	["stale snapshot", (s) => { s.observedAt = new Date(NOW - 30001).toISOString(); }],
 	["future snapshot", (s) => { s.observedAt = new Date(NOW + 1).toISOString(); }],

@@ -166,3 +166,17 @@ before a missing Edge function may be proposed for deployment.
 
 Edge deployment remains quota-blocked; no tombstone deletion, plan/spend-cap
 change, worker enrollment, scheduler unpause or whole-sheet acceptance occurred.
+
+
+### Live routine-body parity
+
+The activation readback also checks the exact canonical migration statement digest
+and all19 routine body SHA-256 fingerprints. Names, a ledger row and safe-looking
+privileges alone cannot detect an out-of-band replacement of a function body.
+Fingerprints observed immediately after the verified installation at19:40:59Z are
+independently checked against execution of the immutable #728 SQL in disposable
+PostgreSQL. A regression replaces a routine in that fixture while keeping its
+migration record and ACL shape unchanged and requires the drift to be detected.
+No production routine was modified for this regression. This is routine-body,
+source-receipt and privilege verification, not a claim that every possible
+PostgreSQL schema attribute or future runtime acceptance condition is certified.

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import {
 	REPOSITORY, PROJECT_REF, SOURCE_SHA, MIGRATION_VERSION, MIGRATION_NAME,
-	EDGE_SLUG, FILES, TABLES, RPCS, HELPERS, TARGETS,
+	EDGE_SLUG, FILES, TABLES, RPCS, HELPERS, TARGETS, FUNCTION_BODY_SHA256,
 } from "./manifest.mjs";
 const { GovernedProviderActions } = createRequire(import.meta.url)(
 	"../../packages/pandora-operations-room/provider-actions.js",
@@ -62,6 +62,7 @@ const cleanCatalog = (catalog) => exactRoster(catalog.tables, TABLES)
 	&& exactRoster(catalog.functions, [...RPCS, ...HELPERS])
 	&& catalog.functions.every((r) => r.overloads === 1 && r.anonExecute === false
 		&& r.authenticatedExecute === false && r.searchPathPinned === true
+		&& r.bodySha256 === FUNCTION_BODY_SHA256[`${r.schema}.${r.name}`]
 		&& (RPCS.includes(r.name)
 			? r.schema === "public" && r.securityDefiner === true && r.serviceRoleExecute === true
 			: r.schema === "private" && r.serviceRoleExecute === false))
@@ -90,7 +91,8 @@ export function inspectFoundation(snapshot, now = Date.now()) {
 		issues.push("MIGRATION_IDENTITY_REQUIRES_RECONCILIATION");
 	} else if (catalog.migration.count === 0 && allAbsent(catalog)) {
 		databaseState = "absent";
-	} else if (catalog.migration.count === 1 && catalog.migration.name === MIGRATION_NAME && cleanCatalog(catalog)) {
+	} else if (catalog.migration.count === 1 && catalog.migration.name === MIGRATION_NAME
+		&& catalog.migration.statementSha256 === FILES[0].sha256 && cleanCatalog(catalog)) {
 		if (!countsValid(snapshot.counts, now)) {
 			issues.push("EXACT_RUNTIME_COUNTS_REQUIRED");
 		} else if (snapshot.counts.unpausedWorkspaces !== 0 || snapshot.counts.productionEnabledWorkspaces !== 0
