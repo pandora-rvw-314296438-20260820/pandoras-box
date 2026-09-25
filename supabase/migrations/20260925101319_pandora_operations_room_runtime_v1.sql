@@ -120,21 +120,21 @@ begin raise exception 'OPS_EVENT_IMMUTABLE' using errcode='55000'; end; $$;
 create trigger pandora_ops_event_immutable before update or delete on private.pandora_ops_events for each row execute function private.pandora_ops_immutable_event_v1();
 
 create function public.pandora_ops_project_binding_v1(p_organization_id uuid,p_project_id uuid,p_state text,p_evidence_ref text)
-returns jsonb language plpgsql security definer set search_path='' as $
+returns jsonb language plpgsql security definer set search_path='' as $$
 begin
  if p_state is null or p_state not in ('active','revoked') or not coalesce(length(p_evidence_ref) between 1 and 1000,false) then raise exception 'OPS_PROJECT_BINDING_INVALID' using errcode='22023'; end if;
  insert into private.pandora_ops_project_bindings(organization_id,project_id,state,evidence_ref)
  values(p_organization_id,p_project_id,p_state,p_evidence_ref)
  on conflict(organization_id,project_id) do update set state=excluded.state,evidence_ref=excluded.evidence_ref,updated_at=clock_timestamp();
  return jsonb_build_object('bound',p_state='active','state',p_state,'projectId',p_project_id,'evidenceRef',p_evidence_ref);
-end; $;
+end; $$;
 revoke all on function public.pandora_ops_project_binding_v1(uuid,uuid,text,text) from public,anon,authenticated;
 grant execute on function public.pandora_ops_project_binding_v1(uuid,uuid,text,text) to service_role;
 
 create function public.pandora_ops_project_scope_v1(p_organization_id uuid,p_project_id uuid)
-returns boolean language sql stable security definer set search_path='' as $
+returns boolean language sql stable security definer set search_path='' as $$
  select exists(select 1 from private.pandora_ops_project_bindings where organization_id=p_organization_id and project_id=p_project_id and state='active');
-$;
+$$;
 revoke all on function public.pandora_ops_project_scope_v1(uuid,uuid) from public,anon,authenticated;
 grant execute on function public.pandora_ops_project_scope_v1(uuid,uuid) to service_role;
 
