@@ -35,6 +35,15 @@ import dalvik.annotation.optimization.FastNative
 
             check(_readyForSystemPrompt) { "System prompt must be set ** RIGHT AFTER ** model loaded!" }
 
+            processSystemPrompt(prompt).let { result ->
+                if (result != 0) {
+                    RuntimeException("Failed to process system prompt: $result").also {
+                        _state.value = InferenceEngine.State.Error(it)
+                        throw it
+                    }
+                }
+            }
+
             processUserPrompt(message, predictLength).let { result ->
                 if (result != 0) {
                     Log.e(TAG, "Failed to process user prompt: $result")
@@ -90,6 +99,12 @@ import dalvik.annotation.optimization.FastNative
         self.assertIn("Native llama.cpp model load failed with code ", patched)
         self.assertIn("Native llama.cpp context preparation failed with code ", patched)
         self.assertIn("Native llama.cpp user prompt failed with code ", patched)
+        self.assertIn("Native llama.cpp user prompt cancelled; prompt state restored.", patched)
+        self.assertIn("Native llama.cpp system prompt failed with code ", patched)
+        self.assertIn("Native llama.cpp system prompt cancelled.", patched)
+        self.assertIn("if (result == 9)", patched)
+        self.assertIn("throw CancellationException(", patched)
+        self.assertIn('code $result; " +', patched)
         self.assertIn("nativeRuntimeDiagnostics()", patched)
         self.assertIn("override fun runtimeDiagnostics(): String", patched)
         self.assertIn("override fun requestCancel() = requestCancelNative()", patched)
