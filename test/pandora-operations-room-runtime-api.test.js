@@ -1,6 +1,8 @@
 "use strict";
 const test = require("node:test"),
-	assert = require("node:assert/strict");
+	assert = require("node:assert/strict"),
+	fs = require("node:fs"),
+	path = require("node:path");
 const ORG = "11111111-1111-4111-8111-111111111111",
 	PROJECT = "22222222-2222-4222-8222-222222222222",
 	USER = "33333333-3333-4333-8333-333333333333";
@@ -41,6 +43,11 @@ function fixture(actorPatch = {}) {
 	});
 	return { handler, calls };
 }
+test("Edge project admission uses native Operations binding instead of legacy project storage", () => {
+	const source = fs.readFileSync(path.join(__dirname, "../supabase/functions/pandora-operations-runtime/index.ts"), "utf8");
+	assert.match(source, /pandora_ops_project_scope_v1/);
+	assert.doesNotMatch(source, /from\(["']pandora_projects["']\)/);
+});
 test("owner API derives actor identity from authentication and uses DB owner gate", async () => {
 	const f = fixture();
 	const r = await f.handler(req());

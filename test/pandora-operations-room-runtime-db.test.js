@@ -71,10 +71,12 @@ async function setup({
 		project = randomUUID();
 	if (!otherProject)
 		await db.query("insert into public.organizations(id) values($1)", [org]);
-	await db.query(
-		"insert into public.pandora_projects(id,organization_id) values($1,$2)",
-		[project, org],
-	);
+	await rpc("pandora_ops_project_binding_v1", {
+		p_organization_id: org,
+		p_project_id: project,
+		p_state: "active",
+		p_evidence_ref: "fixture:project-binding",
+	});
 	const args = { p_organization_id: org, p_project_id: project };
 	await rpc("pandora_ops_initialize_v1", {
 		...args,
@@ -120,12 +122,29 @@ async function snapshot(s) {
 test.before(async () => {
 	db = await PGlite.create();
 	await db.exec(
-		`create role anon; create role authenticated; create role service_role; create schema private; create schema extensions; create table public.organizations(id uuid primary key); create table public.test_project_identity(id uuid primary key,organization_id uuid not null references public.organizations(id),status text not null default 'active'); create view public.pandora_projects with(security_invoker=true) as select id,organization_id,status from public.test_project_identity; create table public.memberships(organization_id uuid,user_id uuid,role text,status text); create table public.pandora_verification_runs(id uuid primary key,organization_id uuid not null,project_id uuid not null,status text not null,source_commit text,required_check_profile text,completed_at timestamptz); create function extensions.digest(data bytea,algorithm text) returns bytea language plpgsql immutable as $$ begin if algorithm<>'sha256' then raise exception 'unsupported digest'; end if; return pg_catalog.sha256(data); end $$;`,
+		`create role anon; create role authenticated; create role service_role; create schema private; create schema extensions; create table public.organizations(id uuid primary key); create table public.memberships(organization_id uuid,user_id uuid,role text,status text); create table public.pandora_verification_runs(id uuid primary key,organization_id uuid not null,project_id uuid not null,status text not null,source_commit text,required_check_profile text,completed_at timestamptz); create function extensions.digest(data bytea,algorithm text) returns bytea language plpgsql immutable as $$ begin if algorithm<>'sha256' then raise exception 'unsupported digest'; end if; return pg_catalog.sha256(data); end $$;`,
 	);
 	await db.exec(migration);
 });
 test.after(async () => {
 	await db?.close();
+});
+test("DB requires an explicit native project binding before initialization", async () => {
+	const org = randomUUID(), project = randomUUID();
+	await db.query("insert into public.organizations(id) values($1)", [org]);
+	await assert.rejects(() => rpc("pandora_ops_initialize_v1", {
+		p_organization_id: org, p_project_id: project, p_budget_micros: 0, p_max_concurrency: 1,
+	}), /OPS_PROJECT_SCOPE_DENIED/);
+});
+test("DB project binding requires explicit evidence and valid state", async () => {
+	const org = randomUUID(), project = randomUUID();
+	await db.query("insert into public.organizations(id) values($1)", [org]);
+	await assert.rejects(() => rpc("pandora_ops_project_binding_v1", {
+		p_organization_id: org, p_project_id: project, p_state: "active", p_evidence_ref: "",
+	}), /OPS_PROJECT_BINDING_INVALID/);
+	await assert.rejects(() => rpc("pandora_ops_project_binding_v1", {
+		p_organization_id: org, p_project_id: project, p_state: "unknown", p_evidence_ref: "fixture:evidence",
+	}), /OPS_PROJECT_BINDING_INVALID/);
 });
 test("DB rejects cross-organization project initialization", async () => {
 	const s = await setup();
@@ -257,12 +276,12 @@ test("DB dispatch intent is durable and ACK is task/worker/generation-bound", as
 	await rpc("pandora_ops_dispatch_v1", { ...args, p_ack: ack });
 	assert.equal((await snapshot(s)).tasks[0].status, "implementing");
 });
-test("DB rejects archived projects at initialization, claim and owner admission", async () => {
+test("DB rejects revoked project bindings at initialization, claim and owner admission", async () => {
 	const s = await setup(), actor = randomUUID();
 	await ingest(s, [spec()]);
 	await resume(s);
 	await db.query("insert into public.memberships values($1,$2,'owner','active')", [s.org, actor]);
-	await db.query("update public.test_project_identity set status='archived' where id=$1", [s.project]);
+	await rpc("pandora_ops_project_binding_v1", { ...s.args, p_state: "revoked", p_evidence_ref: "fixture:project-revoked" });
 	await assert.rejects(
 		() => rpc("pandora_ops_initialize_v1", { ...s.args, p_budget_micros: 1000, p_max_concurrency: 1 }),
 		/OPS_PROJECT_SCOPE_DENIED/,
@@ -273,16 +292,16 @@ test("DB rejects archived projects at initialization, claim and owner admission"
 		/OPS_OWNER_PROJECT_DENIED/,
 	);
 });
-test("DB refuses dispatch after project archival or removal without releasing claimed resources", async () => {
+test("DB refuses dispatch after project binding revocation or removal without releasing claimed resources", async () => {
 	for (const removed of [false, true]) {
 		const s = await setup();
 		await ingest(s, [spec()]);
 		await resume(s);
 		const c = await claim(s);
 		if (removed)
-			await db.query("delete from public.test_project_identity where id=$1", [s.project]);
+			await db.query("delete from private.pandora_ops_project_bindings where organization_id=$1 and project_id=$2", [s.org, s.project]);
 		else
-			await db.query("update public.test_project_identity set status='archived' where id=$1", [s.project]);
+			await rpc("pandora_ops_project_binding_v1", { ...s.args, p_state: "revoked", p_evidence_ref: "fixture:project-revoked" });
 		await assert.rejects(
 			() => rpc("pandora_ops_dispatch_v1", { ...s.args, p_lease_id: c.leaseId, p_generation: c.generation }),
 			/OPS_PROJECT_SCOPE_DENIED/,
@@ -302,7 +321,7 @@ test("DB refuses a late ACK after archival and keeps in-flight ownership for rec
 	const args = { ...s.args, p_lease_id: c.leaseId, p_generation: c.generation };
 	const d = await rpc("pandora_ops_dispatch_v1", args);
 	assert.equal(d.canSend, true);
-	await db.query("update public.test_project_identity set status='archived' where id=$1", [s.project]);
+	await rpc("pandora_ops_project_binding_v1", { ...s.args, p_state: "revoked", p_evidence_ref: "fixture:project-revoked" });
 	await assert.rejects(
 		() => rpc("pandora_ops_dispatch_v1", { ...args, p_ack: {
 			accepted: true, dispatchId: d.dispatchId, workerId: "W1", taskId: "A", generation: c.generation,

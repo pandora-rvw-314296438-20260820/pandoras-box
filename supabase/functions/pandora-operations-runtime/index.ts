@@ -41,19 +41,17 @@ const authenticate = async (
 		!["owner", "admin"].includes(membership.data.role)
 	)
 		return null;
-	const project = await client
-		.from("pandora_projects")
-		.select("id,organization_id")
-		.eq("id", scope.projectId)
-		.eq("organization_id", scope.organizationId)
-		.maybeSingle();
-	if (project.error || !project.data) return null;
+	const projectScope = await admin.rpc("pandora_ops_project_scope_v1", {
+		p_organization_id: scope.organizationId,
+		p_project_id: scope.projectId,
+	});
+	if (projectScope.error || projectScope.data !== true) return null;
 	return {
 		userId: data.user.id,
 		active: true,
 		role: membership.data.role,
-		organizationId: project.data.organization_id,
-		projectId: project.data.id,
+		organizationId: scope.organizationId,
+		projectId: scope.projectId,
 	};
 };
 Deno.serve(

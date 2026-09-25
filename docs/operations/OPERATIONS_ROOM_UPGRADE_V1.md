@@ -32,7 +32,7 @@ ChatGPT authored the implementation and tests on an isolated authorized RDP chec
 
 ## Integration contract
 
-The existing trusted service constructs `SupabaseOperationsStore` with a server-side Supabase client and `OperationsRuntime` with a real authenticated `workerDispatch` transport. A worker must have a real acknowledgement/registration receipt, principal, capabilities and current heartbeat before it can receive work. SQL rechecks the current non-archived project before claiming, preparing dispatch or accepting an ACK. The trusted transport must also recheck current project scope, workspace controls, cancellation and lease generation at the actual send boundary; a database check cannot make a later network send atomic. If delivery outcome is uncertain, retain the lease and reconcile it before retrying.
+The existing trusted service constructs `SupabaseOperationsStore` with a server-side Supabase client and `OperationsRuntime` with a real authenticated `workerDispatch` transport. A worker must have a real acknowledgement/registration receipt, principal, capabilities and current heartbeat before it can receive work. SQL rechecks the current active Operations project binding before claiming, preparing dispatch or accepting an ACK. The trusted transport must also recheck current project scope, workspace controls, cancellation and lease generation at the actual send boundary; a database check cannot make a later network send atomic. If delivery outcome is uncertain, retain the lease and reconcile it before retrying.
 
 A dispatch proposal contains task identity, worker identity, expected task/control revisions and budget reservation. SQL atomically decides whether it may be claimed. `beginDispatch` returns `canSend=true` once; duplicate coordinators must not deliver again. The worker acknowledgement is bound to dispatch ID, worker, task and generation. Unknown network outcomes enter reconciliation without automatic replay.
 
@@ -42,7 +42,7 @@ The engine label `chatgpt` is a trusted enrollment constraint, not evidence that
 
 ## Source and tenant authority
 
-GitHub remains canonical for source. The RDP workspace is an isolated exact-source working copy, not a second repository authority. The current `pandora_projects` object is a security-invoker identity view, not a table. The new orchestration state therefore does not declare an invalid foreign key to that view: initialization, claim and authenticated owner admission revalidate scope through the current view. Child state is tied to the private workspace with composite organization/project foreign keys. Historical task/evidence identity survives without promoting legacy implementation names into a retired execution authority.
+GitHub remains canonical for source. The RDP workspace is an isolated exact-source working copy, not a second repository authority. Operations Room authorization does **not** depend on the retired ProjectOS-backed `pandora_projects` compatibility view. A service-role-only provisioning boundary must create an explicit `private.pandora_ops_project_bindings` record with an evidence reference before initialization. Owner/browser requests cannot create bindings. Initialization, claim, dispatch and transactional owner admission recheck that the binding is active; revocation immediately fails closed while preserving historical workspace/task/lease evidence for reconciliation. No project bindings are seeded by this migration.
 
 Resource keys must be normalized consistently across projects sharing infrastructure. Claims take an organization-level transaction advisory lock and retain conflicting resources even after timeout. This is intentionally conservative. Cross-organization machine allocation belongs to the trusted infrastructure broker; an untrusted task cannot allocate a globally shared host simply by guessing its identifier.
 
@@ -83,7 +83,7 @@ Exact final counts, source hashes and provider readback belong in the PR handoff
 1. Windows OpenSSH rejected use of the Administrator-owned SSH key from the SYSTEM SSM context. Its owner-only ACL was preserved; no private key was read, copied or weakened. Publication must use the preauthorized Vault-backed GitHub path unless an appropriate authenticated owner context is available.
 2. A PowerShell native-stderr warning is not a failed npm install. Native commands use explicit exit-code checks and bounded redirected logs.
 3. PostgreSQL regex repetition limits, PL/pgSQL alias shadowing and JSON operator precedence required executable tests, not static source assertions.
-4. The initial isolated fixture treated the canonical project view as a table. Full source replay exposed the mismatch; both migration and fixture were corrected.
+4. The initial authorization path relied on the neutral-named `pandora_projects` compatibility view, whose storage is retired ProjectOS state. Recovery replaced that dependency with an explicit service-role-only Operations project-binding registry; no binding is auto-created from legacy storage.
 5. The one-sender dispatch fence and independent verifier principal must be checked in durable state, not inferred from role names.
 6. Spreadsheet fingerprints must exclude machine-owned status values while retaining owner input and row/header identity.
 
@@ -108,6 +108,6 @@ Source areas owned by other workers were not edited, including the existing Oper
 
 ## Safe activation and rollback
 
-The migration creates no scheduler cron, worker, active workspace, provider approval or production permission. First deployment must remain paused/no-production, use an authenticated canary worker, and prove two independent jobs, conflicting-resource serialization, cancelled/expired jobs and known-outcome recovery before increasing capacity.
+The migration creates no scheduler cron, worker, project binding, active workspace, provider approval or production permission. First deployment must remain paused/no-production, use an authenticated canary worker, and prove two independent jobs, conflicting-resource serialization, cancelled/expired jobs and known-outcome recovery before increasing capacity.
 
 If the canary fails, pause scheduling and disable the new Edge route. Preserve task/event/lease history and reconcile already-started actions; do not drop audit tables, erase receipts or release an ambiguous provider mutation just to clear a dashboard. Production promotion and database rollback remain governed by the existing release owner.
