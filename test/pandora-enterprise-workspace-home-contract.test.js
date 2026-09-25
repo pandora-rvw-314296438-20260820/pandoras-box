@@ -131,3 +131,13 @@ test("workspace home matches the screenshot header hierarchy", () => {
   assert.ok(hub.includes("workspace-home-activity"));
   assert.ok(hub.includes("workspace-home-more"));
 });
+
+
+test("tax is visible on every workspace card without opening the section list", () => {
+  assert.match(hub, /String\? _expandedKey = 'plp-boracay'/);
+  assert.match(hub, /workspace-tax-quick-/);
+  assert.match(hub, /pandora_tax_command_center_v1/);
+  assert.match(hub, /Professional review gate/);
+  assert.match(hub, /onTap: \(\) => onOpen\(tax\)/);
+  assert.match(hub, /final tax = workspace\.sections\.firstWhere/);
+});

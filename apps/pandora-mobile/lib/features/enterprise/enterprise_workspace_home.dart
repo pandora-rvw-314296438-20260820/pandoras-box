@@ -1,7 +1,11 @@
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/widgets/pandora_mark.dart';
+import '../../pandora_config.dart';
 import '../../core/widgets/pandora_navigation.dart';
 
 class EnterpriseWorkspaceSection {
@@ -286,7 +290,82 @@ class EnterpriseWorkspaceHome extends StatefulWidget {
 }
 
 class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
-  String? _expandedKey;
+  String? _expandedKey = 'plp-boracay';
+  Map<String, Object?>? _taxData;
+  bool _taxLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    scheduleMicrotask(_loadTaxSummary);
+  }
+
+  Map<String, Object?> _map(Object? value) {
+    if (value is Map<String, Object?>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    return const <String, Object?>{};
+  }
+
+  int _int(Object? value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  bool _bool(Object? value) {
+    if (value is bool) return value;
+    return value?.toString().toLowerCase() == 'true';
+  }
+
+  Future<void> _loadTaxSummary() async {
+    try {
+      final value = await Supabase.instance.client.rpc(
+        'pandora_tax_command_center_v1',
+        params: const <String, Object?>{
+          'p_organization_id': PandoraConfig.organizationId,
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _taxData = _map(value);
+        _taxLoading = false;
+      });
+    } on Exception {
+      if (!mounted) return;
+      setState(() {
+        _taxData = null;
+        _taxLoading = false;
+      });
+    }
+  }
+
+  String get _taxStatus {
+    if (_taxLoading) return 'Checking tax readiness';
+    final data = _taxData;
+    if (data == null) return 'Open live tax command center';
+
+    final capabilities = _map(data['capabilities']);
+    final rules = _map(data['rules']);
+    final exceptions = _map(data['exceptions']);
+    final critical = _int(exceptions['critical']);
+    final open = _int(exceptions['open']);
+
+    if (critical > 0) {
+      return '$critical critical · $open open exceptions';
+    }
+    if (_bool(capabilities['deterministicCalculation'])) {
+      return open > 0
+          ? 'Calculation ready · $open open exceptions'
+          : 'Calculation ready';
+    }
+    if (rules['inReviewPackId'] != null) {
+      return open > 0
+          ? 'Professional review gate · $open open exceptions'
+          : 'Professional review gate';
+    }
+    return open > 0 ? '$open open exceptions' : 'Review tax readiness';
+  }
 
   void _toggle(EnterpriseWorkspaceProfile workspace) {
     setState(() {
@@ -414,6 +493,7 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                         workspace: workspace,
                         expanded: _expandedKey == workspace.key,
                         onToggle: () => _toggle(workspace),
+                        taxStatus: _taxStatus,
                         onOpen: (section) => _open(workspace, section),
                       );
                     },
@@ -432,18 +512,23 @@ class _WorkspaceCard extends StatelessWidget {
   const _WorkspaceCard({
     required this.workspace,
     required this.expanded,
+    required this.taxStatus,
     required this.onToggle,
     required this.onOpen,
   });
 
   final EnterpriseWorkspaceProfile workspace;
   final bool expanded;
+  final String taxStatus;
   final VoidCallback onToggle;
   final ValueChanged<EnterpriseWorkspaceSection> onOpen;
 
   @override
   Widget build(BuildContext context) {
     final home = workspace.sections.first;
+    final tax = workspace.sections.firstWhere(
+      (section) => section.routeSlug == 'tax-compliance',
+    );
     return Material(
       key: ValueKey<String>('workspace-card-' + workspace.key),
       color: const Color(0xC90B0E12),
@@ -541,6 +626,63 @@ class _WorkspaceCard extends StatelessWidget {
                       ],
                     ),
                   ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+              child: Material(
+                color: const Color(0x14D5A16E),
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  key: ValueKey<String>(
+                      'workspace-tax-quick-' + workspace.key),
+                  onTap: () => onOpen(tax),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 11, 12, 11),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.account_balance_rounded,
+                          color: workspace.accent,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Tax & Compliance',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                taxStatus,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xFFB8B8BB),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Color(0xFFD8D8DA),
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
