@@ -56,7 +56,8 @@ test('automatic Qwen prewarm does not run synthetic generation or reset loops', 
   assert.doesNotMatch(prewarm, /\.generate\(/);
   assert.doesNotMatch(prewarm, /resetConversation\(/);
   assert.match(prewarm, /model_ready_without_synthetic_generation/);
-  assert.match(ask, /timeout\(const Duration\(seconds: 30\)\)/);
+  assert.match(ask, /_localInferenceIdleTimeout = Duration\(seconds: 120\)/);
+  assert.match(ask, /\.timeout\(_localInferenceIdleTimeout\)/);
   assert.match(native, /WARM_DEADLINE_MS = 180_000L/);
 });
 
