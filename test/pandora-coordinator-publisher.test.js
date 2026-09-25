@@ -91,7 +91,7 @@ test("HOLD creates one App-bound non-success check and replays idempotently", as
   assert.equal(replay.state, "idempotent");
   assert.equal(provider.state.writes.length, 1);
 });
-test("new PASS generation transitions through in-progress before success", async () => {
+test("new PASS generation atomically replaces a completed non-success prior generation", async () => {
   const provider = providerFixture();
   const hold = await publisher.publishDecision(provider, envelope(), now);
   const passEnvelope = envelope({
@@ -106,9 +106,24 @@ test("new PASS generation transitions through in-progress before success", async
   const result = await publisher.publishDecision(provider, passEnvelope, now);
   assert.equal(result.state, "updated");
   assert.equal(result.check.conclusion, "success");
-  assert.equal(provider.state.writes.length, 3);
-  assert.equal(provider.state.writes[1].body.status, "in_progress");
-  assert.equal(provider.state.writes[2].body.conclusion, "success");
+  assert.equal(provider.state.writes.length, 2);
+  assert.equal(provider.state.writes[1].body.status, "completed");
+  assert.equal(provider.state.writes[1].body.conclusion, "success");
+  assert.equal(provider.state.writes.some(({ body }) => body.status === "in_progress"), false);
+});
+test("brand-new PASS still transitions through in-progress before success", async () => {
+  const provider = providerFixture();
+  const pass = envelope({
+    decision: "PASS",
+    reasons: ["All applicable merge holds are independently cleared."],
+    criticalHighHoldDispositions: [],
+  });
+  const result = await publisher.publishDecision(provider, pass, now);
+  assert.equal(result.state, "created");
+  assert.equal(result.check.conclusion, "success");
+  assert.equal(provider.state.writes.length, 2);
+  assert.equal(provider.state.writes[0].body.status, "in_progress");
+  assert.equal(provider.state.writes[1].body.conclusion, "success");
 });
 
 test("same generation cannot change envelope or resurrect a completed decision", async () => {

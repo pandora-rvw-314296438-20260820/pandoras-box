@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "evidence": {
+    "classification": "database_readback",
+    "scope": "FB-004 platform mapping only; selected projections, not all customer data",
+    "primaryProjectRef": "jcyqixttuebxqqfkjonq",
+    "memoryProjectRef": "ivmvufhcsezyhczzondn",
+    "sourceSha": "6f20780765001d1a90ee31800a3948d043551afa",
+    "memorySourceSha": "2d193c0667a037e815f50a1c1c81fd578eaf9d92",
+    "limits": [
+      "Not authenticated HTTP/RLS behavior evidence",
+      "No live Meta provider read or asset selection",
+      "No model/provider inference or customer content included",
+      "Source SHAs are inspected source, not deployed-source identity"
+    ],
+    "supplementalMetaInventory": {
+      "observedAt": "2026-09-25T08:45:50.707921Z",
+      "installationStatus": "pending",
+      "scopeCount": 0,
+      "pageTokenRecordCount": 0,
+      "connectionCount": 0
+    }
+  },
+  "expected": {
+    "organizationId": "2270b266-59da-4c39-bfd9-9f8d08352af0",
+    "primaryProjectId": "ee282126-3f61-4058-8c92-2fedbfcecf1f",
+    "trackingTenantId": "326b51af-0445-4e96-bf31-d346bab05220",
+    "campaignSlug": "pandora-meta-main",
+    "memoryProjectId": "7c686cbd-d968-49d5-86cc-918f5e777bd2",
+    "memoryProjectKey": "mcpmaster-pandoras-box",
+    "principalKey": "pandora-mcpmaster-production",
+    "environment": "production",
+    "namespace": "real_life",
+    "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+    "readRecordType": "integration_state",
+    "proposalRecordType": "outcome"
+  },
+  "primary": {
+    "observedAt": "2026-09-25T08:51:38.735895+00:00",
+    "projects": [
+      {
+        "id": "ee282126-3f61-4058-8c92-2fedbfcecf1f",
+        "organization_id": "2270b266-59da-4c39-bfd9-9f8d08352af0",
+        "project_key": "mcpmaster",
+        "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+        "status": "active"
+      }
+    ],
+    "registries": [
+      {
+        "project_id": "ee282126-3f61-4058-8c92-2fedbfcecf1f",
+        "organization_id": "2270b266-59da-4c39-bfd9-9f8d08352af0",
+        "canonical_repository": "pandora-rvw-314296438-20260820/pandoras-box"
+      }
+    ],
+    "tenants": [
+      {
+        "id": "326b51af-0445-4e96-bf31-d346bab05220",
+        "organization_id": "2270b266-59da-4c39-bfd9-9f8d08352af0",
+        "project_id": "ee282126-3f61-4058-8c92-2fedbfcecf1f",
+        "status": "active",
+        "workspace_key": "pandora-platform"
+      },
+      {
+        "id": "44df4ab7-c25e-45b0-a230-db976ba8ccf9",
+        "organization_id": null,
+        "project_id": null,
+        "status": "active",
+        "workspace_key": "pandora-tracking-smoke"
+      }
+    ],
+    "campaigns": [
+      {
+        "tenant_id": "326b51af-0445-4e96-bf31-d346bab05220",
+        "slug": "pandora-meta-main",
+        "provider": "meta",
+        "provider_campaign_bound": false
+      }
+    ],
+    "metaConnections": []
+  },
+  "memory": {
+    "observedAt": "2026-09-25T08:51:51.415094+00:00",
+    "projects": [
+      {
+        "id": "7123981b-6106-4e04-8edd-6894756ab481",
+        "project_key": "enterprise-eurofish",
+        "github_owner": "pandora-rvw-314296438-20260820",
+        "github_repository": "pandoras-box",
+        "memory_namespace": "real_life",
+        "lifecycle_status": "active"
+      },
+      {
+        "id": "7c686cbd-d968-49d5-86cc-918f5e777bd2",
+        "project_key": "mcpmaster-pandoras-box",
+        "github_owner": "pandora-rvw-314296438-20260820",
+        "github_repository": "pandoras-box",
+        "memory_namespace": "real_life",
+        "lifecycle_status": "active"
+      }
+    ],
+    "principals": [
+      {
+        "principal_key": "pandora-mcpmaster-production",
+        "environment": "production",
+        "allowed_namespaces": [
+          "real_life"
+        ],
+        "scopes": [
+          "memory:health",
+          "memory:read",
+          "memory:write"
+        ],
+        "is_active": true
+      }
+    ],
+    "grants": [
+      {
+        "project_id": "7c686cbd-d968-49d5-86cc-918f5e777bd2",
+        "principal_key": "pandora-mcpmaster-production",
+        "environment": "production",
+        "is_active": true,
+        "revoked": false,
+        "can_read": true,
+        "can_propose": true,
+        "can_approve": false,
+        "allowed_record_types": [
+          "project_identity",
+          "repository",
+          "architecture",
+          "decision",
+          "roadmap",
+          "governance_rule",
+          "authentication_model",
+          "integration_state",
+          "deployment_rule",
+          "branding_requirement",
+          "source_of_truth"
+        ]
+      }
+    ]
+  }
+}

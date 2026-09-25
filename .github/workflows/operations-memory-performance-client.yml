@@ -1,0 +1,58 @@
+name: Operations Memory performance client
+on:
+  pull_request:
+    paths:
+      - 'packages/pandora-operations-memory/**'
+      - 'test/pandora-operations-memory-performance.test.js'
+      - '.github/workflows/operations-memory-performance-client.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/pandora-operations-memory/**'
+      - 'test/pandora-operations-memory-performance.test.js'
+      - '.github/workflows/operations-memory-performance-client.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: operations-performance-client-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-memory-performance-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.21.0'
+      - name: Install existing locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Fetch and verify exact canonical Memory SQL test inputs
+        env:
+          SQL_OUTPUT: ${{ runner.temp }}/ops-performance-contract.sql
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, pathlib, urllib.request
+          commit = '2a35b71a0da910d9da99bde9b19eb2c5e88e9ba1'
+          base = 'https://raw.githubusercontent.com/pandora-rvw-314296438-20260820/pandoras-box-memory/' + commit + '/'
+          files = [
+            ('tests/operations-performance/fixture.sql','5bb66048a10342ab76bd37a18c40ddf788373e24590c32d4cd11549cb444cf73'),
+            ('supabase/migrations/20260925193725_pandora_operations_performance_read_v1.sql','f28a2511da754f3979c30c88aabc8fa1f84f127f69163e19e8f3d483a521095f'),
+            ('tests/operations-performance/behavior.sql','10752e5a3b70ce67cbe04de81b3be6e1a93bf37dac619d64d58b424a63d0d2a1'),
+          ]
+          contents = []
+          for path, expected in files:
+              with urllib.request.urlopen(base + path, timeout=20) as response:
+                  raw = response.read(131073)
+              assert len(raw) <= 131072 and hashlib.sha256(raw).hexdigest() == expected, path
+              contents.append(raw)
+          pathlib.Path(os.environ['SQL_OUTPUT']).write_bytes(b'\n'.join(contents))
+          print('Exact Memory commit and all three SHA-256 digests verified')
+          PY
+      - name: Client and native SQL boundary
+        env:
+          PANDORA_PERFORMANCE_SQL: ${{ runner.temp }}/ops-performance-contract.sql
+        run: node --test test/pandora-operations-memory-performance.test.js

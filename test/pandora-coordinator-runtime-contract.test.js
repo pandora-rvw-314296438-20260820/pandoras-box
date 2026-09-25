@@ -56,6 +56,18 @@ test("durable state enforces generation, nonce, idempotency, persistent check id
   assert.match(migration, /pandora_coordinator_gate_merge_already_claimed/);
   assert.match(migration, /consumed_at is not null/);
 });
+test("aborted ambiguous publication may name the provider check only as prior-chain evidence", () => {
+  const recovery = fs.readFileSync(
+    path.join(root, "supabase/migrations/20260925163700_pandora_coordinator_aborted_publication_chain_v3.sql"),
+    "utf8",
+  );
+  assert.match(recovery, /provider_state<>'publication_aborted'/);
+  assert.match(recovery, /v_state\.current_check_run_id is not null/);
+  assert.match(recovery, /p_prior_check_run_id is null/);
+  assert.match(recovery, /check_run_id,provider_state[\s\S]*null,'pending_publish'/);
+  assert.match(recovery, /current_check_run_id,provider_status,provider_conclusion[\s\S]*null,null,null/);
+});
+
 test("R-058 source is part of governed Edge type-check surfaces", () => {
   const sourcePath = "supabase/functions/pandora-coordinator-gate/index.ts";
   assert.ok(packageJson.includes(sourcePath));

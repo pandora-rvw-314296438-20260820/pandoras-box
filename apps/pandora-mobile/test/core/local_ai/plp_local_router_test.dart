@@ -244,7 +244,13 @@ void main() {
     );
     expect(
       screenSource,
-      contains('.timeout(const Duration(seconds: 30))'),
+      contains(
+        'static const _localInferenceIdleTimeout = Duration(seconds: 120)',
+      ),
+    );
+    expect(
+      screenSource,
+      contains('.timeout(_localInferenceIdleTimeout)'),
     );
 
     final localStart = screenSource.indexOf(

@@ -1,0 +1,19 @@
+{
+    "reviewId": 5314256623,
+    "reviewState": "COMMENTED",
+    "reviewedHead": "f9ed2f6c3f5185417815cda54c76cde67c78afa7",
+    "schemaVersion": 1,
+    "gitHubApproval": false,
+    "reviewProvider": "CodeRabbit",
+    "findingsAddressed": [
+        "polite delegated action refusal",
+        "isolated invalid count assertion",
+        "case-normalized GitHub grants and canonical exclusions",
+        "forward reassertion after later authoritative function definitions"
+    ],
+    "liveFinalGuardMigration": "20260925063604",
+    "sourceForwardReplayPath": "supabase/migrations/20260925090001_pandora_authorization_replay_finalizer.sql",
+    "sourceForwardReplayApplied": false,
+    "independentReviewOfCorrections": "required",
+    "sourceForwardReplayVersionBasis": "provider-verified maximum migration identity plus one second, not execution wall time"
+}

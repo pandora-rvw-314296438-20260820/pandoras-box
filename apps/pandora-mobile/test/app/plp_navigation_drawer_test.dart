@@ -4,162 +4,86 @@ import 'package:pandora_mobile/app/plp_enterprise_shell.dart';
 import 'package:pandora_mobile/app/plp_navigation_drawer.dart';
 
 void main() {
-  testWidgets(
-    'PLP drawer uses responsive premium navigation hierarchy',
-    (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  Future<ScrollController> mountDrawer(WidgetTester tester, {double width = 390, double height = 844,
+      double scale = 1, double keyboard = 0, ValueChanged<String>? onSelect}) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = Size(width, height);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final scroll = ScrollController();
+    addTearDown(scroll.dispose);
+    await tester.pumpWidget(MaterialApp(home: MediaQuery(
+      data: MediaQueryData(size: Size(width, height), textScaler: TextScaler.linear(scale), viewInsets: EdgeInsets.only(bottom: keyboard)),
+      child: Scaffold(body: PlpNavigationDrawer(
+        scrollController: scroll, selectedDestination: 'home', recentChats: const [],
+        recentChatsLoading: false, recentChatsError: null, onRetryRecentChats: () {},
+        onSelectDestination: onSelect ?? (_) {}, onSelectThread: (_) {}, onNewChat: () {},
+      )),
+    )));
+    await tester.pumpAndSettle();
+    return scroll;
+  }
 
-      String? selected;
-      final scrollController = ScrollController();
-      addTearDown(scrollController.dispose);
-      final semantics = tester.ensureSemantics();
-      try {
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: ThemeData.dark(),
-            home: Scaffold(
-              body: PlpNavigationDrawer(
-                selectedDestination: 'home',
-                scrollController: scrollController,
-                recentChats: const <PlpRecentChatItem>[
-                  PlpRecentChatItem(
-                    id: 'thread-1',
-                    title: 'Connect to GitHub',
-                  ),
-                  PlpRecentChatItem(id: 'thread-2', title: 'Guest arrival briefing'),
-                  PlpRecentChatItem(id: 'thread-3', title: 'Today occupancy'),
-                  PlpRecentChatItem(id: 'thread-4', title: 'Restaurant operations'),
-                  PlpRecentChatItem(id: 'thread-5', title: 'VIP guest requests'),
-                  PlpRecentChatItem(id: 'thread-6', title: 'Revenue summary'),
-                  PlpRecentChatItem(id: 'thread-7', title: 'Housekeeping priorities'),
-                  PlpRecentChatItem(id: 'thread-8', title: 'Airport transfers'),
-                  PlpRecentChatItem(id: 'thread-9', title: 'Tomorrow arrivals'),
-                  PlpRecentChatItem(id: 'thread-10', title: 'Owner follow-ups'),
-                ],
-                recentChatsLoading: false,
-                recentChatsError: null,
-                onRetryRecentChats: () {},
-                onSelectDestination: (value) => selected = value,
-                onSelectThread: (_) {},
-                onNewChat: () {},
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
+  testWidgets('PLP header and footer never overlap scrollable navigation', (tester) async {
+    String? selected;
+    final scroll = await mountDrawer(tester, onSelect: (value) => selected = value);
+    final header = find.byKey(const ValueKey<String>('plp-drawer-header-overlay'));
+    final viewport = find.byKey(const ValueKey<String>('plp-drawer-scroll'));
+    final footer = find.byKey(const ValueKey<String>('plp-drawer-bottom-overlay'));
+    expect(tester.getRect(viewport).top, greaterThanOrEqualTo(tester.getRect(header).bottom));
+    expect(tester.getRect(viewport).bottom, lessThanOrEqualTo(tester.getRect(footer).top));
+    final initialHeader = tester.getRect(header);
+    scroll.jumpTo(scroll.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    expect(tester.getRect(header), initialHeader);
+    await tester.ensureVisible(find.byKey(const ValueKey<String>('plp-drawer-tax-compliance')));
+    await tester.pumpAndSettle();
+    final tax = find.byKey(const ValueKey<String>('plp-drawer-tax-compliance'));
+    expect(tester.getRect(tax).top, greaterThanOrEqualTo(tester.getRect(header).bottom));
+    await tester.tap(tax);
+    expect(selected, 'tax-compliance');
+    expect(tester.takeException(), isNull);
+  });
 
-        final drawer = find.byKey(
-          const ValueKey<String>('plp-navigation-drawer'),
-        );
-        expect(drawer, findsOneWidget);
-        expect(tester.getSize(drawer).width, closeTo(296.4, .6));
-        expect(tester.getSize(drawer).height, closeTo(844, .6));
-        final drawerWidget = tester.widget<Drawer>(drawer);
-        expect(drawerWidget.backgroundColor, Colors.transparent);
+  testWidgets('PLP search finds Tax and System destinations and can clear focus', (tester) async {
+    String? selected;
+    await mountDrawer(tester, onSelect: (value) => selected = value);
+    final toggle = find.byKey(const ValueKey<String>('plp-drawer-search'));
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey<String>('plp-drawer-search-field'));
+    await tester.enterText(field, 'tax');
+    await tester.pumpAndSettle();
+    final tax = find.byKey(const ValueKey<String>('plp-drawer-tax-compliance'));
+    expect(tax, findsOneWidget);
+    await tester.tap(tax);
+    expect(selected, 'tax-compliance');
+    await tester.enterText(field, 'local ai');
+    await tester.pumpAndSettle();
+    expect(find.text('Local AI'), findsOneWidget);
+    final focus = tester.widget<TextField>(field).focusNode!;
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(focus.hasFocus, isFalse);
+    expect(find.byKey(const ValueKey<String>('plp-drawer-home')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
-        final scrollView = find.byKey(
-          const ValueKey<String>('plp-drawer-scroll'),
-        );
-        final headerOverlay = find.byKey(
-          const ValueKey<String>('plp-drawer-header-overlay'),
-        );
-        expect(scrollView, findsOneWidget);
-        expect(headerOverlay, findsOneWidget);
-        expect(
-          find.byKey(const ValueKey<String>('plp-drawer-header-mask')),
-          findsOneWidget,
-        );
-        expect(find.byKey(const ValueKey<String>('plp-drawer-bottom-overlay')), findsOneWidget);
-        expect(find.byKey(const ValueKey<String>('plp-drawer-new-chat')), findsOneWidget);
-        expect(
-          tester.getTopLeft(scrollView).dy,
-          closeTo(tester.getTopLeft(headerOverlay).dy, .5),
-        );
+  for (final size in [const Size(320, 640), const Size(844, 390)]) {
+    testWidgets('PLP navigation stays scrollable with keyboard and large text at $size', (tester) async {
+      await mountDrawer(tester, width: size.width, height: size.height, scale: 2, keyboard: 200);
+      await tester.tap(find.byKey(const ValueKey<String>('plp-drawer-search')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey<String>('plp-drawer-search-field')), 'tax');
+      await tester.pumpAndSettle();
+      final tax = find.byKey(const ValueKey<String>('plp-drawer-tax-compliance'));
+      await tester.ensureVisible(tax);
+      await tester.pumpAndSettle();
+      expect(tax, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
-        final underlayTarget = find.text('Guest Experience');
-        final headerRect = tester.getRect(headerOverlay);
-        final targetBefore = tester.getCenter(underlayTarget).dy;
-        final desiredTargetY = headerRect.bottom - 18;
-        await tester.drag(
-          scrollView,
-          Offset(0, -(targetBefore - desiredTargetY)),
-        );
-        await tester.pumpAndSettle();
-
-        final targetAfter = tester.getRect(underlayTarget);
-        expect(targetAfter.top, lessThan(headerRect.bottom));
-        expect(targetAfter.bottom, greaterThan(headerRect.top));
-
-        await tester.drag(scrollView, const Offset(0, 220));
-        await tester.pumpAndSettle();
-        expect(
-          tester.getRect(underlayTarget).top,
-          greaterThan(headerRect.bottom),
-        );
-
-        // Opening the production drawer resets this controller to zero. Reset
-        // here too before validating primary navigation hit targets so the
-        // opaque fixed header is never treated as a tappable underlay.
-        scrollController.jumpTo(0);
-        await tester.pumpAndSettle();
-
-        expect(find.text('Pandora'), findsOneWidget);
-        expect(find.text('PLP Boracay'), findsOneWidget);
-        expect(find.text('Owner workspace'), findsOneWidget);
-        expect(find.text('PLP Boracay owner workspace'), findsOneWidget);
-        expect(find.text('BUSINESS'), findsNothing);
-        expect(find.text('Recent chats'), findsOneWidget);
-        expect(find.text('Connect to GitHub'), findsOneWidget);
-        expect(find.bySemanticsLabel('Home, selected'), findsOneWidget);
-
-        const ordered = <String>[
-          'Home',
-          'Overview',
-          'Tax & Compliance',
-          'Operations',
-          'Vision',
-          'Guest Experience',
-          'Team & Access',
-          'Revenue',
-          'Needs You',
-          'Activity',
-          'Settings',
-        ];
-        var previous = double.negativeInfinity;
-        for (final label in ordered) {
-          final finder = find.text(label);
-          expect(finder, findsOneWidget);
-          final center = tester.getCenter(finder);
-          expect(center.dy, greaterThan(previous));
-          previous = center.dy;
-        }
-
-        final taxTarget = find.text('Tax & Compliance');
-        expect(tester.getRect(taxTarget).top, greaterThan(headerRect.bottom));
-        await tester.tap(taxTarget);
-        await tester.pump();
-        expect(selected, 'tax-compliance');
-
-        final overviewTarget = find.text('Overview');
-        expect(tester.getRect(overviewTarget).top, greaterThan(headerRect.bottom));
-        await tester.tap(overviewTarget);
-        await tester.pump();
-        expect(selected, 'overview');
-
-        await tester.ensureVisible(find.text('System / Developer'));
-        await tester.tap(find.text('System / Developer'));
-        await tester.pumpAndSettle();
-        expect(find.text('Privileged technical surfaces'), findsOneWidget);
-        expect(find.text('Local AI'), findsOneWidget);
-        expect(find.text('Developer diagnostics'), findsOneWidget);
-      } finally {
-        semantics.dispose();
-      }
-    },
-  );
   testWidgets('PLP command dock is the universal Pandora composer', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
