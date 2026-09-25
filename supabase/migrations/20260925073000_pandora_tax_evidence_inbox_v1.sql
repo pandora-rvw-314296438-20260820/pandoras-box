@@ -9,6 +9,26 @@
 -- * verified extraction requires an authenticated owner/admin review action;
 -- * audit payloads contain identifiers/status only, never extracted financial fields.
 
+create or replace function public.pandora_tax_can_read_org_v1(p_organization_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path='pg_catalog','public','auth'
+as $
+  select exists(
+    select 1
+    from public.memberships m
+    where m.organization_id=p_organization_id
+      and m.user_id=auth.uid()
+      and m.status::text='active'
+      and lower(m.role::text) in ('owner','admin')
+  )
+$;
+
+revoke all on function public.pandora_tax_can_read_org_v1(uuid) from public,anon;
+grant execute on function public.pandora_tax_can_read_org_v1(uuid) to authenticated,service_role;
+
 create table if not exists public.tax_ingestion_batches (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
@@ -260,7 +280,6 @@ begin
        length(p_storage_path) not between 1 and 1024
        or left(p_storage_path,1)='/'
        or position(E'\\' in p_storage_path)>0
-       or position(chr(0) in p_storage_path)>0
        or exists(
          select 1 from unnest(string_to_array(p_storage_path,'/')) seg(part)
          where part in ('','.', '..') or length(part)>255
