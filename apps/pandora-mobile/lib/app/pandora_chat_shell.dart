@@ -7,6 +7,7 @@ import '../core/analytics/owner_analytics.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/design/pandora_tokens.dart';
 import '../core/widgets/pandora_mark.dart';
+import '../core/widgets/pandora_navigation_layout.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
@@ -68,6 +69,32 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   bool _historyLoading = false;
   bool _historyLoaded = false;
   int _index = 9;
+  final _drawerScrollController = ScrollController();
+  bool _drawerOpenScheduled = false;
+
+  @override
+  void dispose() {
+    _drawerScrollController.dispose();
+    super.dispose();
+  }
+
+  void _resetDrawerScroll() {
+    if (_drawerScrollController.hasClients) _drawerScrollController.jumpTo(0);
+  }
+
+  void _openDrawer() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (_drawerOpenScheduled) return;
+    _drawerOpenScheduled = true;
+    _resetDrawerScroll();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _drawerOpenScheduled = false;
+      _resetDrawerScroll();
+      _scaffoldKey.currentState?.openDrawer();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
 
   @override
   void initState() {
@@ -108,6 +135,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
   void _select(int value) {
     if (value < 0 || value >= _destinations.length) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       _scaffoldKey.currentState?.closeDrawer();
     }
@@ -565,6 +593,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   Widget _sidePanel() => _PandoraSidePanel(
+        scrollController: _drawerScrollController,
         destinations: _destinations,
         selectedIndex: _index,
         onSelected: _select,
@@ -612,7 +641,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               key: _scaffoldKey,
               backgroundColor: PandoraV2Colors.canvas,
               onDrawerChanged: (open) {
-                if (open) unawaited(_refreshHistory());
+                if (open) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  _resetDrawerScroll();
+                  unawaited(_refreshHistory());
+                }
               },
               drawerEnableOpenDragGesture: true,
               drawerEdgeDragWidth: 32,
@@ -630,7 +663,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                 child: SafeArea(child: _sidePanel()),
               ),
               body: PandoraNavigationScope(
-                openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+                openDrawer: _openDrawer,
                 child: body,
               ),
             );
@@ -642,6 +675,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 class _PandoraSidePanel extends StatelessWidget {
   const _PandoraSidePanel({
     required this.destinations,
+    required this.scrollController,
     required this.selectedIndex,
     required this.onSelected,
     required this.threads,
@@ -652,6 +686,7 @@ class _PandoraSidePanel extends StatelessWidget {
     required this.onManageThread,
   });
 
+  final ScrollController scrollController;
   final List<_ChatDestination> destinations;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -664,89 +699,80 @@ class _PandoraSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: PandoraV2Colors.canvas,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ListView(
-              key: const ValueKey<String>('pandora-side-panel-scroll'),
-              padding: const EdgeInsets.fromLTRB(10, 82, 10, 88),
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
-                  child: Text('Recent chats', style: TextStyle(color: PandoraV2Colors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                ),
-                if (historyLoading && threads.isEmpty)
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Center(child: SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 1.8))))
-                else if (threads.isEmpty)
-                  const Padding(padding: EdgeInsets.fromLTRB(10, 4, 10, 14), child: Text('Your conversations will appear here.', style: TextStyle(color: PandoraV2Colors.muted, fontSize: 12.5)))
-                else
-                  for (final thread in threads.take(12))
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: ListTile(
-                        dense: true,
-                        visualDensity: const VisualDensity(vertical: -2),
-                        key: ValueKey<String>('pandora-thread-${thread.id}'),
-                        title: Text(thread.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
-                        trailing: IconButton(tooltip: 'Conversation options', icon: const Icon(Icons.more_horiz_rounded, size: 19), onPressed: () => onManageThread(thread)),
-                        onTap: () => onOpenThread(thread),
-                      ),
-                    ),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: PandoraV2Colors.line)),
-                for (final index in const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: ListTile(
-                      selected: index == selectedIndex,
-                      selectedColor: PandoraV2Colors.ink,
-                      iconColor: PandoraV2Colors.muted,
-                      textColor: PandoraV2Colors.ink,
-                      selectedTileColor: PandoraV2Colors.soft,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      leading: Icon(index == selectedIndex ? destinations[index].selectedIcon : destinations[index].icon, size: 22),
-                      title: Text(destinations[index].label, style: TextStyle(fontSize: 15, fontWeight: index == selectedIndex ? FontWeight.w700 : FontWeight.w500)),
-                      onTap: () => onSelected(index),
-                    ),
-                  ),
-              ],
-            ),
-            Positioned(
-              top: 0, left: 0, right: 0,
-              child: Padding(
-                key: const ValueKey<String>('pandora-side-panel-top-overlay'),
-                padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
-                child: Row(
-                  children: [
-                    const PandoraMark(size: 28),
-                    const SizedBox(width: 11),
-                    const Expanded(child: Text('Pandora', style: TextStyle(color: PandoraV2Colors.ink, fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.35))),
-                    IconButton(key: const ValueKey<String>('pandora-search-chats'), tooltip: 'Search chats', onPressed: onSearchChats, icon: const Icon(Icons.search_rounded, size: 22)),
-                  ],
-                ),
+    color: PandoraV2Colors.canvas,
+    child: PandoraNavigationLayout(
+      controller: scrollController,
+      scrollKey: const ValueKey<String>('pandora-side-panel-scroll'),
+      bodyPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      header: Padding(
+        key: const ValueKey<String>('pandora-side-panel-top-overlay'),
+        padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+        child: Row(children: [
+          const PandoraMark(size: 28),
+          const SizedBox(width: 11),
+          const Expanded(child: FittedBox(
+            fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+            child: Text('Pandora', style: TextStyle(color: PandoraV2Colors.ink, fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.35)),
+          )),
+          IconButton(key: const ValueKey<String>('pandora-search-chats'), tooltip: 'Search chats', onPressed: onSearchChats,
+              color: PandoraV2Colors.ink, icon: const Icon(Icons.search_rounded, size: 22)),
+        ]),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
+              child: Text('Recent chats', style: TextStyle(color: PandoraV2Colors.muted, fontSize: 12, fontWeight: FontWeight.w600))),
+          if (historyLoading && threads.isEmpty)
+            const Padding(padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 1.8))))
+          else if (threads.isEmpty)
+            const Padding(padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
+                child: Text('Your conversations will appear here.', style: TextStyle(color: PandoraV2Colors.muted, fontSize: 12.5)))
+          else
+            for (final thread in threads.take(12))
+              ListTile(
+                key: ValueKey<String>('pandora-thread-${thread.id}'),
+                title: Text(thread.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
+                trailing: IconButton(tooltip: 'Conversation options', icon: const Icon(Icons.more_horiz_rounded, size: 19), onPressed: () => onManageThread(thread)),
+                onTap: () => onOpenThread(thread),
+              ),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: PandoraV2Colors.line)),
+          for (final index in const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: ListTile(
+                selected: index == selectedIndex,
+                selectedColor: PandoraV2Colors.ink,
+                iconColor: PandoraV2Colors.muted,
+                textColor: PandoraV2Colors.ink,
+                selectedTileColor: PandoraV2Colors.soft,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                leading: Icon(index == selectedIndex ? destinations[index].selectedIcon : destinations[index].icon, size: 22),
+                title: Text(destinations[index].label, style: TextStyle(fontSize: 15, fontWeight: index == selectedIndex ? FontWeight.w700 : FontWeight.w500)),
+                onTap: () => onSelected(index),
               ),
             ),
-            Positioned(
-              left: 10, right: 10, bottom: 10,
-              child: Material(
-                color: const Color(0xE51A1E24),
-                surfaceTintColor: Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  key: const ValueKey<String>('pandora-new-chat'),
-                  onTap: onNewChat,
-                  borderRadius: BorderRadius.circular(16),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                    child: Row(children: [Icon(Icons.edit_square, size: 21), SizedBox(width: 11), Text('New chat', style: TextStyle(fontWeight: FontWeight.w700))]),
-                  ),
-                ),
-              ),
+        ],
+      ),
+      footer: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Material(
+          color: const Color(0xE51A1E24), surfaceTintColor: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            key: const ValueKey<String>('pandora-new-chat'), onTap: onNewChat,
+            borderRadius: BorderRadius.circular(16),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              child: Row(children: [Icon(Icons.edit_square, size: 21), SizedBox(width: 11),
+                Expanded(child: Text('New chat', style: TextStyle(fontWeight: FontWeight.w700)))]),
             ),
-          ],
+          ),
         ),
-      );
-
+      ),
+    ),
+  );
 }
 
 class _SearchChatsSheet extends StatefulWidget {
