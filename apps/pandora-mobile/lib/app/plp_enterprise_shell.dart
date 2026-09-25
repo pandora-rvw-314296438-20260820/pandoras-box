@@ -317,6 +317,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       _resetDrawerScroll();
       _scaffoldKey.currentState?.openDrawer();
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   Future<void> _submitCommand([String? preset]) async {
