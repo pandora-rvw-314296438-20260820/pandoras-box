@@ -563,7 +563,7 @@ test("operating core grants keep privileged writes out of authenticated clients"
   );
   assert.match(
     operating,
-    /status,'in_review'/i,
+    /'ph-2026-authoritative-draft-v1'[\s\S]{0,700}'in_review'/i,
   );
   assert.doesNotMatch(
     operating,
