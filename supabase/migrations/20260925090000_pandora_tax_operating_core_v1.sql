@@ -1213,7 +1213,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path='pg_catalog','public'
-as $
+as $tax_rule_tests$
 declare
   pack public.tax_rule_packs%rowtype;
   test_row public.tax_rule_tests%rowtype;
@@ -1333,7 +1333,7 @@ begin
     'allPassed',failed=0
   );
 end;
-$;
+$tax_rule_tests$;
 
 revoke all on function public.pandora_tax_run_rule_tests_v1(uuid)
   from public,anon,authenticated;
@@ -2411,7 +2411,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path='pg_catalog','public','private','auth'
-as $
+as $tax_chat_persist$
 declare
   uid uuid := auth.uid();
   tid uuid := p_thread_id;
@@ -2483,7 +2483,7 @@ begin
     'providerReadback',coalesce(p_readback,'{}'::jsonb)
   );
 end;
-$;
+$tax_chat_persist$;
 
 revoke all on function private.pandora_tax_chat_persist_v1(
   uuid,text,uuid,uuid,text,text,jsonb
@@ -2499,7 +2499,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path='pg_catalog','public','private','auth'
-as $
+as $tax_chat_dispatch$
 declare
   norm text := lower(regexp_replace(btrim(coalesce(p_message,'')),'[[:space:]]+',' ','g'));
   center jsonb;
@@ -2656,7 +2656,7 @@ begin
     jsonb_build_object('capability','tax.command-center.read','verified',true,'snapshot',center)
   );
 end;
-$;
+$tax_chat_dispatch$;
 
 revoke all on function private.pandora_tax_chat_dispatch_v1(uuid,text,uuid,uuid)
   from public,anon,authenticated,service_role;
@@ -2672,7 +2672,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path='pg_catalog','public','private','auth','pg_temp'
-as $
+as $tax_universal_dispatch$
 declare
   v_uid uuid := auth.uid();
   v_role text;
@@ -2767,7 +2767,7 @@ begin
     'requestMode','intelligence'
   );
 end;
-$;
+$tax_universal_dispatch$;
 
 revoke all on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid)
   from public,anon;
