@@ -18,9 +18,9 @@ test('FB-002 preserves provider history without replaying stale ProjectOS author
 
 test('FB-002 forward repair uses Pandora project authority and preserves reporting truth', () => {
   const source = read('supabase/migrations/20260925072000_pandora_tracking_dashboard_recovery_v1.sql');
-  assert.match(source, /references public\.pandora_projects\(id\)/);
+  assert.match(source, /references private\.project_canonical_registry\(project_id\)/);
   assert.doesNotMatch(source, /references public\.projectos_projects\(id\)/);
-  assert.match(source, /private\\.pandora_tracking_validate_tenant_scope_v2/);
+  assert.match(source, /private\.pandora_tracking_validate_tenant_scope_v2/);
   assert.match(source, /pandora_tracking_campaign_traffic_daily_v2/);
   assert.match(source, /pandora_tracking_campaign_financial_daily_v2/);
   assert.match(source, /count\(distinct visitor_hash\)/);
