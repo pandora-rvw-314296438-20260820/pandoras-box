@@ -503,7 +503,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path='pg_catalog','public'
-as $
+as $tax_rule_support_guard$
 declare
   pack_id uuid := coalesce(new.rule_pack_id,old.rule_pack_id);
   pack_status text;
@@ -521,7 +521,7 @@ begin
   end if;
   return new;
 end;
-$;
+$tax_rule_support_guard$;
 
 drop trigger if exists tax_rule_sources_immutable_after_review on public.tax_rule_sources;
 create trigger tax_rule_sources_immutable_after_review
