@@ -103,13 +103,13 @@ test("head verification detects rewritten predecessor links while preserving ind
     await setHead(db, ORG, 2, restoredHash);
     assert.equal((await verify(db, ORG)).valid, true);
 
+    const corruptRoot = await insertEvent(db, ROOT, OTHER_ORG, 1, "d".repeat(64));
     await db.query("delete from private.execution_audit_events where id=$1", [FIRST]);
     assert.equal((await verify(db, ORG)).reason, "missing_previous_event");
 
     await insertEvent(db, THIRD, ORG, 3, restoredHash);
     assert.equal((await verify(db, ORG)).reason, "chain_head_mismatch");
 
-    const corruptRoot = await insertEvent(db, ROOT, OTHER_ORG, 1, "d".repeat(64));
     await setHead(db, OTHER_ORG, 1, corruptRoot);
     assert.equal((await verify(db, OTHER_ORG)).reason, "tail_previous_hash_mismatch");
 
