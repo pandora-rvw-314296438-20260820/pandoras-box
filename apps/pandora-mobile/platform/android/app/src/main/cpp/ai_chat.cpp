@@ -13,6 +13,8 @@
 #include "common.h"
 #include "ggml-backend.h"
 #include "llama.h"
+#include "prompt_decode_transaction.h"
+#include <mutex>
 
 template<class T>
 static std::string join(const std::vector<T> &values, const std::string &delim) {
@@ -50,6 +52,18 @@ static int                                g_gpu_layers_requested = 0;
 static int                                g_gpu_layers_active = 0;
 static std::string                        g_model_path;
 static std::atomic_bool                    g_cancel_requested{false};
+static std::mutex                          g_prompt_diagnostics_mutex;
+static pandora_local_ai::PromptDecodeResult g_last_prompt_result;
+static int                                 g_last_prompt_start = 0;
+static int                                 g_last_prompt_tokens = 0;
+
+static void record_prompt_result(const pandora_local_ai::PromptDecodeResult &result,
+                                 const int start, const int tokens) {
+    const std::lock_guard<std::mutex> lock(g_prompt_diagnostics_mutex);
+    g_last_prompt_result = result;
+    g_last_prompt_start = start;
+    g_last_prompt_tokens = tokens;
+}
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -194,6 +208,13 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
     ctx_params.n_threads = n_threads;
     ctx_params.n_threads_batch = n_threads;
     auto *context = llama_init_from_model(g_model, ctx_params);
+    if (context != nullptr) {
+        // Cooperative CPU cancellation must also reach a running microbatch,
+        // not wait for an entire slow phone prompt batch to finish.
+        llama_set_abort_callback(context, [](void *) -> bool {
+            return g_cancel_requested.load(std::memory_order_relaxed);
+        }, nullptr);
+    }
     if (context == nullptr) {
         LOGe("%s: llama_new_context_with_model() returned null)", __func__);
     }
@@ -283,6 +304,7 @@ JNIEXPORT jstring JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_nativeRuntimeDiagnostics(
         JNIEnv *env,
         jobject /*unused*/) {
+    const std::lock_guard<std::mutex> lock(g_prompt_diagnostics_mutex);
     std::ostringstream result;
     result << "{"
            << "\"configuredBackend\":\"cpu_safe_vulkan_compiled\","
@@ -292,7 +314,15 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_nativeRuntimeDiagnostics(
            << "\"cpuFallbackUsed\":" << (g_cpu_fallback_used ? "true" : "false") << ","
            << "\"gpuLayersRequested\":" << g_gpu_layers_requested << ","
            << "\"gpuLayersActive\":" << g_gpu_layers_active << ","
-           << "\"contextTokens\":" << g_context_size
+           << "\"contextTokens\":" << g_context_size << ","
+           << "\"lastPromptCode\":" << g_last_prompt_result.code << ","
+           << "\"lastDecodeCode\":" << g_last_prompt_result.raw_decode_code << ","
+           << "\"lastPromptStart\":" << g_last_prompt_start << ","
+           << "\"lastPromptTokens\":" << g_last_prompt_tokens << ","
+           << "\"lastPromptOffset\":" << g_last_prompt_result.batch_offset << ","
+           << "\"lastDecodeBatch\":" << g_last_prompt_result.batch_size << ","
+           << "\"lastCapacityRetries\":" << g_last_prompt_result.capacity_retries << ","
+           << "\"lastRollbackFailed\":" << (g_last_prompt_result.rollback_failed ? "true" : "false")
            << "}";
     return env->NewStringUTF(result.str().c_str());
 }
@@ -416,9 +446,15 @@ constexpr const char *ROLE_ASSISTANT    = "assistant";
 static std::vector<common_chat_msg> chat_msgs;
 static llama_pos system_prompt_position;
 static llama_pos current_position;
+static bool turn_in_progress = false;
+static llama_pos turn_start_position = 0;
+static size_t turn_start_message_count = 0;
 
 static void reset_long_term_states(const bool clear_kv_cache = true) {
     chat_msgs.clear();
+    turn_in_progress = false;
+    turn_start_position = 0;
+    turn_start_message_count = 0;
     system_prompt_position = 0;
     current_position = 0;
 
@@ -436,11 +472,15 @@ static void reset_long_term_states(const bool clear_kv_cache = true) {
  */
 static void shift_context() {
     const int n_discard = (current_position - system_prompt_position) / 2;
-    LOGi("%s: Discarding %d tokens", __func__, n_discard);
-    llama_memory_seq_rm(llama_get_memory(g_context), 0, system_prompt_position, system_prompt_position + n_discard);
-    llama_memory_seq_add(llama_get_memory(g_context), 0, system_prompt_position + n_discard, current_position, -n_discard);
+    auto *memory = llama_get_memory(g_context);
+    if (n_discard <= 0 || !llama_memory_can_shift(memory)) return;
+    llama_synchronize(g_context);
+    if (!llama_memory_seq_rm(memory, 0, system_prompt_position,
+                             system_prompt_position + n_discard)) return;
+    llama_memory_seq_add(memory, 0, system_prompt_position + n_discard,
+                         current_position, -n_discard);
     current_position -= n_discard;
-    LOGi("%s: Context shifting done! Current position: %d", __func__, current_position);
+    LOGi("%s: Discarded %d tokens; current position: %d", __func__, n_discard, current_position);
 }
 
 static std::string chat_add_and_format(const std::string &role, const std::string &content) {
@@ -470,49 +510,65 @@ static void reset_short_term_states() {
     assistant_ss.str("");
 }
 
+static bool rollback_prompt_tokens(llama_context *context, const llama_pos start_pos) {
+    llama_synchronize(context);
+    auto *memory = llama_get_memory(context);
+    return llama_memory_seq_rm(memory, 0, start_pos, -1) &&
+           llama_memory_seq_pos_max(memory, 0) == start_pos - 1;
+}
+
+static bool rollback_unfinished_turn() {
+    if (!turn_in_progress) return true;
+    if (!rollback_prompt_tokens(g_context, turn_start_position)) return false;
+    current_position = turn_start_position;
+    chat_msgs.resize(turn_start_message_count);
+    common_sampler_reset(g_sampler);
+    reset_short_term_states();
+    turn_in_progress = false;
+    return true;
+}
+
+static void finish_turn() {
+    if (!turn_in_progress) return;
+    chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
+    turn_in_progress = false;
+}
+
+static void throw_native_generation_error(JNIEnv *env, const bool cancelled,
+                                           const std::string &message) {
+    const auto exception_class = env->FindClass(cancelled
+        ? "java/util/concurrent/CancellationException" : "java/lang/RuntimeException");
+    if (exception_class != nullptr) env->ThrowNew(exception_class, message.c_str());
+}
+
 static int decode_tokens_in_batches(
         llama_context *context,
         llama_batch &batch,
         const llama_tokens &tokens,
         const llama_pos start_pos,
         const bool compute_last_logit = false) {
-    // Process tokens in batches using the global batch
-    LOGd("%s: Decode %d tokens starting at position %d", __func__, (int) tokens.size(), start_pos);
-    for (int i = 0; i < (int) tokens.size(); i += BATCH_SIZE) {
-        if (g_cancel_requested.load(std::memory_order_relaxed)) {
-            LOGw("%s: cooperative cancellation requested", __func__);
-            return 9;
-        }
-        const int cur_batch_size = std::min((int) tokens.size() - i, BATCH_SIZE);
-        common_batch_clear(batch);
-        LOGv("%s: Preparing a batch size of %d starting at: %d", __func__, cur_batch_size, i);
-
-        // Shift context if current batch cannot fit into the context
-        if (start_pos + i + cur_batch_size >= g_context_size - OVERFLOW_HEADROOM) {
-            LOGw("%s: Current batch won't fit into context! Shifting...", __func__);
-            shift_context();
-        }
-
-        // Add tokens to the batch with proper positions
-        for (int j = 0; j < cur_batch_size; j++) {
-            const llama_token token_id = tokens[i + j];
-            const llama_pos position = start_pos + i + j;
-            const bool want_logit = compute_last_logit && (i + j == tokens.size() - 1);
-            common_batch_add(batch, token_id, position, {0}, want_logit);
-        }
-
-        // Decode this batch
-        const int decode_result = llama_decode(context, batch);
-        if (decode_result) {
-            LOGe("%s: llama_decode failed w/ %d", __func__, decode_result);
-            return 1;
-        }
-        if (g_cancel_requested.load(std::memory_order_relaxed)) {
-            LOGw("%s: cooperative cancellation observed after decode", __func__);
-            return 9;
-        }
+    // Never shift after capturing start_pos: every submitted position must
+    // describe the same KV checkpoint. Failed/aborted prefixes are rolled back.
+    const auto result = pandora_local_ai::decode_prompt_transaction(
+        (int) tokens.size(), start_pos, g_context_size - OVERFLOW_HEADROOM, BATCH_SIZE,
+        [&](const int offset, const int count) {
+            common_batch_clear(batch);
+            for (int j = 0; j < count; ++j) {
+                const int index = offset + j;
+                const bool want_logit = compute_last_logit && index == (int) tokens.size() - 1;
+                common_batch_add(batch, tokens[index], start_pos + index, {0}, want_logit);
+            }
+            return llama_decode(context, batch);
+        },
+        [] { return g_cancel_requested.load(std::memory_order_relaxed); },
+        [&] { return rollback_prompt_tokens(context, start_pos); });
+    record_prompt_result(result, start_pos, (int) tokens.size());
+    if (result.code != 0) {
+        LOGe("%s: wrapper=%d raw_decode=%d start=%d offset=%d batch=%d rollback_failed=%d",
+             __func__, result.code, result.raw_decode_code, start_pos,
+             result.batch_offset, result.batch_size, result.rollback_failed);
     }
-    return 0;
+    return result.code;
 }
 
 extern "C"
@@ -554,9 +610,11 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
     }
 
     // Decode system tokens in batches
-    if (decode_tokens_in_batches(g_context, g_batch, system_tokens, current_position)) {
-        LOGe("%s: llama_decode() failed!", __func__);
-        return 2;
+    const int system_result = decode_tokens_in_batches(
+        g_context, g_batch, system_tokens, current_position);
+    if (system_result != 0) {
+        reset_long_term_states();
+        return system_result;
     }
 
     // Update position
@@ -572,7 +630,10 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
         jstring juser_prompt,
         jint n_predict
 ) {
-    // Reset short-term states
+    // A cancelled Flow may stop collecting between JNI calls. Recover its
+    // unfinished turn before admitting another prompt to the resident model.
+    if (!rollback_unfinished_turn()) return 4;
+    const size_t original_message_count = chat_msgs.size();
     reset_short_term_states();
 
     // Obtain and tokenize user prompt
@@ -613,7 +674,14 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
         }
     }
 
-    const int available_prompt_tokens = std::max(1, prompt_end_limit - (int) current_position);
+    const int available_prompt_tokens = prompt_end_limit - (int) current_position;
+    if (available_prompt_tokens <= 0) {
+        chat_msgs.resize(original_message_count);
+        pandora_local_ai::PromptDecodeResult result;
+        result.code = 3;
+        record_prompt_result(result, current_position, (int) user_tokens.size());
+        return result.code;
+    }
     const int original_user_prompt_size = (int) user_tokens.size();
     if (original_user_prompt_size > available_prompt_tokens) {
         const int skipped_tokens = original_user_prompt_size - available_prompt_tokens;
@@ -630,10 +698,15 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
     const int user_prompt_size = (int) user_tokens.size();
 
     // Decode user tokens in batches.
-    if (decode_tokens_in_batches(g_context, g_batch, user_tokens, current_position, true)) {
-        LOGe("%s: llama_decode() failed!", __func__);
-        return 2;
+    const int user_result = decode_tokens_in_batches(
+        g_context, g_batch, user_tokens, current_position, true);
+    if (user_result != 0) {
+        chat_msgs.resize(original_message_count);
+        return user_result;
     }
+    turn_start_position = current_position;
+    turn_start_message_count = original_message_count;
+    turn_in_progress = true;
 
     // Update position exactly once and cap generation inside the allocated
     // context. This prevents the old silent zero-token failure mode.
@@ -685,19 +758,18 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
         jobject /*unused*/
 ) {
     if (g_cancel_requested.load(std::memory_order_relaxed)) {
-        LOGw("%s: cooperative cancellation requested", __func__);
+        const bool restored = rollback_unfinished_turn();
+        throw_native_generation_error(env, restored, restored
+            ? "Native llama.cpp generation cancelled; unfinished turn rolled back."
+            : "Native llama.cpp cancellation rollback failed; reload required.");
         return nullptr;
     }
 
-    // Infinite text generation via context shifting
-    if (current_position >= g_context_size - OVERFLOW_HEADROOM) {
-        LOGw("%s: Context full! Shifting...", __func__);
-        shift_context();
-    }
-
-    // Stop if reaching the marked position
-    if (current_position >= stop_generation_position) {
-        LOGw("%s: STOP: hitting stop position: %d", __func__, stop_generation_position);
+    // A bounded response must finish BEFORE any context shift. Reaching the
+    // output limit is also a completed assistant message, not an abandoned turn.
+    if (current_position >= stop_generation_position ||
+        current_position >= g_context_size - OVERFLOW_HEADROOM) {
+        finish_turn();
         return nullptr;
     }
 
@@ -708,14 +780,21 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     // Populate the batch with new token, then decode
     common_batch_clear(g_batch);
     common_batch_add(g_batch, new_token_id, current_position, {0}, true);
-    if (llama_decode(g_context, g_batch) != 0) {
-        LOGe("%s: llama_decode() failed for generated token", __func__);
-        const auto exception_class = env->FindClass("java/lang/RuntimeException");
-        if (exception_class != nullptr) {
-            env->ThrowNew(
-                exception_class,
-                "Native llama.cpp token decode failed during generation.");
-        }
+    const int token_decode_result = llama_decode(g_context, g_batch);
+    if (token_decode_result != 0) {
+        const int failed_position = current_position;
+        const bool restored = rollback_unfinished_turn();
+        pandora_local_ai::PromptDecodeResult result;
+        result.code = restored ? (token_decode_result == 2 ? 9 : 2) : 4;
+        result.raw_decode_code = token_decode_result;
+        result.batch_size = 1;
+        result.rollback_failed = !restored;
+        record_prompt_result(result, failed_position, 1);
+        throw_native_generation_error(env, restored && token_decode_result == 2,
+            "Native llama.cpp token decode failed: raw_decode=" +
+            std::to_string(token_decode_result) + ", position=" +
+            std::to_string(failed_position) + ", rollback=" +
+            (restored ? "restored" : "failed_reload_required"));
         return nullptr;
     }
 
@@ -725,7 +804,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     // Stop if next token is EOG
     if (llama_vocab_is_eog(llama_model_get_vocab(g_model), new_token_id)) {
         LOGd("id: %d,\tIS EOG!\nSTOP.", new_token_id);
-        chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
+        finish_turn();
         return nullptr;
     }
 
@@ -763,6 +842,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_unload(JNIEnv * /*unused*/, job
     }
     g_chat_templates.reset();
     llama_batch_free(g_batch);
+    g_batch = {};
     if (g_context != nullptr) {
         llama_free(g_context);
     }
