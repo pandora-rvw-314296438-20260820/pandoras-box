@@ -85,6 +85,12 @@ Set<String> operationsRoomMentions(String message) {
       .toSet();
 }
 
+
+bool operationsRoomRequestsTeam(String message) => RegExp(
+      r'(^|\s)@room\b',
+      caseSensitive: false,
+    ).hasMatch(message);
+
 List<String> operationsRoomRecommendedRoles(
   String message,
   OperationsRoomMode mode,
@@ -256,6 +262,10 @@ List<String> operationsRoomRecommendedRoles(
         'apk',
       ])) {
     add(const <String>['APOLLO', 'HERMES', 'HEPHAESTUS', 'ARTEMIS']);
+  }
+
+  if (selected.isEmpty && operationsRoomRequestsTeam(message)) {
+    add(const <String>['HERMES', 'HEPHAESTUS', 'ARTEMIS']);
   }
 
   return selected.take(4).toList(growable: false);
@@ -477,21 +487,24 @@ class _PandoraOperationsRoomScreenState
           'operations.room.read',
           'operations.room.coordinate',
         ],
+
         'selectedObject': <String, Object?>{
           'roomMode': _mode.name,
-          'mentions': mentions.isEmpty ? 'none' : mentions.join(','),
+          'mentions': mentions.isNotEmpty
+              ? mentions.join(',')
+              : operationsRoomRequestsTeam(message)
+                  ? 'room'
+                  : 'none',
           'orchestrationStage': stage,
           'targetRole': targetRole,
           'roomRosterVersion': 'operations-room-v2-14',
-          'architectureVersion': 'phone-local-v2',
-          'executionTopology': 'phone-local-first-cloud-escalation',
-          'acceptedLocalModel': 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
-          'acceptedLocalModelSha256':
+          'architecturePolicy':
+              'phone-local-first-cloud-escalation;github-supabase-vercel-only;'
+              'physical-device-verification-required;no-rdp-aws-bedrock-desktop-llm',
+          'localModel':
+              'Qwen3-4B-Instruct-2507-Q4_K_M.gguf@'
               '1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6',
           'localRuntimeEvidence': _localRuntimeEvidence,
-          'infrastructurePolicy': 'github-supabase-vercel-only',
-          'accelerationPolicy': 'physical-device-verification-required',
-          'forbiddenCompute': 'rdp-hosted-llm,aws,bedrock,desktop-hosted-llm',
         },
       },
     );

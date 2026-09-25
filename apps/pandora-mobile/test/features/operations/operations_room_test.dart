@@ -56,6 +56,32 @@ void main() {
     expect(operationsRoomMentions('Athena should review this.'), isEmpty);
   });
 
+  test('@room is a first-class case-insensitive team summon command', () {
+    expect(operationsRoomRequestsTeam('@room review this.'), isTrue);
+    expect(
+      operationsRoomRequestsTeam('Please ask @ROOM, then report back.'),
+      isTrue,
+    );
+    expect(operationsRoomRequestsTeam('room review this.'), isFalse);
+  });
+
+  test('@room gives an ambiguous request a bounded default specialist team', () {
+    expect(
+      operationsRoomRecommendedRoles(
+        '@room review this.',
+        OperationsRoomMode.execution,
+      ),
+      <String>['HERMES', 'HEPHAESTUS', 'ARTEMIS'],
+    );
+    expect(
+      operationsRoomRecommendedRoles(
+        'review this.',
+        OperationsRoomMode.execution,
+      ),
+      isEmpty,
+    );
+  });
+
   test('execution routing summons the mobile build specialists only', () {
     expect(
       operationsRoomRecommendedRoles(
@@ -104,10 +130,10 @@ void main() {
     expect(operationsRoomActiveArchitecture, contains('Bedrock'));
   });
 
-  test('direct mention overrides automatic routing', () {
+  test('direct mention overrides automatic and @room routing', () {
     expect(
       operationsRoomRecommendedRoles(
-        '@Themis review the permission model.',
+        '@room @Themis review the permission model.',
         OperationsRoomMode.execution,
       ),
       <String>['THEMIS'],
