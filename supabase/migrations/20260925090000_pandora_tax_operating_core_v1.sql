@@ -2398,6 +2398,382 @@ revoke all on function public.pandora_tax_command_center_v1(uuid)
 grant execute on function public.pandora_tax_command_center_v1(uuid)
   to authenticated;
 
+create or replace function private.pandora_tax_chat_persist_v1(
+  p_organization_id uuid,
+  p_message text,
+  p_thread_id uuid,
+  p_project_id uuid,
+  p_reply text,
+  p_intent text,
+  p_readback jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path='pg_catalog','public','private','auth'
+as $
+declare
+  uid uuid := auth.uid();
+  tid uuid := p_thread_id;
+begin
+  if uid is null then
+    raise exception 'pandora_tax_sign_in_required' using errcode='42501';
+  end if;
+  if not public.pandora_tax_can_manage_org_v1(p_organization_id) then
+    raise exception 'pandora_tax_manager_required' using errcode='42501';
+  end if;
+
+  if tid is not null then
+    if not exists(
+      select 1
+      from public.pandora_intelligence_threads t
+      where t.id=tid
+        and t.organization_id=p_organization_id
+        and t.created_by=uid
+        and t.status='active'
+    ) then
+      raise exception 'pandora_tax_thread_not_found' using errcode='P0002';
+    end if;
+  else
+    insert into public.pandora_intelligence_threads(
+      organization_id,project_id,created_by,title
+    ) values (
+      p_organization_id,p_project_id,uid,
+      left(regexp_replace(btrim(p_message),'[[:space:]]+',' ','g'),80)
+    )
+    returning id into tid;
+  end if;
+
+  insert into public.pandora_intelligence_messages(
+    thread_id,organization_id,project_id,author_role,content,attachment_manifest
+  ) values (
+    tid,p_organization_id,p_project_id,'user',p_message,'[]'::jsonb
+  );
+
+  insert into public.pandora_intelligence_messages(
+    thread_id,organization_id,project_id,author_role,content,
+    structured_response,provider,model
+  ) values (
+    tid,p_organization_id,p_project_id,'assistant',p_reply,
+    jsonb_build_object(
+      'intent',p_intent,
+      'confidence',1,
+      'needsClarification',false,
+      'clarifyingQuestion',null,
+      'handoff',null,
+      'providerReadback',coalesce(p_readback,'{}'::jsonb)
+    ),
+    'pandora_tax_runtime','deterministic-tax-runtime-v1'
+  );
+
+  update public.pandora_intelligence_threads
+  set last_message_at=clock_timestamp(),updated_at=clock_timestamp()
+  where id=tid;
+
+  return jsonb_build_object(
+    'handled',true,
+    'threadId',tid,
+    'reply',p_reply,
+    'intent',p_intent,
+    'confidence',1,
+    'needsClarification',false,
+    'clarifyingQuestion',null,
+    'conversationLane','tax_compliance',
+    'handoff',null,
+    'providerReadback',coalesce(p_readback,'{}'::jsonb)
+  );
+end;
+$;
+
+revoke all on function private.pandora_tax_chat_persist_v1(
+  uuid,text,uuid,uuid,text,text,jsonb
+) from public,anon,authenticated,service_role;
+
+create or replace function private.pandora_tax_chat_dispatch_v1(
+  p_organization_id uuid,
+  p_message text,
+  p_thread_id uuid default null,
+  p_project_id uuid default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path='pg_catalog','public','private','auth'
+as $
+declare
+  norm text := lower(regexp_replace(btrim(coalesce(p_message,'')),'[[:space:]]+',' ','g'));
+  center jsonb;
+  period_id uuid;
+  recon jsonb;
+  calc jsonb;
+  package_result jsonb;
+  obligation jsonb;
+  form_key text;
+  reply text;
+begin
+  if auth.uid() is null then
+    raise exception 'pandora_tax_sign_in_required' using errcode='42501';
+  end if;
+  if not public.pandora_tax_can_manage_org_v1(p_organization_id) then
+    raise exception 'pandora_tax_manager_required' using errcode='42501';
+  end if;
+
+  if not (
+    norm ~ '\m(tax|taxes|vat|bir|filing|reconciliation)\M'
+    or norm ~ '\m(2550q|2551q|1702q|1702-rt|1601-eq)\M'
+  ) then
+    return jsonb_build_object('handled',false);
+  end if;
+
+  center := public.pandora_tax_command_center_v1(p_organization_id);
+  period_id := nullif(center#>>'{latestPeriod,id}','')::uuid;
+  obligation := coalesce(center->'nextObligation','{}'::jsonb);
+
+  if norm ~ '\m(file|submit|sign|otp|pay|payment)\M'
+     and norm ~ '\m(tax|taxes|vat|bir|return|filing)\M'
+  then
+    reply := 'Pandora has not submitted or paid anything. Tax filing, signature/OTP, and payment execution remain disabled until a separately verified official filing or payment adapter is available.';
+    return private.pandora_tax_chat_persist_v1(
+      p_organization_id,p_message,p_thread_id,p_project_id,reply,'tax_guardrail',
+      jsonb_build_object(
+        'capability','tax.legal_action.guardrail',
+        'verified',true,
+        'filingEnabled',false,
+        'paymentEnabled',false
+      )
+    );
+  end if;
+
+  if norm ~ '\m(reconcile|reconciliation)\M' then
+    if period_id is null then
+      reply := 'There is no prepared tax period to reconcile yet. Prepare the correct tax period first so Pandora does not assume a filing period.';
+      return private.pandora_tax_chat_persist_v1(
+        p_organization_id,p_message,p_thread_id,p_project_id,reply,'clarify',
+        jsonb_build_object('capability','tax.reconcile','verified',true,'executed',false)
+      );
+    end if;
+    begin
+      recon := public.pandora_tax_run_reconciliation_v1(p_organization_id,period_id);
+      reply := 'Tax reconciliation finished. Matched: '||
+        coalesce(recon->>'matchedCount','0')||
+        '. Open exceptions: '||coalesce(recon->>'exceptionCount','0')||
+        '. Pandora will not calculate or prepare a filing package until the required review gates are satisfied.';
+    exception when others then
+      reply := 'Pandora did not complete tax reconciliation because a required control blocked it. No filing or payment action was taken.';
+      recon := jsonb_build_object('errorCode',sqlstate,'executed',false);
+    end;
+    return private.pandora_tax_chat_persist_v1(
+      p_organization_id,p_message,p_thread_id,p_project_id,reply,'act',
+      jsonb_build_object('capability','tax.reconcile','verified',true,'result',recon)
+    );
+  end if;
+
+  if norm ~ '\m(calculate|calculation|compute)\M'
+     and norm ~ '\m(tax|taxes|vat)\M'
+  then
+    if period_id is null then
+      reply := 'There is no prepared tax period to calculate yet. Pandora will not guess the legal filing period.';
+      return private.pandora_tax_chat_persist_v1(
+        p_organization_id,p_message,p_thread_id,p_project_id,reply,'clarify',
+        jsonb_build_object('capability','tax.calculate','verified',true,'executed',false)
+      );
+    end if;
+    if coalesce((center#>>'{rules,liveCalculationEnabled}')::boolean,false) is false then
+      reply := 'Live tax calculation is still locked because no professionally approved Philippines rule pack is active. The current draft rules cannot be used as authoritative tax output.';
+      return private.pandora_tax_chat_persist_v1(
+        p_organization_id,p_message,p_thread_id,p_project_id,reply,'tax_guardrail',
+        jsonb_build_object('capability','tax.calculate','verified',true,'executed',false,'rulePackApproved',false)
+      );
+    end if;
+    begin
+      calc := public.pandora_tax_calculate_period_v1(p_organization_id,period_id);
+      reply := 'The deterministic tax calculation completed from the approved rule pack and reconciled ledger. Calculation run: '||
+        coalesce(calc->>'calculationRunId','unknown')||
+        '. Filing and payment remain disabled.';
+    exception when others then
+      reply := 'Pandora did not calculate taxes because a required reconciliation, evidence, rule, or exception control blocked the run. No filing or payment action was taken.';
+      calc := jsonb_build_object('errorCode',sqlstate,'executed',false);
+    end;
+    return private.pandora_tax_chat_persist_v1(
+      p_organization_id,p_message,p_thread_id,p_project_id,reply,'act',
+      jsonb_build_object('capability','tax.calculate','verified',true,'result',calc)
+    );
+  end if;
+
+  if norm ~ '\m(prepare|build|create)\M'
+     and norm ~ '\m(filing|return|package)\M'
+  then
+    form_key := upper((regexp_match(norm,'(2550q|2551q|1702q|1702-rt|1601-eq)'))[1]);
+    if period_id is null then
+      reply := 'There is no prepared tax period to package yet. Prepare and reconcile the correct period first.';
+      return private.pandora_tax_chat_persist_v1(
+        p_organization_id,p_message,p_thread_id,p_project_id,reply,'clarify',
+        jsonb_build_object('capability','tax.filing-package.prepare','verified',true,'executed',false)
+      );
+    end if;
+    if form_key is null then
+      reply := 'Tell me the exact return form you want prepared, such as 2550Q, 2551Q, 1702Q, 1702-RT, or 1601-EQ. Pandora will not guess the legal form.';
+      return private.pandora_tax_chat_persist_v1(
+        p_organization_id,p_message,p_thread_id,p_project_id,reply,'clarify',
+        jsonb_build_object('capability','tax.filing-package.prepare','verified',true,'executed',false)
+      );
+    end if;
+    begin
+      package_result := public.pandora_tax_build_filing_package_v1(
+        p_organization_id,period_id,form_key
+      );
+      reply := form_key||' review package prepared. It still requires professional review and owner approval. Submission and payment remain disabled.';
+    exception when others then
+      reply := 'Pandora did not build the filing package because a required calculation, reconciliation, evidence, or rule control is not satisfied. Nothing was filed or paid.';
+      package_result := jsonb_build_object('errorCode',sqlstate,'executed',false);
+    end;
+    return private.pandora_tax_chat_persist_v1(
+      p_organization_id,p_message,p_thread_id,p_project_id,reply,'act',
+      jsonb_build_object('capability','tax.filing-package.prepare','verified',true,'formKey',form_key,'result',package_result)
+    );
+  end if;
+
+  if jsonb_typeof(obligation)='object' and coalesce(obligation->>'id','')<>'' then
+    reply := 'Tax command center is live. The next recorded obligation is '||
+      coalesce(obligation->>'obligation_key','tax obligation')||
+      case when obligation->>'amount_due' is null then ''
+        else ' for '||coalesce(obligation->>'currency_code','')||' '||obligation->>'amount_due'
+      end||
+      case when obligation->>'due_date' is null then ''
+        else ', due '||obligation->>'due_date'
+      end||
+      '. Filing and payment are not automatic.';
+  else
+    reply := case
+      when coalesce((center#>>'{rules,liveCalculationEnabled}')::boolean,false)
+        then 'Tax command center is live. Review the active period, evidence, ledger treatment, reconciliation exceptions, and the approved deterministic calculation before any filing decision.'
+      else 'Tax command center is live, but live Philippines tax calculation is still locked pending professional approval of the rule pack. Evidence, ledger and reconciliation work can continue safely.'
+    end;
+  end if;
+
+  return private.pandora_tax_chat_persist_v1(
+    p_organization_id,p_message,p_thread_id,p_project_id,reply,'read',
+    jsonb_build_object('capability','tax.command-center.read','verified',true,'snapshot',center)
+  );
+end;
+$;
+
+revoke all on function private.pandora_tax_chat_dispatch_v1(uuid,text,uuid,uuid)
+  from public,anon,authenticated,service_role;
+
+-- Extend the active universal chat dispatcher with guarded tax operations.
+create or replace function public.pandora_chat_universal_dispatch_v9(
+  p_organization_id uuid,
+  p_message text,
+  p_thread_id uuid default null,
+  p_project_id uuid default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path='pg_catalog','public','private','auth','pg_temp'
+as $
+declare
+  v_uid uuid := auth.uid();
+  v_role text;
+  v_norm text := lower(regexp_replace(trim(coalesce(p_message,'')), '[[:space:]]+', ' ', 'g'));
+  v_direct_action boolean := false;
+  v_plp_explicit boolean := false;
+  v_box_explicit boolean := false;
+  v_plp_context boolean := false;
+  v_box_context boolean := false;
+  v_tax_operation boolean := false;
+  v_tax jsonb;
+  v_capability jsonb;
+begin
+  if v_uid is null then
+    raise exception 'pandora_chat_sign_in_required' using errcode='42501';
+  end if;
+
+  select m.role into v_role
+  from public.memberships m
+  where m.organization_id=p_organization_id
+    and m.user_id=v_uid
+    and m.status='active'
+  limit 1;
+
+  if v_role not in ('owner','admin') then
+    raise exception 'pandora_chat_owner_required' using errcode='42501';
+  end if;
+
+  if v_norm='' or length(v_norm)>8000 then
+    raise exception 'pandora_chat_invalid_message' using errcode='22023';
+  end if;
+
+  v_direct_action := v_norm ~ '\m(build|fix|change|update|repair|edit|implement|create|configure|improve|upgrade|add|remove|restore|apply|redesign|refactor|rewrite|finish|complete|make)\M';
+  v_plp_explicit := v_norm ~ '\m(plp|pueblo[[:space:]]+la[[:space:]]+perla)\M';
+  v_box_explicit := v_norm ~ '\m(pandoras-box|pandora''?s[[:space:]-]+box|mcpmaster|ask[[:space:]]+pandora|pandora[[:space:]]+chat|activity[[:space:]]+theatre|build[[:space:]]+theatre|canonical[[:space:]]+repo|this[[:space:]]+repo)\M';
+  v_tax_operation := (
+    v_norm ~ '\m(reconcile|reconciliation|calculate|calculation|compute|filing|2550q|2551q|1702q|1702-rt|1601-eq)\M'
+    or v_norm ~ '\m(tax|taxes|vat|bir)\M.*\m(status|overview|position|ready|owe|due|file|submit|sign|pay|payment|prepare|package)\M'
+  );
+
+  if v_tax_operation then
+    v_tax := private.pandora_tax_chat_dispatch_v1(
+      p_organization_id,p_message,p_thread_id,p_project_id
+    );
+    if coalesce((v_tax->>'handled')::boolean,false) then
+      return v_tax;
+    end if;
+  end if;
+
+  if p_thread_id is not null and (not v_plp_explicit or not v_box_explicit) then
+    select
+      coalesce(bool_or(lower(recent.content) ~ '\m(plp|pueblo[[:space:]]+la[[:space:]]+perla)\M'),false),
+      coalesce(bool_or(lower(recent.content) ~ '\m(pandoras-box|pandora''?s[[:space:]-]+box|mcpmaster|ask[[:space:]]+pandora|pandora[[:space:]]+chat|activity[[:space:]]+theatre|build[[:space:]]+theatre|canonical[[:space:]]+repo)\M'),false)
+    into v_plp_context,v_box_context
+    from (
+      select m.content
+      from public.pandora_intelligence_messages m
+      join public.pandora_intelligence_threads t on t.id=m.thread_id
+      where m.thread_id=p_thread_id
+        and m.organization_id=p_organization_id
+        and t.created_by=v_uid
+        and t.status='active'
+      order by m.created_at desc
+      limit 12
+    ) recent;
+  end if;
+
+  if v_direct_action and (v_plp_explicit or (v_plp_context and not v_box_explicit)) then
+    return private.pandora_direct_plp_code_edit_v1(
+      p_organization_id,p_message,p_thread_id,p_project_id
+    );
+  end if;
+
+  if v_direct_action and (v_box_explicit or v_box_context) then
+    return private.pandora_direct_box_code_edit_v1(
+      p_organization_id,p_message,p_thread_id,p_project_id
+    );
+  end if;
+
+  v_capability := public.pandora_chat_capability_dispatch_native_v1(
+    p_organization_id,p_message,p_thread_id,p_project_id
+  );
+  if coalesce((v_capability->>'handled')::boolean,false) then
+    return v_capability;
+  end if;
+
+  return jsonb_build_object(
+    'handled',false,
+    'routing','pandora_native_intelligence',
+    'projectId',p_project_id,
+    'projectRequired',false,
+    'requestMode','intelligence'
+  );
+end;
+$;
+
+revoke all on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid)
+  from public,anon;
+grant execute on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid)
+  to authenticated;
+
 -- Philippines 2026 authoritative draft pack.
 -- This is intentionally IN_REVIEW: source capture is not professional approval.
 insert into public.tax_rule_packs(
