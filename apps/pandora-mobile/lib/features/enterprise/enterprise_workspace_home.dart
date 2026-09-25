@@ -2,10 +2,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/widgets/pandora_mark.dart';
-import '../../pandora_config.dart';
 import '../../core/widgets/pandora_navigation.dart';
 
 class EnterpriseWorkspaceSection {
@@ -55,10 +53,7 @@ class EnterpriseWorkspaceSelection {
 
   Map<String, Object?> get enterpriseContext => <String, Object?>{
         'surface': section.surface,
-        'route': '/enterprise/workspaces/' +
-            workspace.key +
-            '/' +
-            section.routeSlug,
+        'route': '/enterprise/workspaces/${workspace.key}/${section.routeSlug}',
         'capabilities': const <String>[],
         'identityScope': 'enterprise_workspace',
         'selectedObject': <String, String>{
@@ -85,6 +80,9 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
       EnterpriseWorkspaceSection('Overview', 'enterprise_overview', 'overview',
           icon: Icons.dashboard_rounded),
       EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
+      EnterpriseWorkspaceSection(
           'Operations', 'enterprise_workflows', 'operations',
           icon: Icons.event_note_rounded),
       EnterpriseWorkspaceSection('Guests', 'enterprise_data', 'guests',
@@ -92,9 +90,6 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
       EnterpriseWorkspaceSection(
           'Sales & Revenue', 'enterprise_analytics', 'sales-revenue',
           icon: Icons.payments_rounded),
-      EnterpriseWorkspaceSection(
-          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
-          icon: Icons.account_balance_rounded),
       EnterpriseWorkspaceSection(
           'Team & Access', 'enterprise_security', 'team-access',
           icon: Icons.group_rounded),
@@ -124,6 +119,9 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
       EnterpriseWorkspaceSection('Overview', 'enterprise_overview', 'overview',
           icon: Icons.dashboard_rounded),
       EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
+      EnterpriseWorkspaceSection(
           'Orders & Shipments', 'enterprise_workflows', 'orders-shipments',
           icon: Icons.inventory_2_rounded),
       EnterpriseWorkspaceSection(
@@ -138,9 +136,6 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
       EnterpriseWorkspaceSection(
           'Sales & Finance', 'enterprise_analytics', 'sales-finance',
           icon: Icons.payments_rounded),
-      EnterpriseWorkspaceSection(
-          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
-          icon: Icons.account_balance_rounded),
       EnterpriseWorkspaceSection(
           'Documents & Compliance', 'enterprise_security', 'documents-compliance',
           icon: Icons.fact_check_rounded),
@@ -170,6 +165,9 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
           icon: Icons.home_rounded),
       EnterpriseWorkspaceSection('Today', 'enterprise_overview', 'today',
           icon: Icons.today_rounded),
+      EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
       EnterpriseWorkspaceSection('Matters', 'enterprise_data', 'matters',
           icon: Icons.gavel_rounded),
       EnterpriseWorkspaceSection(
@@ -201,9 +199,6 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
           'Billing & Finance', 'enterprise_analytics', 'billing-finance',
           icon: Icons.receipt_long_rounded),
       EnterpriseWorkspaceSection(
-          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
-          icon: Icons.account_balance_rounded),
-      EnterpriseWorkspaceSection(
           'Reports', 'enterprise_analytics', 'reports',
           icon: Icons.assessment_rounded),
       EnterpriseWorkspaceSection(
@@ -234,6 +229,9 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
       EnterpriseWorkspaceSection('Overview', 'enterprise_overview', 'overview',
           icon: Icons.dashboard_rounded),
       EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
+      EnterpriseWorkspaceSection(
           'Restaurants & Branches', 'enterprise_data', 'restaurants-branches',
           icon: Icons.storefront_rounded),
       EnterpriseWorkspaceSection(
@@ -252,9 +250,6 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
           'Sales & Finance', 'enterprise_analytics', 'sales-finance',
           icon: Icons.payments_rounded),
       EnterpriseWorkspaceSection(
-          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
-          icon: Icons.account_balance_rounded),
-      EnterpriseWorkspaceSection(
           'Team & Access', 'enterprise_security', 'team-access',
           icon: Icons.group_rounded),
       EnterpriseWorkspaceSection('Activity', 'enterprise_logs', 'activity',
@@ -269,6 +264,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
 ];
 
 enum _WorkspaceAction { openHome, showSections }
+enum _HomeAction { activity, more }
 
 class EnterpriseWorkspaceHome extends StatefulWidget {
   const EnterpriseWorkspaceHome({
@@ -285,101 +281,152 @@ class EnterpriseWorkspaceHome extends StatefulWidget {
   final VoidCallback? onMore;
 
   @override
-  State<EnterpriseWorkspaceHome> createState() =>
-      _EnterpriseWorkspaceHomeState();
+  State<EnterpriseWorkspaceHome> createState() => _EnterpriseWorkspaceHomeState();
 }
 
 class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
-  String? _expandedKey = 'plp-boracay';
-  Map<String, Object?>? _taxData;
-  bool _taxLoading = true;
+  String? _expandedKey;
+  int _expansionGeneration = 0;
+  final _scrollController = ScrollController();
+  final _headerKeys = <String, GlobalKey>{
+    for (final workspace in enterpriseWorkspaces) workspace.key: GlobalKey(),
+  };
 
   @override
-  void initState() {
-    super.initState();
-    scheduleMicrotask(_loadTaxSummary);
-  }
-
-  Map<String, Object?> _map(Object? value) {
-    if (value is Map<String, Object?>) return value;
-    if (value is Map) {
-      return value.map((key, item) => MapEntry(key.toString(), item));
-    }
-    return const <String, Object?>{};
-  }
-
-  int _int(Object? value) {
-    if (value is int) return value;
-    return int.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
-  bool _bool(Object? value) {
-    if (value is bool) return value;
-    return value?.toString().toLowerCase() == 'true';
-  }
-
-  Future<void> _loadTaxSummary() async {
-    try {
-      final value = await Supabase.instance.client.rpc(
-        'pandora_tax_command_center_v1',
-        params: const <String, Object?>{
-          'p_organization_id': PandoraConfig.organizationId,
-        },
-      );
-      if (!mounted) return;
-      setState(() {
-        _taxData = _map(value);
-        _taxLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _taxData = null;
-        _taxLoading = false;
-      });
-    }
-  }
-
-  String get _taxStatus {
-    if (_taxLoading) return 'Checking tax readiness';
-    final data = _taxData;
-    if (data == null) return 'Open live tax command center';
-
-    final capabilities = _map(data['capabilities']);
-    final rules = _map(data['rules']);
-    final exceptions = _map(data['exceptions']);
-    final critical = _int(exceptions['critical']);
-    final open = _int(exceptions['open']);
-
-    if (critical > 0) {
-      return '$critical critical · $open open exceptions';
-    }
-    if (_bool(capabilities['deterministicCalculation'])) {
-      return open > 0
-          ? 'Calculation ready · $open open exceptions'
-          : 'Calculation ready';
-    }
-    if (rules['inReviewPackId'] != null) {
-      return open > 0
-          ? 'Professional review gate · $open open exceptions'
-          : 'Professional review gate';
-    }
-    return open > 0 ? '$open open exceptions' : 'Review tax readiness';
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _toggle(EnterpriseWorkspaceProfile workspace) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final generation = ++_expansionGeneration;
     setState(() {
       _expandedKey = _expandedKey == workspace.key ? null : workspace.key;
     });
+    // Reveal the selected header after the accordion's new geometry is laid
+    // out. Keep all four headers mounted so a collapse above cannot lose the
+    // target in a lazily recycled list. No guessed animation-delay timer.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || generation != _expansionGeneration) return;
+      final headerContext = _headerKeys[workspace.key]?.currentContext;
+      if (headerContext == null) return;
+      unawaited(Scrollable.ensureVisible(
+        headerContext,
+        alignment: 0,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      ));
+    });
   }
 
-  void _open(
-    EnterpriseWorkspaceProfile workspace,
-    EnterpriseWorkspaceSection section,
-  ) {
-    widget.onOpen(
-      EnterpriseWorkspaceSelection(workspace: workspace, section: section),
-    );
+  void _open(EnterpriseWorkspaceProfile workspace, EnterpriseWorkspaceSection section) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    widget.onOpen(EnterpriseWorkspaceSelection(workspace: workspace, section: section));
+  }
+
+  Widget _header(BuildContext context, VoidCallback? openDrawer) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final roomy = constraints.maxWidth >= 480 &&
+          MediaQuery.textScalerOf(context).scale(1) <= 1.4;
+      return Padding(
+        key: const ValueKey<String>('workspace-home-header'),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        child: Row(
+          children: [
+            if (openDrawer != null)
+              PandoraMenuButton(
+                key: const ValueKey<String>('workspace-home-navigation'),
+                onPressed: openDrawer,
+              ),
+            Expanded(
+              child: InkWell(
+                key: const ValueKey<String>('workspace-home-brand'),
+                onTap: openDrawer,
+                borderRadius: BorderRadius.circular(18),
+                child: Row(
+                  children: [
+                    PandoraMark(size: roomy ? 40 : 32),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Pandora',
+                          key: ValueKey<String>('workspace-home-title'),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (widget.onSearchChats != null)
+              IconButton(
+                key: const ValueKey<String>('workspace-home-search'),
+                tooltip: 'Search chats',
+                color: Colors.white,
+                onPressed: widget.onSearchChats,
+                icon: const Icon(Icons.search_rounded, size: 24),
+              ),
+            if (roomy && widget.onActivity != null)
+              IconButton(
+                key: const ValueKey<String>('workspace-home-activity'),
+                tooltip: 'Activity',
+                color: Colors.white,
+                onPressed: widget.onActivity,
+                icon: const Icon(Icons.timelapse_rounded, size: 24),
+              ),
+            if (roomy && widget.onMore != null)
+              IconButton(
+                key: const ValueKey<String>('workspace-home-more'),
+                tooltip: 'Settings & More',
+                color: Colors.white,
+                onPressed: widget.onMore,
+                icon: const Icon(Icons.more_vert_rounded, size: 24),
+              )
+            else if (!roomy && (widget.onActivity != null || widget.onMore != null))
+              PopupMenuButton<_HomeAction>(
+                key: const ValueKey<String>('workspace-home-more'),
+                tooltip: 'Activity and settings',
+                color: const Color(0xFF171C22),
+                icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                onSelected: (action) {
+                  switch (action) {
+                    case _HomeAction.activity:
+                      widget.onActivity?.call();
+                      break;
+                    case _HomeAction.more:
+                      widget.onMore?.call();
+                      break;
+                  }
+                },
+                itemBuilder: (_) => [
+                  if (widget.onActivity != null)
+                    const PopupMenuItem(
+                      value: _HomeAction.activity,
+                      child: Text('Activity', style: TextStyle(color: Colors.white)),
+                    ),
+                  if (widget.onMore != null)
+                    const PopupMenuItem(
+                      value: _HomeAction.more,
+                      child: Text('Settings & More', style: TextStyle(color: Colors.white)),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      );
+    });
   }
 
   @override
@@ -387,122 +434,48 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
     final openDrawer = PandoraNavigationScope.maybeOf(context)?.openDrawer;
     return Material(
       color: const Color(0xFF07111B),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: <Color>[
-                  Color(0xFF092039),
-                  Color(0xFF07111B),
-                  Color(0xFF15100D),
-                ],
-                stops: <double>[0, .56, 1],
-              ),
-            ),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF092039), Color(0xFF07111B), Color(0xFF15100D)],
+            stops: [0, .56, 1],
           ),
-          const Positioned(
-            right: -120,
-            bottom: 80,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0x14B56E38),
-                ),
-                child: SizedBox(width: 360, height: 360),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 10, 12, 10),
-                  child: Row(
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _header(context, openDrawer),
+              const Divider(height: 1, color: Color(0x33FFFFFF)),
+              Expanded(
+                child: SingleChildScrollView(
+                  key: const ValueKey<String>('enterprise-workspace-list'),
+                  controller: _scrollController,
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                  child: Column(
                     children: [
-                      if (openDrawer != null)
-                        PandoraMenuButton(
-                          key: const ValueKey<String>('workspace-home-navigation'),
-                          onPressed: openDrawer,
-                        ),
-                      Expanded(
-                        child: InkWell(
-                          key: const ValueKey<String>('workspace-home-brand'),
-                          onTap: openDrawer,
-                          borderRadius: BorderRadius.circular(18),
-                          child: const Row(
-                            children: [
-                              PandoraMark(size: 48),
-                              SizedBox(width: 14),
-                              Expanded(
-                                child: Text(
-                                  'Pandora',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -.7,
-                                  ),
-                                ),
-                              ),
-                            ],
+                      for (final workspace in enterpriseWorkspaces)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _WorkspaceCard(
+                            key: ValueKey<String>('workspace-card-${workspace.key}'),
+                            headerKey: _headerKeys[workspace.key]!,
+                            workspace: workspace,
+                            expanded: _expandedKey == workspace.key,
+                            onToggle: () => _toggle(workspace),
+                            onOpen: (section) => _open(workspace, section),
                           ),
-                        ),
-                      ),
-                      if (widget.onSearchChats != null)
-                        IconButton(
-                          key: const ValueKey<String>('workspace-home-search'),
-                          tooltip: 'Search chats',
-                          onPressed: widget.onSearchChats,
-                          icon: const Icon(Icons.search_rounded, size: 28),
-                        ),
-                      if (widget.onActivity != null)
-                        IconButton(
-                          key: const ValueKey<String>('workspace-home-activity'),
-                          tooltip: 'Activity',
-                          onPressed: widget.onActivity,
-                          icon: const Icon(Icons.timelapse_rounded, size: 26),
-                        ),
-                      if (widget.onMore != null)
-                        IconButton(
-                          key: const ValueKey<String>('workspace-home-more'),
-                          tooltip: 'More',
-                          onPressed: widget.onMore,
-                          icon: const Icon(Icons.more_vert_rounded, size: 27),
                         ),
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: Color(0x33FFFFFF)),
-                Expanded(
-                  child: ListView.separated(
-                    key: const ValueKey<String>('enterprise-workspace-list'),
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                    itemCount: enterpriseWorkspaces.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final workspace = enterpriseWorkspaces[index];
-                      return _WorkspaceCard(
-                        workspace: workspace,
-                        expanded: _expandedKey == workspace.key,
-                        onToggle: () => _toggle(workspace),
-                        taxStatus: _taxStatus,
-                        onOpen: (section) => _open(workspace, section),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -510,27 +483,25 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
 
 class _WorkspaceCard extends StatelessWidget {
   const _WorkspaceCard({
+    super.key,
+    required this.headerKey,
     required this.workspace,
     required this.expanded,
-    required this.taxStatus,
     required this.onToggle,
     required this.onOpen,
   });
 
+  final GlobalKey headerKey;
   final EnterpriseWorkspaceProfile workspace;
   final bool expanded;
-  final String taxStatus;
   final VoidCallback onToggle;
   final ValueChanged<EnterpriseWorkspaceSection> onOpen;
 
   @override
   Widget build(BuildContext context) {
     final home = workspace.sections.first;
-    final tax = workspace.sections.firstWhere(
-      (section) => section.routeSlug == 'tax-compliance',
-    );
+    final tax = workspace.sections.firstWhere((section) => section.routeSlug == 'tax-compliance');
     return Material(
-      key: ValueKey<String>('workspace-card-' + workspace.key),
       color: const Color(0xC90B0E12),
       borderRadius: BorderRadius.circular(25),
       clipBehavior: Clip.antiAlias,
@@ -541,189 +512,108 @@ class _WorkspaceCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            InkWell(
-              onTap: onToggle,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 13, 8, 13),
-                child: Row(
-                  children: [
-                    _WorkspaceLogo(workspace: workspace),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            workspace.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              height: 1.08,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -.25,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            workspace.subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFB8B8BB),
-                              fontSize: 15,
-                              height: 1.12,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      key: ValueKey<String>(
-                          'workspace-expand-' + workspace.key),
-                      tooltip: expanded ? 'Collapse workspace' : 'Open workspace',
-                      onPressed: onToggle,
-                      icon: AnimatedRotation(
-                        turns: expanded ? .5 : 0,
-                        duration: const Duration(milliseconds: 180),
-                        child: const Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                      ),
-                    ),
-                    PopupMenuButton<_WorkspaceAction>(
-                      key: ValueKey<String>(
-                          'workspace-more-' + workspace.key),
-                      tooltip: 'Workspace options',
-                      icon: const Icon(
-                        Icons.more_vert_rounded,
-                        color: Colors.white,
-                        size: 27,
-                      ),
-                      onSelected: (action) {
-                        switch (action) {
-                          case _WorkspaceAction.openHome:
-                            onOpen(home);
-                            break;
-                          case _WorkspaceAction.showSections:
-                            onToggle();
-                            break;
-                        }
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
-                          value: _WorkspaceAction.openHome,
-                          child: Text('Open workspace'),
-                        ),
-                        PopupMenuItem(
-                          value: _WorkspaceAction.showSections,
-                          child: Text('Show sections'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-              child: Material(
-                color: const Color(0x14D5A16E),
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  key: ValueKey<String>(
-                      'workspace-tax-quick-' + workspace.key),
-                  onTap: () => onOpen(tax),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 11, 12, 11),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.account_balance_rounded,
-                          color: workspace.accent,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 11),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Tax & Compliance',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
+            Row(
+              key: headerKey,
+              children: [
+                Expanded(
+                  child: Semantics(
+                    expanded: expanded,
+                    child: InkWell(
+                      key: ValueKey<String>('workspace-expand-${workspace.key}'),
+                      onTap: onToggle,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 14, 0, 14),
+                        child: Row(
+                          children: [
+                            _WorkspaceLogo(workspace: workspace),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(workspace.name, style: const TextStyle(
+                                    color: Colors.white, fontSize: 18, height: 1.18,
+                                    fontWeight: FontWeight.w700, letterSpacing: -.25,
+                                  )),
+                                  const SizedBox(height: 4),
+                                  Text(workspace.subtitle, style: const TextStyle(
+                                    color: Color(0xFFB8B8BB), fontSize: 14, height: 1.2,
+                                  )),
+                                ],
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                taxStatus,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFFB8B8BB),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                                color: Colors.white, size: 24),
+                          ],
                         ),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Color(0xFFD8D8DA),
-                          size: 20,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
+                PopupMenuButton<_WorkspaceAction>(
+                  key: ValueKey<String>('workspace-more-${workspace.key}'),
+                  tooltip: 'Workspace options',
+                  color: const Color(0xFF171C22),
+                  icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                  onSelected: (action) {
+                    switch (action) {
+                      case _WorkspaceAction.openHome:
+                        onOpen(home);
+                        break;
+                      case _WorkspaceAction.showSections:
+                        onToggle();
+                        break;
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: _WorkspaceAction.openHome,
+                        child: Text('Open workspace', style: TextStyle(color: Colors.white))),
+                    PopupMenuItem(value: _WorkspaceAction.showSections,
+                        child: Text(expanded ? 'Hide sections' : 'Show sections',
+                            style: const TextStyle(color: Colors.white))),
+                  ],
+                ),
+              ],
+            ),
+            // This directory is not a tenant-scoped metrics surface. Do not
+            // repeat one organization-wide readiness result across businesses.
+            if (!expanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                child: Material(
+                  color: const Color(0x14D5A16E),
+                  borderRadius: BorderRadius.circular(14),
+                  child: ListTile(
+                    key: ValueKey<String>('workspace-tax-quick-${workspace.key}'),
+                    minLeadingWidth: 22,
+                    horizontalTitleGap: 10,
+                    leading: Icon(Icons.account_balance_rounded, color: workspace.accent, size: 22),
+                    title: const Text('Tax & Compliance', style: TextStyle(
+                      color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w700,
+                    )),
+                    trailing: const Icon(Icons.arrow_forward_rounded, color: Color(0xFFD8D8DA), size: 20),
+                    onTap: () => onOpen(tax),
+                  ),
+                ),
               ),
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 190),
-              curve: Curves.easeOutCubic,
-              child: expanded
-                  ? Column(
-                      children: [
-                        const Divider(height: 1, color: Color(0x29FFFFFF)),
-                        for (final section in workspace.sections)
-                          ListTile(
-                            key: ValueKey<String>(
-                                workspace.key + '-' + section.routeSlug),
-                            contentPadding:
-                                const EdgeInsets.fromLTRB(20, 1, 14, 1),
-                            leading: Icon(
-                              section.icon,
-                              color: const Color(0xFFD8D8DA),
-                              size: 21,
-                            ),
-                            title: Text(
-                              section.label,
-                              style: const TextStyle(
-                                color: Color(0xFFF0F0F2),
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            trailing: const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              color: Color(0xFF8D8F93),
-                              size: 14,
-                            ),
-                            onTap: () => onOpen(section),
-                          ),
-                        const SizedBox(height: 7),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-            ),
+            if (expanded) ...[
+              const Divider(height: 1, color: Color(0x29FFFFFF)),
+              for (final section in workspace.sections)
+                ListTile(
+                  key: ValueKey<String>('${workspace.key}-${section.routeSlug}'),
+                  contentPadding: const EdgeInsets.fromLTRB(20, 4, 14, 4),
+                  minLeadingWidth: 24,
+                  horizontalTitleGap: 12,
+                  leading: Icon(section.icon, color: const Color(0xFFD8D8DA), size: 21),
+                  title: Text(section.label, style: const TextStyle(
+                    color: Color(0xFFF0F0F2), fontSize: 15, fontWeight: FontWeight.w600,
+                  )),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF8D8F93), size: 14),
+                  onTap: () => onOpen(section),
+                ),
+              const SizedBox(height: 7),
+            ],
           ],
         ),
       ),
@@ -733,40 +623,25 @@ class _WorkspaceCard extends StatelessWidget {
 
 class _WorkspaceLogo extends StatelessWidget {
   const _WorkspaceLogo({required this.workspace});
-
   final EnterpriseWorkspaceProfile workspace;
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: const Color(0xFF0A111B),
-          border: Border.all(color: workspace.accent, width: 1.4),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: workspace.accent.withValues(alpha: .16),
-              blurRadius: 16,
-            ),
-          ],
-        ),
-        child: ClipOval(
-          child: Image.asset(
-            workspace.logoAsset,
-            fit: BoxFit.cover,
-            filterQuality: FilterQuality.high,
-            errorBuilder: (_, __, ___) => Center(
-              child: Text(
-                workspace.initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
+    width: 48, height: 48,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: const Color(0xFF0A111B),
+      border: Border.all(color: workspace.accent, width: 1.4),
+    ),
+    child: ClipOval(
+      child: Image.asset(
+        workspace.logoAsset,
+        fit: BoxFit.cover,
+        cacheWidth: (48 * MediaQuery.devicePixelRatioOf(context)).ceil(),
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => Center(child: Text(workspace.initials,
+          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800))),
+      ),
+    ),
+  );
 }

@@ -1,0 +1,38 @@
+name: Pandora mobile UX behavior
+on:
+  pull_request:
+    paths:
+      - 'apps/pandora-mobile/**'
+      - '.github/workflows/pandora-ux-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pandora-ux-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  widget-journeys:
+    name: UX / responsive workspace and navigation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Verify exact source
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Analyze and run production-widget journeys
+        working-directory: apps/pandora-mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get --enforce-lockfile
+          flutter analyze --no-pub lib/features/enterprise/enterprise_workspace_home.dart test/features/enterprise/enterprise_workspace_navigation_test.dart
+          flutter test --no-pub --reporter expanded test/features/enterprise/enterprise_workspace_navigation_test.dart test/app/pandora_chat_navigation_test.dart test/app/plp_navigation_drawer_test.dart test/app/plp_command_dock_keyboard_test.dart
