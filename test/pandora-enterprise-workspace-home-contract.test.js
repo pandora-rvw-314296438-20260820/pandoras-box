@@ -19,6 +19,10 @@ const backend = fs.readFileSync(
   "supabase/functions/pandora-intelligence-chat/index.ts",
   "utf8",
 );
+const tax = fs.readFileSync(
+  "apps/pandora-mobile/lib/features/enterprise/tax_compliance_screen.dart",
+  "utf8",
+);
 
 test("owner workspace home exposes the four requested businesses", () => {
   for (const value of [
@@ -48,6 +52,7 @@ test("Euro-fish workspace keeps Home first and the requested business order", ()
     "Inventory & Products",
     "Logistics & Customs",
     "Sales & Finance",
+    "Tax & Compliance",
     "Documents & Compliance",
     "Team & Access",
     "Activity",
@@ -60,6 +65,24 @@ test("Euro-fish workspace keeps Home first and the requested business order", ()
     assert.ok(next > cursor, label + " must follow the requested order");
     cursor = next;
   }
+});
+
+
+test("every enterprise workspace exposes the tax command center", () => {
+  assert.equal((hub.match(/'Tax & Compliance'/g) ?? []).length, 4);
+  assert.equal((hub.match(/'enterprise_tax', 'tax-compliance'/g) ?? []).length, 4);
+  assert.match(shell, /TaxComplianceScreen\(/);
+  assert.match(shell, /section\.routeSlug ==\s*'tax-compliance'/);
+});
+
+test("tax command center reads live tenant-scoped backend truth and preserves legal action gates", () => {
+  assert.match(tax, /pandora_tax_command_center_v1/);
+  assert.match(tax, /PandoraConfig\.organizationId/);
+  assert.match(tax, /Message Pandora about taxes/);
+  assert.match(tax, /filingSubmission/);
+  assert.match(tax, /paymentExecution/);
+  assert.match(tax, /The Philippines rule pack is still under professional review/);
+  assert.doesNotMatch(tax, /service_role|SUPABASE_SERVICE_ROLE|access_token|refresh_token/);
 });
 
 test("workspace navigation uses admitted structured Enterprise context", () => {
