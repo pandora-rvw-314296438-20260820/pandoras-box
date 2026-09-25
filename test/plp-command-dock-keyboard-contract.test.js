@@ -6,6 +6,10 @@ const shell = readFileSync(
   'apps/pandora-mobile/lib/app/plp_enterprise_shell.dart',
   'utf8',
 );
+const drawer = readFileSync(
+  'apps/pandora-mobile/lib/app/plp_navigation_drawer.dart',
+  'utf8',
+);
 const chat = readFileSync(
   'apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
   'utf8',
@@ -43,6 +47,7 @@ test('shared command dock remains shell-level across every non-chat PLP destinat
     "'vision': 3",
     "'local-ai': 4",
     "'overview': 5",
+    "'tax-compliance': 13",
     "'guests': 6",
     "'team-access': 7",
     "'revenue': 8",
@@ -66,5 +71,33 @@ test('nested PLP tool inputs own their keyboard space without the shared dock ta
     operationsRoom,
     /resizeToAvoidBottomInset:\s*false/,
     'Operations Room should retain Scaffold keyboard resizing',
+  );
+});
+
+
+test('opening the PLP drawer dismisses keyboard focus, resets scroll, and gates Android back', () => {
+  assert.match(shell, /final _drawerScrollController = ScrollController\(\)/);
+  assert.match(
+    shell,
+    /void _openDrawer\(\)[\s\S]*_dismissWorkspaceKeyboard\(\)[\s\S]*_resetDrawerScroll\(\)[\s\S]*addPostFrameCallback[\s\S]*openDrawer\(\)/,
+  );
+  assert.match(
+    shell,
+    /onDrawerChanged: \(open\)[\s\S]*_dismissWorkspaceKeyboard\(\)[\s\S]*_resetDrawerScroll\(\)/,
+  );
+  assert.match(shell, /canPop: !_drawerOpen/);
+  assert.match(
+    shell,
+    /void _closeDrawer\(\)[\s\S]*primaryFocus\?\.unfocus\(\)[\s\S]*closeDrawer\(\)/,
+  );
+});
+
+test('PLP drawer owns deterministic scroll state and masks content below its fixed header', () => {
+  assert.match(drawer, /controller: widget\.scrollController/);
+  assert.match(drawer, /ScrollViewKeyboardDismissBehavior\.onDrag/);
+  assert.match(drawer, /double get _headerExtent => _searchOpen \? 136 : 76/);
+  assert.match(
+    drawer,
+    /plp-drawer-header-mask[\s\S]*Color\(0xFF000000\)/,
   );
 });
