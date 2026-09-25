@@ -485,10 +485,45 @@ grant select,insert,update,delete on table public.tax_reconciliation_matches to 
 grant select,insert on table public.tax_exception_resolutions to service_role;
 grant select,insert,update,delete on table public.tax_rule_sources to service_role;
 grant select,insert,update,delete on table public.tax_rule_tests to service_role;
-grant select,insert on table public.tax_rule_reviews to service_role;
+grant select on table public.tax_rule_reviews to service_role;
 grant select,insert,update,delete on table public.tax_return_versions to service_role;
 grant select,insert,update,delete on table public.tax_return_schedules to service_role;
 grant select,insert,update,delete on table public.tax_filing_packages to service_role;
+
+create or replace function public.pandora_tax_guard_rule_support_mutation_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path='pg_catalog','public'
+as $
+declare
+  pack_id uuid := coalesce(new.rule_pack_id,old.rule_pack_id);
+  pack_status text;
+begin
+  select status into pack_status
+  from public.tax_rule_packs
+  where id=pack_id;
+
+  if pack_status in ('approved','superseded','rejected') then
+    raise exception 'pandora_tax_rule_support_immutable' using errcode='42501';
+  end if;
+
+  if tg_op='DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists tax_rule_sources_immutable_after_review on public.tax_rule_sources;
+create trigger tax_rule_sources_immutable_after_review
+before insert or update or delete on public.tax_rule_sources
+for each row execute function public.pandora_tax_guard_rule_support_mutation_v1();
+
+drop trigger if exists tax_rule_tests_immutable_after_review on public.tax_rule_tests;
+create trigger tax_rule_tests_immutable_after_review
+before insert or update or delete on public.tax_rule_tests
+for each row execute function public.pandora_tax_guard_rule_support_mutation_v1();
 
 create or replace function public.pandora_tax_post_ledger_entry_v1(
   p_organization_id uuid,
@@ -1354,8 +1389,10 @@ declare
   review_row public.tax_rule_reviews%rowtype;
   normalized_decision text := lower(btrim(coalesce(p_decision,'')));
   source_count integer;
+  unhashed_source_count integer;
   rule_count integer;
   passed_test_count integer;
+  tested_rule_count integer;
 begin
   if p_rule_pack_id is null
      or p_reviewer_user_id is null
@@ -1385,6 +1422,12 @@ begin
   from public.tax_rule_sources
   where rule_pack_id=p_rule_pack_id and source_scope='official';
 
+  select count(*)::integer into unhashed_source_count
+  from public.tax_rule_sources
+  where rule_pack_id=p_rule_pack_id
+    and source_scope='official'
+    and content_sha256 is null;
+
   select count(*)::integer into rule_count
   from public.tax_rules
   where rule_pack_id=p_rule_pack_id;
@@ -1393,12 +1436,21 @@ begin
   from public.tax_rule_tests
   where rule_pack_id=p_rule_pack_id and status='passed';
 
+  select count(distinct rt.rule_key)::integer into tested_rule_count
+  from public.tax_rule_tests rt
+  join public.tax_rules r
+    on r.rule_pack_id=rt.rule_pack_id
+   and r.rule_key=rt.rule_key
+  where rt.rule_pack_id=p_rule_pack_id
+    and rt.status='passed';
+
   if normalized_decision='approve' and (
        p_source_reviewed is not true
        or p_tests_reviewed is not true
        or source_count=0
+       or unhashed_source_count>0
        or rule_count=0
-       or passed_test_count<rule_count
+       or tested_rule_count<rule_count
      )
   then
     raise exception 'pandora_tax_rule_pack_not_approvable' using errcode='55000';
@@ -1445,8 +1497,10 @@ begin
     'decision',normalized_decision,
     'status',(select status from public.tax_rule_packs where id=p_rule_pack_id),
     'officialSourceCount',source_count,
+    'unhashedOfficialSourceCount',unhashed_source_count,
     'ruleCount',rule_count,
-    'passedTestCount',passed_test_count
+    'passedTestCount',passed_test_count,
+    'testedRuleCount',tested_rule_count
   );
 end;
 $$;
