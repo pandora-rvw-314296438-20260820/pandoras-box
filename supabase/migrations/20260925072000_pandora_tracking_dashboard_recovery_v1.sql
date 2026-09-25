@@ -42,7 +42,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, public, private
-as $
+as $$
 begin
   if new.project_id is not null then
     if new.organization_id is null then
