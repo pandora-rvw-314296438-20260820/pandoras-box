@@ -88,7 +88,11 @@ test('opening the PLP drawer dismisses keyboard focus, resets scroll, and gates 
   assert.match(shell, /canPop: !_drawerOpen/);
   assert.match(
     shell,
-    /void _closeDrawer\(\)[\s\S]*primaryFocus\?\.unfocus\(\)[\s\S]*closeDrawer\(\)/,
+    /void _dismissWorkspaceKeyboard\(\)[\s\S]*primaryFocus\?\.unfocus\(\)/,
+  );
+  assert.match(
+    shell,
+    /void _closeDrawer\(\)[\s\S]*_dismissWorkspaceKeyboard\(\)[\s\S]*closeDrawer\(\)/,
   );
 });
 
