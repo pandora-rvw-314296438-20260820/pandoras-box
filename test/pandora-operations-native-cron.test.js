@@ -29,3 +29,23 @@ test("provisioner creates a sensitive production secret server-side and never re
   assert.match(migration,/v_secret := null/);
   assert.doesNotMatch(migration,/return\s+v_secret/i);
 });
+
+test("native release verification is Operations-native and ProjectOS-free",()=>{
+  const control=fs.readFileSync(path.join(root,"supabase/functions/mcpmaster-supabase-control/index.ts"),"utf8");
+  const verify=fs.readFileSync(path.join(root,"supabase/migrations/20260926045200_operations_native_verification_v1.sql"),"utf8");
+  assert.match(verify,/create table private\.pandora_ops_verification_receipts/);
+  assert.match(verify,/references private\.pandora_ops_workspaces/);
+  assert.match(verify,/create or replace function public\.pandora_ops_native_release_verify_v1/);
+  assert.match(verify,/OPS-CLOUD-CONNECTORS-RELEASE-V1/);
+  assert.match(verify,/pulls\/741/);
+  assert.match(verify,/Pandora coordinator \/ integration/);
+  assert.match(verify,/connector-contract/);
+  assert.match(verify,/20260926012832/);
+  assert.match(verify,/select \* into ov from private\.pandora_ops_verification_receipts/);
+  assert.match(verify,/select \* into legacy from public\.pandora_verification_runs/);
+  assert.doesNotMatch(verify,/insert into public\.pandora_project_specs|insert into public\.pandora_project_versions/);
+  assert.match(control,/operations_native_release_verify/);
+  assert.match(control,/pandora_ops_native_release_verify_v1/);
+  assert.match(worker,/operations_native_release_verify/);
+  assert.match(worker,/OPS_NATIVE_RELEASE_VERIFICATION_UNCONFIRMED/);
+});

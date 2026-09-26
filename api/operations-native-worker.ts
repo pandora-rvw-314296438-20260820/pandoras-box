@@ -276,14 +276,30 @@ export default async function operationsNativeWorker(request: any, response: any
         handoff,
       });
 
-      return send(response, 200, {
-        ok: true,
-        state: "handed_off",
-        taskId: CANARY_TASK,
-        dispatchId,
-        mergeSha: evidence.mergeSha,
-        handedOff,
-      });
+      try {
+        await control(oidc, { action: "operations_heartbeat", workerRole: "release" });
+        const verified = await control(oidc, {
+          action: "operations_native_release_verify",
+          taskId: CANARY_TASK,
+        });
+        return send(response, 200, {
+          ok: true,
+          state: verified?.complete === true ? "complete" : "verification_pending",
+          taskId: CANARY_TASK,
+          dispatchId,
+          mergeSha: evidence.mergeSha,
+          handedOff,
+          verified,
+        });
+      } catch {
+        return send(response, 503, {
+          ok: false,
+          state: "verification_pending",
+          taskId: CANARY_TASK,
+          dispatchId,
+          code: "OPS_NATIVE_RELEASE_VERIFICATION_UNCONFIRMED",
+        });
+      }
     } catch (error: any) {
       try {
         await control(oidc, {
