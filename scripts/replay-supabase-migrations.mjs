@@ -183,11 +183,12 @@ async function bootstrap(db) {
     create or replace function vault.create_secret(
       new_secret text,
       new_name text default null,
-      new_description text default null
+      new_description text default null,
+      new_id uuid default null
     ) returns uuid
     language plpgsql
     as $vault$
-    declare v_id uuid := gen_random_uuid();
+    declare v_id uuid := coalesce(new_id, gen_random_uuid());
     begin
       insert into vault.decrypted_secrets(id,name,description,decrypted_secret)
       values(v_id,new_name,new_description,new_secret);
