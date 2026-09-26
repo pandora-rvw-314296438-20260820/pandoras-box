@@ -50,7 +50,7 @@ test("Connector CI watches native dependencies and its own workflow on PR and ma
   const pull = workflow.split("  pull_request:\n")[1].split("  push:\n")[0];
   const push = workflow.split("  push:\n")[1].split("  workflow_dispatch:")[0];
   for (const section of [pull, push]) {
-    for (const dependency of ["packages/pandora-operations-room/**", "packages/pandora-verification/**", "supabase/migrations/**", "package-lock.json", ".github/workflows/operations-connectors.yml"])
+    for (const dependency of ["packages/pandora-operations-room/**", "packages/pandora-verification/**", "supabase/migrations/**", "api/operations-native-worker.ts", "supabase/functions/mcpmaster-supabase-control/**", "package-lock.json", ".github/workflows/operations-connectors.yml"])
       assert.ok(section.includes(`'${dependency}'`), `Missing dependency filter ${dependency}`);
   }
 });
