@@ -1,3 +1,4 @@
+import 'operations_execution_feed.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -697,6 +698,7 @@ class _PandoraOperationsRoomScreenState
               onMention: _mentionRole,
               onHome: widget.onHome,
             ),
+            const OperationsExecutionFeed(),
             Expanded(
               child: ListView.builder(
                 key: const ValueKey<String>('operations-room-chat'),

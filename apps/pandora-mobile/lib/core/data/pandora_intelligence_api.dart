@@ -1,3 +1,4 @@
+import 'pandora_operations_events.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -438,7 +439,17 @@ class PandoraIntelligenceApi {
     }
   }
 
+
+  PandoraOperationsEventReader operationsEventReader() => PandoraOperationsEventReader(
+    organizationId: _organizationId,
+    readSession: () {
+      final session = _client.auth.currentSession;
+      return session == null ? null : PandoraOperationsSession(session.user.id, session.accessToken);
+    },
+  );
+
   Future<List<PandoraProjectContext>> projectContexts({int limit = 60}) async {
+
     _requireSession();
     final safeLimit = limit.clamp(1, 100).toInt();
     try {
