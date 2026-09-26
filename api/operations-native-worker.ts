@@ -280,9 +280,22 @@ async function verifyWholeSheetAcceptance(oidc: string, task: any) {
   if (
     pr?.number !== pullRequest ||
     typeof pr?.merged_at !== "string" ||
-    pr?.merge_commit_sha !== task.headSha ||
     !/^[0-9a-f]{40}$/.test(String(pr?.head?.sha || ""))
   ) throw new Error("OPS_WHOLE_SHEET_MERGE_READBACK_FAILED");
+
+  let verifiedMergeSha = String(pr?.merge_commit_sha || "");
+  if (!verifiedMergeSha) {
+    const mergeCommit = await githubJson(`/repos/${REPOSITORY}/commits/${task.headSha}`);
+    const parents = Array.isArray(mergeCommit?.parents) ? mergeCommit.parents : [];
+    if (
+      mergeCommit?.sha !== task.headSha ||
+      !parents.some((parent: any) => parent?.sha === pr.head.sha)
+    ) throw new Error("OPS_WHOLE_SHEET_MERGE_READBACK_FAILED");
+    verifiedMergeSha = task.headSha;
+  }
+  if (verifiedMergeSha !== task.headSha) {
+    throw new Error("OPS_WHOLE_SHEET_MERGE_READBACK_FAILED");
+  }
 
   const checks = await githubJson(
     `/repos/${REPOSITORY}/commits/${pr.head.sha}/check-runs?per_page=100`,
@@ -319,7 +332,7 @@ async function verifyWholeSheetAcceptance(oidc: string, task: any) {
     providerReadback: {
       pullRequest,
       pullRequestHead: pr.head.sha,
-      mergeSha: pr.merge_commit_sha,
+      mergeSha: verifiedMergeSha,
       coordinator: "success",
       vercelSourceCommit: deploymentCommit,
       vercelDeploymentRef: process.env.VERCEL_URL ? `vercel:${process.env.VERCEL_URL}` : null,
