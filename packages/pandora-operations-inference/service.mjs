@@ -53,14 +53,26 @@ export class OperationsInferenceService{
      performanceDigests:performance?.records?.map(r=>r.recordDigest).sort()??[]})};
    const plan=selectCandidates(boundRequest,policy,context.scope,performance,{now:this.#clock(),transports:[...this.#providers.keys()],executionBoundary:'cloud'});
    demand(plan.candidates.length>0,'INFERENCE_NO_APPROVED_ROUTE');
+   // Read-only adapter validation precedes durable preparation or send authority.
+   for(const model of plan.candidates){const provider=this.#providers.get(model.transport);
+    if(typeof provider.preflight==='function')await boundedCall(inner=>provider.preflight({...request,memoryContext:memoryText,memoryReceiptRef:memoryRef},model,{signal:inner}),{signal:executionSignal,timeoutMs:request.deadlineMs});
+   }
    const admitted=await this.#store.admit(actor,{...metadata(boundRequest),inputDigest:request.requestDigest},{signal:executionSignal});
    if(!admitted.created)return publicStatus(await this.#store.status(actor,request.requestId,{signal:executionSignal}));
    for(const model of plan.candidates){
     let attempt;
     try{attempt=await this.#store.prepare(actor,request.requestId,model.key,context.policyDigest,{signal:executionSignal});}
-    catch(error){if(['INFERENCE_CAPACITY_HELD','INFERENCE_CIRCUIT_HELD'].includes(error.code)&&policy.allowedFallbackCodes.includes('unavailable')&&policy.override?.allowFallback!==false)continue;throw error;}
+    catch(error){
+     if(['INFERENCE_CAPACITY_HELD','INFERENCE_CIRCUIT_HELD'].includes(error.code)&&policy.allowedFallbackCodes.includes('unavailable')&&policy.override?.allowFallback!==false)continue;
+     // A lost preparation response can be resolved natively by fencing this
+     // request before any delayed send can acquire permission. No provider replay.
+     try{const recovery=await this.#store.recover(actor,request.requestId);
+      if(recovery.resolved===true)return {...publicStatus(await this.#store.status(actor,request.requestId)),reason:'preparation_not_executed'};
+     }catch{/* Durable state remains the authority; an uncertain recovery is not proof. */}
+     throw error;
+    }
     if(!attempt.created)return publicStatus(await this.#store.status(actor,request.requestId,{signal:executionSignal}));
-    if(executionSignal.aborted){await this.#store.cancel(actor,request.requestId);await this.#store.record(actor,request.requestId,attempt.attemptId,{state:'not_sent',outputDigest:null,providerReceipt:`local-not-sent:${attempt.attemptId}`,billedCostMicros:0,usage:usageUnknown(),code:'cancelled',latencyMs:null,modelRevision:null});throw new InferenceError('INFERENCE_CANCELLED');}
+    if(executionSignal.aborted){await this.#store.recover(actor,request.requestId);throw new InferenceError('INFERENCE_CANCELLED');}
     let sent=false;
     try{
      const permission=await this.#store.send(actor,request.requestId,attempt.attemptId,context.policyDigest,{signal:executionSignal});
@@ -76,6 +88,13 @@ export class OperationsInferenceService{
      if(receipt.state==='received')return {...publicStatus(readback),output:result.output,outputDigest:receipt.outputDigest,verificationRequired:true};
      if(!policy.allowedFallbackCodes.includes(receipt.code)||policy.override?.allowFallback===false)return publicStatus(readback);
     }catch(error){
+     if(!sent){
+      // The native row lock proves whether sending was ever granted. Prepared
+      // or delayed preparations can be fenced to not_sent; sent stays uncertain.
+      try{const recovery=await this.#store.recover(actor,request.requestId);
+       if(recovery.resolved===true)return {...publicStatus(await this.#store.status(actor,request.requestId)),reason:'send_not_executed'};
+      }catch{/* Never release on a missing or unconfirmed recovery receipt. */}
+     }
      // Neither a transport timeout nor an interrupted durable send proves cancellation or zero billing.
      try{await this.#store.record(actor,request.requestId,attempt.attemptId,{state:'reconciliation_required',outputDigest:null,
       providerReceipt:`local-uncertain-${sent?'provider':'send'}:${attempt.attemptId}`,billedCostMicros:null,usage:usageUnknown(),code:'outcome_unknown',latencyMs:null,modelRevision:null});}catch{/* Original durable intent remains held; never manufacture a replacement receipt. */}
@@ -94,4 +113,5 @@ export class OperationsInferenceService{
  }
  status(actor,requestId,options){return this.#store.status(actor,requestId,options).then(publicStatus);}
  cancel(actor,requestId,options){return this.#store.cancel(actor,requestId,options);}
+ async recover(actor,requestId,options){await this.#store.recover(actor,requestId,options);return publicStatus(await this.#store.status(actor,requestId,options));}
 }

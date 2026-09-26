@@ -21,9 +21,13 @@ export const DIGEST = typed(/^[a-f0-9]{64}$/);
 export const UUID = typed(/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
 export function immutable(value) { if(value && typeof value === "object") { for(const item of Object.values(value)) immutable(item); Object.freeze(value); } return value; }
 const SECRET = /github_pat_|gh[pousr]_[A-Za-z0-9_]{16,}|sb_secret_|AIza[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._~+/-]{12,}|-----BEGIN [^-]*PRIVATE KEY/i;
-export function bounded(value, limit = 1048576) {
+export function sizedJSON(value, limit = 1048576) {
   let text; try { text = JSON.stringify(value); } catch { throw new InferenceError('INFERENCE_JSON_INVALID'); }
   demand(typeof text === 'string' && Buffer.byteLength(text) <= limit, 'INFERENCE_PAYLOAD_LIMIT');
+  return text;
+}
+export function bounded(value, limit = 1048576) {
+  const text=sizedJSON(value,limit);
   demand(!SECRET.test(text), 'INFERENCE_CREDENTIAL_REJECTED'); return text;
 }
 export function exact(value, allowed, required = allowed) {
@@ -50,7 +54,12 @@ export function normalizeRequest(raw) {
       imageCount++; imageBytes += part.data.length; modalities.add('image');
     } else throw new InferenceError('INFERENCE_MODALITY_UNSUPPORTED');
   }
-  bounded(raw); demand(textBytes > 0 || imageCount > 0, 'INFERENCE_INPUT_INVALID');
+  // Encoding is validated above. Opaque image bytes are sized and hashed, not
+  // mistaken for plaintext credentials. Metadata and every text part are scanned.
+  sizedJSON(raw);
+  bounded({...raw,parts:raw.parts.map(part=>part.type==='image'
+    ? {type:part.type,mimeType:part.mimeType,dataDigest:sha256(part.data),dataBytes:part.data.length} : part)});
+  demand(textBytes > 0 || imageCount > 0, 'INFERENCE_INPUT_INVALID');
   const normalized = structuredClone(raw);
   return immutable({...normalized, textBytes, inputBytes:textBytes+imageBytes, imageCount, modalities:[...modalities].sort(), requestDigest:sha256(normalized)});
 }
@@ -156,7 +165,9 @@ export function selectCandidates(request, rawPolicy, scope, evidence, {now = Dat
       const delta = b.history.passRate-a.history.passRate || a.history.negativeRate-b.history.negativeRate;
       if (delta) return delta;
     }
-    if (a.estimatedLatencyMs !== null && b.estimatedLatencyMs !== null && a.estimatedLatencyMs !== b.estimatedLatencyMs) return a.estimatedLatencyMs-b.estimatedLatencyMs;
+    const aKnown=a.estimatedLatencyMs!==null,bKnown=b.estimatedLatencyMs!==null;
+    if(aKnown!==bKnown)return aKnown?-1:1;
+    if(aKnown && a.estimatedLatencyMs!==b.estimatedLatencyMs)return a.estimatedLatencyMs-b.estimatedLatencyMs;
     return a.maxCostMicros-b.maxCostMicros || a.key.localeCompare(b.key);
   });
   const limited = override && !override.allowFallback ? candidates.filter(m => forcedMatch(m, override)).slice(0,1) : candidates;

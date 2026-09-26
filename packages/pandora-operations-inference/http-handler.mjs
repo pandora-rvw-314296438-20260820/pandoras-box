@@ -1,4 +1,4 @@
-import {InferenceError,sha256,bounded,exact,demand,UUID,integer,record} from './policy.mjs';
+import {InferenceError,sha256,bounded,sizedJSON,exact,demand,UUID,integer,record} from './policy.mjs';
 import {boundedCall} from './native-store.mjs';
 import {deliverVerifiedOutcome} from './memory-adoption.mjs';
 const headers={'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};
@@ -13,7 +13,7 @@ export async function readJson(request,{maxBytes=1048576,timeoutMs=5000}={}){
    while(true){if(signal.aborted)throw new InferenceError('INFERENCE_BODY_TIMEOUT');const x=await reader.read();if(x.done)break;bytes+=x.value.byteLength;demand(bytes<=maxBytes,'INFERENCE_BODY_LIMIT');parts.push(x.value);}
    const all=new Uint8Array(bytes);let at=0;for(const part of parts){all.set(part,at);at+=part.byteLength;}
    let value;try{value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(all));}catch{throw new InferenceError('INFERENCE_JSON_INVALID');}
-   bounded(value,maxBytes);return value;
+   sizedJSON(value,maxBytes);return value;
   },{signal:request.signal,timeoutMs});
  }finally{parts=[];void reader.cancel().catch(()=>{});}
 }
@@ -27,7 +27,7 @@ export function createInferenceHandler({store,serviceForActor,authenticateOwner,
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,...(origin?{'access-control-allow-origin':origin,'vary':'origin'}:{}),
    'access-control-allow-methods':'POST, OPTIONS','access-control-allow-headers':'authorization, apikey, content-type'}});
   if(request.method!=='POST')return reply({error:'INFERENCE_METHOD_DENIED'},405,origin);
-  const url=new URL(request.url),match=url.pathname.match(/(?:^|\/)pandora-intelligence-router\/(infer|status|verify|cancel|events)$/);
+  const url=new URL(request.url),match=url.pathname.match(/(?:^|\/)pandora-intelligence-router\/(infer|status|verify|cancel|recover|events)$/);
   if(!match||url.search||url.hash)return reply({error:'INFERENCE_ROUTE_DENIED'},404,origin);
   const operation=match[1],auth=request.headers.get('authorization')??'';
   if(!auth.startsWith('Bearer ')||auth.length<39||auth.length>8192)return reply({error:'INFERENCE_AUTH_REQUIRED'},401,origin);

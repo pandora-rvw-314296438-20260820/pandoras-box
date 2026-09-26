@@ -155,6 +155,24 @@ begin
   perform private.pandora_ops_event_v1(org,project,'infer:cancel:'||r.id,r.task_key,'inference_cancel_requested','inference-request:'||r.id);
   return jsonb_build_object('requestId',r.id,'state',r.state,'cancelled',r.state='cancelled','providerStopped',false);
  end if;
+ if p_operation='recover_prepare' then
+  -- Serialize against prepare/send. Once fenced, a delayed preparation cannot
+  -- create a later sender. Never release an attempt already admitted to send.
+  if exists(select 1 from private.pandora_ops_inference_attempts where request_id=r.id and state in ('sent','received','reconciliation_required'))
+   or r.state='verified' then
+   return jsonb_build_object('resolved',false,'requestId',r.id,'state',r.state,'providerStopped',false);
+  end if;
+  update private.pandora_ops_inference_requests set cancel_requested=true,state='cancel_requested' where id=r.id;
+  for a in select * from private.pandora_ops_inference_attempts where request_id=r.id and state='prepared' for update loop
+   perform public.pandora_ops_inference_transition_v1('record',p_actor,jsonb_build_object('requestId',r.id,'attemptId',a.id,'receipt',
+    jsonb_build_object('state','not_sent','outputDigest',null,'providerReceipt','native-send-fenced:'||a.id,
+     'billedCostMicros',0,'usage',jsonb_build_object('inputTokens',null,'outputTokens',null,'totalTokens',null),
+     'code','preparation_recovered','latencyMs',null,'modelRevision',null)));
+  end loop;
+  update private.pandora_ops_inference_requests set state='cancelled',completed_at=coalesce(completed_at,clock_timestamp()) where id=r.id;
+  perform private.pandora_ops_event_v1(org,project,'infer:prepare-recovered:'||r.id,r.task_key,'inference_preparation_recovered','native-request-fenced:'||r.id);
+  return jsonb_build_object('resolved',true,'requestId',r.id,'state','cancelled','providerStopped',false,'sendFenced',true);
+ end if;
  if p_operation in ('prepare','send') then
   scope:=private.pandora_ops_inference_scope_v1(p_actor,r.lease_id,r.generation);
   if r.cancel_requested or r.state in ('verified','verification_pending','reconciliation_required','cancel_requested','cancelled') then raise exception 'INFERENCE_REQUEST_FENCED'; end if;
@@ -313,3 +331,16 @@ begin
 end; $body$;
 revoke all on function public.pandora_ops_event_feed_v1(uuid,uuid,uuid,bigint,integer) from public,anon,authenticated;
 grant execute on function public.pandora_ops_event_feed_v1(uuid,uuid,uuid,bigint,integer) to service_role;
+
+-- Event IDs are a safe cursor only when allocation and commit order agree per
+-- project. All old and new writers use this final-stage publisher. Acquiring a
+-- transaction advisory lock before INSERT/identity allocation serializes their
+-- commit order without reversing each caller's workspace/lease/worker locks.
+create or replace function private.pandora_ops_event_v1(p_org uuid,p_project uuid,p_key text,p_task text,p_type text,p_receipt text default null)
+returns void language plpgsql security definer set search_path='' as $event$
+begin
+ perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('pandora-ops-event-order:'||p_org::text||':'||p_project::text,0));
+ insert into private.pandora_ops_events(organization_id,project_id,event_key,task_key,event_type,receipt_ref)
+ values(p_org,p_project,p_key,p_task,p_type,p_receipt) on conflict(organization_id,project_id,event_key) do nothing;
+end; $event$;
+revoke all on function private.pandora_ops_event_v1(uuid,uuid,text,text,text,text) from public,anon,authenticated,service_role;

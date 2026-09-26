@@ -15,14 +15,17 @@ export class NativeInferenceStore{
  async #rpc(name,args,{signal,mutation=false}={}){
   bounded(args,131072);
   try{return await boundedCall(async inner=>{let pending=this.#client.rpc(name,args);if(typeof pending?.abortSignal==='function')pending=pending.abortSignal(inner);const response=await pending;
-   if(response?.error){const code=response.error.message;if(typeof code==='string'&&/^(INFERENCE|OPS_EVENT)_[A-Z0-9_]{1,100}$/.test(code))throw new InferenceError(code);
-    throw new InferenceError(response.error.code==='42501'?'INFERENCE_ACCESS_DENIED':'INFERENCE_STORE_REJECTED');}
-   demand(record(response?.data),'INFERENCE_STORE_RESPONSE_INVALID');bounded(response.data,262144);return response.data;
+   if(response?.error){const code=response.error.message,nativeRejection=['P0001','42501','22023','22P02','23505','23514','23503'].includes(response.error.code);
+    if(nativeRejection&&typeof code==='string'&&/^(INFERENCE|OPS_EVENT)_[A-Z0-9_]{1,100}$/.test(code))throw new InferenceError(code);
+    throw new InferenceError(response.error.code==='42501'?'INFERENCE_ACCESS_DENIED':'INFERENCE_STORE_REJECTED',{outcomeUnknown:mutation&&!nativeRejection});}
+   if(!record(response?.data))throw new InferenceError('INFERENCE_STORE_RESPONSE_INVALID',{outcomeUnknown:mutation});
+   try{bounded(response.data,262144);}catch{throw new InferenceError('INFERENCE_STORE_RESPONSE_INVALID',{outcomeUnknown:mutation});}
+   return response.data;
   },{signal,mutation});}catch(error){if(error instanceof InferenceError)throw error;throw new InferenceError('INFERENCE_STORE_UNAVAILABLE',{outcomeUnknown:mutation});}
  }
  authenticate(digest,options){return this.#rpc('pandora_ops_inference_authenticate_v1',{p_digest:digest},options);}
  transition(operation,actor,payload,options={}){
-  demand(['context','admit','prepare','send','record','billing','verify','status','cancel'].includes(operation),'INFERENCE_OPERATION_DENIED');
+  demand(['context','admit','prepare','send','record','billing','verify','status','cancel','recover_prepare'].includes(operation),'INFERENCE_OPERATION_DENIED');
   return this.#rpc('pandora_ops_inference_transition_v1',{p_operation:operation,p_actor:actor,p_payload:payload},{...options,mutation:!['context','status'].includes(operation)});
  }
  context(actor,metadata,options){return this.transition('context',actor,metadata,options);}
@@ -33,5 +36,6 @@ export class NativeInferenceStore{
  record(actor,requestId,attemptId,receipt,options){return this.transition('record',actor,{requestId,attemptId,receipt},options);}
  verify(actor,requestId,verificationRunId,options){return this.transition('verify',actor,{requestId,verificationRunId},options);}
  cancel(actor,requestId,options){return this.transition('cancel',actor,{requestId},options);}
+ recover(actor,requestId,options){return this.transition('recover_prepare',actor,{requestId},options);}
  events({organizationId,projectId,userId,after='0',limit=100},options){return this.#rpc('pandora_ops_event_feed_v1',{p_organization_id:organizationId,p_project_id:projectId,p_actor_id:userId,p_after:after,p_limit:limit},options);}
 }
