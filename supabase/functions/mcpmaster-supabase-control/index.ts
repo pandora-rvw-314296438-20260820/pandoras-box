@@ -50,7 +50,8 @@ type ControlRpc =
   | "pandora_ops_dispatch_v1"
   | "pandora_ops_handoff_v1"
   | "pandora_ops_activation_readback_v1"
-  | "pandora_ops_wake_authorize_v1";
+  | "pandora_ops_wake_authorize_v1"
+  | "pandora_ops_reconcile_required_v1";
 
 type ControlAction =
   | "catalog"
@@ -79,7 +80,8 @@ type ControlAction =
   | "operations_dispatch_ack"
   | "operations_handoff"
   | "operations_activation_readback"
-  | "operations_wake_authorize";
+  | "operations_wake_authorize"
+  | "operations_reconcile";
 
 interface ControlRoute {
   action: ControlAction;
@@ -599,6 +601,24 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
           generation,
           receiptRef,
         },
+      },
+    };
+  }
+
+  if (input.action === "operations_reconcile") {
+    const leaseId = requiredUuid(input, "leaseId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    const reason = requiredString(input, "reason");
+    if (!leaseId || generation === undefined || !reason || !/^[A-Z_]{3,80}$/.test(reason)) return undefined;
+    return {
+      action: "operations_reconcile",
+      rpc: "pandora_ops_reconcile_required_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_lease_id: leaseId,
+        p_generation: generation,
+        p_reason: reason,
       },
     };
   }
