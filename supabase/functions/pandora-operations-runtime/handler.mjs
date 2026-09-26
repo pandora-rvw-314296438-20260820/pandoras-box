@@ -146,7 +146,7 @@ export function createOperationsHandler({
 				name = "pandora_ops_ingest_v1";
 				params.p_tasks = input.tasks;
 			} else if (
-				["pause", "resume", "no_production", "allow_production", "cancel_task"].includes(
+				["pause", "resume", "no_production", "cancel_task"].includes(
 					input.operation,
 				)
 			) {

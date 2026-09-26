@@ -48,16 +48,16 @@ test("allow_production remains owner/admin-only and revision-fenced",async()=>{
  await f.db.close();
 });
 
-test("HTTP owner adapter exposes allow_production only through existing owner RPC",async()=>{
+test("immutable HTTP foundation intentionally does not expose allow_production",async()=>{
  const {createOperationsHandler}=await import("../supabase/functions/pandora-operations-runtime/handler.mjs");
- const org=randomUUID(),project=randomUUID(),user=randomUUID();let call;
+ const org=randomUUID(),project=randomUUID(),user=randomUUID();let calls=0;
  const handler=createOperationsHandler({
   allowedOrigins:["https://mcpmaster.vercel.app"],
   authenticate:async()=>({userId:user,active:true,role:"owner",organizationId:org,projectId:project}),
-  rpc:async(name,params)=>{call={name,params};return {data:{revision:11,paused:false,noProduction:false},error:null};}
+  rpc:async()=>{calls++;return {data:{},error:null};}
  });
  const request=new Request("https://ops.invalid",{method:"POST",headers:{"content-type":"application/json",origin:"https://mcpmaster.vercel.app"},body:JSON.stringify({organizationId:org,projectId:project,operation:"allow_production",expectedRevision:10})});
- const response=await handler(request),body=await response.json();
- assert.equal(response.status,200);assert.equal(body.operation,"allow_production");
- assert.equal(call.name,"pandora_ops_owner_request_v1");assert.equal(call.params.p_operation,"allow_production");assert.deepEqual(call.params.p_payload,{expectedRevision:10});
+ const response=await handler(request);
+ assert.equal(response.status,400);
+ assert.equal(calls,0);
 });
