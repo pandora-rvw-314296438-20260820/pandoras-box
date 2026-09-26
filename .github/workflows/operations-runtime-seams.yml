@@ -31,3 +31,23 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npx tsc -p tsconfig.vercel.json
+
+  mobile-events:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Execute exact mobile event protocol, HTTP, lifecycle and widget tests
+        working-directory: apps/pandora-mobile
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          flutter pub get --enforce-lockfile
+          flutter test test/features/operations/operations_execution_feed_test.dart test/features/operations/operations_room_test.dart --reporter expanded
+          dart analyze lib/core/data/pandora_operations_events.dart lib/features/operations/operations_execution_feed.dart
