@@ -119,5 +119,11 @@
       "source": "/api/operator/:path*",
       "destination": "/api/operator"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/operations-native-worker",
+      "schedule": "*/5 * * * *"
+    }
   ]
 }

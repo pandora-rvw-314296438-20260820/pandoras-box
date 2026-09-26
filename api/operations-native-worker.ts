@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { resolveVercelWorkloadToken } from "../src/runtime/vercel-workload-identity.js";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
@@ -99,6 +99,15 @@ async function connectorCanaryEvidence() {
   };
 }
 
+function cronAuthorized(request: any) {
+  const secret = String(process.env.CRON_SECRET || "");
+  const authorization = String(request.headers.authorization || "");
+  if (secret.length < 32 || secret.length > 512) return false;
+  const expected = `Bearer ${secret}`;
+  if (authorization.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(authorization), Buffer.from(expected));
+}
+
 function receiptRef(dispatchId: string, taskId: string, generation: number) {
   const digest = createHash("sha256")
     .update(`${dispatchId}:${taskId}:${generation}:mcpmaster:production`)
@@ -107,25 +116,40 @@ function receiptRef(dispatchId: string, taskId: string, generation: number) {
 }
 
 export default async function operationsNativeWorker(request: any, response: any) {
-  if (request.method !== "POST" || request.headers.origin) {
+  const isCronWake = request.method === "GET";
+  const isManualWake = request.method === "POST";
+  if ((!isCronWake && !isManualWake) || request.headers.origin) {
     return send(response, 403, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
   }
 
-  const authorization = String(request.headers.authorization || "");
-  const match = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]{32,512})$/);
-  if (!match) return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+  const url = new URL(String(request.url || "/api/operations-native-worker"), "https://mcpmaster.vercel.app");
+  if (url.search || url.hash) return send(response, 403, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+
+  let tokenSha256 = "";
+  if (isCronWake) {
+    const declared = Number(request.headers["content-length"] || "0");
+    if (!Number.isSafeInteger(declared) || declared !== 0 || !cronAuthorized(request)) {
+      return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+    }
+  } else {
+    const authorization = String(request.headers.authorization || "");
+    const match = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]{32,512})$/);
+    if (!match) return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+    tokenSha256 = createHash("sha256").update(match[1]).digest("hex");
+  }
 
   const oidc = await resolveVercelWorkloadToken();
   if (!oidc) return send(response, 503, { ok: false, code: "OPS_NATIVE_IDENTITY_UNAVAILABLE" });
 
-  const tokenSha256 = createHash("sha256").update(match[1]).digest("hex");
   try {
-    const authorized = await control(oidc, {
-      action: "operations_wake_authorize",
-      tokenSha256,
-    });
-    if (authorized !== true) {
-      return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+    if (isManualWake) {
+      const authorized = await control(oidc, {
+        action: "operations_wake_authorize",
+        tokenSha256,
+      });
+      if (authorized !== true) {
+        return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+      }
     }
 
     await control(oidc, { action: "operations_native_register", workerRole: "builder" });
