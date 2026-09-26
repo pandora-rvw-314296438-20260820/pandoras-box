@@ -25,9 +25,9 @@ A provider response is verification_pending, not complete. Verification consumes
 
 Function entrypoint: `supabase/functions/pandora-intelligence-router/index.ts`.
 
-POST subroutes are `infer`, `status`, `cancel`, `verify`, and `events`.
+POST subroutes are `infer`, `status`, `cancel`, `recover`, `verify`, and `events`.
 
-The four inference routes require a real `opw_` bearer mapped by the service-only native authentication RPC. They reject an ordinary owner JWT as a worker credential. `events` authenticates the owner JWT through Supabase Auth and checks current owner/admin membership plus the active project binding inside the read RPC. Request fields cannot supply another actor. Exact CORS, content type, body size, stream deadline, operation shape and response redaction are enforced.
+The five inference routes require a real `opw_` bearer mapped by the service-only native authentication RPC. They reject an ordinary owner JWT as a worker credential. `events` authenticates the owner JWT through Supabase Auth and checks current owner/admin membership plus the active project binding inside the read RPC. Request fields cannot supply another actor. Exact CORS, content type, body size, stream deadline, operation shape and response redaction are enforced.
 
 Because the function implements two explicit authentication schemes, deployment must use the reviewed custom-auth configuration rather than assuming the Supabase gateway understands opaque worker tokens. No deployment has been performed by publishing this source. An originless preflight is transport metadata, not authentication or execution permission.
 
@@ -56,3 +56,16 @@ Run the dedicated workflow and normal full repository checks on the final exact 
 A qualifying independent review and the normal exact-SHA coordinator/release decision are still required. Never use an older deployed coordinator implementation to bypass newer source policy. PR741 release, real Workspace Agent channel/token enrollment, native Google runtime authorization, live Memory identity binding, owner/mobile Theatre mounting, wake/recovery deployment, and the full real-worker acceptance run remain external or follow-on integration gates. No new provider approval, paid plan, grant, credential, worker, budget, unpause, production deployment or whole-sheet acceptance is claimed.
 
 Rollback pauses this service and its consumers, preserving receipts, unknown-outcome holds, parent leases, canonical verification and Memory review history. Do not delete uncertain execution evidence to make the queue appear clear.
+
+
+## Independent review corrections and recovery
+
+CodeRabbit review5324068898 on da81b020 reported four actionable defects. Subsequent source separates opaque image-byte sizing/hashing from plaintext secret scanning; the same textual marker remains rejected in text/context. The image regression constructs a valid PNG with chunk CRCs and a binary ancillary chunk, so its legitimate base64 can exercise the false-positive case. Read-only concrete-provider preflight runs before any durable preparation/send.
+
+Nullable latency now has an explicit known/unknown tier before numeric latency and price, producing a transitive total ordering for every candidate permutation. No unknown value is replaced with a fabricated measurement.
+
+All old and new Operations event writers use the existing private final-stage publisher. The forward migration now acquires a namespaced per-project transaction advisory lock inside that publisher before event identity allocation and retains it to commit. This prevents a higher ID from committing ahead of an unobserved lower ID, without editing the concurrent native-worker registration adapter or reversing workspace/lease/worker lock order. No new lock is acquired by the event reader. Real PostgreSQL tests include overlapping legacy registration/control writers and reader pagination. The existing immutable event data is unchanged. The v1 foundation-only routine fingerprint for the publisher is intentionally superseded by this forward migration; a v1-only rollout manifest is not an acceptance manifest for the upgraded inference layer.
+
+`recover` is a bounded, authenticated inference operation. Native row locks fence a prepared request before a delayed send can obtain permission. A preparation that never acquired sending authority becomes not_sent with evidenced zero provider cost; cancelled requests reject delayed preparations. Requests with an already admitted sender or uncertain provider response are not falsely released. A lost preparation response and a definite rejected send therefore have an executable recovery route, including after a caller reconnects. Recovery never means the provider was forcibly stopped. Real separate-session tests cover both send/recovery winners.
+
+The source also preserves nullable external receipt references on actual ingestion/control events; the UI says no external receipt is recorded rather than inventing one. Unknown mutation responses remain ambiguous even if an HTTP response arrived. These source corrections require their own exact-head tests and independent readback; old-head test counts are historical evidence only.

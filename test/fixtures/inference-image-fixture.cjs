@@ -1,15 +1,16 @@
 'use strict';
-// Valid PNG container with an ancillary binary chunk whose base64 text happens
-// to resemble a token prefix. The marker is synthetic and is not a credential.
+const {deflateSync}=require('node:zlib');
+// Construct a standards-shaped PNG, including valid chunk CRCs, rather than
+// labeling arbitrary binary as an image. The marker is synthetic, not a key.
 module.exports=function imageFixture(){
- const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6kAAAAABJRU5ErkJggg==','base64');
- const end=png.length-12,type=Buffer.from('raNd'),tokenLookingText='AI'+'za'+'A'.repeat(24);
- const alignment=(3-((end+8)%3))%3,data=Buffer.concat([Buffer.alloc(alignment),Buffer.from(tokenLookingText,'base64')]);
- const length=Buffer.alloc(4);length.writeUInt32BE(data.length);
- const bytes=Buffer.concat([type,data]);let crc=0xffffffff;
- for(const byte of bytes){crc^=byte;for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}
- const checksum=Buffer.alloc(4);checksum.writeUInt32BE((crc^0xffffffff)>>>0);
- const encoded=Buffer.concat([png.subarray(0,end),length,bytes,checksum,png.subarray(end)]).toString('base64');
+ function chunk(name,data){const type=Buffer.from(name),length=Buffer.alloc(4),bytes=Buffer.concat([type,data]);length.writeUInt32BE(data.length);
+  let crc=0xffffffff;for(const byte of bytes){crc^=byte;for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}
+  const checksum=Buffer.alloc(4);checksum.writeUInt32BE((crc^0xffffffff)>>>0);return Buffer.concat([length,bytes,checksum]);}
+ const header=Buffer.alloc(13);header.writeUInt32BE(1,0);header.writeUInt32BE(1,4);header[8]=8;header[9]=6;
+ const prefix=Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(Buffer.from([0,0,0,0,0])))]);
+ const tokenLookingText='AI'+'za'+'A'.repeat(24),alignment=(3-((prefix.length+8)%3))%3;
+ const data=Buffer.concat([Buffer.alloc(alignment),Buffer.from(tokenLookingText,'base64')]);
+ const encoded=Buffer.concat([prefix,chunk('raNd',data),chunk('IEND',Buffer.alloc(0))]).toString('base64');
  if(!encoded.includes(tokenLookingText))throw new Error('fixture base64 alignment failed');
  return{data:encoded,tokenLookingText};
 };
