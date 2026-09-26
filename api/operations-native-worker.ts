@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { resolveVercelWorkloadToken } from "../src/runtime/vercel-workload-identity.js";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
@@ -6,6 +6,8 @@ export const config = { api: { bodyParser: false }, maxDuration: 60 };
 const CONTROL_URL =
   "https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control";
 const REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
+const MEMORY_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-memory-bridge";
+const MEMORY_PROJECT_ID = "7c686cbd-d968-49d5-86cc-918f5e777bd2";
 const BUILDER_ID = "pandora-native-builder-v1";
 const CANARY_TASK = "OPS-CLOUD-CONNECTORS-RELEASE-V1";
 const CANARY_PR = 741;
@@ -62,6 +64,50 @@ async function githubJson(path: string) {
   const payload = await readBoundedJson(response);
   if (!response.ok) throw new Error("GITHUB_READBACK_UNAVAILABLE");
   return payload;
+}
+
+async function memoryContextCanary(oidc: string) {
+  const response = await fetch(MEMORY_URL, {
+    method: "POST",
+    headers: {
+      "x-pandora-vercel-oidc": oidc,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      action: "operations",
+      operation: "context",
+      requestId: randomUUID(),
+      projectId: MEMORY_PROJECT_ID,
+      namespace: "real_life",
+      payload: {
+        intent: "coding_building",
+        actionMode: "read_only",
+        consequential: false,
+        terms: ["operations"],
+        requiredCapabilities: [],
+        maxBytes: 4096,
+      },
+    }),
+    redirect: "error",
+    signal: AbortSignal.timeout(12_000),
+  });
+  const payload = await readBoundedJson(response, 64_000);
+  if (
+    !response.ok || payload?.ok !== true ||
+    payload?.projectId !== MEMORY_PROJECT_ID ||
+    payload?.namespace !== "real_life" ||
+    payload?.memoryProjectRef !== "ivmvufhcsezyhczzondn" ||
+    payload?.data?.kind !== "task_context" ||
+    payload?.data?.authorizationGranted !== false
+  ) throw new Error("OPS_MEMORY_CONTEXT_CANARY_FAILED");
+  return {
+    verified: true,
+    kind: "task_context",
+    authorizationGranted: false,
+    projectId: MEMORY_PROJECT_ID,
+    namespace: "real_life",
+  };
 }
 
 async function connectorCanaryEvidence() {
@@ -182,6 +228,8 @@ export default async function operationsNativeWorker(request: any, response: any
       }
     }
 
+    const memory = await memoryContextCanary(oidc);
+
     await control(oidc, { action: "operations_native_register", workerRole: "builder" });
     await control(oidc, { action: "operations_native_register", workerRole: "release" });
     await control(oidc, { action: "operations_heartbeat", workerRole: "builder" });
@@ -198,6 +246,7 @@ export default async function operationsNativeWorker(request: any, response: any
         state: "paused",
         registered: true,
         queuedTasks: activation?.queuedTasks ?? null,
+        memory,
       });
     }
 
@@ -214,6 +263,7 @@ export default async function operationsNativeWorker(request: any, response: any
         state: "idle",
         registered: true,
         reason: "no_supported_queued_task",
+        memory,
       });
     }
 
@@ -320,6 +370,7 @@ export default async function operationsNativeWorker(request: any, response: any
           mergeSha: evidence.mergeSha,
           handedOff,
           verified,
+          memory,
         });
       } catch {
         return send(response, 503, {

@@ -70,3 +70,12 @@ test("control bridge exposes only fixed nonce consumption",()=>{
   assert.match(control,/pandora_ops_wake_nonce_consume_v1/);
   assert.match(control,/p_project_id: OPERATIONS_PROJECT_ID/);
 });
+
+test("native wake proves Vercel workload identity against the Operations-only Memory endpoint",()=>{
+  assert.match(worker,/MEMORY_URL = "https:\/\/ivmvufhcsezyhczzondn\.supabase\.co\/functions\/v1\/pandora-memory-bridge"/);
+  assert.match(worker,/x-pandora-vercel-oidc/);
+  assert.match(worker,/operation: "context"/);
+  assert.match(worker,/authorizationGranted !== false/);
+  assert.match(worker,/memoryProjectRef !== "ivmvufhcsezyhczzondn"/);
+  assert.doesNotMatch(worker,/memory\.context|payload\.data\.context/);
+});
