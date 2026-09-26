@@ -7,6 +7,9 @@ const root=path.join(__dirname,'..');
 const script=fs.readFileSync(path.join(root,'scripts/verify-operations-memory-production.mjs'),'utf8');
 const build=fs.readFileSync(path.join(root,'scripts/build-vercel-pandora-web.sh'),'utf8');
 const vercel=JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'));
+const worker=fs.readFileSync(path.join(root,'api/operations-native-worker.ts'),'utf8');
+const control=fs.readFileSync(path.join(root,'supabase/functions/mcpmaster-supabase-control/index.ts'),'utf8');
+const finalReadback=fs.readFileSync(path.join(root,'supabase/migrations/20260926075500_operations_final_acceptance_readback_v1.sql'),'utf8');
 
 test('production build preserves canonical Vercel command and executes the real workload Memory canary inside it',()=>{
   assert.equal(vercel.buildCommand,'npm run build && bash scripts/build-vercel-pandora-web.sh');
@@ -33,4 +36,21 @@ test('live native cron and exact-head repair migrations are source tracked',()=>
   assert.match(cron,/pandora_ops_enable_native_cron_worker_v1/);
   assert.match(fix,/OPS_NATIVE_CRON_SOURCE_FIX_BASE_MISMATCH/);
   assert.match(fix,/v_head is distinct from t\.head_sha/);
+});
+
+test('native release path independently verifies Memory and final whole-sheet acceptance',()=>{
+  assert.match(worker,/OPS-MEMORY-CALLER-ADOPTION-V1/);
+  assert.match(worker,/OPS-WHOLE-SHEET-ACCEPTANCE-V3/);
+  assert.match(worker,/operations_verification_record/);
+  assert.match(worker,/operations_verification_accept/);
+  assert.match(worker,/canonicalMemoryWritten !== false/);
+  assert.match(worker,/Pandora coordinator \/ integration/);
+  assert.match(control,/pandora_ops_record_verification_v1/);
+  assert.match(control,/pandora_ops_verify_v1/);
+  assert.match(control,/pandora_ops_final_acceptance_readback_v1/);
+  assert.match(finalReadback,/OPS-SESSION-SHEETS-BRIDGE-V2/);
+  assert.match(finalReadback,/OPS-MEMORY-CALLER-ADOPTION-V1/);
+  assert.match(finalReadback,/OPS-WHOLE-SHEET-ACCEPTANCE-V3/);
+  assert.match(finalReadback,/grant execute on function public\.pandora_ops_final_acceptance_readback_v1/);
+  assert.doesNotMatch(finalReadback,/grant execute[\s\S]*to authenticated/i);
 });
