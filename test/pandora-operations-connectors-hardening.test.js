@@ -44,3 +44,13 @@ test("The real CLI-generated migration is byte-identical to tested delivery SQL"
   assert.deepEqual(migration, source);
   assert.equal(createHash("sha256").update(migration).digest("hex"), "472a9c0a8ddd7e3c86da5ef0604dd078a418d1489bd926466353049069db4223");
 });
+
+test("Connector CI watches native dependencies and its own workflow on PR and main", () => {
+  const workflow = fs.readFileSync(path.join(__dirname, "../.github/workflows/operations-connectors.yml"), "utf8");
+  const pull = workflow.split("  pull_request:\n")[1].split("  push:\n")[0];
+  const push = workflow.split("  push:\n")[1].split("  workflow_dispatch:")[0];
+  for (const section of [pull, push]) {
+    for (const dependency of ["packages/pandora-operations-room/**", "packages/pandora-verification/**", "supabase/migrations/**", "package-lock.json", ".github/workflows/operations-connectors.yml"])
+      assert.ok(section.includes(`'${dependency}'`), `Missing dependency filter ${dependency}`);
+  }
+});

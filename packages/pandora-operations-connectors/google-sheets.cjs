@@ -104,9 +104,15 @@ class GoogleSheetsConnector {
     catch { throw failure("SHEET_WRITE_RECONCILIATION_REQUIRED"); }
     demand(after.sourceDigest === before.sourceDigest &&
       after.bindingDigest === before.bindingDigest, "SHEET_CHANGED_DURING_WRITE");
-    for (const { row, col, value } of expected)
-      demand(after.cells[row]?.[col]?.userEnteredValue?.stringValue === value,
+    for (const { row, col, value } of expected) {
+      const entered = after.cells[row]?.[col]?.userEnteredValue;
+      // Google may omit ExtendedValue entirely after a successful clear.
+      // Numeric zero, false and formula output are not an empty string.
+      const blank = entered == null || Object.keys(entered).length === 0 ||
+        (Object.keys(entered).length === 1 && entered.stringValue === "");
+      demand(value === "" ? blank : entered?.stringValue === value,
         "SHEET_WRITE_READBACK_MISMATCH");
+    }
     return frozen({ verified: true, mutationAcknowledged: acknowledged,
       sourceDigest: after.sourceDigest, bindingDigest: after.bindingDigest,
       cellsVerified: expected.length, transactionalCompareAndSwap: false });

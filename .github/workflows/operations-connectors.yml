@@ -3,13 +3,24 @@ on:
   pull_request:
     paths:
       - 'packages/pandora-operations-connectors/**'
+      - 'packages/pandora-operations-room/**'
+      - 'packages/pandora-verification/**'
+      - 'supabase/migrations/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'test/pandora-operations-connectors*.test.js'
       - '.github/workflows/operations-connectors.yml'
   push:
     branches: [main]
     paths:
       - 'packages/pandora-operations-connectors/**'
+      - 'packages/pandora-operations-room/**'
+      - 'packages/pandora-verification/**'
+      - 'supabase/migrations/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'test/pandora-operations-connectors*.test.js'
+      - '.github/workflows/operations-connectors.yml'
   workflow_dispatch:
 permissions:
   contents: read

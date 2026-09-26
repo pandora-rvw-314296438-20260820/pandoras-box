@@ -292,3 +292,32 @@ test("Sheets does not treat owner-entered DONE as completion authority", async (
   const result = await f.client.ingest();
   assert.equal(result.tasks[0].status, undefined); assert.equal(result.tasks[0].verified, undefined);
 });
+
+for (const representation of ["omitted", "empty-object", "explicit-empty"]) {
+  test(`Sheets verifies cleared outputs with native ${representation} readback`, async () => {
+    const f = sheetFixture({ afterWrite(rows) {
+      const cell = rows[1][headers.indexOf("WORKER")];
+      if (representation === "omitted") delete cell.userEnteredValue;
+      if (representation === "empty-object") cell.userEnteredValue = {};
+    } });
+    f.rows[1][headers.indexOf("WORKER")].userEnteredValue.stringValue = "old-worker";
+    const before = await f.client.read();
+    const result = await f.client.writeback(before.sourceDigest, [{ taskId: "T1", WORKER: "" }]);
+    assert.equal(result.verified, true);
+    assert.equal(f.counts().writes, 1);
+  });
+}
+for (const incorrect of [{ numberValue: 0 }, { boolValue: false }, { stringValue: "not empty" }]) {
+  test(`Sheets rejects incorrect cleared-cell readback ${JSON.stringify(incorrect)}`, async () => {
+    const f = sheetFixture({ afterWrite(rows) {
+      rows[1][headers.indexOf("WORKER")].userEnteredValue = incorrect;
+    } });
+    const before = await f.client.read();
+    await assert.rejects(() => f.client.writeback(before.sourceDigest, [{ taskId: "T1", WORKER: "" }]), /READBACK_MISMATCH/);
+  });
+}
+test("Sheets still rejects an absent nonempty output after a successful write", async () => {
+  const f = sheetFixture({ afterWrite(rows) { delete rows[1][headers.indexOf("STATUS")].userEnteredValue; } });
+  const before = await f.client.read();
+  await assert.rejects(() => f.client.writeback(before.sourceDigest, [{ taskId: "T1", STATUS: "IMPLEMENTING" }]), /READBACK_MISMATCH/);
+});
