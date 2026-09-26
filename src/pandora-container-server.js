@@ -244,6 +244,16 @@ function createPandoraContainerApp(environment = process.env) {
                 next(error);
         });
     });
+    const legalPage = (fileName) => (_request, response, next) => {
+        response.setHeader('Cache-Control', 'no-store');
+        response.setHeader('X-Content-Type-Options', 'nosniff');
+        response.sendFile(node_path_1.default.join(publicDirectory, fileName), (error) => {
+            if (error)
+                next(error);
+        });
+    };
+    app.get(['/privacy', '/privacy/', '/privacy-policy', '/privacy-policy/'], legalPage('privacy.html'));
+    app.get(['/data-deletion', '/data-deletion/'], legalPage('data-deletion.html'));
     app.use('/api/operator', createContainerOperatorRuntime(environment));
     app.use('/api', (0, http_server_js_1.createHttpApp)());
     app.get([
