@@ -61,7 +61,6 @@ begin
   or jsonb_typeof(p_envelope->'generation') is distinct from 'number'
   or not coalesce(p_envelope_digest ~ '^[a-f0-9]{64}$',false)
  then raise exception 'OPS_CONNECTOR_ENVELOPE_INVALID' using errcode='22023'; end if;
- -- Match existing lock order. Revocation prevents sends, but historical receipt recording remains possible.
  select state into binding_state from private.pandora_ops_project_bindings
   where organization_id=p_organization_id and project_id=p_project_id for share;
  select * into w from private.pandora_ops_workspaces
@@ -129,8 +128,6 @@ begin
   update private.pandora_ops_connector_deliveries set state=case when provider_receipt is null then 'unknown' else state end,
    updated_at=clock_timestamp() where dispatch_id=o.id returning * into d;
  elsif p_operation='acknowledge' then
-  -- Only the authenticated server callback adapter may invoke this service-only transition.
-  -- The callback signature is verified outside model input before this RPC is called.
   if d.provider_receipt is null or jsonb_typeof(p_receipt) is distinct from 'object'
    or p_receipt - array['authenticated','principalKey','runId','envelopeDigest','accepted','receiptRef'] <> '{}'::jsonb
    or p_receipt->'authenticated' is distinct from 'true'::jsonb
@@ -145,7 +142,6 @@ begin
   then raise exception 'OPS_CONNECTOR_ACK_FENCED'; end if;
   core_ack:=jsonb_build_object('accepted',true,'dispatchId',o.id,'workerId',l.worker_key,
    'taskId',l.task_key,'generation',l.generation,'receiptRef',p_receipt->>'receiptRef');
-  -- A delayed authentic ACK continues the original held lease, never re-dispatches it.
   if l.state='reconcile' then update private.pandora_ops_leases set state='dispatching' where id=l.id; end if;
   if o.state='reconcile' then update private.pandora_ops_dispatch_outbox set state='sending' where id=o.id; end if;
   perform public.pandora_ops_dispatch_v1(p_organization_id,p_project_id,l.id,l.generation,core_ack);
@@ -168,7 +164,6 @@ begin
  if not found or l.generation<>p_generation or l.state='released' then raise exception 'OPS_LEASE_FENCED'; end if;
  select * into o from private.pandora_ops_dispatch_outbox where lease_id=l.id for update;
  select authenticated_ack into a from private.pandora_ops_connector_deliveries where dispatch_id=o.id for update;
- -- Fence the late-ACK versus uncertain-send race without replacing the existing core routine.
  if a is not null and l.state='running' and o.state='acknowledged'
   and o.acknowledgement->>'receiptRef'=a->>'receiptRef'
  then return jsonb_build_object('reconciliationRequired',false,'leaseRetained',true,'workerAcknowledged',true); end if;

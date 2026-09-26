@@ -40,9 +40,9 @@ test("Wake authentication requires Bearer syntax and rejects Unicode without lea
 test("The real CLI-generated migration is byte-identical to tested delivery SQL", () => {
   const root = path.join(__dirname, "..");
   const source = fs.readFileSync(path.join(root, "packages/pandora-operations-connectors/delivery-schema.sql"));
-  const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260925235431_operations_connector_delivery_v1.sql"));
+  const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260926012832_operations_connector_delivery_v1.sql"));
   assert.deepEqual(migration, source);
-  assert.equal(createHash("sha256").update(migration).digest("hex"), "472a9c0a8ddd7e3c86da5ef0604dd078a418d1489bd926466353049069db4223");
+  assert.equal(createHash("sha256").update(migration).digest("hex"), "6ff1ee8767f518f15c5066f4f51d8f2ade0c2e23caf2376fbde33d2437a40f26");
 });
 
 test("Connector CI watches native dependencies and its own workflow on PR and main", () => {
@@ -50,7 +50,7 @@ test("Connector CI watches native dependencies and its own workflow on PR and ma
   const pull = workflow.split("  pull_request:\n")[1].split("  push:\n")[0];
   const push = workflow.split("  push:\n")[1].split("  workflow_dispatch:")[0];
   for (const section of [pull, push]) {
-    for (const dependency of ["packages/pandora-operations-room/**", "packages/pandora-verification/**", "supabase/migrations/**", "package-lock.json", ".github/workflows/operations-connectors.yml"])
+    for (const dependency of ["packages/pandora-operations-room/**", "packages/pandora-verification/**", "supabase/migrations/**", "api/operations-native-worker.ts", "supabase/functions/mcpmaster-supabase-control/**", "package-lock.json", ".github/workflows/operations-connectors.yml"])
       assert.ok(section.includes(`'${dependency}'`), `Missing dependency filter ${dependency}`);
   }
 });
