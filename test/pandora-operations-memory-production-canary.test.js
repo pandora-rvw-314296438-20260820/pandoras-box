@@ -5,10 +5,12 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.join(__dirname,'..');
 const script=fs.readFileSync(path.join(root,'scripts/verify-operations-memory-production.mjs'),'utf8');
+const build=fs.readFileSync(path.join(root,'scripts/build-vercel-pandora-web.sh'),'utf8');
 const vercel=JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'));
 
-test('production build must execute the real workload Memory canary',()=>{
-  assert.match(vercel.buildCommand,/verify-operations-memory-production\.mjs/);
+test('production build preserves canonical Vercel command and executes the real workload Memory canary inside it',()=>{
+  assert.equal(vercel.buildCommand,'npm run build && bash scripts/build-vercel-pandora-web.sh');
+  assert.match(build,/node scripts\/verify-operations-memory-production\.mjs/);
   assert.match(script,/getVercelOidcToken/);
   assert.match(script,/getTaskContext/);
   assert.match(script,/getPerformance/);
