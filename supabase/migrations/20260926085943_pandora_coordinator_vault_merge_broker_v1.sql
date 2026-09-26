@@ -30,7 +30,7 @@ begin
     using errcode='55000';
 end;
 $function$
-
+;
 
 
 drop trigger if exists pandora_coordinator_vault_merge_receipt_immutable_v1
@@ -416,7 +416,7 @@ begin
   );
 end;
 $function$
-
+;
 
 revoke all on function private.pandora_coordinator_vault_merge_execute_v1(integer,text) from public, anon, authenticated, service_role;
 
@@ -437,7 +437,7 @@ begin
   );
 end;
 $function$
-
+;
 
 revoke all on function public.pandora_coordinator_vault_merge_v1(integer,text) from public, anon, authenticated;
 grant execute on function public.pandora_coordinator_vault_merge_v1(integer,text) to service_role;
@@ -485,7 +485,7 @@ AS $function$
     )
   );
 $function$
-
+;
 
 revoke all on function public.pandora_coordinator_vault_merge_status_v1(integer) from public, anon, authenticated;
 grant execute on function public.pandora_coordinator_vault_merge_status_v1(integer) to service_role;
@@ -541,7 +541,7 @@ begin
   ) || jsonb_build_object('state','processed');
 end;
 $function$
-
+;
 
 revoke all on function private.pandora_coordinator_vault_merge_tick_v1() from public, anon, authenticated, service_role;
 

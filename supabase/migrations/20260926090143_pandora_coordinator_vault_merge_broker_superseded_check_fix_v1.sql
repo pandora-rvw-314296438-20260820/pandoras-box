@@ -376,6 +376,6 @@ begin
   );
 end;
 $function$
-
+;
 
 revoke all on function private.pandora_coordinator_vault_merge_execute_v1(integer,text) from public, anon, authenticated, service_role;

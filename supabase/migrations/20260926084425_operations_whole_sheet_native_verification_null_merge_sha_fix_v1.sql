@@ -227,6 +227,6 @@ begin
   );
 end;
 $function$
-
+;
 
 revoke all on function private.pandora_ops_verify_whole_sheet_acceptance_v1() from public, anon, authenticated, service_role;
