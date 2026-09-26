@@ -88,7 +88,7 @@ test("owner API rejects forged actor, authority and completion fields", async ()
 		assert.equal(f.calls.length, 0);
 	}
 });
-test("owner controls require CAS revision and do not widen production scope", async () => {
+test("owner controls require CAS revision and expose explicit production enablement only", async () => {
 	const f = fixture();
 	assert.equal((await f.handler(req({ operation: "pause" }))).status, 400);
 	assert.equal(
@@ -99,11 +99,14 @@ test("owner controls require CAS revision and do not widen production scope", as
 	assert.equal(
 		(
 			await f.handler(
-				req({ operation: "allow_production", expectedRevision: 2 }),
+				req({ operation: "allow_production", expectedRevision: 3 }),
 			)
 		).status,
-		400,
+		200,
 	);
+	assert.equal(f.calls[1].name, "pandora_ops_owner_request_v1");
+	assert.equal(f.calls[1].params.p_operation, "allow_production");
+	assert.deepEqual(f.calls[1].params.p_payload, { expectedRevision: 3 });
 });
 test("owner API refuses unexpected origins and wildcard CORS policy", async () => {
 	const f = fixture();

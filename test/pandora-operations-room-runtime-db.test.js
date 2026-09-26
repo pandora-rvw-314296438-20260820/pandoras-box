@@ -22,6 +22,13 @@ const migration = fs.readFileSync(
 	),
 	"utf8",
 );
+const allowProductionMigration = fs.readFileSync(
+	path.join(
+		__dirname,
+		"../supabase/migrations/20260926071000_operations_allow_production_control_v1.sql",
+	),
+	"utf8",
+);
 let db;
 const SHA = "a".repeat(40);
 function spec(id = "A", patch = {}) {
@@ -125,6 +132,7 @@ test.before(async () => {
 		`create role anon; create role authenticated; create role service_role; create schema private; create schema extensions; create table public.organizations(id uuid primary key); create table public.memberships(organization_id uuid,user_id uuid,role text,status text); create table public.pandora_verification_runs(id uuid primary key,organization_id uuid not null,project_id uuid not null,status text not null,source_commit text,required_check_profile text,completed_at timestamptz); create function extensions.digest(data bytea,algorithm text) returns bytea language plpgsql immutable as $$ begin if algorithm<>'sha256' then raise exception 'unsupported digest'; end if; return pg_catalog.sha256(data); end $$;`,
 	);
 	await db.exec(migration);
+	await db.exec(allowProductionMigration);
 });
 test.after(async () => {
 	await db?.close();
@@ -192,6 +200,38 @@ test("DB starts paused and rejects unregistered workers", async () => {
 	assert.equal((await claim(s, "A", "W1", 0, 0)).claimed, false);
 	await resume(s);
 	assert.equal((await claim(s, "A", "unknown")).claimed, false);
+});
+
+test("owner CAS transition explicitly enables production-risk claims and stale revisions fail", async () => {
+	const s = await setup(), actor = randomUUID();
+	await ingest(s, [spec("PROD", { risk: "production" })]);
+	await resume(s);
+	assert.equal((await claim(s, "PROD", "W1", 0, 1)).reason, "production_paused");
+	await db.query("insert into public.memberships values($1,$2,'owner','active')", [s.org, actor]);
+	const enabled = await rpc("pandora_ops_owner_request_v1", {
+		...s.args,
+		p_actor_id: actor,
+		p_operation: "allow_production",
+		p_payload: JSON.stringify({ expectedRevision: 1 }),
+	});
+	assert.equal(enabled.noProduction, false);
+	assert.equal(enabled.revision, 2);
+	await assert.rejects(
+		() => rpc("pandora_ops_owner_request_v1", {
+			...s.args,
+			p_actor_id: actor,
+			p_operation: "allow_production",
+			p_payload: JSON.stringify({ expectedRevision: 1 }),
+		}),
+		/OPS_CONTROL_REVISION_CONFLICT/,
+	);
+	const c = await claim(s, "PROD", "W1", 0, 2);
+	assert.equal(c.claimed, true);
+	const events = await db.query(
+		"select event_type from private.pandora_ops_events where organization_id=$1 and project_id=$2 and event_type='owner_allow_production'",
+		[s.org, s.project],
+	);
+	assert.equal(events.rows.length, 1);
 });
 test("DB reserves budget/generation and excludes ancestor resources atomically", async () => {
 	const s = await setup();
