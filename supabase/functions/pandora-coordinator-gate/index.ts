@@ -1,4 +1,4 @@
-import { assertIndependentReview, readReviewPermissions } from "./independent-review.mjs";
+import { assertReviewSafety, readReviewPermissions } from "./independent-review.mjs";
 import "jsr:@supabase/functions-js@2.4.5/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.57.2";
 import {
@@ -369,8 +369,8 @@ async function handlePublish(admin: ReturnType<typeof adminClient>, internalKey:
       provider.getPull(pullNumber), provider.listReviews(pullNumber),
     ]);
     const reviewerPermissions = await readReviewPermissions(provider, reviews);
-    // Reject absent or fabricated review labels before acquiring a durable fence.
-    assertIndependentReview({
+    // Align with GitHub's zero-required-approval ruleset while still blocking current qualified change requests before the durable fence.
+    assertReviewSafety({
       pull, reviews, reviewerPermissions, headSha: envelope.headSha,
       reviewId: envelope.reviewId, reviewerVendor: envelope.reviewerVendor,
     });
@@ -414,7 +414,7 @@ async function handleClaimMerge(admin: ReturnType<typeof adminClient>, internalK
   const provider=githubProvider(await githubInstallationToken(admin)), checkRunId=Number(state.current_check_run_id); const [pull,mainSha,check]=await Promise.all([provider.getPull(pullNumber),provider.getMainSha(),provider.getCheck(checkRunId)]); assertMergeReady(state,snapshot,pull,mainSha,check);
   const reviews = await provider.listReviews(pullNumber);
   const reviewerPermissions = await readReviewPermissions(provider, reviews);
-  assertIndependentReview({pull,reviews,reviewerPermissions,headSha:state.head_sha});
+  assertReviewSafety({pull,reviews,reviewerPermissions,headSha:state.head_sha});
   const claimId=crypto.randomUUID(); const claimed=rec(await rpc(admin,"pandora_coordinator_gate_claim_merge_v2",{p_internal_key:internalKey,p_repository:CANONICAL_REPOSITORY,p_pull_request_number:pullNumber,p_decision_generation:state.current_generation,p_authoritative_snapshot_generation:state.authoritative_snapshot_generation,p_authoritative_snapshot_revision:state.authoritative_snapshot_revision,p_authoritative_snapshot_sha256:state.authoritative_snapshot_sha256,p_envelope_hash:state.envelope_hash,p_idempotency_key:state.idempotency_key,p_decision_nonce:state.decision_nonce,p_check_run_id:checkRunId,p_head_sha:state.head_sha,p_base_sha:state.base_sha,p_claim_id:claimId},"MERGE_CLAIM_FAILED"));
   const [pull2,main2,check2]=await Promise.all([provider.getPull(pullNumber),provider.getMainSha(),provider.getCheck(checkRunId)]); assertMergeReady(state,snapshot,pull2,main2,check2); return {ok:true,action:"claimMerge",claimId,pullRequestNumber:pullNumber,headSha:state.head_sha,baseSha:state.base_sha,checkRunId,...claimed};
 }
