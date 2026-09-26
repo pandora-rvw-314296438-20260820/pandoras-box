@@ -13,6 +13,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     await import(versioned('/control-tower/owner-professional.js'));
     await import(versioned('/control-tower/owner-screens.js'));
     await import(versioned('/control-tower/owner-dialogs.js'));
+    await import(versioned('/control-tower/owner-operations-theatre.mjs'));
     await import(versioned('/control-tower/owner-app.js'));
   })();
 }

@@ -308,9 +308,41 @@ async function invokeFunction(functionName, body = {}) {
   return payload;
 }
 
+
+async function readOperationsEvents({ projectId, after = '0', limit = 200 }, { signal } = {}) {
+  if (!authState.accessToken) throw Object.assign(new Error('Operations sign-in required'), { accessDenied: true });
+  if (!/^[a-f0-9-]{36}$/.test(projectId) || !/^(0|[1-9][0-9]{0,18})$/.test(after) || !Number.isInteger(limit) || limit < 1 || limit > 200) throw new Error('Operations scope invalid');
+  const config = await loadConfig(); const token = authState.accessToken;
+  if (!token || signal?.aborted) throw new Error('Operations read cancelled');
+  const response = await nativeFetch('/api/operations-inference?operation=events', {
+    method: 'POST', redirect: 'error', credentials: 'same-origin', signal,
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ organizationId: config.organizationId, projectId, after, limit }),
+  });
+  if ([401, 403].includes(response.status)) throw Object.assign(new Error('Operations access unavailable'), { accessDenied: true });
+  if (!response.ok || !response.body?.getReader) throw new Error('Operations events unavailable');
+  const reader = response.body.getReader(); const decoder = new TextDecoder('utf-8', { fatal: true });
+  let text = '', bytes = 0; const cancel = () => { void reader.cancel().catch(() => {}); };
+  signal?.addEventListener('abort', cancel, { once: true });
+  try {
+    while (true) {
+      if (signal?.aborted || authState.accessToken !== token) throw new Error('Operations session changed');
+      const next = await reader.read(); if (next.done) break;
+      bytes += next.value.byteLength; if (bytes > 262144) { cancel(); throw new Error('Operations response exceeded limit'); }
+      text += decoder.decode(next.value, { stream: true });
+    }
+    text += decoder.decode();
+    if (authState.accessToken !== token) throw Object.assign(new Error('Operations session changed'), { accessDenied: true });
+    return JSON.parse(text);
+  } finally { signal?.removeEventListener('abort', cancel); try { reader.releaseLock(); } catch {} }
+}
+
 function sessionSnapshot() {
+
   return {
     authenticated: Boolean(authState.accessToken),
+    userId: authState.user?.id || null,
+    organizationId: authState.config?.organizationId || null,
     email: authState.membership?.email || authState.user?.email,
     role: authState.membership?.role,
   };
@@ -347,6 +379,7 @@ window.MCPMasterAuth = Object.freeze({
   ensureSession,
   edgeRequest,
   readProjectProjection,
+  readOperationsEvents,
   invokeFunction,
   signOut,
   session: sessionSnapshot,

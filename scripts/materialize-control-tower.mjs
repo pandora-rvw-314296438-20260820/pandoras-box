@@ -21,8 +21,10 @@ await rm(target, { recursive: true, force: true });
 await mkdir(path.dirname(target), { recursive: true });
 await cp(source, target, { recursive: true, force: true });
 
+// Serve the canonical, tested event model without a second tracked source copy.
+await cp(path.resolve('packages/pandora-operations-inference/theatre.mjs'), path.join(target, 'operations-theatre-runtime.mjs'));
 const targetCount = await countFiles(target);
-if (targetCount !== sourceCount) {
+if (targetCount !== sourceCount + 1) {
   throw new Error(
     `Control Tower materialization incomplete: ${targetCount}/${sourceCount}`,
   );
