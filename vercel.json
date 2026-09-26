@@ -3,7 +3,7 @@
   "git": {
     "deploymentEnabled": false
   },
-  "buildCommand": "npm run build && bash scripts/build-vercel-pandora-web.sh",
+  "buildCommand": "npm run build && node scripts/verify-operations-memory-production.mjs && bash scripts/build-vercel-pandora-web.sh",
   "framework": "express",
   "env": {
     "PANDORA_MEMORY_BASE_URL": "https://pandorasbox-memory.vercel.app",
