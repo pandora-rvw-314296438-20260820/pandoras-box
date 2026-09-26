@@ -52,7 +52,9 @@ jobs:
           printf 'CLI_MIGRATION_FILENAME=%s\n' "$(basename "$GENERATED")"
           sha256sum "$GENERATED"
       - name: Frozen Deno entrypoint check
-        run: npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-intelligence-router/index.ts
+        run: npx --yes deno-bin@2.2.7 check --quiet --node-modules-dir=none --frozen supabase/functions/pandora-intelligence-router/index.ts
+      - name: Execute Deno runtime boundary smoke
+        run: npx --yes deno-bin@2.2.7 test --quiet --node-modules-dir=none --frozen packages/pandora-operations-inference/test/deno-runtime.mjs
       - name: Inference and current-event contracts
         run: node --test test/pandora-operations-inference*.test.js
       - name: Existing Operations and Memory contracts

@@ -17,7 +17,7 @@ export async function readJson(request,{maxBytes=1048576,timeoutMs=5000}={}){
   },{signal:request.signal,timeoutMs});
  }finally{parts=[];void reader.cancel().catch(()=>{});}
 }
-export function createInferenceHandler({store,serviceForActor,authenticateOwner,allowedOrigins=[]}){
+export function createInferenceHandler({store,serviceForActor,authenticateOwner,allowedOrigins=/** @type {string[]} */([])}){
  demand(store?.durability==='durable'&&typeof store.authenticate==='function'&&typeof serviceForActor==='function'
   &&typeof authenticateOwner==='function','INFERENCE_HANDLER_CONFIGURATION_INVALID');
  demand(Array.isArray(allowedOrigins)&&allowedOrigins.every(s=>{try{const u=new URL(s);return u.protocol==='https:'&&u.origin===s;}catch{return false;}}),'INFERENCE_ORIGIN_CONFIGURATION_INVALID');
