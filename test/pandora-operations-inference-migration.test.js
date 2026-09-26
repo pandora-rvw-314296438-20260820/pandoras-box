@@ -1,0 +1,2 @@
+'use strict';const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+test('CLI-generated deployment migration is byte-identical to the native SQL exercised by behavior and race suites',()=>{const root=path.join(__dirname,'..');assert.deepEqual(fs.readFileSync(path.join(root,'supabase/migrations/20260926011646_operations_inference_service_v1.sql')),fs.readFileSync(path.join(root,'packages/pandora-operations-inference/schema.sql')));});
