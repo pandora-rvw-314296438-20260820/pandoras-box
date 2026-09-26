@@ -51,7 +51,9 @@ type ControlRpc =
   | "pandora_ops_handoff_v1"
   | "pandora_ops_activation_readback_v1"
   | "pandora_ops_wake_authorize_v1"
-  | "pandora_ops_reconcile_required_v1";
+  | "pandora_ops_reconcile_required_v1"
+  | "pandora_ops_native_release_verify_v1"
+  | "pandora_ops_wake_nonce_consume_v1";
 
 type ControlAction =
   | "catalog"
@@ -81,7 +83,9 @@ type ControlAction =
   | "operations_handoff"
   | "operations_activation_readback"
   | "operations_wake_authorize"
-  | "operations_reconcile";
+  | "operations_reconcile"
+  | "operations_native_release_verify"
+  | "operations_wake_nonce_consume";
 
 interface ControlRoute {
   action: ControlAction;
@@ -538,6 +542,22 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     };
   }
 
+  if (input.action === "operations_wake_nonce_consume") {
+    const nonce = requiredUuid(input, "nonce");
+    const issuedAt = requiredInteger(input, "issuedAt", 1, Number.MAX_SAFE_INTEGER);
+    if (!nonce || issuedAt === undefined) return undefined;
+    return {
+      action: "operations_wake_nonce_consume",
+      rpc: "pandora_ops_wake_nonce_consume_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_nonce: nonce,
+        p_issued_at: issuedAt,
+      },
+    };
+  }
+
   if (input.action === "operations_claim") {
     const taskId = requiredString(input, "taskId");
     const taskRevision = requiredInteger(input, "taskRevision", 0, Number.MAX_SAFE_INTEGER);
@@ -639,6 +659,23 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
         p_principal_key: worker.principalKey,
         p_handoff: input.handoff,
         p_actual_cost_micros: 0,
+      },
+    };
+  }
+
+  if (input.action === "operations_native_release_verify") {
+    const taskId = requiredString(input, "taskId");
+    if (taskId !== "OPS-CLOUD-CONNECTORS-RELEASE-V1") return undefined;
+    const worker = OPERATIONS_NATIVE_WORKERS.release;
+    return {
+      action: "operations_native_release_verify",
+      rpc: "pandora_ops_native_release_verify_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_task_key: taskId,
+        p_verifier_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
       },
     };
   }

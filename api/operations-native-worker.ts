@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { resolveVercelWorkloadToken } from "../src/runtime/vercel-workload-identity.js";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
@@ -99,6 +99,30 @@ async function connectorCanaryEvidence() {
   };
 }
 
+function cronAuthorized(request: any) {
+  const secret = String(process.env.CRON_SECRET || "");
+  const authorization = String(request.headers.authorization || "");
+  if (secret.length < 32 || secret.length > 512) return false;
+  const expected = `Bearer ${secret}`;
+  if (authorization.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(authorization), Buffer.from(expected));
+}
+
+function signedWake(request: any) {
+  const secret = String(process.env.PANDORA_OPS_WAKE_HMAC_SECRET || "");
+  const timestamp = String(request.headers["x-pandora-wake-timestamp"] || "");
+  const nonce = String(request.headers["x-pandora-wake-nonce"] || "");
+  const signature = String(request.headers["x-pandora-wake-signature"] || "").toLowerCase();
+  if (secret.length < 32 || secret.length > 512) return null;
+  if (!/^\d{10}$/.test(timestamp) || !/^[0-9a-f-]{36}$/i.test(nonce) || !/^[0-9a-f]{64}$/.test(signature)) return null;
+  const issuedAt = Number(timestamp);
+  if (!Number.isSafeInteger(issuedAt) || Math.abs(Math.floor(Date.now() / 1000) - issuedAt) > 90) return null;
+  const message = `${timestamp}\n${nonce}\nPOST\n/api/operations-native-worker\n{}`;
+  const expected = createHmac("sha256", secret).update(message).digest("hex");
+  if (expected.length !== signature.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  return { nonce, issuedAt };
+}
+
 function receiptRef(dispatchId: string, taskId: string, generation: number) {
   const digest = createHash("sha256")
     .update(`${dispatchId}:${taskId}:${generation}:mcpmaster:production`)
@@ -107,25 +131,55 @@ function receiptRef(dispatchId: string, taskId: string, generation: number) {
 }
 
 export default async function operationsNativeWorker(request: any, response: any) {
-  if (request.method !== "POST" || request.headers.origin) {
+  const isCronWake = request.method === "GET";
+  const isPostWake = request.method === "POST";
+  if ((!isCronWake && !isPostWake) || request.headers.origin) {
     return send(response, 403, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
   }
 
-  const authorization = String(request.headers.authorization || "");
-  const match = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]{32,512})$/);
-  if (!match) return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+  const url = new URL(String(request.url || "/api/operations-native-worker"), "https://mcpmaster.vercel.app");
+  if (url.search || url.hash) return send(response, 403, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+
+  let tokenSha256 = "";
+  let signed: { nonce: string; issuedAt: number } | null = null;
+  let manualWake = false;
+  if (isCronWake) {
+    const declared = Number(request.headers["content-length"] || "0");
+    if (!Number.isSafeInteger(declared) || declared !== 0 || !cronAuthorized(request)) {
+      return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+    }
+  } else {
+    signed = signedWake(request);
+    if (!signed) {
+      const authorization = String(request.headers.authorization || "");
+      const match = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]{32,512})$/);
+      if (!match) return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+      manualWake = true;
+      tokenSha256 = createHash("sha256").update(match[1]).digest("hex");
+    }
+  }
 
   const oidc = await resolveVercelWorkloadToken();
   if (!oidc) return send(response, 503, { ok: false, code: "OPS_NATIVE_IDENTITY_UNAVAILABLE" });
 
-  const tokenSha256 = createHash("sha256").update(match[1]).digest("hex");
   try {
-    const authorized = await control(oidc, {
-      action: "operations_wake_authorize",
-      tokenSha256,
-    });
-    if (authorized !== true) {
-      return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+    if (manualWake) {
+      const authorized = await control(oidc, {
+        action: "operations_wake_authorize",
+        tokenSha256,
+      });
+      if (authorized !== true) {
+        return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+      }
+    } else if (signed) {
+      const consumed = await control(oidc, {
+        action: "operations_wake_nonce_consume",
+        nonce: signed.nonce,
+        issuedAt: signed.issuedAt,
+      });
+      if (consumed !== true) {
+        return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_REPLAY_DENIED" });
+      }
     }
 
     await control(oidc, { action: "operations_native_register", workerRole: "builder" });
@@ -252,14 +306,30 @@ export default async function operationsNativeWorker(request: any, response: any
         handoff,
       });
 
-      return send(response, 200, {
-        ok: true,
-        state: "handed_off",
-        taskId: CANARY_TASK,
-        dispatchId,
-        mergeSha: evidence.mergeSha,
-        handedOff,
-      });
+      try {
+        await control(oidc, { action: "operations_heartbeat", workerRole: "release" });
+        const verified = await control(oidc, {
+          action: "operations_native_release_verify",
+          taskId: CANARY_TASK,
+        });
+        return send(response, 200, {
+          ok: true,
+          state: verified?.complete === true ? "complete" : "verification_pending",
+          taskId: CANARY_TASK,
+          dispatchId,
+          mergeSha: evidence.mergeSha,
+          handedOff,
+          verified,
+        });
+      } catch {
+        return send(response, 503, {
+          ok: false,
+          state: "verification_pending",
+          taskId: CANARY_TASK,
+          dispatchId,
+          code: "OPS_NATIVE_RELEASE_VERIFICATION_UNCONFIRMED",
+        });
+      }
     } catch (error: any) {
       try {
         await control(oidc, {
