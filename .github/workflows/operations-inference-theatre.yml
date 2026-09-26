@@ -1,0 +1,94 @@
+name: Operations inference and live Theatre
+on:
+  push:
+    branches: [main, feat/operations-inference-theatre-20260926]
+    paths:
+      - 'packages/pandora-operations-inference/**'
+      - 'supabase/functions/pandora-intelligence-router/**'
+      - 'test/pandora-operations-inference*.test.js'
+      - '.github/workflows/operations-inference-theatre.yml'
+      - 'supabase/migrations/**'
+  pull_request:
+    paths:
+      - 'packages/pandora-operations-inference/**'
+      - 'supabase/functions/pandora-intelligence-router/**'
+      - 'test/pandora-operations-inference*.test.js'
+      - '.github/workflows/operations-inference-theatre.yml'
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: operations-inference-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  inference-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Exact source
+        run: git rev-parse HEAD
+      - name: Generate native migration identity with pinned CLI
+        run: |
+          npx --yes supabase@2.116.0 --help >/dev/null
+          npx --yes supabase@2.116.0 migration new --help >/dev/null
+          SOURCE="$PWD/packages/pandora-operations-inference/schema.sql"
+          DEST=$(mktemp -d)
+          mkdir -p "$DEST/supabase/migrations"
+          cd "$DEST"
+          npx --yes supabase@2.116.0 migration new operations_inference_service_v1
+          GENERATED=$(find supabase/migrations -name '*_operations_inference_service_v1.sql' -type f)
+          test -n "$GENERATED"
+          cp "$SOURCE" "$GENERATED"
+          printf 'CLI_MIGRATION_FILENAME=%s\n' "$(basename "$GENERATED")"
+          sha256sum "$GENERATED"
+      - name: Frozen Deno entrypoint check
+        run: npx --yes deno-bin@2.2.7 check --quiet --node-modules-dir=none --frozen supabase/functions/pandora-intelligence-router/index.ts
+      - name: Execute Deno runtime boundary smoke
+        run: npx --yes deno-bin@2.2.7 test --quiet --node-modules-dir=none --frozen packages/pandora-operations-inference/test/deno-runtime.mjs
+      - name: Inference and current-event contracts
+        run: node --test test/pandora-operations-inference*.test.js
+      - name: Existing Operations and Memory contracts
+        run: node --test test/pandora-operations-room-runtime*.test.js test/pandora-operations-memory*.test.js
+
+  postgres-inference-races:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: fixture_only_password
+          POSTGRES_DB: pandora_inference_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: pandora_inference_ci
+      PGUSER: postgres
+      PGPASSWORD: fixture_only_password
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.21.0'
+      - name: Execute independent PostgreSQL sessions
+        run: node --test packages/pandora-operations-inference/test/postgres-races.mjs

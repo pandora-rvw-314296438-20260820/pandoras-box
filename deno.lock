@@ -14,6 +14,7 @@
     "npm:@supabase/storage-js@^2.10.4": "2.112.3",
     "npm:@types/cors@^2.8.19": "2.8.19",
     "npm:@types/express@^5.0.6": "5.0.6",
+    "npm:@types/node@*": "24.13.3",
     "npm:@types/node@24": "24.13.3",
     "npm:@types/three@~0.158.3": "0.158.3",
     "npm:@types/ws@^8.5.10": "8.18.1",
