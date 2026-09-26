@@ -41,3 +41,14 @@ test('actual auth adapter routes only owner event reads and sends current bearer
  vm.runInContext(`acceptAuthenticatedSession({access_token:'fixture-auth-session-for-tests-only',user:{id:'${user}'}});`,context);
  const r=await window.MCPMasterAuth.readOperationsEvents({projectId:project,after:'0',limit:100});assert.equal(r.fixture,true);assert.equal(calls.at(-1).url,'/api/operations-inference?operation=events');assert.equal(calls.at(-1).init.redirect,'error');assert.equal(JSON.parse(calls.at(-1).init.body).organizationId,org);assert.match(calls.at(-1).init.headers.authorization,/^Bearer fixture-/);assert.equal(calls.at(-1).init.headers['x-pandora-vercel-oidc'],undefined);
 });
+
+test('persisted pagehide clears sensitive view but pageshow restores live updating',async()=>{const f=await fixture();f.mount.update();await flush();const hide=new Event('pagehide');Object.defineProperty(hide,'persisted',{value:true});f.window.dispatchEvent(hide);assert.equal(f.main.children.length,0);assert.equal(f.timers.size,0);const show=new Event('pageshow');Object.defineProperty(show,'persisted',{value:true});f.window.dispatchEvent(show);await flush();assert.equal(f.calls.length,2);assert.match(f.main.textContent,/Tasks added/);f.mount.dispose();});
+test('nonpersisted pagehide disposes listeners and prevents later restart',async()=>{const f=await fixture();f.mount.update();await flush();f.window.dispatchEvent(new Event('pagehide'));f.mount.update();const show=new Event('pageshow');Object.defineProperty(show,'persisted',{value:true});f.window.dispatchEvent(show);await flush();assert.equal(f.calls.length,1);assert.equal(f.main.children.length,0);});
+test('same user auth refresh retains accepted event rows',async()=>{const f=await fixture();f.mount.update();await flush();const text=f.main.textContent;f.window.dispatchEvent(new Event('mcpmaster-auth-changed'));await flush();assert.equal(f.main.textContent,text);assert.equal(f.calls.length,1);f.mount.dispose();});
+for(const mode of ['reject','stall'])test(`optional Theatre import ${mode} cannot block owner app`,async()=>{
+ const source=await fs.readFile('apps/control-tower/owner-first.js','utf8'),calls=[],warnings=[];
+ vm.runInNewContext(source.replaceAll('import(', '__load('),{window:{},document:{},console:{warn:value=>warnings.push(value)},__load:async value=>{
+  calls.push(value);if(value.includes('owner-operations-theatre.mjs')){if(mode==='reject')throw new Error('private module failure');return new Promise(()=>{});}return {};
+ }});
+ await flush();assert.ok(calls.some(value=>value.includes('owner-app.js')));assert.ok(warnings.every(value=>!value.includes('private module failure')));
+});

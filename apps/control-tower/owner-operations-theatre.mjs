@@ -31,9 +31,11 @@ export function createOwnerOperationsMount({Theatre,renderTheatre,auth,getState,
    ensureRoot();status.textContent='Execution events could not be refreshed. Earlier verified records remain visible.';
   });
  }
- const changed=()=>{clear();update();};const visibility=()=>update();
- const dispose=()=>{stopped=true;clear();window.removeEventListener('mcpmaster-auth-changed',changed);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('pagehide',dispose);};
- window.addEventListener('mcpmaster-auth-changed',changed);document.addEventListener('visibilitychange',visibility);window.addEventListener('pagehide',dispose);
+ const changed=()=>update();const visibility=()=>update();
+ const hide=event=>{if(event?.persisted){clear();return;}dispose();};
+ const show=event=>{if(event?.persisted)update();};
+ const dispose=()=>{stopped=true;clear();window.removeEventListener('mcpmaster-auth-changed',changed);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('pagehide',hide);window.removeEventListener('pageshow',show);};
+ window.addEventListener('mcpmaster-auth-changed',changed);document.addEventListener('visibilitychange',visibility);window.addEventListener('pagehide',hide);window.addEventListener('pageshow',show);
  return Object.freeze({update,dispose});
 }
 if(typeof window!=='undefined'&&typeof document!=='undefined'){

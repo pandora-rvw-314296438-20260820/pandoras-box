@@ -99,7 +99,7 @@ class PandoraOperationsPage {
   final DateTime observedAt;
   factory PandoraOperationsPage.parse(Map<String, dynamic> value, {
     required String organizationId, required String projectId,
-    required String after, required DateTime now,
+    required String after,
   }) {
     _require(value['schemaVersion'] == 'pandora-operations-events-v1' &&
       value['organizationId'] == organizationId && value['projectId'] == projectId &&
@@ -109,7 +109,8 @@ class PandoraOperationsPage {
     _require(raw is List && raw.length <= 200 && value['hasMore'] is bool);
     _require(observed is String && observed.length <= 64 && DateTime.tryParse(observed) != null);
     final at = DateTime.parse(observed as String);
-    _require(!at.isAfter(now.add(const Duration(seconds: 30))) && now.difference(at) <= const Duration(seconds: 60));
+    // Display server time as reported. Device wall-clock skew is not an access denial.
+    // The complete authenticated HTTP exchange still has a 12-second timeout.
     var previous = _cursor(after);
     final high = _cursor(value['highWatermark']);
     final events = <PandoraOperationsEvent>[];
@@ -130,12 +131,11 @@ class PandoraOperationsPage {
 
 class PandoraOperationsEventReader {
   PandoraOperationsEventReader({required this.organizationId, required this.readSession,
-    http.Client Function()? clientFactory, DateTime Function()? clock})
-      : _clientFactory = clientFactory ?? http.Client.new, _clock = clock ?? DateTime.now;
+    http.Client Function()? clientFactory})
+      : _clientFactory = clientFactory ?? http.Client.new;
   final String organizationId;
   final PandoraOperationsSession? Function() readSession;
   final http.Client Function() _clientFactory;
-  final DateTime Function() _clock;
   final Set<http.Client> _clients = {};
   bool _disposed = false;
   bool get canonicalScope => organizationId == canonicalOperationsOrganization;
@@ -164,15 +164,15 @@ class PandoraOperationsEventReader {
         if (response.statusCode != 200 || (response.contentLength ?? 0) > 262144) throw const PandoraOperationsReadException();
         final bytes = <int>[];
         await for (final chunk in response.stream) {
-          if (_disposed || readSession()?.accessToken != session.accessToken) throw const PandoraOperationsReadException(accessDenied: true);
+          if (_disposed || readSession()?.userId != session.userId) throw const PandoraOperationsReadException(accessDenied: true);
           if (bytes.length + chunk.length > 262144) throw const PandoraOperationsReadException();
           bytes.addAll(chunk);
         }
-        if (_disposed || readSession()?.accessToken != session.accessToken || readSession()?.userId != session.userId) throw const PandoraOperationsReadException(accessDenied: true);
+        if (_disposed || readSession()?.userId != session.userId) throw const PandoraOperationsReadException(accessDenied: true);
         final value = jsonDecode(utf8.decode(bytes));
         _require(value is Map);
         return PandoraOperationsPage.parse(Map<String, dynamic>.from(value as Map),
-          organizationId: organizationId, projectId: projectId, after: after, now: _clock());
+          organizationId: organizationId, projectId: projectId, after: after);
       })().timeout(const Duration(seconds: 12));
     } finally { _clients.remove(client); client.close(); }
   }
@@ -196,6 +196,10 @@ class PandoraOperationsFeed extends ChangeNotifier {
     _generation++; cancelRead(); _session = session; _project = project;
     loading = false; hasMore = false; cursor = '0'; events = const []; error = null; observedAt = null;
     if (!_disposed) notifyListeners();
+  }
+  void updateSession(String? session, String? project) {
+    if (_session == session && _project == project) return;
+    reset(session, project);
   }
   void pause() { _generation++; cancelRead(); loading = false; if (!_disposed) notifyListeners(); }
   Future<void> refresh() async {

@@ -21,7 +21,7 @@ Map<String, dynamic> fixture() => {
   'hasMore': false, 'nextCursor': '1', 'highWatermark': '1',
 };
 PandoraOperationsPage parse(Map<String, dynamic> value, {String after = '0'}) => PandoraOperationsPage.parse(value,
-  organizationId: canonicalOperationsOrganization, projectId: canonicalOperationsProject, after: after, now: now);
+  organizationId: canonicalOperationsOrganization, projectId: canonicalOperationsProject, after: after);
 class TrackedClient extends http.BaseClient {
   TrackedClient(Future<http.Response> Function(http.Request) action) : delegate = MockClient(action);
   final MockClient delegate;
@@ -33,6 +33,26 @@ class TrackedClient extends http.BaseClient {
 }
 
 void main() {
+  test('same-user token rotation does not turn an authorized response into denial', () async {
+    var session = const PandoraOperationsSession('same-user', 'old-fixture-token');
+    final client = TrackedClient((request) async {
+      session = const PandoraOperationsSession('same-user', 'new-fixture-token');
+      return http.Response(jsonEncode(fixture()), 200);
+    });
+    final reader = PandoraOperationsEventReader(organizationId: canonicalOperationsOrganization,
+      readSession: () => session, clientFactory: () => client);
+    expect((await reader.read(canonicalOperationsProject, '0')).events.length, 1);
+    expect(client.closed, isTrue); reader.dispose();
+  });
+  test('same-user auth event preserves cursor and already accepted records', () async {
+    var cancellations = 0;
+    final feed = PandoraOperationsFeed(readPage: (_, __) async => parse(fixture()), cancelRead: () { cancellations++; });
+    feed.reset('same-user', canonicalOperationsProject); await feed.refresh();
+    feed.updateSession('same-user', canonicalOperationsProject);
+    expect(feed.events.length, 1); expect(feed.cursor, '1'); expect(cancellations, 1);
+    feed.updateSession(null, canonicalOperationsProject);
+    expect(feed.events, isEmpty); expect(feed.cursor, '0'); expect(cancellations, 2); feed.dispose();
+  });
   test('parses exact scoped provider evidence without inventing task completion', () {
     final page = parse(fixture());
     expect(page.events.single.label, 'Tasks added'); expect(page.events.single.taskComplete, isFalse);
@@ -45,9 +65,9 @@ void main() {
   }.entries) {
     test('rejects mismatched ${entry.key}', () => expect(() => parse({...fixture(), entry.key: entry.value}), throwsFormatException));
   }
-  test('rejects stale or future event page', () {
-    for (final observed in [now.subtract(const Duration(seconds: 61)), now.add(const Duration(seconds: 31))]) {
-      expect(() => parse({...fixture(), 'observedAt': observed.toIso8601String()}), throwsFormatException);
+  test('server observation time is displayed despite device-clock skew', () {
+    for (final observed in [now.subtract(const Duration(days: 30)), now.add(const Duration(days: 30))]) {
+      expect(parse({...fixture(), 'observedAt': observed.toIso8601String()}).observedAt, observed);
     }
   });
   test('large sequence IDs retain integer precision', () {
@@ -82,7 +102,7 @@ void main() {
       return http.Response(jsonEncode(fixture()), 200);
     });
     final reader = PandoraOperationsEventReader(organizationId: canonicalOperationsOrganization,
-      readSession: () => const PandoraOperationsSession('user', 'fixture-session'), clientFactory: () => client, clock: () => now);
+      readSession: () => const PandoraOperationsSession('user', 'fixture-session'), clientFactory: () => client);
     expect((await reader.read(canonicalOperationsProject, '0')).events.length, 1); expect(client.closed, isTrue); reader.dispose();
   });
   test('HTTP reader denies a missing session before creating a client', () async {
@@ -93,7 +113,7 @@ void main() {
   test('HTTP read cannot leak a response after account changes', () async {
     var session = const PandoraOperationsSession('first', 'first-fixture-session');
     final client = TrackedClient((request) async { session = const PandoraOperationsSession('second', 'second-fixture-session'); return http.Response(jsonEncode(fixture()), 200); });
-    final reader = PandoraOperationsEventReader(organizationId: canonicalOperationsOrganization, readSession: () => session, clientFactory: () => client, clock: () => now);
+    final reader = PandoraOperationsEventReader(organizationId: canonicalOperationsOrganization, readSession: () => session, clientFactory: () => client);
     await expectLater(reader.read(canonicalOperationsProject, '0'), throwsA(isA<PandoraOperationsReadException>())); expect(client.closed, isTrue); reader.dispose();
   });
   for (final status in [401, 403, 500, 302]) {

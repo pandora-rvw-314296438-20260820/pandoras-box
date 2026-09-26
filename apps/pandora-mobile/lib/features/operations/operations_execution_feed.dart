@@ -33,7 +33,7 @@ class _OperationsExecutionFeedState extends State<OperationsExecutionFeed> with 
     _feed = feed;
     feed.reset(reader.sessionKey, canonicalOperationsProject);
     _auth = dependencies.auth.changes.listen((_) {
-      feed.reset(reader.sessionKey, canonicalOperationsProject);
+      feed.updateSession(reader.sessionKey, canonicalOperationsProject);
       if (_expanded && _foreground) { unawaited(feed.refresh()); }
     });
   }

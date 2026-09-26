@@ -313,7 +313,7 @@ async function readOperationsEvents({ projectId, after = '0', limit = 200 }, { s
   signal = signal ? AbortSignal.any([signal, AbortSignal.timeout(12000)]) : AbortSignal.timeout(12000);
   if (!authState.accessToken) throw Object.assign(new Error('Operations sign-in required'), { accessDenied: true });
   if (!/^[a-f0-9-]{36}$/.test(projectId) || !/^(0|[1-9][0-9]{0,18})$/.test(after) || !Number.isInteger(limit) || limit < 1 || limit > 200) throw new Error('Operations scope invalid');
-  const config = await loadConfig(); const token = authState.accessToken;
+  const config = await loadConfig(); const token = authState.accessToken; const userId = authState.user?.id;
   if (!token || signal?.aborted) throw new Error('Operations read cancelled');
   const response = await nativeFetch('/api/operations-inference?operation=events', {
     method: 'POST', redirect: 'error', credentials: 'same-origin', signal,
@@ -327,13 +327,13 @@ async function readOperationsEvents({ projectId, after = '0', limit = 200 }, { s
   signal?.addEventListener('abort', cancel, { once: true });
   try {
     while (true) {
-      if (signal?.aborted || authState.accessToken !== token) throw new Error('Operations session changed');
+      if (signal?.aborted || authState.user?.id !== userId) throw new Error('Operations session changed');
       const next = await reader.read(); if (next.done) break;
       bytes += next.value.byteLength; if (bytes > 262144) { cancel(); throw new Error('Operations response exceeded limit'); }
       text += decoder.decode(next.value, { stream: true });
     }
     text += decoder.decode();
-    if (authState.accessToken !== token) throw Object.assign(new Error('Operations session changed'), { accessDenied: true });
+    if (authState.user?.id !== userId) throw Object.assign(new Error('Operations session changed'), { accessDenied: true });
     return JSON.parse(text);
   } finally { signal?.removeEventListener('abort', cancel); try { reader.releaseLock(); } catch {} }
 }
