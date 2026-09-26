@@ -310,6 +310,7 @@ async function invokeFunction(functionName, body = {}) {
 
 
 async function readOperationsEvents({ projectId, after = '0', limit = 200 }, { signal } = {}) {
+  signal = signal ? AbortSignal.any([signal, AbortSignal.timeout(12000)]) : AbortSignal.timeout(12000);
   if (!authState.accessToken) throw Object.assign(new Error('Operations sign-in required'), { accessDenied: true });
   if (!/^[a-f0-9-]{36}$/.test(projectId) || !/^(0|[1-9][0-9]{0,18})$/.test(after) || !Number.isInteger(limit) || limit < 1 || limit > 200) throw new Error('Operations scope invalid');
   const config = await loadConfig(); const token = authState.accessToken;

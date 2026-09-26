@@ -24,7 +24,9 @@ jobs:
       - name: Execute exact-source Memory/Router transport boundaries
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          node --test test/pandora-operations-workload-memory.test.js
+          node --test test/pandora-operations-workload-memory.test.js test/pandora-operations-owner-theatre.test.js
+          node scripts/materialize-control-tower.mjs
+          node scripts/verify-frontend-mirrors.mjs
       - name: Install locked dependencies and verify API types
         run: |
           npm ci --ignore-scripts
