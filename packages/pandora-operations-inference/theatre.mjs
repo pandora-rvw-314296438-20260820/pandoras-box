@@ -12,12 +12,12 @@ export function eventView(event){
 }
 /** Read-only current-event model. Reset drops tenant data and fences late responses. */
 export class OperationsTheatre{
- #generation=0;#scope=null;#cursor='0';#events=new Map();#pending=null;#controller=null;#reader;#clock;#max;
+ #generation=0;#scope=null;#cursor='0';#hasMore=false;#events=new Map();#pending=null;#controller=null;#reader;#clock;#max;
  constructor({readEvents,clock=Date.now,maxEvents=1000}){requireThat(typeof readEvents==='function'&&Number.isInteger(maxEvents)&&maxEvents>=1&&maxEvents<=5000,'OPS_THEATRE_CONFIGURATION_INVALID');this.#reader=readEvents;this.#clock=clock;this.#max=maxEvents;}
- reset(scope=null){this.#generation++;this.#controller?.abort();this.#controller=null;this.#pending=null;this.#scope=null;this.#cursor='0';this.#events.clear();
+ reset(scope=null){this.#generation++;this.#controller?.abort();this.#controller=null;this.#pending=null;this.#scope=null;this.#cursor='0';this.#hasMore=false;this.#events.clear();
   if(scope){requireThat(ID.test(scope.organizationId)&&ID.test(scope.projectId)&&typeof scope.sessionKey==='string'&&scope.sessionKey.length>0&&scope.sessionKey.length<=180,'OPS_THEATRE_SCOPE_INVALID');this.#scope={...scope};}
  }
- snapshot(){return Object.freeze({scope:this.#scope?{organizationId:this.#scope.organizationId,projectId:this.#scope.projectId}:null,cursor:this.#cursor,
+ snapshot(){return Object.freeze({scope:this.#scope?{organizationId:this.#scope.organizationId,projectId:this.#scope.projectId}:null,cursor:this.#cursor,hasMore:this.#hasMore,
   events:[...this.#events.values()],generatedProgress:false});}
  refresh(){
   if(!this.#scope)return Promise.reject(new Error('OPS_THEATRE_SCOPE_REQUIRED'));
@@ -37,7 +37,7 @@ export class OperationsTheatre{
    requireThat(BigInt(reply.nextCursor)===previous&&previous<=BigInt(reply.highWatermark)
     &&(!reply.hasMore||reply.events.length>0),'OPS_THEATRE_CURSOR_INVALID');
    while(next.size>this.#max)next.delete(next.keys().next().value);
-   this.#events=next;this.#cursor=reply.nextCursor;return this.snapshot();
+   this.#events=next;this.#cursor=reply.nextCursor;this.#hasMore=reply.hasMore;return this.snapshot();
   }).finally(()=>{clearTimeout(timer);if(generation===this.#generation&&this.#pending===pending){this.#pending=null;this.#controller=null;}});
   this.#pending=pending;return pending;
  }

@@ -29,10 +29,17 @@ export class GeminiNativeProvider{
   const response=await boundedCall(async inner=>{let pending=this.#client.rpc('pandora_worker_b_gemini_request_20260829',{p_model:model.model,p_body:body});if(typeof pending?.abortSignal==='function')pending=pending.abortSignal(inner);return await pending;},{signal,timeoutMs:request.deadlineMs,mutation:true});
   if(response?.error||!record(response?.data)||!Number.isInteger(response.data.status))throw new InferenceError('INFERENCE_PROVIDER_OUTCOME_UNKNOWN',{outcomeUnknown:true});
   const http=response.data.status,providerBody=response.data.body;
-  demand(record(providerBody),'INFERENCE_PROVIDER_RESPONSE_INVALID');
-  // Hash the actual provider body without copying provider diagnostic text into logs or Memory.
-  const providerReceipt=`gemini-http-${http}-sha256:${sha256(providerBody)}`;
-  const usage=providerBody.usageMetadata??{},revision=typeof providerBody.modelVersion==='string'&&ID.test(providerBody.modelVersion)?providerBody.modelVersion:null;
+  // Provider error bodies are not contractually JSON objects. Classify HTTP
+  // failures first; successful responses still require the structured schema.
+  const bodyForDigest=record(providerBody)?providerBody:{
+   nonRecordBodyType:providerBody===null?'null':Array.isArray(providerBody)?'array':typeof providerBody
+  };
+  if(http===200)demand(record(providerBody),'INFERENCE_PROVIDER_RESPONSE_INVALID');
+  // Never copy raw provider diagnostics into the receipt; non-record error
+  // bodies are represented only by their deterministic shape class.
+  const providerReceipt=`gemini-http-${http}-sha256:${sha256(bodyForDigest)}`;
+  const usage=record(providerBody)?providerBody.usageMetadata??{}:{};
+  const revision=record(providerBody)&&typeof providerBody.modelVersion==='string'&&ID.test(providerBody.modelVersion)?providerBody.modelVersion:null;
   let code=null,output=null;
   if(http!==200)code=http===429?'rate_limit':[401,403].includes(http)?'permission_denied':'unavailable';
   else{

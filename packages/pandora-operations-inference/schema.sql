@@ -133,7 +133,10 @@ begin
     or r.metadata is distinct from p_payload then raise exception 'INFERENCE_REQUEST_REPLAY_CONFLICT'; end if;
    return jsonb_build_object('created',false,'requestId',r.id,'state',r.state,'canSend',false);
   end if;
-  select coalesce(sum(max_cost_micros),0) into total from private.pandora_ops_inference_requests where lease_id=(p_payload->>'leaseId')::uuid;
+  select coalesce(sum(case when q.state in ('cancelled','failed')
+    then (select coalesce(sum(coalesce(x.billed_micros,x.reserved_micros)),0) from private.pandora_ops_inference_attempts x where x.request_id=q.id)
+    else q.max_cost_micros end),0)
+   into total from private.pandora_ops_inference_requests q where q.lease_id=(p_payload->>'leaseId')::uuid;
   if (p_payload->>'maxCostMicros')::numeric+total>(scope->>'leaseBudgetMicros')::numeric then raise exception 'INFERENCE_PARENT_BUDGET_EXHAUSTED'; end if;
   insert into private.pandora_ops_inference_requests(id,organization_id,project_id,task_key,worker_key,principal_key,caller_digest,lease_id,generation,source_sha,task_class,request_digest,metadata,max_cost_micros)
   values((p_payload->>'requestId')::uuid,org,project,scope->>'taskId',scope->>'workerId',scope->>'principalKey',p_actor->>'callerDigest',(p_payload->>'leaseId')::uuid,(p_payload->>'generation')::bigint,

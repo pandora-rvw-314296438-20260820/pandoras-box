@@ -110,7 +110,12 @@ export class OperationsInferenceService{
      return {requestId:request.requestId,state:'reconciliation_required',attemptId:attempt.attemptId,reason:'provider_or_receipt_outcome_uncertain',scope:'inference_only',taskComplete:false};
     }
    }
-   return publicStatus(await this.#store.status(actor,request.requestId));
+   const final=await this.#store.status(actor,request.requestId);
+   if(final.request.state==='admitted'&&final.attempts.length===0){
+    await this.#store.cancel(actor,request.requestId);
+    return {...publicStatus(await this.#store.status(actor,request.requestId)),reason:'no_capacity_available'};
+   }
+   return publicStatus(final);
   },{signal,timeoutMs:request.deadlineMs,mutation:true});
  }
  async verify(actor,requestId,verificationRunId,options={}){
