@@ -123,7 +123,7 @@
   "crons": [
     {
       "path": "/api/operations-native-worker",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

@@ -52,7 +52,8 @@ type ControlRpc =
   | "pandora_ops_activation_readback_v1"
   | "pandora_ops_wake_authorize_v1"
   | "pandora_ops_reconcile_required_v1"
-  | "pandora_ops_native_release_verify_v1";
+  | "pandora_ops_native_release_verify_v1"
+  | "pandora_ops_wake_nonce_consume_v1";
 
 type ControlAction =
   | "catalog"
@@ -83,7 +84,8 @@ type ControlAction =
   | "operations_activation_readback"
   | "operations_wake_authorize"
   | "operations_reconcile"
-  | "operations_native_release_verify";
+  | "operations_native_release_verify"
+  | "operations_wake_nonce_consume";
 
 interface ControlRoute {
   action: ControlAction;
@@ -537,6 +539,22 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
       rpc: "pandora_ops_wake_authorize_v1",
       responseKey: "operations",
       params: { p_token_sha256: tokenSha256 },
+    };
+  }
+
+  if (input.action === "operations_wake_nonce_consume") {
+    const nonce = requiredUuid(input, "nonce");
+    const issuedAt = requiredInteger(input, "issuedAt", 1, Number.MAX_SAFE_INTEGER);
+    if (!nonce || issuedAt === undefined) return undefined;
+    return {
+      action: "operations_wake_nonce_consume",
+      rpc: "pandora_ops_wake_nonce_consume_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_nonce: nonce,
+        p_issued_at: issuedAt,
+      },
     };
   }
 

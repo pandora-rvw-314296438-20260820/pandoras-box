@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { resolveVercelWorkloadToken } from "../src/runtime/vercel-workload-identity.js";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
@@ -108,6 +108,21 @@ function cronAuthorized(request: any) {
   return timingSafeEqual(Buffer.from(authorization), Buffer.from(expected));
 }
 
+function signedWake(request: any) {
+  const secret = String(process.env.PANDORA_OPS_WAKE_HMAC_SECRET || "");
+  const timestamp = String(request.headers["x-pandora-wake-timestamp"] || "");
+  const nonce = String(request.headers["x-pandora-wake-nonce"] || "");
+  const signature = String(request.headers["x-pandora-wake-signature"] || "").toLowerCase();
+  if (secret.length < 32 || secret.length > 512) return null;
+  if (!/^\d{10}$/.test(timestamp) || !/^[0-9a-f-]{36}$/i.test(nonce) || !/^[0-9a-f]{64}$/.test(signature)) return null;
+  const issuedAt = Number(timestamp);
+  if (!Number.isSafeInteger(issuedAt) || Math.abs(Math.floor(Date.now() / 1000) - issuedAt) > 90) return null;
+  const message = `${timestamp}\n${nonce}\nPOST\n/api/operations-native-worker\n{}`;
+  const expected = createHmac("sha256", secret).update(message).digest("hex");
+  if (expected.length !== signature.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  return { nonce, issuedAt };
+}
+
 function receiptRef(dispatchId: string, taskId: string, generation: number) {
   const digest = createHash("sha256")
     .update(`${dispatchId}:${taskId}:${generation}:mcpmaster:production`)
@@ -117,8 +132,8 @@ function receiptRef(dispatchId: string, taskId: string, generation: number) {
 
 export default async function operationsNativeWorker(request: any, response: any) {
   const isCronWake = request.method === "GET";
-  const isManualWake = request.method === "POST";
-  if ((!isCronWake && !isManualWake) || request.headers.origin) {
+  const isPostWake = request.method === "POST";
+  if ((!isCronWake && !isPostWake) || request.headers.origin) {
     return send(response, 403, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
   }
 
@@ -126,29 +141,44 @@ export default async function operationsNativeWorker(request: any, response: any
   if (url.search || url.hash) return send(response, 403, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
 
   let tokenSha256 = "";
+  let signed: { nonce: string; issuedAt: number } | null = null;
+  let manualWake = false;
   if (isCronWake) {
     const declared = Number(request.headers["content-length"] || "0");
     if (!Number.isSafeInteger(declared) || declared !== 0 || !cronAuthorized(request)) {
       return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
     }
   } else {
-    const authorization = String(request.headers.authorization || "");
-    const match = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]{32,512})$/);
-    if (!match) return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
-    tokenSha256 = createHash("sha256").update(match[1]).digest("hex");
+    signed = signedWake(request);
+    if (!signed) {
+      const authorization = String(request.headers.authorization || "");
+      const match = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]{32,512})$/);
+      if (!match) return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+      manualWake = true;
+      tokenSha256 = createHash("sha256").update(match[1]).digest("hex");
+    }
   }
 
   const oidc = await resolveVercelWorkloadToken();
   if (!oidc) return send(response, 503, { ok: false, code: "OPS_NATIVE_IDENTITY_UNAVAILABLE" });
 
   try {
-    if (isManualWake) {
+    if (manualWake) {
       const authorized = await control(oidc, {
         action: "operations_wake_authorize",
         tokenSha256,
       });
       if (authorized !== true) {
         return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+      }
+    } else if (signed) {
+      const consumed = await control(oidc, {
+        action: "operations_wake_nonce_consume",
+        nonce: signed.nonce,
+        issuedAt: signed.issuedAt,
+      });
+      if (consumed !== true) {
+        return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_REPLAY_DENIED" });
       }
     }
 
