@@ -4,6 +4,23 @@ import { routeForCanonicalReleaseCapture } from "./canonical-release-capture-rou
 import { assertProductionVercelClaims } from "./identity-policy.mjs";
 
 const CONTROL_ORGANIZATION_ID = "2270b266-59da-4c39-bfd9-9f8d08352af0";
+const OPERATIONS_PROJECT_ID = "ee282126-3f61-4058-8c92-2fedbfcecf1f";
+const OPERATIONS_NATIVE_WORKERS = Object.freeze({
+  builder: Object.freeze({
+    workerKey: "pandora-native-builder-v1",
+    principalKey: "vercel:mcpmaster:operations-native-builder-v1",
+    lanes: ["backend", "reliability"],
+    capabilities: ["source.write", "ci.verify", "release.handoff", "runtime.deploy", "worker.reconcile"],
+    capacity: 1,
+  }),
+  release: Object.freeze({
+    workerKey: "pandora-native-release-v1",
+    principalKey: "vercel:mcpmaster:operations-native-release-v1",
+    lanes: ["release"],
+    capabilities: ["release.verify", "provider.readback", "canary.execute"],
+    capacity: 1,
+  }),
+});
 const MAX_REQUEST_BYTES = 256_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -25,7 +42,16 @@ type ControlRpc =
   | "consume_runtime_rate_limit"
   | "get_canonical_release_status"
   | "capture_canonical_supabase_release_receipt"
-  | "capture_canonical_vercel_rehearsal_receipt";
+  | "capture_canonical_vercel_rehearsal_receipt"
+  | "pandora_ops_register_native_worker_v1"
+  | "pandora_ops_heartbeat_v1"
+  | "pandora_ops_snapshot_v1"
+  | "pandora_ops_claim_v1"
+  | "pandora_ops_dispatch_v1"
+  | "pandora_ops_handoff_v1"
+  | "pandora_ops_activation_readback_v1"
+  | "pandora_ops_wake_authorize_v1"
+  | "pandora_ops_reconcile_required_v1";
 
 type ControlAction =
   | "catalog"
@@ -45,7 +71,17 @@ type ControlAction =
   | "runtime_rate_limit_consume"
   | "canonical_release_status"
   | "canonical_supabase_receipt_capture"
-  | "canonical_vercel_rehearsal_capture";
+  | "canonical_vercel_rehearsal_capture"
+  | "operations_native_register"
+  | "operations_heartbeat"
+  | "operations_snapshot"
+  | "operations_claim"
+  | "operations_dispatch_prepare"
+  | "operations_dispatch_ack"
+  | "operations_handoff"
+  | "operations_activation_readback"
+  | "operations_wake_authorize"
+  | "operations_reconcile";
 
 interface ControlRoute {
   action: ControlAction;
@@ -62,7 +98,8 @@ interface ControlRoute {
     | "rateLimit"
     | "releaseEvidence"
     | "supabaseReceipt"
-    | "vercelRehearsalReceipt";
+    | "vercelRehearsalReceipt"
+    | "operations";
 }
 
 function response(status: number, body: Record<string, unknown>): Response {
@@ -426,6 +463,186 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     };
   }
 
+  if (input.action === "operations_native_register") {
+    const workerRole = requiredString(input, "workerRole");
+    const worker = workerRole === "builder"
+      ? OPERATIONS_NATIVE_WORKERS.builder
+      : workerRole === "release"
+      ? OPERATIONS_NATIVE_WORKERS.release
+      : undefined;
+    if (!worker) return undefined;
+    return {
+      action: "operations_native_register",
+      rpc: "pandora_ops_register_native_worker_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
+        p_lanes: worker.lanes,
+        p_capabilities: worker.capabilities,
+        p_capacity: worker.capacity,
+        p_receipt_ref: `vercel-oidc:mcpmaster:production:${worker.workerKey}`,
+      },
+    };
+  }
+
+  if (input.action === "operations_heartbeat") {
+    const workerRole = requiredString(input, "workerRole");
+    const worker = workerRole === "builder"
+      ? OPERATIONS_NATIVE_WORKERS.builder
+      : workerRole === "release"
+      ? OPERATIONS_NATIVE_WORKERS.release
+      : undefined;
+    if (!worker) return undefined;
+    return {
+      action: "operations_heartbeat",
+      rpc: "pandora_ops_heartbeat_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
+        p_connected: true,
+        p_health: "ready",
+      },
+    };
+  }
+
+  if (input.action === "operations_snapshot") {
+    return {
+      action: "operations_snapshot",
+      rpc: "pandora_ops_snapshot_v1",
+      responseKey: "operations",
+      params: { p_project_id: OPERATIONS_PROJECT_ID },
+    };
+  }
+
+  if (input.action === "operations_activation_readback") {
+    return {
+      action: "operations_activation_readback",
+      rpc: "pandora_ops_activation_readback_v1",
+      responseKey: "operations",
+      params: { p_project_id: OPERATIONS_PROJECT_ID },
+    };
+  }
+
+  if (input.action === "operations_wake_authorize") {
+    const tokenSha256 = requiredString(input, "tokenSha256");
+    if (!tokenSha256 || !/^[0-9a-f]{64}$/.test(tokenSha256)) return undefined;
+    return {
+      action: "operations_wake_authorize",
+      rpc: "pandora_ops_wake_authorize_v1",
+      responseKey: "operations",
+      params: { p_token_sha256: tokenSha256 },
+    };
+  }
+
+  if (input.action === "operations_claim") {
+    const taskId = requiredString(input, "taskId");
+    const taskRevision = requiredInteger(input, "taskRevision", 0, Number.MAX_SAFE_INTEGER);
+    const controlRevision = requiredInteger(input, "controlRevision", 0, Number.MAX_SAFE_INTEGER);
+    if (!taskId || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/.test(taskId)
+      || taskRevision === undefined || controlRevision === undefined) return undefined;
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_claim",
+      rpc: "pandora_ops_claim_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_task_key: taskId,
+        p_worker_key: worker.workerKey,
+        p_task_revision: taskRevision,
+        p_control_revision: controlRevision,
+      },
+    };
+  }
+
+  if (input.action === "operations_dispatch_prepare") {
+    const leaseId = requiredUuid(input, "leaseId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    if (!leaseId || generation === undefined) return undefined;
+    return {
+      action: "operations_dispatch_prepare",
+      rpc: "pandora_ops_dispatch_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_lease_id: leaseId,
+        p_generation: generation,
+        p_ack: null,
+      },
+    };
+  }
+
+  if (input.action === "operations_dispatch_ack") {
+    const leaseId = requiredUuid(input, "leaseId");
+    const dispatchId = requiredUuid(input, "dispatchId");
+    const taskId = requiredString(input, "taskId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    const receiptRef = requiredString(input, "receiptRef");
+    if (!leaseId || !dispatchId || !taskId || generation === undefined || !receiptRef
+      || receiptRef.length > 1000) return undefined;
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_dispatch_ack",
+      rpc: "pandora_ops_dispatch_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_lease_id: leaseId,
+        p_generation: generation,
+        p_ack: {
+          accepted: true,
+          dispatchId,
+          workerId: worker.workerKey,
+          taskId,
+          generation,
+          receiptRef,
+        },
+      },
+    };
+  }
+
+  if (input.action === "operations_reconcile") {
+    const leaseId = requiredUuid(input, "leaseId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    const reason = requiredString(input, "reason");
+    if (!leaseId || generation === undefined || !reason || !/^[A-Z_]{3,80}$/.test(reason)) return undefined;
+    return {
+      action: "operations_reconcile",
+      rpc: "pandora_ops_reconcile_required_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_lease_id: leaseId,
+        p_generation: generation,
+        p_reason: reason,
+      },
+    };
+  }
+
+  if (input.action === "operations_handoff") {
+    const leaseId = requiredUuid(input, "leaseId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    if (!leaseId || generation === undefined || !isRecord(input.handoff)) return undefined;
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_handoff",
+      rpc: "pandora_ops_handoff_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_lease_id: leaseId,
+        p_generation: generation,
+        p_principal_key: worker.principalKey,
+        p_handoff: input.handoff,
+        p_actual_cost_micros: 0,
+      },
+    };
+  }
+
   if (input.action === "canonical_release_status") {
     const repository = requiredString(input, "repository");
     const sourceSha = requiredString(input, "sourceSha");
@@ -505,6 +722,10 @@ Deno.serve(async (request: Request) => {
         return response(502, { ok: false, error: "control_operation_unavailable" });
       }
       return response(200, { ok: true, [route.responseKey]: payload });
+    }
+
+    if (route.responseKey === "operations") {
+      return response(200, { ok: true, operations: payload });
     }
 
     if (route.responseKey === "events" || route.responseKey === "plans") {
