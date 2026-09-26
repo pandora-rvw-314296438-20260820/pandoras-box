@@ -176,8 +176,24 @@ async function bootstrap(db) {
     create schema if not exists vault;
     create table vault.decrypted_secrets (
       id uuid primary key,
+      name text unique,
+      description text,
       decrypted_secret text
     );
+    create or replace function vault.create_secret(
+      new_secret text,
+      new_name text default null,
+      new_description text default null
+    ) returns uuid
+    language plpgsql
+    as $vault$
+    declare v_id uuid := gen_random_uuid();
+    begin
+      insert into vault.decrypted_secrets(id,name,description,decrypted_secret)
+      values(v_id,new_name,new_description,new_secret);
+      return v_id;
+    end
+    $vault$;
 
     create type extensions.http_method as enum ('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD');
     create type extensions.http_header as (field varchar, value varchar);
