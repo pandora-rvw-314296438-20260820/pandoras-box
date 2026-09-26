@@ -13,6 +13,10 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     await import(versioned('/control-tower/owner-professional.js'));
     await import(versioned('/control-tower/owner-screens.js'));
     await import(versioned('/control-tower/owner-dialogs.js'));
+    // Optional read-only telemetry must never block the core owner workspace.
+    void import(versioned('/control-tower/owner-operations-theatre.mjs'))
+      .then(() => window.PandoraOperationsTheatreMount?.update())
+      .catch(() => console.warn('Operations execution feed unavailable'));
     await import(versioned('/control-tower/owner-app.js'));
   })();
 }
