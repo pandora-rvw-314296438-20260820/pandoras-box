@@ -35,6 +35,20 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Exact source
         run: git rev-parse HEAD
+      - name: Generate native migration identity with pinned CLI
+        run: |
+          npx --yes supabase@2.116.0 --help >/dev/null
+          npx --yes supabase@2.116.0 migration new --help >/dev/null
+          SOURCE="$PWD/packages/pandora-operations-inference/schema.sql"
+          DEST=$(mktemp -d)
+          mkdir -p "$DEST/supabase/migrations"
+          cd "$DEST"
+          npx --yes supabase@2.116.0 migration new operations_inference_service_v1
+          GENERATED=$(find supabase/migrations -name '*_operations_inference_service_v1.sql' -type f)
+          test -n "$GENERATED"
+          cp "$SOURCE" "$GENERATED"
+          printf 'CLI_MIGRATION_FILENAME=%s\n' "$(basename "$GENERATED")"
+          sha256sum "$GENERATED"
       - name: Inference and current-event contracts
         run: node --test test/pandora-operations-inference*.test.js
       - name: Existing Operations and Memory contracts

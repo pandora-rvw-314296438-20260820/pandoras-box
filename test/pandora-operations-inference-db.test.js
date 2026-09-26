@@ -3,7 +3,7 @@ const test=require('node:test'), assert=require('node:assert/strict'), fs=requir
 const {randomUUID}=require('node:crypto'); const {PGlite}=require('@electric-sql/pglite');
 const {normalizeTask,REPOSITORIES}=require('../packages/pandora-operations-room/contracts');
 let db,api; const SHA='a'.repeat(40), OUT='e'.repeat(64);
-async function rpc(name,args){const values=Object.values(args).map(x=>x!==null&&typeof x==='object'?JSON.stringify(x):x);return(await db.query('select public.'+name+'('+Object.keys(args).map((k,i)=>k+'=>$'+(i+1)).join(',')+') value',values)).rows[0].value;}
+async function rpc(name,args){const values=Object.entries(args).map(([k,x])=>k==='p_tasks' || (x!==null&&typeof x==='object'&&!Array.isArray(x))?JSON.stringify(x):x);return(await db.query('select public.'+name+'('+Object.keys(args).map((k,i)=>k+'=>$'+(i+1)).join(',')+') value',values)).rows[0].value;}
 const call=(s,operation,payload)=>rpc('pandora_ops_inference_transition_v1',{p_operation:operation,p_actor:s.actor,p_payload:payload});
 function model(){const now=Date.now();return{provider:'fixture',model:'strong',modelRevision:'v1',configurationDigest:'c'.repeat(64),classes:['complex_coding'],modalities:['text'],executionBoundary:'cloud',riskTier:3,contextTokens:4096,maxInputBytes:4096,maxOutputTokens:1024,imageTokenUpperBound:0,transport:'fixture',approved:true,approvalRef:'fixture:not-production-approval',approvalExpiresAt:new Date(now+3600000).toISOString(),available:true,healthObservedAt:new Date(now).toISOString(),estimatedLatencyMs:1,maxCostMicros:50,maxConcurrency:2};}
 function policy(){return{version:'fixture-v1',models:[model()],maxAttempts:3,maxHealthAgeMs:60000,minHistorySamples:5,maxHistoryAgeMs:86400000,minimumRiskTier:{read:0,source:2,preview:1,production:3,destructive:3},allowedBoundaries:['cloud'],allowedProviders:['fixture'],allowedFallbackCodes:['rate_limit','unavailable'],override:null,requireMemoryContext:false};}
@@ -27,7 +27,7 @@ async function setup({budget=200,modelPatch={}}={}){
  await db.query("insert into public.memberships values($1,$2,'owner','active')",[org,owner]);
  const actor=await rpc('pandora_ops_inference_authenticate_v1',{p_digest:digest});
  const raw={requestId:randomUUID(),taskId:'TASK',leaseId:lease.id,generation:Number(lease.generation),sourceSha:SHA,taskClass:'complex_coding',parts:[{type:'text',text:'Fixture only.'}],maxOutputTokens:128,maxCostMicros:100,deadlineMs:1000};
- const normalized=api.normalizeRequest(raw); const {parts,...metadata}=normalized;
+ const normalized=api.normalizeRequest(raw); const {parts,...metadata}=normalized;metadata.inputDigest=normalized.requestDigest;
  return {org,project,owner,digest,actor,raw,metadata,lease,policy:p};
 }
 async function prepare(s){await call(s,'admit',s.metadata);const context=await call(s,'context',s.metadata);const attempt=await call(s,'prepare',{requestId:s.metadata.requestId,modelKey:'fixture:strong',policyDigest:context.policyDigest});return{...attempt,policyDigest:context.policyDigest};}

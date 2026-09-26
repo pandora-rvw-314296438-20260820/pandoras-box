@@ -117,8 +117,16 @@ begin
   if not coalesce(p_payload->>'requestDigest' ~ '^[a-f0-9]{64}$',false) or not coalesce(p_payload->>'maxCostMicros' ~ '^[0-9]{1,13}$',false)
    or not coalesce(p_payload->>'sourceSha' ~ '^[a-f0-9]{40}$',false) then raise exception 'INFERENCE_REQUEST_INVALID'; end if;
   for k in select jsonb_object_keys(p_payload) loop
-   if k<>all(array['requestId','taskId','leaseId','generation','sourceSha','taskClass','requestDigest','maxCostMicros','maxOutputTokens','deadlineMs','textBytes','imageCount','modalities']) then raise exception 'INFERENCE_METADATA_ONLY'; end if;
+   if k<>all(array['requestId','taskId','leaseId','generation','sourceSha','taskClass','requestDigest','maxCostMicros','maxOutputTokens','deadlineMs','textBytes','inputBytes','imageCount','modalities','inputDigest']) then raise exception 'INFERENCE_METADATA_ONLY'; end if;
   end loop;
+  if not coalesce(p_payload->>'inputDigest' ~ '^[a-f0-9]{64}$',false) then raise exception 'INFERENCE_REQUEST_INVALID'; end if;
+  for k in select unnest(array['maxOutputTokens','deadlineMs','textBytes','inputBytes','imageCount']) loop
+   if not coalesce(jsonb_typeof(p_payload->k)='number' and p_payload->>k ~ '^[0-9]{1,9}$',false) then raise exception 'INFERENCE_REQUEST_INVALID'; end if;
+  end loop;
+  if (p_payload->>'maxOutputTokens')::int not between 1 and 65536 or (p_payload->>'deadlineMs')::int not between 100 and 60000
+   or (p_payload->>'textBytes')::int>1100000 or (p_payload->>'inputBytes')::int>1100000 or (p_payload->>'inputBytes')::int<(p_payload->>'textBytes')::int
+   or (p_payload->>'imageCount')::int>16 or jsonb_typeof(p_payload->'modalities') is distinct from 'array'
+   or not coalesce((p_payload->'modalities') <@ '["text","image"]'::jsonb,false) then raise exception 'INFERENCE_REQUEST_INVALID'; end if;
   select * into r from private.pandora_ops_inference_requests where id=(p_payload->>'requestId')::uuid for update;
   if found then
    if r.organization_id is distinct from org or r.project_id is distinct from project or r.caller_digest is distinct from p_actor->>'callerDigest'
@@ -172,7 +180,7 @@ begin
    or not coalesce((policy.policy->'allowedBoundaries') ? (model->>'executionBoundary'),false)
    or (model->>'riskTier')::int<(policy.policy#>>array['minimumRiskTier',scope->>'risk'])::int
    or not coalesce((model->'modalities') @> (r.metadata->'modalities'),false)
-   or (r.metadata->>'textBytes')::bigint>(model->>'maxInputBytes')::bigint
+   or (r.metadata->>'inputBytes')::bigint>(model->>'maxInputBytes')::bigint
    or (r.metadata->>'maxOutputTokens')::bigint>(model->>'maxOutputTokens')::bigint
    or (r.metadata->>'textBytes')::bigint+(r.metadata->>'imageCount')::bigint*(model->>'imageTokenUpperBound')::bigint+(r.metadata->>'maxOutputTokens')::bigint>(model->>'contextTokens')::bigint
    then raise exception 'INFERENCE_MODEL_INELIGIBLE'; end if;
@@ -205,6 +213,16 @@ begin
   end if;
   v_receipt:=p_payload->'receipt';
   if jsonb_typeof(v_receipt) is distinct from 'object' or octet_length(v_receipt::text)>8192 then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
+  if not(v_receipt ?& array['state','outputDigest','providerReceipt','billedCostMicros','usage','code','latencyMs','modelRevision'])
+   or jsonb_typeof(v_receipt->'usage') is distinct from 'object' or (v_receipt->'usage')-array['inputTokens','outputTokens','totalTokens'] <> '{}'::jsonb
+   or not((v_receipt->'usage') ?& array['inputTokens','outputTokens','totalTokens']) then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
+  for k in select unnest(array['inputTokens','outputTokens','totalTokens']) loop
+   if (v_receipt#>array['usage',k])<>'null'::jsonb and not coalesce(v_receipt#>>array['usage',k] ~ '^[0-9]{1,15}$',false) then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
+  end loop;
+  if v_receipt->>'state'='received' and v_receipt->'code'<>'null'::jsonb then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
+  if v_receipt->>'state'='failed' and not coalesce(v_receipt->>'code' in ('rate_limit','unavailable','invalid_output','verification_failed','permission_denied','safety_refusal','model_revision_mismatch'),false) then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
+  if v_receipt->>'modelRevision' is not null and (length(v_receipt->>'modelRevision')>180 or v_receipt->>'modelRevision' !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]*$') then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
+  if v_receipt->>'latencyMs' is not null and not coalesce(v_receipt->>'latencyMs' ~ '^[0-9]{1,8}$',false) then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
   for k in select jsonb_object_keys(v_receipt) loop
    if k<>all(array['state','outputDigest','providerReceipt','billedCostMicros','usage','code','latencyMs','modelRevision']) then raise exception 'INFERENCE_RECEIPT_METADATA_ONLY'; end if;
   end loop;
@@ -238,6 +256,10 @@ begin
   return jsonb_build_object('recorded',true,'attemptId',a.id,'state',v_receipt->>'state','taskComplete',false);
  end if;
  if p_operation='verify' then
+  perform 1 from private.pandora_ops_project_bindings where organization_id=org and project_id=project and state='active' for share;
+  if not found then raise exception 'INFERENCE_VERIFICATION_FENCED'; end if;
+  perform 1 from private.pandora_ops_tasks where organization_id=org and project_id=project and task_key=r.task_key and generation=r.generation and not cancel_requested and status='implementing' for share;
+  if not found then raise exception 'INFERENCE_VERIFICATION_FENCED'; end if;
   if r.cancel_requested or r.state not in ('verification_pending','verified') then raise exception 'INFERENCE_VERIFICATION_FENCED'; end if;
   select * into a from private.pandora_ops_inference_attempts where id=r.selected_attempt;
   select * into v from public.pandora_verification_runs where id=(p_payload->>'verificationRunId')::uuid and organization_id=org and project_id=project for share;

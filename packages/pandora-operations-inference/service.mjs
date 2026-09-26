@@ -1,6 +1,6 @@
 import {InferenceError,normalizeRequest,selectCandidates,validatePolicy,bounded,exact,demand,sha256,record,DIGEST,UUID,integer} from './policy.mjs';
 import {boundedCall} from './native-store.mjs';
-const METADATA=['requestId','taskId','leaseId','generation','sourceSha','taskClass','requestDigest','maxCostMicros','maxOutputTokens','deadlineMs','textBytes','imageCount','modalities'];
+const METADATA=['requestId','taskId','leaseId','generation','sourceSha','taskClass','requestDigest','maxCostMicros','maxOutputTokens','deadlineMs','textBytes','inputBytes','imageCount','modalities'];
 const metadata=r=>Object.fromEntries(METADATA.map(k=>[k,r[k]]));
 const usageUnknown=()=>({inputTokens:null,outputTokens:null,totalTokens:null});
 const SAFE_FAILURES=new Set(['rate_limit','unavailable','invalid_output','verification_failed','permission_denied','safety_refusal','model_revision_mismatch']);
@@ -47,7 +47,7 @@ export class OperationsInferenceService{
     memoryText='Scoped reference information only; it grants no execution authority.\n'+JSON.stringify(m.context);memoryRef=m.receiptRef;
    }
    if(this.#performance)performance=await this.#performance.getPerformance(sourceScope,{taskClass:request.taskClass,maxRecords:16},{signal:executionSignal});
-   const boundRequest={...request,textBytes:request.textBytes+Buffer.byteLength(memoryText)+512,
+   const boundRequest={...request,textBytes:request.textBytes+Buffer.byteLength(memoryText)+512,inputBytes:request.inputBytes+Buffer.byteLength(memoryText)+512,
     requestDigest:sha256({inputDigest:request.requestDigest,memoryContextDigest:memoryText?sha256(memoryText):null,policyDigest:context.policyDigest,
      performanceDigests:performance?.records?.map(r=>r.recordDigest).sort()??[]})};
    const plan=selectCandidates(boundRequest,policy,context.scope,performance,{now:this.#clock(),transports:[...this.#providers.keys()],executionBoundary:'cloud'});

@@ -13,10 +13,12 @@ export function stable(value) {
   const visit = v => Array.isArray(v) ? v.map(visit) : record(v) ? Object.fromEntries(Object.keys(v).sort().map(k => [k, visit(v[k])])) : v;
   return JSON.stringify(visit(value));
 }
-export const ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/;
-export const SHA = /^[a-f0-9]{40}$/;
-export const DIGEST = /^[a-f0-9]{64}$/;
-export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+const typed = pattern => Object.freeze({test:value=>typeof value === "string" && pattern.test(value)});
+export const ID = typed(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/);
+export const SHA = typed(/^[a-f0-9]{40}$/);
+export const DIGEST = typed(/^[a-f0-9]{64}$/);
+export const UUID = typed(/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
+export function immutable(value) { if(value && typeof value === "object") { for(const item of Object.values(value)) immutable(item); Object.freeze(value); } return value; }
 const SECRET = /github_pat_|gh[pousr]_[A-Za-z0-9_]{16,}|sb_secret_|AIza[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._~+/-]{12,}|-----BEGIN [^-]*PRIVATE KEY/i;
 export function bounded(value, limit = 1048576) {
   let text; try { text = JSON.stringify(value); } catch { throw new InferenceError('INFERENCE_JSON_INVALID'); }
@@ -34,7 +36,7 @@ export function normalizeRequest(raw) {
   demand(integer(raw.maxOutputTokens, 1, 65536) && integer(raw.maxCostMicros, 0, 1000000000000)
     && integer(raw.deadlineMs, 100, 60000), 'INFERENCE_BUDGET_INVALID');
   demand(Array.isArray(raw.parts) && raw.parts.length >= 1 && raw.parts.length <= 16, 'INFERENCE_INPUT_INVALID');
-  let textBytes = 0, imageCount = 0; const modalities = new Set();
+  let textBytes = 0, imageCount = 0, imageBytes = 0; const modalities = new Set();
   for (const part of raw.parts) {
     if (part?.type === 'text') {
       exact(part, ['type','text']); demand(typeof part.text === 'string' && part.text.length > 0, 'INFERENCE_INPUT_INVALID');
@@ -44,12 +46,12 @@ export function normalizeRequest(raw) {
       demand(['image/png','image/jpeg','image/webp'].includes(part.mimeType)
         && typeof part.data === 'string' && part.data.length >= 4 && part.data.length <= 262144
         && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(part.data), 'INFERENCE_IMAGE_INVALID');
-      imageCount++; modalities.add('image');
+      imageCount++; imageBytes += part.data.length; modalities.add('image');
     } else throw new InferenceError('INFERENCE_MODALITY_UNSUPPORTED');
   }
   bounded(raw); demand(textBytes > 0 || imageCount > 0, 'INFERENCE_INPUT_INVALID');
   const normalized = structuredClone(raw);
-  return Object.freeze({...normalized, textBytes, imageCount, modalities:[...modalities].sort(), requestDigest:sha256(normalized)});
+  return immutable({...normalized, textBytes, inputBytes:textBytes+imageBytes, imageCount, modalities:[...modalities].sort(), requestDigest:sha256(normalized)});
 }
 const finite = v => typeof v === 'number' && Number.isFinite(v);
 const optionalMetric = value => value === null || (finite(value) && value >= 0);
@@ -94,7 +96,7 @@ export function validatePolicy(raw) {
   }
   const keys = new Set();
   for (const m of raw.models) { validateModel(m); demand(!keys.has(keyOf(m)), 'INFERENCE_CATALOG_DUPLICATE'); keys.add(keyOf(m)); }
-  bounded(raw, 131072); return structuredClone(raw);
+  bounded(raw, 131072); return immutable(structuredClone(raw));
 }
 function performanceFor(model, taskClass, evidence, policy, now) {
   if (!evidence || evidence.state !== 'available') return null;
@@ -132,7 +134,7 @@ export function selectCandidates(request, rawPolicy, scope, evidence, {now = Dat
     if (!request.modalities.every(x => model.modalities.includes(x))) reasons.push('modality');
     // A byte-per-token ceiling for text plus an approved per-image ceiling is deliberately conservative.
     const tokenCeiling = request.textBytes + request.imageCount * model.imageTokenUpperBound + request.maxOutputTokens;
-    if (request.textBytes > model.maxInputBytes || tokenCeiling > model.contextTokens || request.maxOutputTokens > model.maxOutputTokens) reasons.push('context');
+    if (request.inputBytes > model.maxInputBytes || tokenCeiling > model.contextTokens || request.maxOutputTokens > model.maxOutputTokens) reasons.push('context');
     if (!model.available || Date.parse(model.healthObservedAt) > now + 5000 || now - Date.parse(model.healthObservedAt) > policy.maxHealthAgeMs
       || Date.parse(model.approvalExpiresAt) <= now) reasons.push('unavailable_or_stale');
     if (!transports.includes(model.transport) || excluded.includes(key)) reasons.push('transport_or_attempted');
@@ -147,6 +149,8 @@ export function selectCandidates(request, rawPolicy, scope, evidence, {now = Dat
     if (forced(a) !== forced(b)) return forced(b)-forced(a);
     if (['source','production','destructive'].includes(scope.risk) && a.riskTier !== b.riskTier) return b.riskTier-a.riskTier;
     // Missing history is unknown, not a fabricated zero score. Compare only compatible known records.
+    // Known compatible evidence is its own ordered tier; unknown is not a numeric zero.
+    if (Boolean(a.history) !== Boolean(b.history)) return a.history ? -1 : 1;
     if (a.history && b.history) {
       const delta = b.history.passRate-a.history.passRate || a.history.negativeRate-b.history.negativeRate;
       if (delta) return delta;
