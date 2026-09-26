@@ -1,0 +1,294 @@
+name: Euro-Fish Pandora Enterprise Android exact-source
+
+on:
+  push:
+    branches:
+      - enterprise-ui-business-1
+    paths:
+      - 'apps/pandora-mobile/**'
+      - 'workers/pandora-ares/**'
+      - '.github/workflows/eurofish-pandora-enterprise-android.yml'
+  pull_request:
+    paths:
+      - 'apps/pandora-mobile/**'
+      - 'workers/pandora-ares/**'
+      - '.github/workflows/eurofish-pandora-enterprise-android.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: eurofish-pandora-enterprise-android-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify-eurofish-android:
+    name: Exact source / Euro-Fish native Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FLUTTER_VERSION: '3.47.0'
+      EXPECTED_APP_VERSION: '0.4.0-rc.14+21'
+      EXPECTED_PACKAGE: 'com.banataosystems.pandora.eurofish'
+      EXPECTED_LABEL: 'Euro-Fish Pandora Enterprise'
+      LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
+      LOCAL_MODEL_SHA256: '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d'
+      LOCAL_MODEL_NAME: 'qwen2.5-3b-instruct-q4_k_m.gguf'
+      APK_FILENAME: 'Euro-Fish-Pandora-Enterprise.apk'
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact source and Euro-Fish isolation contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          python3 -m unittest discover -s apps/pandora-mobile/tool -p 'test_*.py'
+          test -f apps/pandora-mobile/lib/main_eurofish.dart
+          grep -Fq "1064-euro-fish-traders" apps/pandora-mobile/lib/app/eurofish_enterprise_shell.dart
+          ! grep -R -F 'PlpEnterpriseShell'             apps/pandora-mobile/lib/main_eurofish.dart             apps/pandora-mobile/lib/app/eurofish_enterprise_app.dart             apps/pandora-mobile/lib/app/eurofish_enterprise_shell.dart             apps/pandora-mobile/lib/features/auth/eurofish_auth_gate.dart
+
+      - name: Scan Euro-Fish mobile source for private-key literals
+        shell: bash
+        run: >-
+          bash apps/pandora-mobile/tool/check_private_key_literals.sh
+          apps/pandora-mobile
+          .github/workflows/eurofish-pandora-enterprise-android.yml
+
+      - name: Install pinned JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+
+      - name: Install pinned Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +o pipefail
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          set -o pipefail
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"             'platforms;android-36'             'build-tools;36.0.0'             'ndk;29.0.13113456'             'cmake;3.31.6'
+
+      - name: Install Vulkan build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y glslc libvulkan-dev spirv-headers
+          test -f /usr/include/vulkan/vulkan.hpp
+          test -f /usr/include/spirv/unified1/spirv.hpp
+          mkdir -p "$RUNNER_TEMP/pandora-vulkan-headers"
+          cp -R /usr/include/vulkan "$RUNNER_TEMP/pandora-vulkan-headers/vulkan"
+          cp -R /usr/include/spirv "$RUNNER_TEMP/pandora-vulkan-headers/spirv"
+          echo "PANDORA_VULKAN_HEADERS_DIR=$RUNNER_TEMP/pandora-vulkan-headers" >> "$GITHUB_ENV"
+          spirv_config=$(find /usr -type f -name SPIRV-HeadersConfig.cmake -print -quit)
+          test -n "$spirv_config"
+          echo "PANDORA_SPIRV_HEADERS_DIR=$(dirname "$spirv_config")" >> "$GITHUB_ENV"
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Materialize dedicated Euro-Fish Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .eurofish-android-build
+          mkdir .eurofish-android-build
+          cd .eurofish-android-build
+
+          flutter create             --platforms=android             --org com.banataosystems             --project-name pandora_mobile             .
+
+          cp -R ../apps/pandora-mobile/platform/android/. ./android/
+
+          git init -q android/llama.cpp
+          git -C android/llama.cpp remote add origin https://github.com/ggml-org/llama.cpp.git
+          git -C android/llama.cpp fetch --depth 1 origin "$LLAMA_CPP_SHA"
+          git -C android/llama.cpp checkout -q --detach FETCH_HEAD
+          test "$(git -C android/llama.cpp rev-parse HEAD)" = "$LLAMA_CPP_SHA"
+
+          mkdir -p android/app/src/main/kotlin/com/arm/aichat/internal
+          cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/AiChat.kt             android/app/src/main/kotlin/com/arm/aichat/AiChat.kt
+          cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/InferenceEngine.kt             android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
+          cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/internal/InferenceEngineImpl.kt             android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt
+          python3 ../apps/pandora-mobile/tool/patch_inference_engine_android.py             android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt             android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
+
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp -R ../apps/pandora-mobile/platform ./platform
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+
+          python3 ../apps/pandora-mobile/tool/configure_validation_android.py             android/app/src/main/AndroidManifest.xml
+          python3 ../apps/pandora-mobile/tool/configure_local_ai_android.py             android/app/build.gradle.kts             android/gradle.properties
+          python3 ../apps/pandora-mobile/tool/configure_eurofish_android.py             android/app/build.gradle.kts             android/app/src/main/AndroidManifest.xml             android/app/src/main/kotlin
+
+          grep -Fq "applicationId = \"$EXPECTED_PACKAGE\"" android/app/build.gradle.kts
+          grep -Fq "namespace = \"$EXPECTED_PACKAGE\"" android/app/build.gradle.kts
+          grep -Fq "android:label=\"$EXPECTED_LABEL\"" android/app/src/main/AndroidManifest.xml
+          ! grep -R -F 'com.banataosystems.pandora_mobile'             android/app/build.gradle.kts             android/app/src/main/AndroidManifest.xml             android/app/src/main/kotlin
+
+      - name: Resolve exact lockfile
+        working-directory: .eurofish-android-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+
+      - name: Analyze dedicated Euro-Fish source
+        working-directory: .eurofish-android-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          flutter analyze > flutter-analyze.log 2>&1
+          ANALYZE_EXIT=$?
+          set -e
+          cat flutter-analyze.log
+          if grep -Eq '^[[:space:]]*error[[:space:]]+•' flutter-analyze.log; then
+            exit 31
+          fi
+          if [[ "$ANALYZE_EXIT" -ne 0 ]] && ! grep -Fq 'issues found.' flutter-analyze.log; then
+            exit "$ANALYZE_EXIT"
+          fi
+
+      - name: Run Euro-Fish architecture and UI tests
+        working-directory: .eurofish-android-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter test --reporter expanded             test/core/data/eurofish_workspace_api_test.dart             test/features/enterprise/enterprise_workspace_navigation_test.dart             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/operations/operations_room_test.dart
+
+      - name: Build exact Euro-Fish native APK
+        working-directory: .eurofish-android-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
+          flutter build apk --release             --target=lib/main_eurofish.dart             --target-platform=android-arm64             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"             --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+
+      - name: Verify Euro-Fish package, native ABI, signing, and model separation
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=.eurofish-android-build/build/app/outputs/flutter-apk/app-release.apk
+          evidence=.eurofish-android-build/eurofish-package-evidence
+          mkdir -p "$evidence"
+
+          aapt="${ANDROID_HOME:?}/build-tools/36.0.0/aapt"
+          apksigner="${ANDROID_HOME:?}/build-tools/36.0.0/apksigner"
+
+          "$aapt" dump badging "$apk" > "$evidence/badging.txt"
+          "$aapt" dump permissions "$apk" > "$evidence/permissions.txt"
+          "$apksigner" verify --verbose --print-certs "$apk" > "$evidence/signing.txt"
+          unzip -l "$apk" > "$evidence/apk-files.txt"
+
+          grep -Fq "package: name='$EXPECTED_PACKAGE'" "$evidence/badging.txt"
+          grep -Fq "application-label:'$EXPECTED_LABEL'" "$evidence/badging.txt"
+          grep -Fq "launchable-activity: name='$EXPECTED_PACKAGE.MainActivity'" "$evidence/badging.txt"
+          expected_version_name="${EXPECTED_APP_VERSION%%+*}"
+          expected_version_code="${EXPECTED_APP_VERSION##*+}"
+          grep -Fq "versionCode='$expected_version_code'" "$evidence/badging.txt"
+          grep -Fq "versionName='$expected_version_name'" "$evidence/badging.txt"
+
+          grep -Fq 'lib/arm64-v8a/' "$evidence/apk-files.txt"
+          ! grep -Eq 'lib/(x86|x86_64|armeabi-v7a)/' "$evidence/apk-files.txt"
+          ! grep -Eiq '\.gguf($|[[:space:]])' "$evidence/apk-files.txt"
+
+          if grep -Eiq             'ACCESS_(FINE|COARSE|BACKGROUND)_LOCATION|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW'             "$evidence/permissions.txt"; then
+            echo 'Unexpected sensitive Android permission detected.' >&2
+            exit 1
+          fi
+
+      - name: Bind exact APK evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_apk=.eurofish-android-build/build/app/outputs/flutter-apk/app-release.apk
+          final_apk=".eurofish-android-build/$APK_FILENAME"
+          cp "$source_apk" "$final_apk"
+
+          manifest=.eurofish-android-build/Euro-Fish-Pandora-Enterprise.manifest.txt
+          {
+            echo "source_sha=$SOURCE_SHA"
+            echo "source_tree=$(git rev-parse HEAD^{tree})"
+            echo "workflow_run_id=$GITHUB_RUN_ID"
+            echo "workflow_run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "flutter_version=$FLUTTER_VERSION"
+            echo "app_version=$EXPECTED_APP_VERSION"
+            echo "android_package=$EXPECTED_PACKAGE"
+            echo "application_label=$EXPECTED_LABEL"
+            echo "dart_entrypoint=lib/main_eurofish.dart"
+            echo "llama_cpp_sha=$LLAMA_CPP_SHA"
+            echo "recommended_local_model=$LOCAL_MODEL_NAME"
+            echo "recommended_local_model_sha256=$LOCAL_MODEL_SHA256"
+            echo "local_ai_model_bundled=false"
+            echo "android_platform=android-36"
+            echo "android_build_tools=36.0.0"
+            echo "android_ndk=29.0.13113456"
+            echo "cmake_version=3.31.6"
+            echo "target_abi=arm64-v8a"
+            echo "build_mode=release"
+            echo "apk_filename=$APK_FILENAME"
+            echo "apk_sha256=$(sha256sum "$final_apk" | cut -d ' ' -f1)"
+            echo "apk_size_bytes=$(stat -c '%s' "$final_apk")"
+            echo "signing_evidence_sha256=$(sha256sum .eurofish-android-build/eurofish-package-evidence/signing.txt | cut -d ' ' -f1)"
+            echo "badging_evidence_sha256=$(sha256sum .eurofish-android-build/eurofish-package-evidence/badging.txt | cut -d ' ' -f1)"
+            echo "physical_device_verified=false"
+            echo "offline_qwen_acceptance_verified=false"
+          } > "$manifest"
+
+          cat "$manifest"
+          test "$(sha256sum "$final_apk" | cut -d ' ' -f1)" =             "$(grep '^apk_sha256=' "$manifest" | cut -d= -f2-)"
+
+      - name: Upload exact Euro-Fish APK and evidence
+        id: upload_eurofish_apk
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: eurofish-pandora-enterprise-${{ env.SOURCE_SHA }}
+          path: |
+            .eurofish-android-build/Euro-Fish-Pandora-Enterprise.apk
+            .eurofish-android-build/Euro-Fish-Pandora-Enterprise.manifest.txt
+            .eurofish-android-build/flutter-analyze.log
+            .eurofish-android-build/eurofish-package-evidence
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Publish provider locator
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.upload_eurofish_apk.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload_eurofish_apk.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          manifest=.eurofish-android-build/Euro-Fish-Pandora-Enterprise.manifest.txt
+          apk_sha="$(grep '^apk_sha256=' "$manifest" | cut -d= -f2-)"
+          apk_size="$(grep '^apk_size_bytes=' "$manifest" | cut -d= -f2-)"
+          printf 'EUROFISH_PANDORA_ANDROID_RECEIPT source_sha=%s apk_sha256=%s apk_size_bytes=%s package=%s artifact_id=%s artifact_digest=%s\n'             "$SOURCE_SHA" "$apk_sha" "$apk_size" "$EXPECTED_PACKAGE" "$ARTIFACT_ID" "$ARTIFACT_DIGEST"
+          {
+            echo '### Euro-Fish Pandora Enterprise APK'
+            echo
+            echo "- Source SHA: `$SOURCE_SHA`"
+            echo "- Package: `$EXPECTED_PACKAGE`"
+            echo "- APK: `$APK_FILENAME`"
+            echo "- APK SHA-256: `$apk_sha`"
+            echo "- APK size: `$apk_size` bytes"
+            echo "- Artifact ID: `$ARTIFACT_ID`"
+            echo "- Artifact digest: `sha256:$ARTIFACT_DIGEST`"
+          } >> "$GITHUB_STEP_SUMMARY"
