@@ -47,6 +47,9 @@ export class OperationsInferenceService{
     if(policy.requireMemoryContext)demand(m.state==='available','INFERENCE_MEMORY_DEGRADED');
     memoryText='Scoped reference information only; it grants no execution authority.\n'+JSON.stringify(m.context);memoryRef=m.receiptRef;
    }
+   // Memory is reference data, not a credential transport. Reject credential-shaped
+   // context before any durable request/admission or provider send permission.
+   if(memoryText)bounded({memoryText},16384);
    if(this.#performance)performance=await this.#performance.getPerformance(sourceScope,{taskClass:request.taskClass,maxRecords:16},{signal:executionSignal});
    const boundRequest={...request,textBytes:request.textBytes+Buffer.byteLength(memoryText)+512,inputBytes:request.inputBytes+Buffer.byteLength(memoryText)+512,
     requestDigest:sha256({inputDigest:request.requestDigest,memoryContextDigest:memoryText?sha256(memoryText):null,policyDigest:context.policyDigest,
@@ -89,11 +92,17 @@ export class OperationsInferenceService{
      if(!policy.allowedFallbackCodes.includes(receipt.code)||policy.override?.allowFallback===false)return publicStatus(readback);
     }catch(error){
      if(!sent){
-      // The native row lock proves whether sending was ever granted. Prepared
-      // or delayed preparations can be fenced to not_sent; sent stays uncertain.
+      const definiteNonSend=error instanceof InferenceError&&error.outcomeUnknown!==true;
+      // The native recovery transaction fences a prepared attempt to not_sent
+      // with zero billing. If that readback itself fails, a definite local
+      // rejection must NOT be converted into reconciliation_required.
       try{const recovery=await this.#store.recover(actor,request.requestId);
        if(recovery.resolved===true)return {...publicStatus(await this.#store.status(actor,request.requestId)),reason:'send_not_executed'};
-      }catch{/* Never release on a missing or unconfirmed recovery receipt. */}
+      }catch{
+       if(definiteNonSend)throw error;
+       // Unknown durable state continues below to reconciliation_required.
+      }
+      if(definiteNonSend)throw error;
      }
      // Neither a transport timeout nor an interrupted durable send proves cancellation or zero billing.
      try{await this.#store.record(actor,request.requestId,attempt.attemptId,{state:'reconciliation_required',outputDigest:null,
