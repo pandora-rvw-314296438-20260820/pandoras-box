@@ -21,6 +21,10 @@ const OPERATIONS_NATIVE_WORKERS = Object.freeze({
     capacity: 1,
   }),
 });
+const OPERATIONS_NATIVE_GENERIC_VERIFY_TASKS = new Set([
+  "OPS-MEMORY-CALLER-ADOPTION-V1",
+  "OPS-WHOLE-SHEET-ACCEPTANCE-V3",
+]);
 const MAX_REQUEST_BYTES = 256_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -53,6 +57,9 @@ type ControlRpc =
   | "pandora_ops_wake_authorize_v1"
   | "pandora_ops_reconcile_required_v1"
   | "pandora_ops_native_release_verify_v1"
+  | "pandora_ops_record_verification_v1"
+  | "pandora_ops_verify_v1"
+  | "pandora_ops_final_acceptance_readback_v1"
   | "pandora_ops_wake_nonce_consume_v1";
 
 type ControlAction =
@@ -85,6 +92,9 @@ type ControlAction =
   | "operations_wake_authorize"
   | "operations_reconcile"
   | "operations_native_release_verify"
+  | "operations_verification_record"
+  | "operations_verification_accept"
+  | "operations_final_acceptance_readback"
   | "operations_wake_nonce_consume";
 
 interface ControlRoute {
@@ -659,6 +669,62 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
         p_principal_key: worker.principalKey,
         p_handoff: input.handoff,
         p_actual_cost_micros: 0,
+      },
+    };
+  }
+
+  if (input.action === "operations_final_acceptance_readback") {
+    return {
+      action: "operations_final_acceptance_readback",
+      rpc: "pandora_ops_final_acceptance_readback_v1",
+      responseKey: "operations",
+      params: { p_project_id: OPERATIONS_PROJECT_ID },
+    };
+  }
+
+  if (input.action === "operations_verification_record") {
+    const taskId = requiredString(input, "taskId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    const status = requiredString(input, "status");
+    if (!taskId || !OPERATIONS_NATIVE_GENERIC_VERIFY_TASKS.has(taskId)
+      || generation === undefined || !["PASS", "FAIL", "BLOCKED"].includes(String(status))
+      || !isRecord(input.evidence)) return undefined;
+    const release = OPERATIONS_NATIVE_WORKERS.release;
+    return {
+      action: "operations_verification_record",
+      rpc: "pandora_ops_record_verification_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_task_key: taskId,
+        p_generation: generation,
+        p_verifier_key: release.workerKey,
+        p_principal_key: release.principalKey,
+        p_status: status,
+        p_evidence: input.evidence,
+      },
+    };
+  }
+
+  if (input.action === "operations_verification_accept") {
+    const taskId = requiredString(input, "taskId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    const verificationRunId = requiredUuid(input, "verificationRunId");
+    if (!taskId || !OPERATIONS_NATIVE_GENERIC_VERIFY_TASKS.has(taskId)
+      || generation === undefined || !verificationRunId || !isRecord(input.receipt)) return undefined;
+    const release = OPERATIONS_NATIVE_WORKERS.release;
+    return {
+      action: "operations_verification_accept",
+      rpc: "pandora_ops_verify_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_task_key: taskId,
+        p_generation: generation,
+        p_verifier_key: release.workerKey,
+        p_principal_key: release.principalKey,
+        p_verification_run_id: verificationRunId,
+        p_receipt: input.receipt,
       },
     };
   }
