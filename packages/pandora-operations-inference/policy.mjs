@@ -1,3 +1,4 @@
+import {Buffer} from 'node:buffer';
 import {createHash} from 'node:crypto';
 import {PERFORMANCE_CLASSES} from '../pandora-operations-memory/performance-client.mjs';
 

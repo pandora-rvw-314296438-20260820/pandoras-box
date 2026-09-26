@@ -1,3 +1,4 @@
+import {Buffer} from 'node:buffer';
 import {InferenceError,normalizeRequest,selectCandidates,validatePolicy,bounded,exact,demand,sha256,record,DIGEST,UUID,integer} from './policy.mjs';
 import {boundedCall} from './native-store.mjs';
 const METADATA=['requestId','taskId','leaseId','generation','sourceSha','taskClass','requestDigest','maxCostMicros','maxOutputTokens','deadlineMs','textBytes','inputBytes','imageCount','modalities'];
