@@ -45,6 +45,9 @@ test('native release path independently verifies Memory and final whole-sheet ac
   assert.match(worker,/operations_verification_accept/);
   assert.match(worker,/canonicalMemoryWritten !== false/);
   assert.match(worker,/Pandora coordinator \/ integration/);
+  assert.match(worker,/let verifiedMergeSha = String\(pr\?\.merge_commit_sha \|\| ""\)/);
+  assert.match(worker,/mergeCommit\?\.sha !== task\.headSha/);
+  assert.match(worker,/parent\?\.sha === pr\.head\.sha/);
   assert.match(control,/pandora_ops_record_verification_v1/);
   assert.match(control,/pandora_ops_verify_v1/);
   assert.match(control,/pandora_ops_final_acceptance_readback_v1/);
