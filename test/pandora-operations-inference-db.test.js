@@ -114,7 +114,7 @@ test('definite native send rejection never escalates to reconciliation if recove
  const native=await status(s);assert.equal(native.attempts[0].state,'prepared');
  assert.equal((await db.query('select state from private.pandora_ops_leases where id=$1',[s.lease.id])).rows[0].state,'running');
 });
-test('unknown preparation response is recovered by native fencing without sending or replaying',async()=>
+test('unknown preparation response is recovered by native fencing without sending or replaying',async()=>{
  const s=await setup(),f=await serviceFixture(s),prepare=f.store.prepare.bind(f.store);
  f.store.prepare=async(...args)=>{await prepare(...args);throw new api.InferenceError('INFERENCE_TIMEOUT',{outcomeUnknown:true});};
  const r=await f.service.infer(s.actor,s.raw);assert.equal(r.state,'cancelled');assert.equal(f.executions(),0);
