@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/data/pandora_activity_stream_api.dart';
@@ -92,7 +93,40 @@ Map<String, dynamic> _activityEvent({
   };
 }
 
+Future<void> _waitForRequestCount(
+  WidgetTester tester,
+  _FakeIntelligence intelligence,
+  int count,
+) async {
+  for (var attempt = 0;
+      attempt < 100 && intelligence.requestIds.length < count;
+      attempt += 1) {
+    await tester.pump(const Duration(milliseconds: 10));
+  }
+  expect(intelligence.requestIds.length, greaterThanOrEqualTo(count));
+}
+
 void main() {
+  const localAiChannel = MethodChannel('pandora/local_ai');
+
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(localAiChannel, (call) async {
+      if (call.method == 'status') {
+        return <String, Object?>{
+          'supported': false,
+          'configured': false,
+          'loaded': false,
+        };
+      }
+      return null;
+    });
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(localAiChannel, null);
+  });
   testWidgets(
     'Ask Pandora renders one live Activity stage and clears it for the reply',
     (tester) async {
@@ -122,6 +156,7 @@ void main() {
         find.byKey(const ValueKey<String>('ask' '-pandora-submit')),
       );
       await tester.pump();
+      await _waitForRequestCount(tester, intelligence, 1);
       expect(find.text('Thinking through the request…'), findsOneWidget);
       expect(
         find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
@@ -234,6 +269,7 @@ void main() {
     await tester.enterText(input, 'Hi');
     await tester.tap(submit);
     await tester.pump();
+    await _waitForRequestCount(tester, intelligence, 1);
     expect(intelligence.requestIds, hasLength(1));
     final firstRequestId = intelligence.requestIds.single;
 
@@ -270,6 +306,7 @@ void main() {
 
     await tester.enterText(input, 'Hello again');
     await tester.tap(submit);
+    await _waitForRequestCount(tester, intelligence, 2);
     await tester.pumpAndSettle();
 
     expect(intelligence.requestIds, hasLength(2));
@@ -307,6 +344,7 @@ void main() {
     await tester
         .tap(find.byKey(const ValueKey<String>('ask' '-pandora-submit')));
     await tester.pump();
+    await _waitForRequestCount(tester, intelligence, 1);
 
     expect(find.text('Thinking through the request…'), findsNothing);
     expect(

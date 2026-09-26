@@ -3,11 +3,21 @@
 const express = require("express");
 const { createPandoraContainerApp } = require("./src/pandora-container-server.js");
 const { handlePandoraMcp } = require("./src/pandora-mcp-handler.js");
+const { createPandoraTrackingRouter } = require("./src/pandora-tracking-http.js");
+const { createPandoraMetaOauthRouter } = require("./src/pandora-meta-oauth-http.js");
 
 function createVercelEntrypoint() {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
+
+  // Public Meta OAuth callback. It accepts only one-time state/code material
+  // and commits verified tokens through service-role RPCs into Supabase Vault.
+  app.use(createPandoraMetaOauthRouter());
+
+  // Public first-party attribution collector. Conversion, cost, and report
+  // routes enforce tenant API-key scopes inside the tracking router.
+  app.use(createPandoraTrackingRouter());
 
   // Vercel may apply the public rewrites before invoking a root server. Support
   // both the public and rewritten MCP paths so the existing serverless handler

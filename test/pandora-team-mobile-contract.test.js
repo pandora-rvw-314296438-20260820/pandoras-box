@@ -30,6 +30,9 @@ test('Team screen exposes real invite and member states', () => {
   assert.match(screen, /loadOrganizations\(\)/);
   assert.match(screen, /loadMembers\(/);
   assert.match(screen, /inviteMember\(/);
+  assert.match(screen, /updateMember\(/);
+  assert.match(screen, /Manage access/);
+  assert.match(screen, /team-member-status/);
   assert.match(screen, /Owner or administrator access required/);
   assert.match(screen, /No one has been added yet/);
   assert.match(screen, /Invitation sent to/);
@@ -44,6 +47,8 @@ test('server authority remains in the Edge Function', () => {
   assert.match(fn, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(fn, /auth\.admin\s*\.inviteUserByEmail/);
   assert.match(fn, /pandora_admin_add_organization_member/);
+  assert.match(fn, /pandora_admin_update_organization_member/);
+  assert.match(fn, /req\.method === "PATCH"/);
   assert.match(fn, /ADMIN_ROLE_REQUIRED/);
   assert.match(fn, /https:\/\/pandoras-box-system\.vercel\.app/);
   assert.match(fn, /https:\/\/mcpmaster\.vercel\.app/);

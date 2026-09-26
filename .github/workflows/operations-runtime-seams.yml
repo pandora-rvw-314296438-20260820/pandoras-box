@@ -1,0 +1,53 @@
+
+name: Operations Runtime Seams
+on:
+  pull_request:
+  push:
+    branches: [main, feat/operations-runtime-seams-20260926]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+jobs:
+  runtime-seams:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Execute exact-source Memory/Router transport boundaries
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          node --test test/pandora-operations-workload-memory.test.js test/pandora-operations-owner-theatre.test.js
+          node scripts/materialize-control-tower.mjs
+          node scripts/verify-frontend-mirrors.mjs
+      - name: Install locked dependencies and verify API types
+        run: |
+          npm ci --ignore-scripts
+          npx tsc -p tsconfig.vercel.json
+
+  mobile-events:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Execute exact mobile event protocol, HTTP, lifecycle and widget tests
+        working-directory: apps/pandora-mobile
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          flutter pub get --enforce-lockfile
+          flutter test test/features/operations/operations_execution_feed_test.dart test/features/operations/operations_room_test.dart --reporter expanded
+          dart analyze lib/core/data/pandora_operations_events.dart lib/features/operations/operations_execution_feed.dart

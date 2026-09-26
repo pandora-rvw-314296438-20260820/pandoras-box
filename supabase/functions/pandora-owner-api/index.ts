@@ -502,7 +502,7 @@ function ownerVisibleProject(value: unknown) {
 
 async function loadProjectSummaries(context: UserContext) {
   const { data: rows, error: projectsError } = await context.client
-    .from("projectos_projects")
+    .from("pandora_projects")
     .select(
       "id, project_key, name, repository, status, objective, current_phase_key, progress_percent, last_reconciled_at, updated_at, config",
     )
@@ -517,7 +517,7 @@ async function loadProjectSummaries(context: UserContext) {
   if (!projectIds.length) return [];
 
   const { data: projectionRows, error: projectionsError } = await context.client
-    .from("projectos_projections")
+    .from("pandora_projections")
     .select("project_id, projection, computed_at, stale_after")
     .eq("organization_id", context.organizationId)
     .in("project_id", projectIds);
@@ -695,7 +695,7 @@ async function business(context: UserContext) {
   });
 
   const [projectsResult, objectivesResult, budgetsResult, costsResult] = await Promise.all([
-    admin.from("projectos_projects")
+    admin.from("pandora_projects")
       .select("id,project_key,name,status,repository,updated_at", { count: "exact" })
       .eq("organization_id", context.organizationId)
       .neq("status", "archived")
@@ -956,7 +956,7 @@ async function project(context: UserContext, identifier: string) {
   const uuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       .test(identifier);
-  let query = context.client.from("projectos_projects").select("*").eq(
+  let query = context.client.from("pandora_projects").select("*").eq(
     "organization_id",
     context.organizationId,
   );
@@ -967,21 +967,21 @@ async function project(context: UserContext, identifier: string) {
   if (error) throw new Error("BACKEND_READ_FAILED");
   if (!projectRow) throw new Error("PROJECT_NOT_FOUND");
   const [phases, tasks, evidence, projection, experience, theatre] = await Promise.all([
-    context.client.from("projectos_phases").select(
+    context.client.from("pandora_phases").select(
       "id, phase_key, name, sequence, status, exit_criteria, started_at, completed_at",
     )
       .eq("organization_id", context.organizationId).eq(
         "project_id",
         projectRow.id,
       ).order("sequence"),
-    context.client.from("projectos_tasks").select(
+    context.client.from("pandora_tasks").select(
       "id, task_key, title, description, sequence, priority, status, risk_class, completion_criteria, current_head_sha, result_summary, updated_at",
     )
       .eq("organization_id", context.organizationId).eq(
         "project_id",
         projectRow.id,
       ).order("sequence"),
-    context.client.from("projectos_evidence").select(
+    context.client.from("pandora_evidence").select(
       "id, task_id, evidence_type, provider, external_id, status, verdict, source_url, head_sha, payload_redacted, observed_at",
     )
       .eq("organization_id", context.organizationId).eq(
@@ -989,7 +989,7 @@ async function project(context: UserContext, identifier: string) {
         projectRow.id,
       ).is("invalidated_at", null).order("observed_at", { ascending: false })
       .limit(50),
-    context.client.from("projectos_projections")
+    context.client.from("pandora_projections")
       .select("projection, computed_at, stale_after")
       .eq("organization_id", context.organizationId)
       .eq("project_id", projectRow.id)
@@ -1571,7 +1571,7 @@ async function resolveMemoryProject(
   const uuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       .test(identifier);
-  let query = context.client.from("projectos_projects")
+  let query = context.client.from("pandora_projects")
     .select("id, project_key, name")
     .eq("organization_id", context.organizationId);
   query = uuid ? query.eq("id", identifier) : query.eq("project_key", identifier);
@@ -1596,7 +1596,7 @@ async function memory(
     .eq("organization_id", context.organizationId)
     .order("created_at", { ascending: false })
     .limit(50);
-  let tasksQuery = context.client.from("projectos_tasks")
+  let tasksQuery = context.client.from("pandora_tasks")
     .select("id, project_id, title, description, status, updated_at")
     .eq("organization_id", context.organizationId)
     .order("updated_at", { ascending: false })
@@ -1607,7 +1607,7 @@ async function memory(
     .eq("status", "active")
     .order("updated_at", { ascending: false })
     .limit(50);
-  let evidenceQuery = context.client.from("projectos_evidence")
+  let evidenceQuery = context.client.from("pandora_evidence")
     .select(
       "id, project_id, evidence_type, provider, status, verdict, observed_at",
     )
@@ -1723,7 +1723,7 @@ function integrationFreshness(value: unknown, now: number) {
 }
 
 async function canonicalSafetyProjectId(context: UserContext) {
-  const { data, error } = await context.client.from("projectos_projects")
+  const { data, error } = await context.client.from("pandora_projects")
     .select("id")
     .eq("organization_id", context.organizationId)
     .eq("repository", CANONICAL_REPOSITORY)
@@ -1753,7 +1753,7 @@ async function safety(context: UserContext) {
       .eq("organization_id", context.organizationId)
       .eq("project_id", safetyProjectId)
       .order("provider"),
-    admin.rpc("verify_execution_audit_chain", {
+    admin.rpc("verify_execution_audit_head_v1", {
       p_organization_id: context.organizationId,
     }),
   ]);
@@ -2236,7 +2236,7 @@ async function acceptIntake(
     const uuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
         .test(requestedProject);
-    let query = context.client.from("projectos_projects")
+    let query = context.client.from("pandora_projects")
       .select("project_key")
       .eq("organization_id", context.organizationId);
     query = uuid

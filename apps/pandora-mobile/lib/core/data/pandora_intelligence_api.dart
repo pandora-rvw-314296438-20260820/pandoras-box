@@ -1,3 +1,4 @@
+import 'pandora_operations_events.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -43,7 +44,72 @@ class PandoraIntelligenceApi {
     }
   }
 
+
+  Future<List<PandoraIntelligenceThread>> recentThreadsForWorkspace(
+    String workspaceKey, {
+    int limit = 8,
+  }) async {
+    _requireSession();
+    final normalized = workspaceKey.trim();
+    if (normalized.isEmpty || normalized.length > 80) {
+      throw const PandoraIntelligenceException(
+        'Pandora could not load workspace conversation history.',
+      );
+    }
+    final safeLimit = limit.clamp(1, 30).toInt();
+    try {
+      final messageRows = await _client
+          .from('pandora_intelligence_messages')
+          .select('thread_id,structured_response,created_at')
+          .eq('organization_id', _organizationId)
+          .eq('author_role', 'assistant')
+          .order('created_at', ascending: false)
+          .limit((safeLimit * 20).clamp(20, 200).toInt());
+
+      final threadIds = <String>[];
+      for (final value in messageRows as List<dynamic>) {
+        final row = _map(value);
+        final structured = _map(row['structured_response']);
+        final enterprise = _map(structured['enterpriseContext']);
+        final selected = _map(enterprise['selectedObject']);
+        final messageWorkspace = _optionalText(selected['workspaceSlug']) ??
+            _optionalText(selected['workspaceKey']);
+        if (messageWorkspace != normalized) continue;
+
+        final id = _optionalText(row['thread_id']);
+        if (id == null || threadIds.contains(id)) continue;
+        threadIds.add(id);
+        if (threadIds.length >= safeLimit) break;
+      }
+      if (threadIds.isEmpty) return const <PandoraIntelligenceThread>[];
+
+      final threadRows = await _client
+          .from('pandora_intelligence_threads')
+          .select(
+            'id,project_id,title,status,last_message_at,created_at,updated_at',
+          )
+          .eq('organization_id', _organizationId)
+          .eq('status', 'active')
+          .inFilter('id', threadIds);
+
+      final byId = <String, PandoraIntelligenceThread>{};
+      for (final value in threadRows as List<dynamic>) {
+        final thread = PandoraIntelligenceThread.fromJson(_map(value));
+        byId[thread.id] = thread;
+      }
+      return <PandoraIntelligenceThread>[
+        for (final id in threadIds)
+          if (byId[id] != null) byId[id]!,
+      ];
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not load workspace conversation history.',
+      );
+    }
+  }
+
   Future<List<PandoraIntelligenceMessage>> messages(
+
     String threadId, {
     int limit = 200,
   }) async {
@@ -260,7 +326,8 @@ class PandoraIntelligenceApi {
     if (activityJobId == null &&
         textAttachment == null &&
         imageAttachment == null &&
-        auditAttachments.isEmpty) {
+        auditAttachments.isEmpty &&
+        !_isTeamAdministrationRequest(message)) {
       final capabilityTurn = await _dispatchCapability(
         message: message,
         threadId: threadId,
@@ -323,6 +390,40 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<PandoraIntelligenceTurn?> recoverCompletedChatTurn(
+    String activityJobId,
+  ) async {
+    _requireSession();
+    final safeJobId = activityJobId.trim();
+    if (safeJobId.isEmpty) return null;
+    try {
+      final row = await _client
+          .from('pandora_activity_jobs')
+          .select('terminal_state,execution_state,execution_result')
+          .eq('id', safeJobId)
+          .eq('organization_id', _organizationId)
+          .maybeSingle();
+      final json = _map(row);
+      if (_text(json['execution_state']) != 'complete') {
+        return null;
+      }
+      final terminalState = _text(json['terminal_state']);
+      if (terminalState.isNotEmpty && terminalState != 'result') {
+        return null;
+      }
+      final result = _map(json['execution_result']);
+      if (result.isEmpty) return null;
+      if (_text(result['reply']).isEmpty || _text(result['threadId']).isEmpty) {
+        return null;
+      }
+      return PandoraIntelligenceTurn.fromJson(result);
+    } on PostgrestException {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<PandoraCapabilityRegistry> capabilityRegistry() async {
     _requireSession();
     try {
@@ -338,16 +439,27 @@ class PandoraIntelligenceApi {
     }
   }
 
+
+  PandoraOperationsEventReader operationsEventReader() => PandoraOperationsEventReader(
+    organizationId: _organizationId,
+    readSession: () {
+      final session = _client.auth.currentSession;
+      return session == null ? null : PandoraOperationsSession(session.user.id, session.accessToken);
+    },
+  );
+
   Future<List<PandoraProjectContext>> projectContexts({int limit = 60}) async {
+
     _requireSession();
     final safeLimit = limit.clamp(1, 100).toInt();
     try {
       final rows = await _client
-          .from('projectos_projects')
+          .from('pandora_projects')
           .select('id,project_key,name,repository,status,updated_at')
           .eq('organization_id', _organizationId)
           .neq('status', 'archived')
           .neq('project_key', 'projectos-inbox')
+          .neq('project_key', 'pandora-inbox')
           .order('updated_at', ascending: false)
           .limit(safeLimit);
       return (rows as List<dynamic>)
@@ -358,6 +470,31 @@ class PandoraIntelligenceApi {
         'Pandora could not verify project context right now.',
       );
     }
+  }
+
+  bool _isTeamAdministrationRequest(String message) {
+    final value = message.trim();
+    final scoped = RegExp(
+      r'\b(team|member|staff|user|access|invite)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final action = RegExp(
+      r'\b(add|invite|create|change|make|set|give|promote|demote|suspend|disable|deactivate|revoke|remove|reactivate|activate|restore)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final directAccessChange = RegExp(
+      r'\b(suspend|disable|deactivate|revoke|reactivate|activate|restore|promote|demote)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final roleChange = RegExp(
+      r'\b(change|make|set|give|promote|demote)\b',
+      caseSensitive: false,
+    ).hasMatch(value) &&
+        RegExp(
+          r'\b(owner|admin|operator|member|viewer)\b',
+          caseSensitive: false,
+        ).hasMatch(value);
+    return (scoped && action) || directAccessChange || roleChange;
   }
 
   bool _isRepositoryAuditRequest(String message) {
@@ -696,7 +833,9 @@ class PandoraIntelligenceTurn {
     required this.confidence,
     required this.needsClarification,
     this.clarifyingQuestion,
+    this.conversationLane,
     this.handoff,
+    this.authorizationUrl,
   });
 
   final String threadId;
@@ -705,10 +844,14 @@ class PandoraIntelligenceTurn {
   final double confidence;
   final bool needsClarification;
   final String? clarifyingQuestion;
+  final String? conversationLane;
   final PandoraIntelligenceHandoff? handoff;
+  final Uri? authorizationUrl;
 
   factory PandoraIntelligenceTurn.fromJson(Map<String, dynamic> json) {
     final handoffJson = _map(json['handoff']);
+    final providerReadback = _map(json['providerReadback']);
+    final authorization = _map(providerReadback['authorization']);
     return PandoraIntelligenceTurn(
       threadId: _requiredText(json['threadId']),
       reply: _requiredText(json['reply']),
@@ -716,6 +859,7 @@ class PandoraIntelligenceTurn {
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0,
       needsClarification: json['needsClarification'] == true,
       clarifyingQuestion: _optionalText(json['clarifyingQuestion']),
+      conversationLane: _optionalText(json['conversationLane']),
       handoff: handoffJson['required'] == true
           ? PandoraIntelligenceHandoff(
               request: _requiredText(handoffJson['request']),
@@ -723,6 +867,8 @@ class PandoraIntelligenceTurn {
               source: _optionalText(handoffJson['source']),
             )
           : null,
+      authorizationUrl:
+          _trustedProviderAuthorizationUri(authorization['authorizationUrl']),
     );
   }
 }
@@ -767,6 +913,21 @@ String _requiredText(Object? value) {
     );
   }
   return result;
+}
+
+Uri? _trustedProviderAuthorizationUri(Object? value) {
+  final raw = _optionalText(value);
+  if (raw == null) return null;
+  final uri = Uri.tryParse(raw);
+  if (uri == null || uri.scheme != 'https' || uri.userInfo.isNotEmpty) {
+    return null;
+  }
+  const allowedHosts = <String>{
+    'www.facebook.com',
+    'accounts.google.com',
+  };
+  if (!allowedHosts.contains(uri.host.toLowerCase())) return null;
+  return uri;
 }
 
 DateTime? _optionalDate(Object? value) {

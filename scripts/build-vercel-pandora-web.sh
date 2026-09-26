@@ -18,6 +18,10 @@ if command -v git >/dev/null 2>&1 && [[ -d .git ]]; then
   test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
 fi
 
+# Production-only workload identity canary. The script itself no-ops outside
+# Vercel production and emits only a sanitized proof artifact.
+node scripts/verify-operations-memory-production.mjs
+
 rm -rf "$WORK_ROOT" "$OUTPUT_ROOT"
 mkdir -p "$WORK_ROOT" "$OUTPUT_ROOT"
 

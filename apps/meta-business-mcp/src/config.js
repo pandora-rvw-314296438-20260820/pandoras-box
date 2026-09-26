@@ -31,6 +31,7 @@ function parsePageIds(value) {
 const FORBIDDEN_RAW_SECRET_ENVIRONMENT_VARIABLES = [
     'META_ACCESS_TOKEN',
     'META_PAGE_ACCESS_TOKEN',
+    'META_MARKETING_ACCESS_TOKEN',
     'META_APP_SECRET',
     'META_WEBHOOK_SECRET',
     'META_ENCRYPTION_KEY',
@@ -41,12 +42,18 @@ function loadMetaBusinessConfig(environment = process.env) {
             throw new Error(`${variableName} is forbidden. Configure a server-side secret reference instead.`);
         }
     }
+    const installationId = optional(environment.META_REMOTE_MCP_INSTALLATION_ID);
+    const installationPageSecretRef = installationId ? `installation://${installationId}/page` : undefined;
+    const installationMarketingSecretRef = installationId ? `installation://${installationId}/marketing` : undefined;
     const config = {
         allowedPageIds: parsePageIds(environment.META_ALLOWED_PAGE_IDS),
         killSwitchActive: parseBoolean(environment.META_KILL_SWITCH, true),
         networkEnabled: parseBoolean(environment.META_NETWORK_ENABLED, false),
         metaAppId: optional(environment.META_APP_ID),
-        tokenSecretRef: optional(environment.META_TOKEN_SECRET_REF),
+        tokenSecretRef: optional(environment.META_TOKEN_SECRET_REF) ?? installationPageSecretRef,
+        marketingTokenSecretRef: optional(environment.META_MARKETING_TOKEN_SECRET_REF)
+            ?? installationMarketingSecretRef
+            ?? optional(environment.META_TOKEN_SECRET_REF),
         webhookSecretRef: optional(environment.META_WEBHOOK_SECRET_REF),
         encryptionKeyRef: optional(environment.META_ENCRYPTION_KEY_REF),
     };

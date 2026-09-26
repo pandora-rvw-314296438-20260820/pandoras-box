@@ -28,9 +28,9 @@ test('services come from live capability registry truth instead of hardcoded con
   assert.doesNotMatch(screen, /Gmail is connected|GitHub is connected|Drive is connected/);
 });
 
-test('project context comes from existing non-archived ProjectOS projects and is passed explicitly', () => {
+test('project context comes from existing non-archived Pandora projects and is passed explicitly', () => {
   assert.match(api, /Future<List<PandoraProjectContext>> projectContexts/);
-  assert.match(api, /from\('projectos_projects'\)/);
+  assert.match(api, /from\('pandora_projects'\)/);
   assert.match(api, /\.neq\('status', 'archived'\)/);
   assert.match(screen, /projectId: _projectContext\?\.id/);
   assert.match(screen, /associateThreadWithProject\(threadId, selected\.id\)/);

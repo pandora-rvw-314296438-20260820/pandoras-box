@@ -41,9 +41,14 @@ String _safePasswordResetMessage(String providerMessage) {
 }
 
 class PandoraSession {
-  const PandoraSession({required this.userId});
+  const PandoraSession({
+    required this.userId,
+    this.workspaceProfile,
+  });
 
   final String userId;
+  // Presentation only. This value must never be used as authorization.
+  final String? workspaceProfile;
 }
 
 class ExtraIdentityFactor {
@@ -74,6 +79,19 @@ abstract interface class PandoraAuth {
   Future<void> signOut();
 }
 
+
+String? _workspacePresentationProfile(User user) {
+  final metadata = user.userMetadata ?? const <String, dynamic>{};
+  final raw = metadata['workspace_profile'] ?? metadata['workspaceProfile'];
+  if (raw is! String) return null;
+  return switch (raw.trim().toLowerCase()) {
+    'atty_batalla' => 'atty_batalla',
+    'dan' => 'dan',
+    'secretary' => 'secretary',
+    _ => null,
+  };
+}
+
 class SupabasePandoraAuth
     implements PandoraAuth, ExtraIdentityVerificationSource {
   SupabasePandoraAuth(this._client);
@@ -83,14 +101,22 @@ class SupabasePandoraAuth
   @override
   PandoraSession? get currentSession {
     final session = _client.auth.currentSession;
-    return session == null ? null : PandoraSession(userId: session.user.id);
+    if (session == null) return null;
+    return PandoraSession(
+      userId: session.user.id,
+      workspaceProfile: _workspacePresentationProfile(session.user),
+    );
   }
 
   @override
   Stream<PandoraSession?> get changes => _client.auth.onAuthStateChange.map(
         (event) => event.session == null
             ? null
-            : PandoraSession(userId: event.session!.user.id),
+            : PandoraSession(
+                userId: event.session!.user.id,
+                workspaceProfile:
+                    _workspacePresentationProfile(event.session!.user),
+              ),
       );
 
   @override

@@ -18,6 +18,11 @@ abstract interface class PandoraUserAdminGateway {
     String organizationId,
     PandoraInviteRequest request,
   );
+
+  Future<PandoraMemberUpdateResult> updateMember(
+    String organizationId,
+    PandoraMemberUpdateRequest request,
+  );
 }
 
 class SupabasePandoraUserAdminGateway implements PandoraUserAdminGateway {
@@ -115,6 +120,19 @@ class SupabasePandoraUserAdminGateway implements PandoraUserAdminGateway {
     return PandoraInviteResult.fromJson(payload);
   }
 
+  @override
+  Future<PandoraMemberUpdateResult> updateMember(
+    String organizationId,
+    PandoraMemberUpdateRequest request,
+  ) async {
+    final payload = await _invoke(
+      organizationId: organizationId,
+      method: HttpMethod.patch,
+      body: request.toJson(),
+    );
+    return PandoraMemberUpdateResult.fromJson(payload);
+  }
+
   Future<PandoraJson> _invoke({
     required String organizationId,
     required HttpMethod method,
@@ -187,6 +205,7 @@ class PandoraTeamMember {
     this.joinedAt,
     this.createdAt,
     this.updatedAt,
+    this.isCurrentUser = false,
   });
 
   factory PandoraTeamMember.fromJson(PandoraJson json) => PandoraTeamMember(
@@ -199,6 +218,8 @@ class PandoraTeamMember {
         joinedAt: _date(json['joinedAt'] ?? json['joined_at']),
         createdAt: _date(json['createdAt'] ?? json['created_at']),
         updatedAt: _date(json['updatedAt'] ?? json['updated_at']),
+        isCurrentUser:
+            json['isCurrentUser'] == true || json['is_current_user'] == true,
       );
 
   final String id;
@@ -210,6 +231,7 @@ class PandoraTeamMember {
   final DateTime? joinedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool isCurrentUser;
 
   String get primaryLabel {
     final name = displayName?.trim();
@@ -288,6 +310,61 @@ class PandoraInviteResult {
   final String status;
   final bool inviteSent;
   final bool existingAccount;
+  final String? requestId;
+}
+
+class PandoraMemberUpdateRequest {
+  const PandoraMemberUpdateRequest({
+    required this.userId,
+    this.role,
+    this.status,
+  });
+
+  final String userId;
+  final String? role;
+  final String? status;
+
+  PandoraJson toJson() => <String, dynamic>{
+        'userId': userId,
+        if (_nullableTrimmed(role) != null) 'role': _nullableTrimmed(role),
+        if (_nullableTrimmed(status) != null)
+          'status': _nullableTrimmed(status),
+      };
+}
+
+class PandoraMemberUpdateResult {
+  const PandoraMemberUpdateResult({
+    required this.userId,
+    required this.role,
+    required this.status,
+    required this.changed,
+    this.previousRole,
+    this.previousStatus,
+    this.requestId,
+  });
+
+  factory PandoraMemberUpdateResult.fromJson(PandoraJson json) {
+    final membership = _map(json['membership']);
+    return PandoraMemberUpdateResult(
+      userId: _string(membership['userId'] ?? membership['user_id']) ?? '',
+      role: _string(membership['role']) ?? 'member',
+      status: _string(membership['status']) ?? 'active',
+      previousRole:
+          _string(membership['previousRole'] ?? membership['previous_role']),
+      previousStatus: _string(
+        membership['previousStatus'] ?? membership['previous_status'],
+      ),
+      changed: membership['changed'] == true,
+      requestId: _string(json['requestId']),
+    );
+  }
+
+  final String userId;
+  final String role;
+  final String status;
+  final String? previousRole;
+  final String? previousStatus;
+  final bool changed;
   final String? requestId;
 }
 

@@ -1,16 +1,10 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   void (async () => {
-    const advanced = new URLSearchParams(window.location.search).get('advanced') === '1';
-    const assetVersion = 'web-theatre-status-truth-v1-20260910-1';
+    const assetVersion = 'pandora-provider-policy-v1-20260919-1';
     const versioned = (asset) => `${asset}?v=${assetVersion}`;
 
-    if (advanced) {
-      document.body.classList.add('advanced-control-mode');
-      await import(versioned('/control-tower/app.js'));
-      await import(versioned('/control-tower/simple-language.js'));
-      await import(versioned('/control-tower/pandoras-box-branding.js'));
-    } else {
-      await import(versioned('/control-tower/owner-first.js'));
-    }
+    // The legacy advanced Control Tower depended on retired control-plane code.
+    // Keep the active web shell on the Pandora-native owner experience only.
+    await import(versioned('/control-tower/owner-first.js'));
   })();
 }

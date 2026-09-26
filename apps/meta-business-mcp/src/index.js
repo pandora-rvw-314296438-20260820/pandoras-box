@@ -31,6 +31,7 @@ __exportStar(require("./runtime/official-runtime"), exports);
 __exportStar(require("./runtime/remote-runtime"), exports);
 __exportStar(require("./secrets/environment-resolver"), exports);
 __exportStar(require("./secrets/resolver"), exports);
+__exportStar(require("./secrets/supabase-installation-resolver"), exports);
 __exportStar(require("./security/policy"), exports);
 __exportStar(require("./staging/access-proof"), exports);
 __exportStar(require("./staging/readiness"), exports);

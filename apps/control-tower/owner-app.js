@@ -35,6 +35,7 @@ function render() {
   const navigation = state.mode === 'professional' ? professionalNav() : nav();
   app.innerHTML = `<div class="owner-app ${state.mode === 'professional' ? 'professional-mode' : 'simple-mode'}">${header()}<main id="main-content" class="owner-main" tabindex="-1">${routeMarkup}</main>${navigation}${dialogMarkup()}${toastMarkup()}</div>`;
   mountPreparedFocusPreview();
+  window.PandoraOperationsTheatreMount?.update();
 }
 
 function ownerProjectsFromPayload(payload) {

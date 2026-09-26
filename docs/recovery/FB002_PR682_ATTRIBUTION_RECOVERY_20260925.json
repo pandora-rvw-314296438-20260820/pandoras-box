@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "taskId": "FB-002",
+  "recordedAt": "2026-09-25T15:20:00+08:00",
+  "canonicalBaseSha": "f0d835a409ed13cd00b637557dcd3368621481c9",
+  "sourcePullRequest": 682,
+  "staleHeadSha": "d68397fd843e22133ea50f25f2fc1540d78eba9d",
+  "mergeBaseSha": "658d28481b161cf2df1c0fb026813a5ec41e70da",
+  "comparison": {
+    "status": "diverged",
+    "aheadBy": 4,
+    "behindBy": 249
+  },
+  "providerReadback": {
+    "liveColumns": [
+      "organization_id",
+      "project_id"
+    ],
+    "liveViews": [
+      "pandora_tracking_campaign_traffic_daily_v2",
+      "pandora_tracking_campaign_financial_daily_v2"
+    ],
+    "projectBinding": "one live bound project UUID exists in both legacy projectos_projects and current pandora_projects",
+    "repairDecision": "preserve UUID and rebind active FK/validation to private.project_canonical_registry",
+    "appliedMigrationVersion": "20260925073639",
+    "appliedMigrationName": "pandora_tracking_dashboard_recovery_v1",
+    "liveVerification": {
+      "projectFk": "private.project_canonical_registry(project_id)",
+      "trigger": "private.pandora_tracking_validate_tenant_scope_v2",
+      "legacyValidatorExists": false,
+      "viewAcl": "service_role only (plus postgres owner)",
+      "counts": {
+        "tenants": 2,
+        "campaigns": 2,
+        "clicks": 1,
+        "events": 0,
+        "costs": 0
+      }
+    }
+  },
+  "disposition": [
+    {
+      "path": "apps/control-tower/bootstrap.js",
+      "decision": "discarded",
+      "reason": "stale cache-version bump only"
+    },
+    {
+      "path": "apps/control-tower/index.html",
+      "decision": "discarded",
+      "reason": "stale cache-version bump only"
+    },
+    {
+      "path": "apps/control-tower/owner-first.js",
+      "decision": "discarded",
+      "reason": "stale cache-version bump only"
+    },
+    {
+      "path": "apps/control-tower/owner-professional.js",
+      "decision": "deferred_fb034",
+      "reason": "useful attribution presentation concept; stale shell/encoding must not be copied"
+    },
+    {
+      "path": "apps/control-tower/owner-screens-experience.js",
+      "decision": "deferred_fb034",
+      "reason": "useful attribution presentation concept; integrate later against current flow"
+    },
+    {
+      "path": "src/pandora-tracking-http.js",
+      "decision": "already_present_main",
+      "reason": "current main already has /tracking/* and legacy /api/tracking/* aliases"
+    },
+    {
+      "path": "supabase/functions/pandora-owner-api/index.ts",
+      "decision": "deferred_fb034",
+      "reason": "owner projection binding belongs with later dashboard integration"
+    },
+    {
+      "path": "supabase/migrations/20260921100623_pandora_tracking_owner_scope_and_currency_safe_reporting_v2.sql",
+      "decision": "recovered",
+      "reason": "provider-live contract restored as receipt plus forward repair without ProjectOS authority"
+    },
+    {
+      "path": "supabase/migrations/20260921100805_pandora_tracking_traffic_daily_dedup_fix_v2.sql",
+      "decision": "recovered",
+      "reason": "provider-live deduplicated traffic view restored"
+    },
+    {
+      "path": "test/pandora-tracking-http.test.js",
+      "decision": "superseded",
+      "reason": "current behavior retained and covered by FB-002 test"
+    },
+    {
+      "path": "test/supabase-migration-parity.test.js",
+      "decision": "superseded",
+      "reason": "old captured-chain edit stale; focused recovery authority test added"
+    },
+    {
+      "path": "test/web-business-authority-v1.test.js",
+      "decision": "deferred_fb034",
+      "reason": "belongs with owner dashboard integration"
+    },
+    {
+      "path": "test/web-control-plane-v1.test.js",
+      "decision": "deferred_fb034",
+      "reason": "belongs with visible dashboard integration"
+    },
+    {
+      "path": "test/web-professional-mode-v1.test.js",
+      "decision": "deferred_fb034",
+      "reason": "belongs with visible dashboard integration"
+    },
+    {
+      "path": "test/web-project-workspace-v1.test.js",
+      "decision": "discarded",
+      "reason": "stale cache-version expectations only"
+    }
+  ],
+  "boundaries": {
+    "visibleDashboardActivated": false,
+    "liveAdMutation": false,
+    "spendAuthority": false,
+    "projectosRuntimeAuthorityRestored": false,
+    "providerHistoryReconciled": true
+  }
+}

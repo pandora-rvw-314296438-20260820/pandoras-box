@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/activity/pandora_activity_presentation_policy.dart';
@@ -18,10 +21,14 @@ import '../../core/device/pandora_communication_command.dart';
 import '../../core/local/pandora_device_activity_local_sync.dart';
 import '../../core/local/pandora_local_state_cache.dart';
 import '../../core/local/pandora_local_sync_coordinator.dart';
+import '../../core/local_ai/pandora_local_ai.dart';
+import '../../core/local_ai/pandora_local_ai_runtime.dart';
+import '../../core/local_ai/plp_chat_fallback.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
+import '../enterprise/plp_staff_task_action.dart';
 import 'pandora_simple_ui.dart';
 
 class AskPandoraScreen extends StatefulWidget {
@@ -32,6 +39,9 @@ class AskPandoraScreen extends StatefulWidget {
     this.onProjects,
     this.onSearchChats,
     this.onMore,
+    this.enterpriseContext,
+    this.allowCharacterContext = true,
+    this.allowProjectContext = true,
   });
 
   final String? initialPrompt;
@@ -39,12 +49,20 @@ class AskPandoraScreen extends StatefulWidget {
   final VoidCallback? onProjects;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
+  final Map<String, Object?>? enterpriseContext;
+  final bool allowCharacterContext;
+  final bool allowProjectContext;
 
   @override
   State<AskPandoraScreen> createState() => AskPandoraScreenState();
 }
 
-class AskPandoraScreenState extends State<AskPandoraScreen> {
+class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingObserver {
+  // CPU Qwen2.5 can legitimately spend more than 30 seconds in prompt prefill
+  // before the first streamed token. Keep a bounded idle deadline, but do not
+  // cancel a healthy on-device decode at the old 30-second wall.
+  static const _localInferenceIdleTimeout = Duration(seconds: 120);
+
   static const _suggestions = <String>[
     'What can you do for me now?',
     'Check my GitHub for failing CI',
@@ -53,6 +71,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
   final TextEditingController _objective = TextEditingController();
   final FocusNode _objectiveFocus = FocusNode();
+  final GlobalKey _headerKey = GlobalKey();
+  final GlobalKey _composerKey = GlobalKey();
+  double _headerHeight = 0;
+  double _composerHeight = 0;
+  bool _overlayMeasureScheduled = false;
   final IdempotencyKeyFactory _keys = IdempotencyKeyFactory();
   final List<_ChatMessage> _messages = <_ChatMessage>[];
   PandoraTextAttachment? _attachment;
@@ -72,7 +95,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   bool _activityTheatreRequested = false;
   bool _activityTheatreSuppressed = false;
   bool _submitting = false;
+  bool _localAiGenerating = false;
+  bool _localAiPrewarmInFlight = false;
+  bool _lastTurnUsedLocalAi = false;
+  bool _teamAdministrationPending = false;
   bool _loadingThread = false;
+  bool _localConversationRestoreStarted = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
   String? _error;
@@ -80,12 +108,131 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _activityController.addListener(_handleActivityTimelineChanged);
     final initial = widget.initialPrompt?.trim();
     if (initial != null && initial.isNotEmpty) {
       _objective.text = initial;
       _objective.selection = TextSelection.collapsed(offset: initial.length);
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_localConversationRestoreStarted) return;
+    _localConversationRestoreStarted = true;
+    unawaited(_restoreLocalConversation());
+    if (_isPlpEnterpriseContext) {
+      unawaited(_prewarmPlpLocalAiIfSafe());
+    }
+  }
+
+  Future<void> _prewarmPlpLocalAiIfSafe() async {
+    if (_localAiPrewarmInFlight) return;
+    _localAiPrewarmInFlight = true;
+    PandoraLocalAiStatus? probeStatus;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      if (!mounted || !_isPlpEnterpriseContext) return;
+      final status = await PandoraLocalAi.instance.status();
+      probeStatus = status;
+      if (!status.supported || !status.configured) return;
+      final decision = PandoraLocalAiRouter.decide(
+        message: 'Prepare PLP local resort intelligence.',
+        hasAttachment: false,
+        hasProjectContext: true,
+        hasSelectedCapability: false,
+        hasCharacterContext: false,
+        status: status,
+      );
+      if (!decision.useLocal) return;
+
+      if (!status.loaded && !await PandoraLocalAi.instance.warm()) return;
+      final warmed = await PandoraLocalAi.instance.status();
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'prewarm',
+          outcome: 'success',
+          reason: 'model_ready_without_synthetic_generation',
+          status: warmed,
+        ),
+      );
+      PandoraLocalAiRuntime.instance.keepResident();
+    } catch (error) {
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'self_test',
+          outcome: 'failed',
+          reason: error.toString(),
+          status: probeStatus,
+        ),
+      );
+      await PandoraLocalAiRuntime.instance.unload();
+      // A real user turn still continues through cloud if the local self-test
+      // cannot prove the phone-local path.
+    } finally {
+      _localAiPrewarmInFlight = false;
+    }
+  }
+
+  Future<void> _restoreLocalConversation() async {
+    final localStore = PandoraDependencies.of(context).localStore;
+    if (localStore == null) return;
+    try {
+      final cached = await PandoraLocalStateCache(localStore)
+          .loadRecentConversation(threadIdentity: 'local-chat');
+      if (!mounted ||
+          cached.isEmpty ||
+          _messages.isNotEmpty ||
+          _threadId != null ||
+          _pendingMessage != null) {
+        return;
+      }
+      final restored = <_ChatMessage>[];
+      for (final entry in cached) {
+        final text = entry['text']?.toString().trim() ?? '';
+        if (text.isEmpty) continue;
+        if (entry['role'] == 'user') {
+          restored.add(_ChatMessage.user(text));
+        } else if (entry['role'] == 'pandora') {
+          restored.add(_ChatMessage.pandora(text));
+        }
+      }
+      if (restored.isEmpty) return;
+      final teamPending = !restored.last.isUser &&
+          _isTeamAdministrationClarification(restored.last.text);
+      setState(() {
+        _messages.addAll(restored);
+        _teamAdministrationPending = teamPending;
+      });
+    } catch (_) {
+      // Local conversation recovery must never prevent a fresh chat.
+    }
+  }
+
+  Future<String?> submitExternalPrompt(
+    String prompt, {
+    bool requestFocus = true,
+  }) async {
+    final normalized = prompt.trim();
+    if (normalized.isEmpty) return null;
+    final before = _messages.length;
+    _objective.text = normalized;
+    _objective.selection = TextSelection.collapsed(offset: normalized.length);
+    if (requestFocus) {
+      _objectiveFocus.requestFocus();
+    } else {
+      _objectiveFocus.unfocus();
+    }
+    await _submit();
+    if (!mounted) return null;
+    if (_messages.length > before) {
+      for (final message in _messages.skip(before).toList().reversed) {
+        if (!message.isUser) return message.text;
+      }
+    }
+    return _error;
   }
 
   void _handleActivityTimelineChanged() {
@@ -101,6 +248,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _activityController.removeListener(_handleActivityTimelineChanged);
     _activityController.dispose();
     _objective.dispose();
@@ -108,7 +256,40 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     super.dispose();
   }
 
+
+  @override
+  void didChangeMetrics() {
+    _scheduleOverlayMeasure();
+  }
+
+  void _scheduleOverlayMeasure() {
+    if (_overlayMeasureScheduled) return;
+    _overlayMeasureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayMeasureScheduled = false;
+      if (!mounted) return;
+
+      final headerBox =
+          _headerKey.currentContext?.findRenderObject() as RenderBox?;
+      final composerBox =
+          _composerKey.currentContext?.findRenderObject() as RenderBox?;
+      final nextHeaderHeight = headerBox?.size.height ?? _headerHeight;
+      final nextComposerHeight = composerBox?.size.height ?? _composerHeight;
+
+      if ((nextHeaderHeight - _headerHeight).abs() < 0.5 &&
+          (nextComposerHeight - _composerHeight).abs() < 0.5) {
+        return;
+      }
+
+      setState(() {
+        _headerHeight = nextHeaderHeight;
+        _composerHeight = nextComposerHeight;
+      });
+    });
+  }
+
   Future<void> _watchActivity(PandoraIntelligenceExecution execution) async {
+
     _activeActivityJobId = execution.jobId;
     await _activityController.bind(
       jobId: execution.jobId,
@@ -358,8 +539,485 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     });
   }
 
+  String _boundedRouteBridge(String objective) {
+    if (_messages.isEmpty) return objective;
+    final start = _messages.length > 4 ? _messages.length - 4 : 0;
+    final context = _messages
+        .sublist(start)
+        .map((message) => '${message.isUser ? 'User' : 'Pandora'}: ${message.text}')
+        .join('\n');
+    final bounded = context.length > 1600
+        ? context.substring(context.length - 1600)
+        : context;
+    return 'Recent conversation context from the other inference route:\n'
+        '$bounded\n\nCurrent user request:\n$objective';
+  }
+
+  String _boundedLocalEnterpriseContext() {
+    final context = widget.enterpriseContext;
+    if (context == null || context.isEmpty) return '';
+    try {
+      final localAi = context['localAiContext'];
+      final localAiMap = localAi is Map
+          ? localAi.map((key, value) => MapEntry(key.toString(), value))
+          : const <String, Object?>{};
+      final localPayload = localAiMap['payload'];
+      final today = context['today'];
+      final snapshot = localPayload is Map && localPayload.isNotEmpty
+          ? localPayload
+          : today is Map
+              ? today
+              : const <String, Object?>{};
+      final sourceHealth = context['sourceHealth'];
+      final organization = context['organization'];
+      final boundedContext = <String, Object?>{
+        'property': organization,
+        'authoritativeAsOf': localAiMap['authoritativeAsOf'],
+        'sourceHealth': sourceHealth,
+        'snapshot': snapshot,
+      };
+      final encoded = jsonEncode(boundedContext);
+      final bounded =
+          encoded.length > 3600 ? encoded.substring(0, 3600) : encoded;
+      return 'Verified PLP resort snapshot already synchronized to this phone. '
+          'Use fields present in this snapshot directly for PLP occupancy, rooms, '
+          'arrivals, departures, revenue/sales, tasks, conflicts, and booking '
+          'questions. If the requested field is present, answer from it and do '
+          'NOT request cloud merely because the user says today, current, now, '
+          'or so far. Do not claim the snapshot was refreshed during this turn. '
+          'Request cloud only when required data is absent, an external action '
+          'is required, or the task exceeds safe local reasoning.\n$bounded';
+    } catch (_) {
+      return '';
+    }
+  }
+  bool get _isPlpEnterpriseContext {
+    final context = widget.enterpriseContext;
+    final organization = context?['organization'];
+    if (organization is Map) {
+      return organization['propertySlug']?.toString().trim() == 'plp-boracay';
+    }
+    return false;
+  }
+
+  Map<String, Object?>? _cloudEnterpriseContext() {
+    if (!_isPlpEnterpriseContext) return widget.enterpriseContext;
+    return <String, Object?>{
+      'surface': 'enterprise_overview',
+      'route': '/enterprise/plp-boracay/alfred',
+      'selectedObject': const <String, Object?>{
+        'workspaceSlug': 'plp-boracay',
+        'assistant': 'alfred',
+      },
+      'capabilities': const <String>['intelligence.chat'],
+      'identityScope': 'enterprise_workspace',
+    };
+  }
+
+  Future<void> _recordLocalAiTurn({
+    required String phase,
+    required String outcome,
+    required String reason,
+    PandoraLocalAiStatus? status,
+  }) async {
+    if (!_isPlpEnterpriseContext) return;
+    final organization = widget.enterpriseContext?['organization'];
+    final organizationId = organization is Map
+        ? organization['id']?.toString().trim()
+        : null;
+    if (organizationId == null || organizationId.isEmpty) return;
+    try {
+      await Supabase.instance.client.rpc(
+        'record_phone_local_ai_turn_v1',
+        params: <String, Object?>{
+          'p_organization_id': organizationId,
+          'p_phase': phase,
+          'p_outcome': outcome,
+          'p_reason': reason.length > 160 ? reason.substring(0, 160) : reason,
+          'p_model_name': status?.modelName,
+          'p_model_sha256': status?.modelSha256,
+        },
+      );
+    } catch (_) {
+      // Local inference must never depend on telemetry delivery.
+    }
+  }
+
+  String? _plpActionPendingRequestId;
+  String? _plpActionPendingObjective;
+
+  Future<bool> _trySubmitPlpStaffTask(String objective) async {
+    if (!_isPlpEnterpriseContext) return false;
+    final command = PlpStaffTaskCommand.tryParse(objective);
+    if (command == null) return false;
+
+    final priorObjective = _plpActionPendingObjective;
+    final priorRequestId = _plpActionPendingRequestId;
+    if (priorRequestId != null &&
+        priorObjective != null &&
+        priorObjective != objective) {
+      setState(() {
+        _error =
+            'A prior PLP staff-task outcome is still unconfirmed. Check Activity before creating another task.';
+        _pendingMessage = null;
+      });
+      return true;
+    }
+
+    final requestId = priorRequestId ?? _keys.create('plp-staff-task');
+    _plpActionPendingRequestId = requestId;
+    _plpActionPendingObjective = objective;
+
+    try {
+      final result = await const PlpStaffTaskAction().execute(
+        requestId: requestId,
+        command: command,
+      );
+      if (!mounted) return true;
+      setState(() {
+        _messages.add(_ChatMessage.user(objective));
+        _messages.add(
+          _ChatMessage.pandora(
+            'Staff task created for ' +
+                result.bookingReference +
+                ': ' +
+                result.title +
+                '. Supabase provider readback is verified and the real execution is recorded in Activity.',
+          ),
+        );
+        _pendingMessage = null;
+        _submissionKey = null;
+        _outcomeUnknown = false;
+        _lastTurnUsedLocalAi = false;
+        _plpActionPendingRequestId = null;
+        _plpActionPendingObjective = null;
+      });
+      return true;
+    } on PlpStaffTaskActionException catch (error) {
+      if (!mounted) return true;
+      setState(() {
+        _outcomeUnknown = true;
+        _pendingMessage = null;
+        _error = error.message +
+            ' Pandora retained the same idempotency key. Check Activity before retrying the same command.';
+      });
+      return true;
+    }
+  }
+
+  Future<bool> _trySubmitLocalAi(String objective) async {
+    final status = await (() async {
+      try {
+        return await PandoraLocalAi.instance.status();
+      } catch (_) {
+        return null;
+      }
+    })();
+    if (status == null) return false;
+    final route = PandoraLocalAiRouter.decide(
+      message: objective,
+      hasAttachment: _attachment != null || _imageAttachment != null,
+      hasProjectContext:
+          _projectContext != null || (widget.enterpriseContext?.isNotEmpty ?? false),
+      hasSelectedCapability: _serviceContext != null,
+      hasCharacterContext: _characterContext != null,
+      status: status,
+    );
+    if (!route.useLocal) {
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'route',
+          outcome: 'bypassed',
+          reason: route.reason,
+          status: status,
+        ),
+      );
+      return false;
+    }
+    unawaited(
+      _recordLocalAiTurn(
+        phase: 'route',
+        outcome: 'started',
+        reason: route.reason,
+        status: status,
+      ),
+    );
+
+    if (!status.loaded) {
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'fallback',
+          outcome: 'cloud',
+          reason: 'local_cold_background_prewarm',
+          status: status,
+        ),
+      );
+      if (_isPlpEnterpriseContext) {
+        unawaited(_prewarmPlpLocalAiIfSafe());
+      }
+      // Never put a cold llama.cpp warm on the user's response path. The
+      // current turn continues through cloud while Qwen prepares separately.
+      return false;
+    }
+
+    PandoraLocalAiRuntime.instance.cancelIdleUnload();
+    final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
+
+    // Warm first. The old order asked a cold engine to reset conversation,
+    // which performed an implicit load plus a second system-prompt reset and
+    // made cold-start failures harder to recover.
+    try {
+      if (!await PandoraLocalAi.instance.warm()) {
+        unawaited(
+          _recordLocalAiTurn(
+            phase: 'warm',
+            outcome: 'failed',
+            reason: 'warm_returned_false',
+            status: status,
+          ),
+        );
+        await PandoraLocalAiRuntime.instance.unload();
+        return false;
+      }
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'warm',
+          outcome: 'success',
+          reason: 'model_ready',
+          status: status,
+        ),
+      );
+    } on PandoraLocalAiException catch (error) {
+      if (error.message.contains('already preparing or generating')) {
+        unawaited(
+          _recordLocalAiTurn(
+            phase: 'warm',
+            outcome: 'cloud',
+            reason: 'background_prewarm_in_progress',
+            status: status,
+          ),
+        );
+        // The background prewarm owns the model load. Let this turn continue
+        // through cloud without cancelling that load; the next eligible turn
+        // can use the now-warm Qwen model.
+        return false;
+      }
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'warm',
+          outcome: 'failed',
+          reason: error.message,
+          status: status,
+        ),
+      );
+      await PandoraLocalAiRuntime.instance.unload();
+      return false;
+    } catch (_) {
+      await PandoraLocalAiRuntime.instance.unload();
+      return false;
+    }
+
+    if (bridgeFromOtherRoute) {
+      try {
+        await PandoraLocalAi.instance.resetConversation();
+      } catch (_) {
+        // Do not cold-warm on the user's response path. A failed warm reset
+        // falls through to cloud and background prewarm repairs local state.
+        await PandoraLocalAiRuntime.instance.unload();
+        if (_isPlpEnterpriseContext) {
+          unawaited(_prewarmPlpLocalAiIfSafe());
+        }
+        return false;
+      }
+    }
+    final routedPrompt =
+        bridgeFromOtherRoute ? _boundedRouteBridge(objective) : objective;
+    final enterpriseBridge = _boundedLocalEnterpriseContext();
+    final localPrompt = enterpriseBridge.isEmpty
+        ? routedPrompt
+        : '$enterpriseBridge\n\nCurrent user request:\n$routedPrompt';
+
+    var response = '';
+    var started = false;
+    _localAiGenerating = true;
+    try {
+      await for (final chunk in PandoraLocalAi.instance
+          .generate(
+            localPrompt,
+            predictLength: _isPlpEnterpriseContext ? 96 : 192,
+          )
+          .timeout(_localInferenceIdleTimeout)) {
+        if (!mounted) return true;
+        response += chunk;
+        setState(() {
+          if (!started) {
+            started = true;
+            _messages.add(_ChatMessage.user(objective));
+            _messages.add(_ChatMessage.pandora(response));
+            _pendingMessage = null;
+          } else {
+            _messages[_messages.length - 1] = _ChatMessage.pandora(response);
+          }
+        });
+      }
+    } catch (error) {
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'generation',
+          outcome: 'failed',
+          reason: error.toString(),
+          status: status,
+        ),
+      );
+      if (error is TimeoutException) {
+        await PandoraLocalAi.instance.cancel();
+        PandoraLocalAiRuntime.instance.keepResident();
+      } else {
+        await PandoraLocalAiRuntime.instance.unload();
+      }
+      if (!mounted) return true;
+      if (started && _messages.length >= 2) {
+        setState(() {
+          _messages.removeLast();
+          _messages.removeLast();
+          _pendingMessage = objective;
+          _error = null;
+        });
+      }
+      return false;
+    } finally {
+      _localAiGenerating = false;
+    }
+
+    if (!mounted) return true;
+    final normalized = response.trim();
+    if (normalized == '[[PANDORA_CLOUD_REQUIRED]]') {
+      if (started && _messages.length >= 2) {
+        setState(() {
+          _messages.removeLast();
+          _messages.removeLast();
+          _pendingMessage = objective;
+        });
+      }
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'fallback',
+          outcome: 'cloud',
+          reason: 'model_requested_cloud',
+          status: status,
+        ),
+      );
+      PandoraLocalAiRuntime.instance.keepResident();
+      return false;
+    }
+    if (!started || normalized.isEmpty) {
+      await PandoraLocalAiRuntime.instance.unload();
+      return false;
+    }
+
+    setState(() {
+      _messages[_messages.length - 1] = _ChatMessage.pandora(normalized);
+      _submissionKey = null;
+      _outcomeUnknown = false;
+      _pendingMessage = null;
+      _lastTurnUsedLocalAi = true;
+    });
+    unawaited(
+      _recordLocalAiTurn(
+        phase: 'success',
+        outcome: 'success',
+        reason: route.reason,
+        status: status,
+      ),
+    );
+    PandoraLocalAiRuntime.instance.keepResident();
+    return true;
+  }
+
+  bool _looksLikeTeamAdministrationTurn(String message) {
+    final value = message.trim();
+    if (value.isEmpty) return false;
+    final hasScope = RegExp(
+      r'\\b(team|member|staff|user|access|invite)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final hasEmail = RegExp(
+      r'\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final hasRole = RegExp(
+      r'\\b(owner|admin|operator|member|viewer)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final inviteAction = RegExp(
+      r'\\b(add|invite|create)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final accessAction = RegExp(
+      r'\\b(suspend|disable|deactivate|revoke|remove|reactivate|activate|restore)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final roleAction = RegExp(
+      r'\\b(change|make|set|give|promote|demote)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final staffTask = RegExp(
+      r'\\bstaff\\s+task\\b|\\btask\\s+for\\s+staff\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    if (staffTask) return false;
+    return ((hasScope || hasEmail) &&
+            (inviteAction || accessAction || roleAction)) ||
+        (hasRole && roleAction);
+  }
+
+  bool _isTeamAdministrationClarification(String message) {
+    final value = message.trim();
+    return value == 'What email address should I invite?' ||
+        value ==
+            'What role should I give them: owner, admin, operator, member, or viewer?' ||
+        value ==
+            'Which team member should I change? Give me their name or email address.' ||
+        value == 'What should I change: their role, or their access status?' ||
+        (value.startsWith("I couldn't find ") &&
+            value.endsWith('Give me the exact email address.')) ||
+        (value.startsWith('I found more than one match for ') &&
+            value.endsWith('Give me the exact email address.'));
+  }
+
+  bool _applyPlpContinuityFallback(String objective) {
+    if (!_isPlpEnterpriseContext || !mounted) return false;
+    final actionLike = !PlpChatFallback.isReadOnlyTurn(objective);
+    final deterministic = actionLike
+        ? null
+        : PlpChatFallback.deterministicReply(
+            message: objective,
+            enterpriseContext: widget.enterpriseContext,
+          );
+    final reply = deterministic ??
+        PlpChatFallback.continuityNotice(
+          actionLike: actionLike,
+        );
+    setState(() {
+      _messages.add(_ChatMessage.user(objective));
+      _messages.add(_ChatMessage.pandora(reply));
+      _pendingMessage = null;
+      _attachment = null;
+      _imageAttachment = null;
+      _submissionKey = null;
+      _outcomeUnknown = false;
+      _lastTurnUsedLocalAi = false;
+      _error = null;
+    });
+    return true;
+  }
+
   Future<void> _submit() async {
     final objective = _objective.text.trim();
+    if (_submitting && _localAiGenerating && objective.isEmpty) {
+      await PandoraLocalAi.instance.cancel();
+      return;
+    }
     if (_submitting && _activeActivityJobId != null) {
       await _submitActiveControl(objective);
       return;
@@ -383,7 +1041,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       objective,
       hasAttachment: _attachment != null || _imageAttachment != null,
       hasSelectedCapability: _serviceContext != null,
-      hasProjectContext: _projectContext != null,
+      hasProjectContext:
+          _projectContext != null || (widget.enterpriseContext?.isNotEmpty ?? false),
     );
     // A completed user turn must never inherit a prior turn's request identity.
     _submissionKey = null;
@@ -400,14 +1059,21 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     });
     try {
       if (_characterContext != null) {
+        _lastTurnUsedLocalAi = false;
         await _submitCharacter(objective);
         return;
       }
-      final calendarParse = PandoraCalendarCommand.tryParse(
-        objective,
-        now: DateTime.now(),
-      );
+      if (await _trySubmitPlpStaffTask(objective)) return;
+      final teamAdministrationTurn =
+          _teamAdministrationPending || _looksLikeTeamAdministrationTurn(objective);
+      final calendarParse = teamAdministrationTurn
+          ? null
+          : PandoraCalendarCommand.tryParse(
+              objective,
+              now: DateTime.now(),
+            );
       if (calendarParse != null) {
+        _lastTurnUsedLocalAi = false;
         if (!calendarParse.isReady) {
           setState(() {
             _messages.add(_ChatMessage.user(objective));
@@ -430,14 +1096,27 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         );
         return;
       }
-      final deviceCommunication = PandoraDeviceCommunicationCommand.tryParse(
-        objective,
-      );
+      final deviceCommunication = teamAdministrationTurn
+          ? null
+          : PandoraDeviceCommunicationCommand.tryParse(
+              objective,
+            );
       if (deviceCommunication != null) {
+        _lastTurnUsedLocalAi = false;
         await _handleDeviceCommunication(
             dependencies, objective, deviceCommunication);
         return;
       }
+      final priorTurnUsedLocalAi = _lastTurnUsedLocalAi;
+      if (!teamAdministrationTurn && await _trySubmitLocalAi(objective)) {
+        return;
+      }
+
+      final routedObjective = priorTurnUsedLocalAi && _messages.isNotEmpty
+          ? _boundedRouteBridge(objective)
+          : objective;
+      _lastTurnUsedLocalAi = false;
+
       final intelligence = dependencies.intelligence;
       if (intelligence == null) {
         // A Project is optional persistent context, never a prerequisite for
@@ -445,7 +1124,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         // the general governed ask path instead of creating a Project.
         _submissionKey ??= _keys.create('simple-intake');
         final receipt = await dependencies.repository.ask(
-          message: objective,
+          message: routedObjective,
           idempotencyKey: _submissionKey,
         );
         if (!mounted) return;
@@ -464,18 +1143,35 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         'pandora-chat-turn',
       );
       final execution = await intelligence.startChatExecution(
-        message: objective,
+        message: routedObjective,
         requestId: turnRequestId,
         threadId: _threadId,
         projectId: _projectContext?.id,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
+        enterpriseContext: _cloudEnterpriseContext(),
       );
       await _watchActivity(execution);
-      final turn = await execution.turn;
+      PandoraIntelligenceTurn turn;
+      try {
+        turn = await execution.turn;
+      } on PandoraIntelligenceException {
+        final recovered =
+            await intelligence.recoverCompletedChatTurn(execution.jobId);
+        if (recovered == null) rethrow;
+        turn = recovered;
+      } catch (_) {
+        final recovered =
+            await intelligence.recoverCompletedChatTurn(execution.jobId);
+        if (recovered == null) rethrow;
+        turn = recovered;
+      }
       if (!mounted) return;
       setState(() {
         _threadId = turn.threadId;
+        _teamAdministrationPending = turn.needsClarification &&
+            (turn.conversationLane == 'team_admin' ||
+                _isTeamAdministrationClarification(turn.reply));
         _messages.add(_ChatMessage.user(objective));
         _messages.add(_ChatMessage.pandora(turn.reply));
         _pendingMessage = null;
@@ -483,6 +1179,20 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _imageAttachment = null;
         _outcomeUnknown = false;
       });
+
+      final authorizationUrl = turn.authorizationUrl;
+      if (authorizationUrl != null) {
+        final launched = await launchUrl(
+          authorizationUrl,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched && mounted) {
+          setState(
+            () => _error =
+                'Pandora prepared the secure authorization page, but this device could not open it.',
+          );
+        }
+      }
 
       final handoff = turn.handoff;
       final experience = dependencies.projectExperienceRepository;
@@ -638,12 +1348,17 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       });
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
+      if (_applyPlpContinuityFallback(objective)) return;
       setState(() {
         _error = error.message;
         _submissionKey = null;
       });
     } on PandoraRepositoryException catch (error) {
       if (!mounted) return;
+      if (!error.outcomeMayBeUnknown &&
+          _applyPlpContinuityFallback(objective)) {
+        return;
+      }
       setState(() {
         _outcomeUnknown = error.outcomeMayBeUnknown;
         _error = error.outcomeMayBeUnknown
@@ -653,6 +1368,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       });
     } catch (_) {
       if (!mounted) return;
+      if (_applyPlpContinuityFallback(objective)) return;
       setState(() {
         _error = 'Pandora intelligence is temporarily unavailable.';
         _submissionKey = null;
@@ -838,7 +1554,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     _activityTheatreRequested = false;
     _activityTheatreSuppressed = false;
     unawaited(_activityController.clear());
+    unawaited(PandoraLocalAi.instance.resetConversation());
+    _lastTurnUsedLocalAi = false;
     setState(() {
+      _teamAdministrationPending = false;
       _messages.clear();
       _objective.clear();
       _attachment = null;
@@ -872,8 +1591,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     try {
       final history = await intelligence.messages(threadId);
       if (!mounted) return;
+      final teamPending = history.isNotEmpty &&
+          !history.last.isUser &&
+          _isTeamAdministrationClarification(history.last.content);
       setState(() {
         _threadId = threadId;
+        _teamAdministrationPending = teamPending;
         _messages
           ..clear()
           ..addAll(
@@ -921,14 +1644,67 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: PandoraSimpleColors.canvas,
-        resizeToAvoidBottomInset: true,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _ChatHeader(
+  Widget build(BuildContext context) {
+    _scheduleOverlayMeasure();
+    final media = MediaQuery.of(context);
+    final keyboardInset = media.viewInsets.bottom;
+    final topInset = media.padding.top;
+    final headerHeight = _headerHeight > 0 ? _headerHeight : 56.0;
+    final composerHeight = _composerHeight > 0 ? _composerHeight : 88.0;
+    final viewportHeight = media.size.height > keyboardInset
+        ? media.size.height - keyboardInset
+        : 0.0;
+    final conversationPadding = EdgeInsets.only(
+      top: topInset + headerHeight,
+      bottom: composerHeight,
+    );
+    final viewportSize = Size(media.size.width, viewportHeight);
+
+    return Scaffold(
+      backgroundColor: PandoraSimpleColors.canvas,
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _loadingThread
+                ? Padding(
+                    padding: conversationPadding,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: PandoraSimpleColors.muted,
+                      ),
+                    ),
+                  )
+                : _messages.isEmpty && _pendingMessage == null
+                    ? Padding(
+                        padding: conversationPadding,
+                        child: _EmptyConversation(
+                          suggestions: _suggestions,
+                          onSuggestion: _useSuggestion,
+                          disabled: _outcomeUnknown || _submitting,
+                        ),
+                      )
+                    : _Conversation(
+                        threadIdentity: _threadId ?? 'local-chat',
+                        messages: _messages,
+                        pendingMessage: _pendingMessage,
+                        thinking: _submitting,
+                        activityRequested: _activityTheatreRequested,
+                        activitySuppressed: _activityTheatreSuppressed,
+                        activityEvents: _activityController.events,
+                        activityError: _activityController.publicError,
+                        contentPadding: conversationPadding,
+                        viewportSize: viewportSize,
+                      ),
+          ),
+          Positioned(
+            top: topInset,
+            left: 0,
+            right: 0,
+            child: KeyedSubtree(
+              key: _headerKey,
+              child: _ChatHeader(
                 active: _threadId != null ||
                     _messages.isNotEmpty ||
                     _pendingMessage != null,
@@ -936,32 +1712,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 onSearchChats: widget.onSearchChats,
                 onMore: widget.onMore,
               ),
-              Expanded(
-                child: _loadingThread
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: PandoraSimpleColors.muted,
-                        ),
-                      )
-                    : _messages.isEmpty && _pendingMessage == null
-                        ? _EmptyConversation(
-                            suggestions: _suggestions,
-                            onSuggestion: _useSuggestion,
-                            disabled: _outcomeUnknown || _submitting,
-                          )
-                        : _Conversation(
-                            threadIdentity: _threadId ?? 'local-chat',
-                            messages: _messages,
-                            pendingMessage: _pendingMessage,
-                            thinking: _submitting,
-                            activityRequested: _activityTheatreRequested,
-                            activitySuppressed: _activityTheatreSuppressed,
-                            activityEvents: _activityController.events,
-                            activityError: _activityController.publicError,
-                          ),
-              ),
-              _Composer(
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: keyboardInset,
+            child: KeyedSubtree(
+              key: _composerKey,
+              child: _Composer(
                 controller: _objective,
                 focusNode: _objectiveFocus,
                 attachment: _attachment,
@@ -974,13 +1733,16 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 disabled: _outcomeUnknown,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
+                  _scheduleOverlayMeasure();
                 },
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
                 onAttach: _attach,
-                onCharacters: _pickCharacterContext,
+                onCharacters:
+                    widget.allowCharacterContext ? _pickCharacterContext : null,
                 onServices: _pickServiceContext,
-                onProjectContext: _pickProjectContext,
+                onProjectContext:
+                    widget.allowProjectContext ? _pickProjectContext : null,
                 onDictate: _dictate,
                 onSubmit: _submit,
                 onRemoveAttachment: () => setState(() => _attachment = null),
@@ -989,10 +1751,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 onRemoveServiceContext: _removeServiceContext,
                 onRemoveProjectContext: _removeProjectContext,
               ),
-            ],
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    );
+  }
 }
 
 enum _ChatOverflowAction { newChat, searchChats, more }
@@ -1003,12 +1767,18 @@ class _ChatHeader extends StatelessWidget {
     required this.onNewChat,
     this.onSearchChats,
     this.onMore,
+    this.enterpriseContext,
+    this.allowCharacterContext = true,
+    this.allowProjectContext = true,
   });
 
   final bool active;
   final VoidCallback onNewChat;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
+  final Map<String, Object?>? enterpriseContext;
+  final bool allowCharacterContext;
+  final bool allowProjectContext;
 
   @override
   Widget build(BuildContext context) => PandoraPageHeader(
@@ -1212,6 +1982,8 @@ class _Conversation extends StatefulWidget {
     required this.activityRequested,
     required this.activitySuppressed,
     required this.activityEvents,
+    required this.contentPadding,
+    required this.viewportSize,
     this.activityError,
   });
 
@@ -1222,6 +1994,8 @@ class _Conversation extends StatefulWidget {
   final bool activityRequested;
   final bool activitySuppressed;
   final List<PandoraActivityProjection> activityEvents;
+  final EdgeInsets contentPadding;
+  final Size viewportSize;
   final String? activityError;
 
   @override
@@ -1231,6 +2005,7 @@ class _Conversation extends StatefulWidget {
 class _ConversationState extends State<_Conversation> {
   final ScrollController _scrollController = ScrollController();
   late int _lastRenderedItemCount;
+  bool _followLatest = true;
 
   bool get _hasPending =>
       widget.pendingMessage != null && widget.pendingMessage!.isNotEmpty;
@@ -1267,12 +2042,24 @@ class _ConversationState extends State<_Conversation> {
         oldWidget.activityError != widget.activityError ||
         oldWidget.activityRequested != widget.activityRequested ||
         oldWidget.activitySuppressed != widget.activitySuppressed;
+    final threadChanged = oldWidget.threadIdentity != widget.threadIdentity;
     final messagesChanged =
-        oldWidget.messages.length != widget.messages.length ||
-            oldWidget.threadIdentity != widget.threadIdentity;
-    if (nextCount != _lastRenderedItemCount || activityChanged) {
+        oldWidget.messages.length != widget.messages.length || threadChanged;
+    final userSubmitted =
+        oldWidget.pendingMessage != widget.pendingMessage && _hasPending;
+    final viewportChanged = oldWidget.contentPadding != widget.contentPadding ||
+        oldWidget.viewportSize != widget.viewportSize;
+    if (threadChanged || userSubmitted) {
+      _followLatest = true;
+    }
+    if (nextCount != _lastRenderedItemCount ||
+        activityChanged ||
+        viewportChanged) {
       _lastRenderedItemCount = nextCount;
-      _scheduleScrollToLatest();
+      _scheduleScrollToLatest(
+        jump: threadChanged || viewportChanged,
+        force: threadChanged || userSubmitted,
+      );
     }
     if (messagesChanged && widget.messages.isNotEmpty) {
       unawaited(_cacheMessages());
@@ -1302,7 +2089,11 @@ class _ConversationState extends State<_Conversation> {
     }
   }
 
-  void _scheduleScrollToLatest({bool jump = false}) {
+  void _scheduleScrollToLatest({
+    bool jump = false,
+    bool force = false,
+  }) {
+    if (!force && !_followLatest) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       final target = _scrollController.position.maxScrollExtent;
@@ -1341,6 +2132,7 @@ class _ConversationState extends State<_Conversation> {
     }
 
     for (final message in widget.messages) {
+      if (message.text.trim().isEmpty) continue;
       items.add(_ChatBubble(message: message));
     }
     if (_hasPending) {
@@ -1350,14 +2142,29 @@ class _ConversationState extends State<_Conversation> {
     }
     if (activitySlot != null) items.add(activitySlot);
 
-    return ListView.separated(
-      controller: _scrollController,
-      reverse: false,
-      padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      itemCount: items.length,
-      itemBuilder: (context, index) => items[index],
-      separatorBuilder: (_, __) => const SizedBox(height: 18),
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is UserScrollNotification ||
+            (notification is ScrollUpdateNotification &&
+                notification.dragDetails != null)) {
+          _followLatest = notification.metrics.extentAfter < 96;
+        }
+        return false;
+      },
+      child: ListView.separated(
+        controller: _scrollController,
+        reverse: false,
+        padding: EdgeInsets.fromLTRB(
+          12,
+          widget.contentPadding.top + 10,
+          12,
+          widget.contentPadding.bottom + 14,
+        ),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        itemCount: items.length,
+        itemBuilder: (context, index) => items[index],
+        separatorBuilder: (_, __) => const SizedBox(height: 18),
+      ),
     );
   }
 }
@@ -1435,9 +2242,9 @@ class _ChatBubble extends StatelessWidget {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 2),
-          child: PandoraMark(size: 24, color: Colors.white),
+          child: PandoraMark(size: 20, color: Colors.white),
         ),
-        const SizedBox(width: 11),
+        const SizedBox(width: 8),
         Expanded(
           child: SelectableText(
             message.text,
@@ -1525,9 +2332,9 @@ class _Composer extends StatelessWidget {
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
-  final VoidCallback onCharacters;
+  final VoidCallback? onCharacters;
   final VoidCallback onServices;
-  final VoidCallback onProjectContext;
+  final VoidCallback? onProjectContext;
   final VoidCallback onDictate;
   final VoidCallback onSubmit;
   final VoidCallback onRemoveAttachment;
@@ -1706,14 +2513,15 @@ class _Composer extends StatelessWidget {
                             icon: Icons.insert_drive_file_outlined,
                             onPressed: onAttach,
                           ),
-                          _ComposerMenuItem(
-                            key: const ValueKey<String>(
-                              'ask' '-pandora-menu-characters',
+                          if (onCharacters != null)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask' '-pandora-menu-characters',
+                              ),
+                              label: 'Characters',
+                              icon: Icons.face_retouching_natural_outlined,
+                              onPressed: onCharacters!,
                             ),
-                            label: 'Characters',
-                            icon: Icons.face_retouching_natural_outlined,
-                            onPressed: onCharacters,
-                          ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
                               'ask' '-pandora-menu-services',
@@ -1722,14 +2530,15 @@ class _Composer extends StatelessWidget {
                             icon: Icons.extension_outlined,
                             onPressed: onServices,
                           ),
-                          _ComposerMenuItem(
-                            key: const ValueKey<String>(
-                              'ask' '-pandora-menu-project-context',
+                          if (onProjectContext != null)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask' '-pandora-menu-project-context',
+                              ),
+                              label: 'Project context',
+                              icon: Icons.workspaces_outline,
+                              onPressed: onProjectContext!,
                             ),
-                            label: 'Project context',
-                            icon: Icons.workspaces_outline,
-                            onPressed: onProjectContext,
-                          ),
                         ],
                         builder: (context, controller, child) =>
                             SizedBox.square(
@@ -1829,13 +2638,6 @@ class _Composer extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Pandora can make mistakes. Review important changes before publishing.',
-                textAlign: TextAlign.center,
-                style:
-                    TextStyle(color: PandoraSimpleColors.muted, fontSize: 10.5),
               ),
             ],
           ),
@@ -2055,11 +2857,50 @@ class _ComposerMenuItem extends StatelessWidget {
       );
 }
 
+String _stripInternalContext(String input) {
+  final output = <String>[];
+  for (final line in input.split('\n')) {
+    final trimmed = line.trim();
+    final lower = trimmed.toLowerCase();
+    final machineJson = trimmed.startsWith('{') &&
+        trimmed.endsWith('}') &&
+        (trimmed.contains('"surface"') ||
+            trimmed.contains('"identityScope"') ||
+            trimmed.contains('"enterprise_'));
+    if (lower.contains('bounded enterprise page context:') ||
+        lower.contains('bounded project context:') ||
+        lower.startsWith('operations room contract:') ||
+        lower.startsWith(
+          'treat this context as navigation and scope information only.',
+        ) ||
+        lower.startsWith('the authenticated actorrole is authoritative.') ||
+        lower.startsWith(
+          'never map roles across identityscope namespaces.',
+        ) ||
+        machineJson) {
+      continue;
+    }
+    output.add(line);
+  }
+  return output.join('\n').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
+}
+
+String _sanitizeVisiblePandoraText(String input) {
+  final clean = _stripInternalContext(input);
+  return clean.isEmpty
+      ? "I couldn't produce a clean reply for that turn. Please try again."
+      : clean;
+}
+
+String _sanitizeVisibleUserText(String input) => _stripInternalContext(input);
+
 class _ChatMessage {
   const _ChatMessage._(this.text, this.isUser);
 
-  const _ChatMessage.user(String text) : this._(text, true);
-  const _ChatMessage.pandora(String text) : this._(text, false);
+  _ChatMessage.user(String text)
+      : this._(_sanitizeVisibleUserText(text), true);
+  _ChatMessage.pandora(String text)
+      : this._(_sanitizeVisiblePandoraText(text), false);
 
   final String text;
   final bool isUser;

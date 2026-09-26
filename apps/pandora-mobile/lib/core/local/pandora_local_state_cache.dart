@@ -85,15 +85,58 @@ class PandoraLocalStateCache {
     final bounded = messages.length <= 30
         ? messages
         : messages.sublist(messages.length - 30);
+    final payload = <String, Object?>{
+      'messages': bounded,
+      'capturedAt': now.toIso8601String(),
+    };
+    final expiresAt = now.add(const Duration(days: 7));
     await _store.putCache(
       namespace: PandoraLocalNamespace.recentConversation,
       key: 'thread_${_digest(threadIdentity)}',
-      payload: <String, Object?>{
-        'messages': bounded,
-        'capturedAt': now.toIso8601String(),
-      },
-      expiresAt: now.add(const Duration(days: 7)),
+      payload: payload,
+      expiresAt: expiresAt,
     );
+    if (threadIdentity.trim() != 'local-chat') {
+      await _store.putCache(
+        namespace: PandoraLocalNamespace.recentConversation,
+        key: 'thread_${_digest('local-chat')}',
+        payload: payload,
+        expiresAt: expiresAt,
+      );
+    }
+  }
+
+  Future<List<Map<String, Object?>>> loadRecentConversation({
+    required String threadIdentity,
+  }) async {
+    final key = 'thread_${_digest(threadIdentity)}';
+    final record = await _store.getCache(
+      PandoraLocalNamespace.recentConversation,
+      key,
+    );
+    if (record == null) return const <Map<String, Object?>>[];
+    final now = _clock().toUtc();
+    if (!record.expiresAt.toUtc().isAfter(now)) {
+      await _store.deleteCache(PandoraLocalNamespace.recentConversation, key);
+      return const <Map<String, Object?>>[];
+    }
+    try {
+      final decoded = jsonDecode(record.payloadJson);
+      if (decoded is! Map || decoded['messages'] is! List) {
+        return const <Map<String, Object?>>[];
+      }
+      final output = <Map<String, Object?>>[];
+      for (final value in decoded['messages'] as List) {
+        if (value is! Map) continue;
+        output.add(
+          value.map((key, item) => MapEntry(key.toString(), item)),
+        );
+      }
+      return output;
+    } on FormatException {
+      await _store.deleteCache(PandoraLocalNamespace.recentConversation, key);
+      return const <Map<String, Object?>>[];
+    }
   }
 
   Future<void> cacheMemoryContext({
@@ -109,6 +152,28 @@ class PandoraLocalStateCache {
       expiresAt: now.add(PandoraLocalDataPolicy.memoryRetention),
       sourceRevision: sourceRevision,
     );
+  }
+
+  Future<Object?> loadMemoryContext({
+    required String contextId,
+  }) async {
+    final key = 'memory_${_digest(contextId)}';
+    final record = await _store.getCache(
+      PandoraLocalNamespace.memoryContext,
+      key,
+    );
+    if (record == null) return null;
+    final now = _clock().toUtc();
+    if (!record.expiresAt.toUtc().isAfter(now)) {
+      await _store.deleteCache(PandoraLocalNamespace.memoryContext, key);
+      return null;
+    }
+    try {
+      return jsonDecode(record.payloadJson);
+    } on FormatException {
+      await _store.deleteCache(PandoraLocalNamespace.memoryContext, key);
+      return null;
+    }
   }
 
   String _digest(String value) =>

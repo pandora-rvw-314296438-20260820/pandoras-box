@@ -1,0 +1,72 @@
+name: Operations Room cloud connectors
+on:
+  pull_request:
+    paths:
+      - 'packages/pandora-operations-connectors/**'
+      - 'packages/pandora-operations-room/**'
+      - 'packages/pandora-verification/**'
+      - 'supabase/migrations/**'
+      - 'api/operations-native-worker.ts'
+      - 'supabase/functions/mcpmaster-supabase-control/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'test/pandora-operations-connectors*.test.js'
+      - '.github/workflows/operations-connectors.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/pandora-operations-connectors/**'
+      - 'packages/pandora-operations-room/**'
+      - 'packages/pandora-verification/**'
+      - 'supabase/migrations/**'
+      - 'api/operations-native-worker.ts'
+      - 'supabase/functions/mcpmaster-supabase-control/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'test/pandora-operations-connectors*.test.js'
+      - '.github/workflows/operations-connectors.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: operations-connectors-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  connector-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Exact checkout identity
+        run: git rev-parse HEAD
+      - name: Connector behavior and native SQL contracts
+        run: node --test test/pandora-operations-connectors*.test.js
+      - name: Preserve existing Operations contracts
+        run: node --test test/pandora-operations-room-runtime*.test.js
+      - name: Discover pinned Supabase migration command
+        run: |
+          npx --yes supabase@2.116.0 --help
+          npx --yes supabase@2.116.0 migration new --help
+      - name: Generate isolated migration identity without database changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_ROOT="$PWD"
+          DEST="$(mktemp -d)"
+          mkdir -p "$DEST/supabase/migrations"
+          cd "$DEST"
+          npx --yes supabase@2.116.0 migration new operations_connector_delivery_v1
+          GENERATED="$(find supabase/migrations -maxdepth 1 -type f -name '*_operations_connector_delivery_v1.sql')"
+          test -n "$GENERATED"
+          cp "$SOURCE_ROOT/packages/pandora-operations-connectors/delivery-schema.sql" "$GENERATED"
+          printf 'CLI_MIGRATION_FILENAME=%s\n' "$(basename "$GENERATED")"
+          sha256sum "$GENERATED"

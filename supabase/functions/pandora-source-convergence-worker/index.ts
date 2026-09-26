@@ -1059,7 +1059,7 @@ Deno.serve(async (req) => {
     if (primitiveState !== "READY") throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
     const primitiveMaterialization = await loadTrustedPrimitiveMaterialization(primitiveResolution);
 
-    const projectResult = await admin.from("projectos_projects")
+    const projectResult = await admin.from("pandora_projects")
       .select("id,organization_id,name,objective,status")
       .eq("id", row.project_id)
       .eq("organization_id", row.organization_id)

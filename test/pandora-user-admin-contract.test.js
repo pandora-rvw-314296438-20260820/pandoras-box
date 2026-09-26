@@ -16,11 +16,16 @@ const boundary = read(
 const cleanup = read(
   'supabase/migrations/20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql',
 );
+const memberUpdates = read(
+  'supabase/migrations/20260922102500_pandora_user_admin_member_updates_v1.sql',
+);
 
 test('Edge Function keeps Auth invitation and membership mutation server-side', () => {
   assert.match(edge, /auth\.admin\s*\n?\s*\.inviteUserByEmail\(/);
   assert.match(edge, /auth\.getUser\(jwt\)/);
   assert.match(edge, /pandora_admin_add_organization_member/);
+  assert.match(edge, /pandora_admin_update_organization_member/);
+  assert.match(edge, /req\.method === "PATCH"/);
   assert.match(edge, /context\.adminClient\.rpc\(/);
   assert.match(edge, /x-organization-id/);
   assert.match(edge, /\["owner", "admin"\]/);
@@ -47,4 +52,17 @@ test('Database mutation is service-role-only and rechecks organization authority
 
 test('Transitional client-callable SECURITY DEFINER RPC is removed', () => {
   assert.match(cleanup, /drop function if exists public\.pandora_add_organization_member/);
+});
+
+test('Membership updates preserve server-side role and owner invariants', () => {
+  assert.match(memberUpdates, /service-role broker required/);
+  assert.match(memberUpdates, /cannot change your own membership/);
+  assert.match(memberUpdates, /administrators cannot modify owner or admin memberships/);
+  assert.match(memberUpdates, /cannot remove the last active owner/);
+  assert.match(memberUpdates, /organization\.member\.role_changed/);
+  assert.match(memberUpdates, /organization\.member\.suspended/);
+  assert.match(memberUpdates, /organization\.member\.revoked/);
+  assert.match(memberUpdates, /private\.append_audit_event/);
+  assert.match(memberUpdates, /grant execute[\s\S]*to service_role;/);
+  assert.match(memberUpdates, /revoke all[\s\S]*from public, anon, authenticated;/);
 });

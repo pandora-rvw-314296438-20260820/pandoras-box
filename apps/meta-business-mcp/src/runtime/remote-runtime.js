@@ -8,6 +8,7 @@ const handler_1 = require("../mcp/handler");
 const server_1 = require("../mcp/server");
 const api_1 = require("../operator/api");
 const resolver_1 = require("../secrets/resolver");
+const supabase_installation_resolver_1 = require("../secrets/supabase-installation-resolver");
 const supabase_stores_1 = require("../webhooks/supabase-stores");
 const official_runtime_1 = require("./official-runtime");
 async function createMetaRemoteRuntime(options) {
@@ -23,9 +24,17 @@ async function createMetaRemoteRuntime(options) {
     };
     const webhookHealthStore = new supabase_stores_1.SupabaseMetaWebhookHealthStore(webhookStoreOptions);
     const webhookClaimStore = new supabase_stores_1.SupabaseMetaWebhookClaimStore(webhookStoreOptions);
+    const installationResolver = new supabase_installation_resolver_1.SupabaseMetaInstallationSecretResolver({
+        supabaseUrl: config.supabaseUrl,
+        serviceKey: serviceKey.value,
+        organizationId: config.organizationId,
+        fetchFn,
+        timeoutMs: config.supabaseTimeoutMs,
+    });
+    const runtimeSecretResolver = new supabase_installation_resolver_1.CompositeMetaSecretResolver(secretResolver, installationResolver);
     const official = (0, official_runtime_1.createOfficialMetaRuntime)({
         config,
-        secretResolver,
+        secretResolver: runtimeSecretResolver,
         transport: options.metaTransport,
         webhookHealthStore,
         webhookClaimStore,

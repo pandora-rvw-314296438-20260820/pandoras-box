@@ -33,8 +33,8 @@ test('owner action-evidence projection is authenticated-only and bounded', () =>
   assert.match(migration, /grant execute on function public\.pandora_action_evidence_v1\(uuid,integer\) to authenticated/);
 });
 
-test('existing owner Evidence surface already consumes canonical projectos_evidence', () => {
-  assert.match(ownerApi, /from\("projectos_evidence"\)/);
+test('existing owner Evidence surface consumes the canonical Pandora evidence surface', () => {
+  assert.match(ownerApi, /from\("pandora_evidence"\)/);
   assert.match(ownerApi, /payload_redacted/);
   assert.match(ownerApi, /observed_at/);
 });

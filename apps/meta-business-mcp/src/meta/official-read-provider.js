@@ -107,6 +107,94 @@ function participantName(value, pageId) {
 function insightPeriod(value) {
     return value === 'week' || value === 'month' || value === 'lifetime' ? value : 'day';
 }
+function numericMetaId(value, fieldName) {
+    const normalized = value.trim().replace(/^act_/, '');
+    if (!/^\d+$/.test(normalized)) {
+        throw new Error(`${fieldName} must be a numeric Meta identifier`);
+    }
+    return normalized;
+}
+function marketingDatePreset(value) {
+    const preset = value ?? 'last_7d';
+    const allowed = new Set(['today', 'yesterday', 'last_7d', 'last_14d', 'last_30d', 'this_month', 'last_month']);
+    if (!allowed.has(preset)) {
+        throw new Error('datePreset is unsupported');
+    }
+    return preset;
+}
+// Marketing observations are not zero-filled: null means unavailable/invalid.
+// Keep decimal strings verbatim (apart from whitespace), without binary-float
+// parsing. Numeric JSON values cannot recover precision lost upstream; reject
+// unsafe integers rather than publish an invented exact quantity.
+function marketingMetricValue(value) {
+    if (typeof value === 'string') {
+        const normalized = value.trim();
+        return /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(normalized) ? normalized : null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)
+        && (!Number.isInteger(value) || Number.isSafeInteger(value))) {
+        return String(value);
+    }
+    return null;
+}
+// Marketing collection failures must not become observed empty reports. This
+// guard does not establish attribution, row coverage, or provider completeness.
+// Insight reads fail closed on explicit continuation until a versioned bounded
+// pagination contract is implemented. Limited asset listings remain listings.
+function marketingCollectionRows(value, httpStatus, requireComplete) {
+    const objectValue = (item) => typeof item === 'object' && item !== null && !Array.isArray(item);
+    const fail = (reason, message) => {
+        throw new MetaGraphApiError(message, { httpStatus, reason });
+    };
+    if (!objectValue(value) || !Object.hasOwn(value, 'data') || !Array.isArray(value.data)) {
+        fail('invalid_collection_envelope', 'Meta returned an invalid marketing collection');
+    }
+    if (value.data.some((row) => !objectValue(row))) {
+        fail('invalid_collection_rows', 'Meta returned invalid marketing collection rows');
+    }
+    if (Object.hasOwn(value, 'paging')) {
+        const paging = value.paging;
+        if (!objectValue(paging)) {
+            fail('invalid_paging_envelope', 'Meta returned invalid marketing paging metadata');
+        }
+        if (Object.hasOwn(paging, 'cursors')) {
+            if (!objectValue(paging.cursors)) {
+                fail('invalid_paging_envelope', 'Meta returned invalid marketing paging metadata');
+            }
+            for (const key of ['before', 'after']) {
+                if (Object.hasOwn(paging.cursors, key)
+                    && (typeof paging.cursors[key] !== 'string' || !paging.cursors[key].trim())) {
+                    fail('invalid_paging_envelope', 'Meta returned invalid marketing paging metadata');
+                }
+            }
+        }
+        if (Object.hasOwn(paging, 'next')) {
+            if (typeof paging.next !== 'string' || !paging.next.trim()) {
+                fail('invalid_paging_envelope', 'Meta returned invalid marketing paging metadata');
+            }
+            if (requireComplete) {
+                // Never follow, echo, or retain provider URLs: they may contain
+                // credentials, foreign origins, or query/asset substitutions.
+                fail('incomplete_report', 'Meta insight report has additional pages; complete reporting is unavailable');
+            }
+        }
+    }
+    return value.data;
+}
+function metricArray(value) {
+    const rows = Array.isArray(value) ? value : record(value).data;
+    // An explicit empty collection is observed; an absent collection is not.
+    if (!Array.isArray(rows)) {
+        return null;
+    }
+    return rows.map((value) => {
+        const row = record(value);
+        return {
+            actionType: stringValue(row.action_type) ?? null,
+            value: marketingMetricValue(row.value),
+        };
+    });
+}
 class OfficialMetaReadProvider {
     constructor(options) {
         this.providerKind = 'official-meta';
@@ -115,6 +203,10 @@ class OfficialMetaReadProvider {
         this.pageAccessTokenSecretRef = options.pageAccessTokenSecretRef.trim();
         if (!this.pageAccessTokenSecretRef) {
             throw new Error('A Page access token secret reference is required');
+        }
+        this.marketingAccessTokenSecretRef = (options.marketingAccessTokenSecretRef ?? options.pageAccessTokenSecretRef).trim();
+        if (!this.marketingAccessTokenSecretRef) {
+            throw new Error('A Marketing API access token secret reference is required');
         }
         this.secretResolver = options.secretResolver;
         this.transport = options.transport ?? new FetchMetaHttpTransport();
@@ -235,6 +327,85 @@ class OfficialMetaReadProvider {
             };
         });
     }
+    async listAdAccounts(_pageId, limit) {
+        const value = await this.marketingGraphGet('me/adaccounts', {
+            fields: 'id,account_id,name,account_status,currency,business{id,name}',
+            limit: String(limit),
+        });
+        return graphArray(value).map((account) => {
+            const business = record(account.business);
+            return {
+                id: stringValue(account.id) ?? 'unknown-account',
+                accountId: stringValue(account.account_id),
+                name: stringValue(account.name) ?? 'Meta ad account',
+                accountStatus: numberValue(account.account_status),
+                currency: stringValue(account.currency),
+                business: stringValue(business.id) ? {
+                    id: stringValue(business.id),
+                    name: stringValue(business.name),
+                } : undefined,
+            };
+        });
+    }
+    async listCampaigns(_pageId, adAccountId, limit) {
+        const accountId = numericMetaId(adAccountId, 'adAccountId');
+        const value = await this.marketingGraphGet(`act_${accountId}/campaigns`, {
+            fields: 'id,name,status,effective_status,objective,buying_type,daily_budget,lifetime_budget,start_time,stop_time,updated_time',
+            limit: String(limit),
+        });
+        return graphArray(value).map((campaign) => ({
+            id: stringValue(campaign.id) ?? 'unknown-campaign',
+            name: stringValue(campaign.name) ?? 'Meta campaign',
+            status: stringValue(campaign.status),
+            effectiveStatus: stringValue(campaign.effective_status),
+            objective: stringValue(campaign.objective),
+            buyingType: stringValue(campaign.buying_type),
+            dailyBudget: stringValue(campaign.daily_budget),
+            lifetimeBudget: stringValue(campaign.lifetime_budget),
+            startTime: stringValue(campaign.start_time),
+            stopTime: stringValue(campaign.stop_time),
+            updatedTime: stringValue(campaign.updated_time),
+        }));
+    }
+    async getAdAccountInsights(_pageId, adAccountId, datePreset) {
+        const accountId = numericMetaId(adAccountId, 'adAccountId');
+        const value = await this.marketingGraphGet(`act_${accountId}/insights`, {
+            fields: 'account_id,account_name,account_currency,impressions,reach,clicks,spend,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop',
+            date_preset: marketingDatePreset(datePreset),
+            limit: '100',
+        }, true);
+        return graphArray(value).map((row) => this.mapMarketingInsight(row));
+    }
+    async getCampaignInsights(_pageId, campaignId, datePreset) {
+        const id = numericMetaId(campaignId, 'campaignId');
+        const value = await this.marketingGraphGet(`${id}/insights`, {
+            fields: 'campaign_id,campaign_name,account_currency,impressions,reach,clicks,spend,cpc,cpm,ctr,frequency,actions,action_values,date_start,date_stop',
+            date_preset: marketingDatePreset(datePreset),
+            limit: '100',
+        }, true);
+        return graphArray(value).map((row) => this.mapMarketingInsight(row));
+    }
+    mapMarketingInsight(row) {
+        return {
+            accountId: stringValue(row.account_id),
+            accountName: stringValue(row.account_name),
+            campaignId: stringValue(row.campaign_id),
+            campaignName: stringValue(row.campaign_name),
+            currency: stringValue(row.account_currency),
+            impressions: marketingMetricValue(row.impressions),
+            reach: marketingMetricValue(row.reach),
+            clicks: marketingMetricValue(row.clicks),
+            spend: marketingMetricValue(row.spend),
+            cpc: marketingMetricValue(row.cpc),
+            cpm: marketingMetricValue(row.cpm),
+            ctr: marketingMetricValue(row.ctr),
+            frequency: marketingMetricValue(row.frequency),
+            actions: metricArray(row.actions),
+            actionValues: metricArray(row.action_values),
+            dateStart: stringValue(row.date_start),
+            dateStop: stringValue(row.date_stop),
+        };
+    }
     async getWebhookHealth(pageId) {
         if (this.webhookHealthReader) {
             return this.webhookHealthReader.getWebhookHealth(pageId);
@@ -259,7 +430,14 @@ class OfficialMetaReadProvider {
         };
     }
     async graphGet(path, query) {
-        const token = await (0, resolver_1.resolveRequiredSecret)(this.secretResolver, this.pageAccessTokenSecretRef);
+        return this.graphGetWithSecret(path, query, this.pageAccessTokenSecretRef);
+    }
+    async marketingGraphGet(path, query, requireComplete = false) {
+        return this.graphGetWithSecret(path, query, this.marketingAccessTokenSecretRef,
+            requireComplete ? 'report' : 'bounded-list');
+    }
+    async graphGetWithSecret(path, query, secretRef, collectionMode = null) {
+        const token = await (0, resolver_1.resolveRequiredSecret)(this.secretResolver, secretRef);
         const url = new URL(`${GRAPH_API_ORIGIN}/${this.apiVersion}/${path}`);
         for (const [name, value] of Object.entries(query)) {
             url.searchParams.set(name, value);
@@ -283,8 +461,8 @@ class OfficialMetaReadProvider {
                 httpStatus: response.status,
             });
         }
-        if (response.status < 200 || response.status >= 300 || parsed.error) {
-            const graphError = parsed.error ?? {};
+        if (response.status < 200 || response.status >= 300 || parsed?.error) {
+            const graphError = parsed?.error ?? {};
             throw new MetaGraphApiError(stringValue(graphError.message) ?? `Meta Graph API request failed with HTTP ${response.status}`, {
                 httpStatus: response.status,
                 type: stringValue(graphError.type),
@@ -292,6 +470,9 @@ class OfficialMetaReadProvider {
                 subcode: numberValue(graphError.error_subcode),
                 traceId: stringValue(graphError.fbtrace_id),
             });
+        }
+        if (collectionMode) {
+            return marketingCollectionRows(parsed, response.status, collectionMode === 'report');
         }
         return parsed.data ?? parsed;
     }

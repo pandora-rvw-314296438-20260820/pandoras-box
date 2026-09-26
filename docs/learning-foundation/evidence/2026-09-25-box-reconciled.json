@@ -1,0 +1,592 @@
+{
+  "schemaVersion": "1.0.0",
+  "auditVersion": "1.0.0",
+  "state": "INVENTORY_COMPLETE",
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+  "sourceSha": "b63e3a710534aa530ba26f8a654f60aabc6e7a93",
+  "treeSha": "8e072a7ef2c7d36364b7162d8de2c21dbe979081",
+  "groups": {
+    "skill_catalog": [
+      {
+        "path": ".agents/skills/registry.json",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "682ef2b637e1e6661ee20bb37473105be354604c"
+      },
+      {
+        "path": ".agents/skills/registry.schema.json",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "5a11c9d8a8a4833ed4c98dcfe1a2f080f72ac38d"
+      },
+      {
+        "path": ".agents/runtime/pandora-skill-runtime.mjs",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "f926538a8dc17d71e85abf22dee5eee965e320a1"
+      },
+      {
+        "path": "scripts/validate-pandora-skills.mjs",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "d9e8b19812ca3b3cb9ce2faf7dae0cdc2ec80784"
+      },
+      {
+        "path": "docs/skills/PANDORA_SKILL_MANIFEST.sha256",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "ef35f2002c7fa7ee75bf7db6257d434f5ef47a21"
+      }
+    ],
+    "skill_trust_projection": [
+      {
+        "path": "packages/pandora-intelligence/src/skills/agent-catalog-adapter.js",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "57eeb337c6bb675adbe28e7424655cbfbddc6522"
+      },
+      {
+        "path": "packages/pandora-intelligence/src/skills/registry.js",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "71358f07a318829e030655c8a3c8c87b06dad09b"
+      }
+    ],
+    "governed_context": [
+      {
+        "path": "packages/pandora-intelligence/src/prompts/trusted-context-bundle.js",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "2865c0aae29c34914bbde9b7d02e205cb6cfd79f"
+      },
+      {
+        "path": "packages/pandora-intelligence/src/prompts/trusted-material-registry.js",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "322f39bf40b578edbd218c481385588b359bece4"
+      }
+    ],
+    "existing_routing": [
+      {
+        "path": "packages/pandora-intelligence/src/routing/model-router.js",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "eb688b68ec149437ffdaf9d73e9f31d097c258d4"
+      },
+      {
+        "path": "packages/pandora-intelligence/src/routing/policy.js",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "8b65cd2373458efea9a03261e4a4b215eb358ae1"
+      },
+      {
+        "path": "packages/pandora-intelligence/src/routing/fallback-policy.js",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "7268459f4dc5b44379a6500a8ce9d9b42c4b01f8"
+      }
+    ],
+    "operations_room": [
+      {
+        "path": "packages/pandora-operations-room/package.json",
+        "state": "source_missing_at_exact_commit"
+      }
+    ],
+    "separate_router": [
+      {
+        "path": "packages/pandora-intelligence-router/package.json",
+        "state": "source_missing_at_exact_commit"
+      }
+    ]
+  },
+  "catalog": {
+    "state": "source_inventory_only",
+    "catalogVersion": "1.0.0",
+    "declaredSourceMatchesCanonical": false,
+    "declaredSourceSha": "c2cc635383b78d457d1731294a6f5b306d85f6be",
+    "skillCount": 51,
+    "capabilityCount": 57,
+    "shards": [
+      {
+        "path": ".agents/skills/registry/skills-01.json",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "af90cc86cb9411d9f4f73f6195092f1716206f6c"
+      },
+      {
+        "path": ".agents/skills/registry/skills-02.json",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "71c7bdf8abce4c1b16a85bd3ece53a018096b821"
+      },
+      {
+        "path": ".agents/skills/registry/skills-03.json",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "ada5d3cccfc5321143e6ca1df2f6e9061fe5928e"
+      },
+      {
+        "path": ".agents/skills/registry/skills-04.json",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "8b450c331cefd1b59e8eeb527e99eafb59d80103"
+      },
+      {
+        "path": ".agents/skills/registry/skills-05.json",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "2b98058695876a6368ef24d0aacc4375efec2664"
+      },
+      {
+        "path": ".agents/skills/registry/skills-06.json",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "866c41a75d642aa9ee367ac9f013dafe40d3753a"
+      }
+    ],
+    "skills": [
+      {
+        "id": "auditing-security-and-privacy",
+        "path": ".agents/skills/auditing-security-and-privacy/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "fd8e741e5eaaaddb8f8b7dd67e027784732f8545"
+      },
+      {
+        "id": "building-agents-and-automations",
+        "path": ".agents/skills/building-agents-and-automations/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "448698289bea38cf61b49520fe313c54836751e4"
+      },
+      {
+        "id": "building-applications",
+        "path": ".agents/skills/building-applications/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "ee4fae064f40ef6fa12be7f4854175c1ef296dc1"
+      },
+      {
+        "id": "capturing-outcome-telemetry",
+        "path": ".agents/skills/capturing-outcome-telemetry/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "3a2ccbd3672bf60adb50c94b2dec4b3227505d70"
+      },
+      {
+        "id": "defining-focused-entry-wedges",
+        "path": ".agents/skills/defining-focused-entry-wedges/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "784e1a7436a38bad935d2d0ef30775c8bf566309"
+      },
+      {
+        "id": "delivering-enterprise-governance",
+        "path": ".agents/skills/delivering-enterprise-governance/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "093a6955d5d82e698836bbfa53c46b4478eec2c4"
+      },
+      {
+        "id": "deploying-with-exact-provenance",
+        "path": ".agents/skills/deploying-with-exact-provenance/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "01b96b59bf57204f44b6a9270e747252053b83ff"
+      },
+      {
+        "id": "designing-data-and-authorization",
+        "path": ".agents/skills/designing-data-and-authorization/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "aeff935a2cc64a0411c04304bbdb211ec37f4525"
+      },
+      {
+        "id": "designing-mobile-accessible-experiences",
+        "path": ".agents/skills/designing-mobile-accessible-experiences/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "aeb685f55dea95ed7c0ef94b6cb575399c1da69a"
+      },
+      {
+        "id": "designing-simple-and-pro-modes",
+        "path": ".agents/skills/designing-simple-and-pro-modes/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "e26470e2c48ad64178149753c125996c69fee977"
+      },
+      {
+        "id": "designing-skills-and-connectors",
+        "path": ".agents/skills/designing-skills-and-connectors/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "fe691812e7b2f3fe47056b80d8c72f95abe76a73"
+      },
+      {
+        "id": "designing-system-architecture",
+        "path": ".agents/skills/designing-system-architecture/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "d7c83bf058235ea8af721f1f60e68aae2ba5af41"
+      },
+      {
+        "id": "evaluating-unit-economics",
+        "path": ".agents/skills/evaluating-unit-economics/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "0827eca1117ee1cb22351b02a05bc7de5bbc6354"
+      },
+      {
+        "id": "governing-customer-data-learning",
+        "path": ".agents/skills/governing-customer-data-learning/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "d9e765327885257739e1cdfbb3aef12c1fc9ebc7"
+      },
+      {
+        "id": "governing-marketplace-readiness",
+        "path": ".agents/skills/governing-marketplace-readiness/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "1afd69fe0512f2e7072aa568354a67f4353d9c2a"
+      },
+      {
+        "id": "governing-regulated-features",
+        "path": ".agents/skills/governing-regulated-features/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "694b66ba5b60e5945f45c9ed2665ae05bf022b6e"
+      },
+      {
+        "id": "improving-skills-from-evidence",
+        "path": ".agents/skills/improving-skills-from-evidence/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "b6587061c302880321e3a557e448d3dd6bd7a9fe"
+      },
+      {
+        "id": "integrating-external-providers",
+        "path": ".agents/skills/integrating-external-providers/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "321031343435af1c3ee396665a82ac8a95950431"
+      },
+      {
+        "id": "maintaining-operational-memory",
+        "path": ".agents/skills/maintaining-operational-memory/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "220a45f5d8d04f508a48c749f10be0faf71abdcb"
+      },
+      {
+        "id": "managing-approvals-and-risk",
+        "path": ".agents/skills/managing-approvals-and-risk/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "9077f2aa1e5e0a61bff0fdd684f1d019be6dfacd"
+      },
+      {
+        "id": "managing-dependencies-and-supply-chain",
+        "path": ".agents/skills/managing-dependencies-and-supply-chain/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "14732a9035579958fb72befc3205e79db85c7fbe"
+      },
+      {
+        "id": "managing-environments",
+        "path": ".agents/skills/managing-environments/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "e72b37943e25b757c5dd861eb6feb35945fe1181"
+      },
+      {
+        "id": "managing-incidents-and-recovery",
+        "path": ".agents/skills/managing-incidents-and-recovery/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "ab388cf7844171476899ce5ed7fb6bd9171699dd"
+      },
+      {
+        "id": "managing-migrations-and-rollbacks",
+        "path": ".agents/skills/managing-migrations-and-rollbacks/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "e061a0a0076e86df2e15e25f5e1ed9e2ad517b8b"
+      },
+      {
+        "id": "managing-portfolio-priorities",
+        "path": ".agents/skills/managing-portfolio-priorities/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "27f5c3a08ddd4cb3d63229fceda54f76bcf72b70"
+      },
+      {
+        "id": "managing-secrets-and-config",
+        "path": ".agents/skills/managing-secrets-and-config/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "44318991c17db65be433877b483e17d4708ddaec"
+      },
+      {
+        "id": "measuring-activation-and-retention",
+        "path": ".agents/skills/measuring-activation-and-retention/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "75785bf222da5bdb5905270c67a55777d93033ab"
+      },
+      {
+        "id": "monitoring-runtime-and-costs",
+        "path": ".agents/skills/monitoring-runtime-and-costs/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "bd5d27b24058dd4702a73bff06ab3f12aaf58aeb"
+      },
+      {
+        "id": "operating-customer-systems",
+        "path": ".agents/skills/operating-customer-systems/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "42241174d06ccd637ffbb8b392277666d144e3b1"
+      },
+      {
+        "id": "orchestrating-intent-to-working-system",
+        "path": ".agents/skills/orchestrating-intent-to-working-system/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "a9ff535b22661f3d2fef9aa4138949ffe1685b02"
+      },
+      {
+        "id": "planning-governed-actions",
+        "path": ".agents/skills/planning-governed-actions/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "fe4a5223ae50ac12c308ee58715d043ccc5efb40"
+      },
+      {
+        "id": "preserving-audit-lineage",
+        "path": ".agents/skills/preserving-audit-lineage/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "3b4b25812284e93fe2bc37c12873350d0dafe43b"
+      },
+      {
+        "id": "preserving-source-provenance",
+        "path": ".agents/skills/preserving-source-provenance/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "05f03a9799a655b196a55aeb6e9abf76177bf73b"
+      },
+      {
+        "id": "prioritizing-roadmap-evidence",
+        "path": ".agents/skills/prioritizing-roadmap-evidence/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "786596d8c8e8f2ecac94927fd5853147912fcf1e"
+      },
+      {
+        "id": "publishing-reusable-artifacts",
+        "path": ".agents/skills/publishing-reusable-artifacts/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "999cde5a06677f01f48dcc748394d7af80f21cdf"
+      },
+      {
+        "id": "recovering-canonical-project-state",
+        "path": ".agents/skills/recovering-canonical-project-state/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "25980c9badbe11372f8393124e7f539eba52ac39"
+      },
+      {
+        "id": "repairing-failures-autonomously",
+        "path": ".agents/skills/repairing-failures-autonomously/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "3472d3cae1f68f8451cdc741ea0c03830609becd"
+      },
+      {
+        "id": "reporting-proof-based-status",
+        "path": ".agents/skills/reporting-proof-based-status/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "e4a7b2acaf39106dceb6b9de91302f65af1f59d0"
+      },
+      {
+        "id": "resolving-evidence-conflicts",
+        "path": ".agents/skills/resolving-evidence-conflicts/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "fcb918518e7a0b2500ad96dc81e868fd41de2e59"
+      },
+      {
+        "id": "reviewing-code-independently",
+        "path": ".agents/skills/reviewing-code-independently/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "fb064387f5893fad2c905d66aaf31210ca471c72"
+      },
+      {
+        "id": "routing-models-by-outcome",
+        "path": ".agents/skills/routing-models-by-outcome/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "35cae635908a4111d12670fa29c25742d1012b53"
+      },
+      {
+        "id": "running-evaluations-and-experiments",
+        "path": ".agents/skills/running-evaluations-and-experiments/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "45f75b2f63dd72aef4eca274a94d25d0a2edf043"
+      },
+      {
+        "id": "running-paid-pilot-validation",
+        "path": ".agents/skills/running-paid-pilot-validation/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "b73ba6309a2bdfa4e842688457e31479094ececa"
+      },
+      {
+        "id": "selecting-next-safe-action",
+        "path": ".agents/skills/selecting-next-safe-action/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "8ea4ad4f3a67d45923cd6a83db2c94aee0c47075"
+      },
+      {
+        "id": "sequencing-platform-expansion",
+        "path": ".agents/skills/sequencing-platform-expansion/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "55faf60a10655ac870d580cbd9dc1be5b8388bd7"
+      },
+      {
+        "id": "testing-software-end-to-end",
+        "path": ".agents/skills/testing-software-end-to-end/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "115df037e33d5697f234be35fb047fd8a89ab713"
+      },
+      {
+        "id": "threat-modeling-autonomous-actions",
+        "path": ".agents/skills/threat-modeling-autonomous-actions/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "ab2e2e08a68f1b3a19d560573ab1289ff745dd3e"
+      },
+      {
+        "id": "translating-intent-to-specifications",
+        "path": ".agents/skills/translating-intent-to-specifications/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "f32f6e76ed9e48817878914a545827c2fa1f0521"
+      },
+      {
+        "id": "validating-customer-problems",
+        "path": ".agents/skills/validating-customer-problems/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "bf4b4a017173647a8df2e2156bbc4a51a0a3c701"
+      },
+      {
+        "id": "validating-performance-and-reliability",
+        "path": ".agents/skills/validating-performance-and-reliability/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "8ecbbd515d5ef34dd671118615ef03c81c2a407b"
+      },
+      {
+        "id": "verifying-production-outcomes",
+        "path": ".agents/skills/verifying-production-outcomes/SKILL.md",
+        "state": "source_present",
+        "mode": "100644",
+        "type": "blob",
+        "blobSha": "c417703b209299f54918a96cd2e8d21a1484780d"
+      }
+    ]
+  },
+  "findings": [
+    "CATALOG_HISTORICAL_OR_NONCANONICAL_SOURCE_BINDING",
+    "CATALOG_ORIGIN_SHA_DIFFERS_FROM_AUDITED_SNAPSHOT"
+  ],
+  "evidenceSha256": "b54e93f5c9d3d9e1494f92e23a4d071af845f26077d401b62ed2e378522d384e",
+  "boundaries": {
+    "sourceBinding": "local_origin_configuration_plus_exact_git_objects_not_provider_attestation",
+    "workingTreeConsulted": false,
+    "providerState": "NOT_CHECKED",
+    "runtimeAcceptance": "NOT_CHECKED",
+    "testsExecutedByAudit": 0,
+    "trainingRights": "NOT_EVALUATED",
+    "mutationAuthorized": false,
+    "historicalProvenanceRewritten": false,
+    "missingPathIsNotProofOfMissingCapability": true
+  }
+}

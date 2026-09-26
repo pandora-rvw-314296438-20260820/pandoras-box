@@ -124,13 +124,11 @@ class _PluginsScreenState extends State<PluginsScreen> {
                             if (navigation?.openDrawer == null) {
                               return const SizedBox(width: 48);
                             }
-                            return IconButton(
+                            return PandoraMenuButton(
                               key: const ValueKey<String>(
                                 'pandora-side-panel-open',
                               ),
-                              tooltip: 'Open navigation',
-                              onPressed: navigation!.openDrawer,
-                              icon: const Icon(Icons.menu_rounded),
+                              onPressed: navigation!.openDrawer!,
                             );
                           },
                         ),
@@ -874,6 +872,8 @@ String _providerPurpose(String provider) => switch (provider) {
       'google_drive' =>
         'Files and documents through Google Workspace authorization.',
       'google_sheets' => 'Spreadsheets through Google Workspace authorization.',
+      'meta' =>
+        'Facebook Pages, Meta ad accounts, campaigns, and performance insights.',
       _ => 'Provider capability exposed by Pandora runtime truth.',
     };
 

@@ -1,0 +1,922 @@
+#include <android/log.h>
+#include <jni.h>
+#include <atomic>
+#include <iomanip>
+#include <cmath>
+#include <sstream>
+#include <string>
+#include <unistd.h>
+#include <sampling.h>
+
+#include "logging.h"
+#include "chat.h"
+#include "common.h"
+#include "ggml-backend.h"
+#include "llama.h"
+#include "prompt_decode_transaction.h"
+#include <mutex>
+
+template<class T>
+static std::string join(const std::vector<T> &values, const std::string &delim) {
+    std::ostringstream str;
+    for (size_t i = 0; i < values.size(); i++) {
+        str << values[i];
+        if (i < values.size() - 1) { str << delim; }
+    }
+    return str.str();
+}
+
+/**
+ * LLama resources: context, model, batch and sampler
+ */
+constexpr int   N_THREADS_MIN           = 2;
+constexpr int   N_THREADS_MAX           = 4;
+constexpr int   N_THREADS_HEADROOM      = 2;
+
+constexpr int   DEFAULT_CONTEXT_SIZE    = 2048;
+constexpr int   OVERFLOW_HEADROOM       = 4;
+constexpr int   BATCH_SIZE              = 64;
+constexpr int   PREFERRED_GPU_LAYERS    = 0; // Redmi-safe cold load; Vulkan remains compiled until physical acceleration is re-verified
+constexpr float DEFAULT_SAMPLER_TEMP    = 0.3f;
+
+static llama_model                      * g_model;
+static llama_context                    * g_context;
+static llama_batch                        g_batch;
+static common_chat_templates_ptr          g_chat_templates;
+static common_sampler                   * g_sampler;
+static int                                g_context_size = DEFAULT_CONTEXT_SIZE;
+static bool                               g_vulkan_device_available = false;
+static bool                               g_acceleration_attempted = false;
+static bool                               g_cpu_fallback_used = false;
+static int                                g_gpu_layers_requested = 0;
+static int                                g_gpu_layers_active = 0;
+static std::string                        g_model_path;
+static std::atomic_bool                    g_cancel_requested{false};
+static std::mutex                          g_prompt_diagnostics_mutex;
+static pandora_local_ai::PromptDecodeResult g_last_prompt_result;
+static int                                 g_last_prompt_start = 0;
+static int                                 g_last_prompt_tokens = 0;
+
+static void record_prompt_result(const pandora_local_ai::PromptDecodeResult &result,
+                                 const int start, const int tokens) {
+    const std::lock_guard<std::mutex> lock(g_prompt_diagnostics_mutex);
+    g_last_prompt_result = result;
+    g_last_prompt_start = start;
+    g_last_prompt_tokens = tokens;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_init(JNIEnv *env, jobject /*unused*/, jstring nativeLibDir) {
+    // Set llama log handler to Android
+    llama_log_set(aichat_android_log_callback, nullptr);
+
+    // CPU remains statically linked as the fail-safe path. Vulkan is also
+    // statically compiled and is selected only when llama.cpp exposes a real
+    // GPU/IGPU device at runtime.
+    const auto *native_lib_dir = env->GetStringUTFChars(nativeLibDir, 0);
+    LOGi("Native library directory: %s", native_lib_dir);
+    env->ReleaseStringUTFChars(nativeLibDir, native_lib_dir);
+
+    llama_backend_init();
+    LOGi("Static CPU fallback + Vulkan-capable backend set initiated.");
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_requestCancelNative(
+        JNIEnv *, jobject /*unused*/) {
+    g_cancel_requested.store(true, std::memory_order_relaxed);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_clearCancelNative(
+        JNIEnv *, jobject /*unused*/) {
+    g_cancel_requested.store(false, std::memory_order_relaxed);
+}
+
+static bool has_gpu_device() {
+    for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
+        auto *device = ggml_backend_dev_get(i);
+        const auto type = ggml_backend_dev_type(device);
+        LOGi(
+            "Backend device %zu: %s (%s), type=%d",
+            i,
+            ggml_backend_dev_name(device),
+            ggml_backend_dev_description(device),
+            (int) type);
+        if (type == GGML_BACKEND_DEVICE_TYPE_GPU ||
+            type == GGML_BACKEND_DEVICE_TYPE_IGPU) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool model_load_progress(float progress, void * /*user_data*/) {
+    if (g_cancel_requested.load(std::memory_order_relaxed)) {
+        LOGw("%s: cooperative model-load cancellation at %.1f%%", __func__, progress * 100.0f);
+        return false;
+    }
+    return true;
+}
+
+static llama_model *load_model_with_profile(const char *model_path, const int gpu_layers) {
+    llama_model_params model_params = llama_model_default_params();
+    model_params.n_gpu_layers = gpu_layers;
+    model_params.load_mode = LLAMA_LOAD_MODE_MMAP;
+    model_params.lazy_mode = LLAMA_LAZY_MODE_OFF;
+    model_params.use_extra_bufts = false;
+    model_params.progress_callback = model_load_progress;
+    model_params.progress_callback_user_data = nullptr;
+
+    LOGi(
+        "%s: load profile mmap, gpu_layers=%d, extra_bufts=false, lazy=off",
+        __func__,
+        gpu_layers);
+    auto *model = llama_model_load_from_file(model_path, model_params);
+    if (!model && !g_cancel_requested.load(std::memory_order_relaxed)) {
+        LOGw(
+            "%s: mmap load failed for gpu_layers=%d; retrying non-mmap",
+            __func__,
+            gpu_layers);
+        model_params.load_mode = LLAMA_LOAD_MODE_NONE;
+        model = llama_model_load_from_file(model_path, model_params);
+    }
+    return model;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_load(JNIEnv *env, jobject, jstring jmodel_path) {
+    const auto *model_path = env->GetStringUTFChars(jmodel_path, 0);
+    g_model_path = model_path;
+    LOGd("%s: Loading model from: \n%s\n", __func__, model_path);
+
+    g_vulkan_device_available = has_gpu_device();
+    g_gpu_layers_requested = g_vulkan_device_available ? PREFERRED_GPU_LAYERS : 0;
+    g_acceleration_attempted = g_gpu_layers_requested > 0;
+    g_cpu_fallback_used = false;
+
+    auto *model = load_model_with_profile(model_path, g_gpu_layers_requested);
+    if (!model && g_gpu_layers_requested > 0) {
+        LOGw("%s: Vulkan/offload model load failed; falling back to CPU", __func__);
+        g_cpu_fallback_used = true;
+        model = load_model_with_profile(model_path, 0);
+    }
+    env->ReleaseStringUTFChars(jmodel_path, model_path);
+
+    if (!model) {
+        LOGe("%s: accelerated and CPU fallback model loads failed", __func__);
+        g_gpu_layers_active = 0;
+        return 2;
+    }
+
+    g_model = model;
+    g_gpu_layers_active = g_cpu_fallback_used ? 0 : g_gpu_layers_requested;
+    LOGi(
+        "%s: model ready backend=%s gpu_layers=%d",
+        __func__,
+        g_gpu_layers_active > 0 ? "vulkan" : "cpu",
+        g_gpu_layers_active);
+    return 0;
+}
+
+static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT_CONTEXT_SIZE) {
+    if (!model) {
+        LOGe("%s: model cannot be null", __func__);
+        return nullptr;
+    }
+
+    // Multi-threading setup
+    const int n_threads = std::max(N_THREADS_MIN, std::min(N_THREADS_MAX,
+                                                     (int) sysconf(_SC_NPROCESSORS_ONLN) -
+                                                     N_THREADS_HEADROOM));
+    LOGi("%s: Using %d threads", __func__, n_threads);
+
+    // Context parameters setup
+    llama_context_params ctx_params = llama_context_default_params();
+    const int trained_context_size = llama_model_n_ctx_train(model);
+    if (n_ctx > trained_context_size) {
+        LOGw("%s: Model was trained with only %d context size! Enforcing %d context size...",
+             __func__, trained_context_size, n_ctx);
+    }
+    ctx_params.n_ctx = n_ctx;
+    ctx_params.n_batch = BATCH_SIZE;
+    ctx_params.n_ubatch = BATCH_SIZE;
+    ctx_params.n_threads = n_threads;
+    ctx_params.n_threads_batch = n_threads;
+    auto *context = llama_init_from_model(g_model, ctx_params);
+    if (context != nullptr) {
+        // Cooperative CPU cancellation must also reach a running microbatch,
+        // not wait for an entire slow phone prompt batch to finish.
+        llama_set_abort_callback(context, [](void *) -> bool {
+            return g_cancel_requested.load(std::memory_order_relaxed);
+        }, nullptr);
+    }
+    if (context == nullptr) {
+        LOGe("%s: llama_new_context_with_model() returned null)", __func__);
+    }
+    return context;
+}
+
+static common_sampler *new_sampler(float temp) {
+    common_params_sampling sparams;
+    sparams.temp = temp;
+    return common_sampler_init(g_model, sparams);
+}
+
+static llama_context *prepare_context_with_fallback_sizes() {
+    const int context_candidates[] = { 2048, 1536, 1024 };
+    for (const int candidate : context_candidates) {
+        LOGi("%s: trying context size %d", __func__, candidate);
+        auto *context = init_context(g_model, candidate);
+        if (context != nullptr) {
+            LOGi("%s: context size %d ready", __func__, candidate);
+            return context;
+        }
+        LOGw("%s: context size %d failed", __func__, candidate);
+    }
+    return nullptr;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_prepare(JNIEnv * /*env*/, jobject /*unused*/) {
+    auto *context = prepare_context_with_fallback_sizes();
+
+    // Model upload may succeed while context allocation fails on a driver.
+    // Reload on CPU so acceleration cannot make local chat unavailable.
+    if (!context && g_gpu_layers_active > 0 && !g_model_path.empty()) {
+        LOGw("%s: Vulkan context allocation failed; reloading model on CPU", __func__);
+        llama_model_free(g_model);
+        g_model = load_model_with_profile(g_model_path.c_str(), 0);
+        g_gpu_layers_active = 0;
+        g_cpu_fallback_used = true;
+        if (g_model != nullptr) {
+            context = prepare_context_with_fallback_sizes();
+        }
+    }
+
+    if (!context) {
+        LOGe("%s: all accelerated/CPU context allocation profiles failed", __func__);
+        return 2;
+    }
+    g_context = context;
+    g_context_size = (int) llama_n_ctx(context);
+    g_batch = llama_batch_init(BATCH_SIZE, 0, 1);
+    g_chat_templates = common_chat_templates_init(g_model, "");
+    g_sampler = new_sampler(DEFAULT_SAMPLER_TEMP);
+    if (!g_sampler) {
+        LOGe("%s: sampler initialization failed", __func__);
+        return 3;
+    }
+    LOGi(
+        "%s: runtime ready backend=%s gpu_layers=%d context=%d",
+        __func__,
+        g_gpu_layers_active > 0 ? "vulkan" : "cpu",
+        g_gpu_layers_active,
+        g_context_size);
+    return 0;
+}
+
+static std::string get_backend() {
+    std::vector<std::string> backends;
+    for (size_t i = 0; i < ggml_backend_reg_count(); i++) {
+        auto *reg = ggml_backend_reg_get(i);
+        std::string name = ggml_backend_reg_name(reg);
+        if (name != "CPU") {
+            backends.push_back(ggml_backend_reg_name(reg));
+        }
+    }
+    return backends.empty() ? "CPU" : join(backends, ",");
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_systemInfo(JNIEnv *env, jobject /*unused*/) {
+    return env->NewStringUTF(llama_print_system_info());
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_nativeRuntimeDiagnostics(
+        JNIEnv *env,
+        jobject /*unused*/) {
+    const std::lock_guard<std::mutex> lock(g_prompt_diagnostics_mutex);
+    std::ostringstream result;
+    result << "{"
+           << "\"configuredBackend\":\"cpu_safe_vulkan_compiled\","
+           << "\"activeBackend\":\"" << (g_gpu_layers_active > 0 ? "vulkan" : "cpu") << "\","
+           << "\"vulkanDeviceAvailable\":" << (g_vulkan_device_available ? "true" : "false") << ","
+           << "\"accelerationAttempted\":" << (g_acceleration_attempted ? "true" : "false") << ","
+           << "\"cpuFallbackUsed\":" << (g_cpu_fallback_used ? "true" : "false") << ","
+           << "\"gpuLayersRequested\":" << g_gpu_layers_requested << ","
+           << "\"gpuLayersActive\":" << g_gpu_layers_active << ","
+           << "\"contextTokens\":" << g_context_size << ","
+           << "\"lastPromptCode\":" << g_last_prompt_result.code << ","
+           << "\"lastDecodeCode\":" << g_last_prompt_result.raw_decode_code << ","
+           << "\"lastPromptStart\":" << g_last_prompt_start << ","
+           << "\"lastPromptTokens\":" << g_last_prompt_tokens << ","
+           << "\"lastPromptOffset\":" << g_last_prompt_result.batch_offset << ","
+           << "\"lastDecodeBatch\":" << g_last_prompt_result.batch_size << ","
+           << "\"lastCapacityRetries\":" << g_last_prompt_result.capacity_retries << ","
+           << "\"lastRollbackFailed\":" << (g_last_prompt_result.rollback_failed ? "true" : "false")
+           << "}";
+    return env->NewStringUTF(result.str().c_str());
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_benchModel(JNIEnv *env, jobject /*unused*/, jint pp, jint tg,
+                                                      jint pl, jint nr) {
+    auto *context = init_context(g_model, pp);
+    if (!context) {
+        const auto *const err_msg = "Fail to init_context! Bench aborted.";
+        LOGe(err_msg);
+        return env->NewStringUTF(err_msg);
+    }
+
+    auto pp_avg = 0.0;
+    auto tg_avg = 0.0;
+    auto pp_std = 0.0;
+    auto tg_std = 0.0;
+
+    const uint32_t n_ctx = llama_n_ctx(context);
+    LOGi("n_ctx = %d", n_ctx);
+
+    int i, j;
+    int nri;
+    for (nri = 0; nri < nr; nri++) {
+        LOGi("Benchmark prompt processing (pp = %d)", pp);
+
+        common_batch_clear(g_batch);
+
+        const int n_tokens = pp;
+        for (i = 0; i < n_tokens; i++) {
+            common_batch_add(g_batch, 0, i, {0}, false);
+        }
+
+        g_batch.logits[g_batch.n_tokens - 1] = true;
+        llama_memory_clear(llama_get_memory(context), false);
+
+        const auto t_pp_start = ggml_time_us();
+        if (llama_decode(context, g_batch) != 0) {
+            LOGe("llama_decode() failed during prompt processing");
+        }
+        const auto t_pp_end = ggml_time_us();
+
+        // bench text generation
+
+        LOGi("Benchmark text generation (tg = %d)", tg);
+
+        llama_memory_clear(llama_get_memory(context), false);
+        const auto t_tg_start = ggml_time_us();
+        for (i = 0; i < tg; i++) {
+            common_batch_clear(g_batch);
+            for (j = 0; j < pl; j++) {
+                common_batch_add(g_batch, 0, i, {j}, true);
+            }
+
+            if (llama_decode(context, g_batch) != 0) {
+                LOGe("llama_decode() failed during text generation");
+            }
+        }
+        const auto t_tg_end = ggml_time_us();
+
+        llama_memory_clear(llama_get_memory(context), false);
+
+        const auto t_pp = double(t_pp_end - t_pp_start) / 1000000.0;
+        const auto t_tg = double(t_tg_end - t_tg_start) / 1000000.0;
+
+        const auto speed_pp = double(pp) / t_pp;
+        const auto speed_tg = double(pl * tg) / t_tg;
+
+        pp_avg += speed_pp;
+        tg_avg += speed_tg;
+
+        pp_std += speed_pp * speed_pp;
+        tg_std += speed_tg * speed_tg;
+
+        LOGi("pp %f t/s, tg %f t/s", speed_pp, speed_tg);
+    }
+
+    llama_free(context);
+
+    pp_avg /= double(nr);
+    tg_avg /= double(nr);
+
+    if (nr > 1) {
+        pp_std = sqrt(pp_std / double(nr - 1) - pp_avg * pp_avg * double(nr) / double(nr - 1));
+        tg_std = sqrt(tg_std / double(nr - 1) - tg_avg * tg_avg * double(nr) / double(nr - 1));
+    } else {
+        pp_std = 0;
+        tg_std = 0;
+    }
+
+    char model_desc[128];
+    llama_model_desc(g_model, model_desc, sizeof(model_desc));
+
+    const auto model_size = double(llama_model_size(g_model)) / 1024.0 / 1024.0 / 1024.0;
+    const auto model_n_params = double(llama_model_n_params(g_model)) / 1e9;
+
+    const auto backend = get_backend();
+    std::stringstream result;
+    result << std::setprecision(3);
+    result << "| model | size | params | backend | test | t/s |\n";
+    result << "| --- | --- | --- | --- | --- | --- |\n";
+    result << "| " << model_desc << " | " << model_size << "GiB | " << model_n_params << "B | "
+           << backend << " | pp " << pp << " | " << pp_avg << " ± " << pp_std << " |\n";
+    result << "| " << model_desc << " | " << model_size << "GiB | " << model_n_params << "B | "
+           << backend << " | tg " << tg << " | " << tg_avg << " ± " << tg_std << " |\n";
+    return env->NewStringUTF(result.str().c_str());
+}
+
+
+/**
+ * Completion loop's long-term states:
+ * - chat management
+ * - position tracking
+ */
+constexpr const char *ROLE_SYSTEM       = "system";
+constexpr const char *ROLE_USER         = "user";
+constexpr const char *ROLE_ASSISTANT    = "assistant";
+
+static std::vector<common_chat_msg> chat_msgs;
+static llama_pos system_prompt_position;
+static llama_pos current_position;
+static bool turn_in_progress = false;
+static llama_pos turn_start_position = 0;
+static size_t turn_start_message_count = 0;
+
+static void reset_long_term_states(const bool clear_kv_cache = true) {
+    chat_msgs.clear();
+    turn_in_progress = false;
+    turn_start_position = 0;
+    turn_start_message_count = 0;
+    system_prompt_position = 0;
+    current_position = 0;
+
+    if (clear_kv_cache && g_context != nullptr)
+        llama_memory_clear(llama_get_memory(g_context), false);
+}
+
+/**
+ * TODO-hyin: implement sliding-window version as a better alternative
+ *
+ * Context shifting by discarding the older half of the tokens appended after system prompt:
+ * - take the [system_prompt_position] first tokens from the original prompt
+ * - take half of the last (system_prompt_position - system_prompt_position) tokens
+ * - recompute the logits in batches
+ */
+static void shift_context() {
+    const int n_discard = (current_position - system_prompt_position) / 2;
+    auto *memory = llama_get_memory(g_context);
+    if (n_discard <= 0 || !llama_memory_can_shift(memory)) return;
+    llama_synchronize(g_context);
+    if (!llama_memory_seq_rm(memory, 0, system_prompt_position,
+                             system_prompt_position + n_discard)) return;
+    llama_memory_seq_add(memory, 0, system_prompt_position + n_discard,
+                         current_position, -n_discard);
+    current_position -= n_discard;
+    LOGi("%s: Discarded %d tokens; current position: %d", __func__, n_discard, current_position);
+}
+
+static std::string chat_add_and_format(const std::string &role, const std::string &content) {
+    common_chat_msg new_msg;
+    new_msg.role = role;
+    new_msg.content = content;
+    auto formatted = common_chat_format_single(
+            g_chat_templates.get(), chat_msgs, new_msg, role == ROLE_USER, /* use_jinja */ false);
+    chat_msgs.push_back(new_msg);
+    LOGi("%s: Formatted and added %s message: \n%s\n", __func__, role.c_str(), formatted.c_str());
+    return formatted;
+}
+
+/**
+ * Completion loop's short-term states:
+ * - stop generation position
+ * - token chars caching
+ * - current assistant message being generated
+ */
+static llama_pos stop_generation_position;
+static std::string cached_token_chars;
+static std::ostringstream assistant_ss;
+
+static void reset_short_term_states() {
+    stop_generation_position = 0;
+    cached_token_chars.clear();
+    assistant_ss.str("");
+}
+
+static bool rollback_prompt_tokens(llama_context *context, const llama_pos start_pos) {
+    llama_synchronize(context);
+    auto *memory = llama_get_memory(context);
+    return llama_memory_seq_rm(memory, 0, start_pos, -1) &&
+           llama_memory_seq_pos_max(memory, 0) == start_pos - 1;
+}
+
+static bool rollback_unfinished_turn() {
+    if (!turn_in_progress) return true;
+    if (!rollback_prompt_tokens(g_context, turn_start_position)) return false;
+    current_position = turn_start_position;
+    chat_msgs.resize(turn_start_message_count);
+    common_sampler_reset(g_sampler);
+    reset_short_term_states();
+    turn_in_progress = false;
+    return true;
+}
+
+static void finish_turn() {
+    if (!turn_in_progress) return;
+    chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
+    turn_in_progress = false;
+}
+
+static void throw_native_generation_error(JNIEnv *env, const bool cancelled,
+                                           const std::string &message) {
+    const auto exception_class = env->FindClass(cancelled
+        ? "java/util/concurrent/CancellationException" : "java/lang/RuntimeException");
+    if (exception_class != nullptr) env->ThrowNew(exception_class, message.c_str());
+}
+
+static bool close_turn_at_limit(JNIEnv *env) {
+    if (!turn_in_progress) return true;
+    const auto *vocab = llama_model_get_vocab(g_model);
+    llama_token end_token = llama_vocab_eot(vocab);
+    if (end_token < 0 || !llama_vocab_is_eog(vocab, end_token)) {
+        end_token = llama_vocab_eos(vocab);
+    }
+    if (end_token < 0 || !llama_vocab_is_eog(vocab, end_token)) {
+        const bool restored = rollback_unfinished_turn();
+        throw_native_generation_error(env, false, restored
+            ? "Native llama.cpp has no valid end-of-turn token; unfinished turn rolled back."
+            : "Native llama.cpp end-of-turn rollback failed; reload required.");
+        return false;
+    }
+
+    // Chat formatting assumes the preceding assistant turn really ended in KV.
+    // Use the reserved headroom to decode its actual EOT/EOS, never just label
+    // a length-limited prefix as a complete assistant message.
+    const int closing_position = current_position;
+    auto result = pandora_local_ai::decode_prompt_transaction(
+        1, closing_position, g_context_size, 1,
+        [&](const int, const int) {
+            common_batch_clear(g_batch);
+            common_batch_add(g_batch, end_token, closing_position, {0}, false);
+            return llama_decode(g_context, g_batch);
+        },
+        [] { return g_cancel_requested.load(std::memory_order_relaxed); },
+        [] { return rollback_unfinished_turn(); });
+    if (result.code != 0) {
+        // Cancellation before the first decode still has an existing user turn
+        // to undo, unlike a new prompt transaction with no submitted tokens.
+        if (!rollback_unfinished_turn()) {
+            result.code = 4;
+            result.rollback_failed = true;
+        }
+        record_prompt_result(result, closing_position, 1);
+        throw_native_generation_error(env, result.code == 9,
+            "Native llama.cpp end-of-turn failed: wrapper=" + std::to_string(result.code) +
+            ", raw_decode=" + std::to_string(result.raw_decode_code));
+        return false;
+    }
+    ++current_position;
+    common_sampler_accept(g_sampler, end_token, true);
+    return true;
+}
+
+static int decode_tokens_in_batches(
+        llama_context *context,
+        llama_batch &batch,
+        const llama_tokens &tokens,
+        const llama_pos start_pos,
+        const bool compute_last_logit = false) {
+    // Never shift after capturing start_pos: every submitted position must
+    // describe the same KV checkpoint. Failed/aborted prefixes are rolled back.
+    const auto result = pandora_local_ai::decode_prompt_transaction(
+        (int) tokens.size(), start_pos, g_context_size - OVERFLOW_HEADROOM, BATCH_SIZE,
+        [&](const int offset, const int count) {
+            common_batch_clear(batch);
+            for (int j = 0; j < count; ++j) {
+                const int index = offset + j;
+                const bool want_logit = compute_last_logit && index == (int) tokens.size() - 1;
+                common_batch_add(batch, tokens[index], start_pos + index, {0}, want_logit);
+            }
+            return llama_decode(context, batch);
+        },
+        [] { return g_cancel_requested.load(std::memory_order_relaxed); },
+        [&] { return rollback_prompt_tokens(context, start_pos); });
+    record_prompt_result(result, start_pos, (int) tokens.size());
+    if (result.code != 0) {
+        LOGe("%s: wrapper=%d raw_decode=%d start=%d offset=%d batch=%d rollback_failed=%d",
+             __func__, result.code, result.raw_decode_code, start_pos,
+             result.batch_offset, result.batch_size, result.rollback_failed);
+    }
+    return result.code;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
+        JNIEnv *env,
+        jobject /*unused*/,
+        jstring jsystem_prompt
+) {
+    // Reset long-term & short-term states
+    reset_long_term_states();
+    reset_short_term_states();
+
+    // Obtain system prompt from JEnv
+    const auto *system_prompt = env->GetStringUTFChars(jsystem_prompt, nullptr);
+    LOGd("%s: System prompt received: \n%s", __func__, system_prompt);
+    std::string formatted_system_prompt(system_prompt);
+
+    // Format system prompt if applicable
+    const bool has_chat_template = common_chat_templates_was_explicit(g_chat_templates.get());
+    if (has_chat_template) {
+        formatted_system_prompt = chat_add_and_format(ROLE_SYSTEM, system_prompt);
+    }
+    env->ReleaseStringUTFChars(jsystem_prompt, system_prompt);
+
+    // Tokenize system prompt
+    const auto system_tokens = common_tokenize(g_context, formatted_system_prompt,
+                                               has_chat_template, has_chat_template);
+    for (auto id: system_tokens) {
+        LOGv("token: `%s`\t -> `%d`", common_token_to_piece(g_context, id).c_str(), id);
+    }
+
+    // Handle context overflow against the actual allocated context.
+    const int max_batch_size = g_context_size - OVERFLOW_HEADROOM;
+    if ((int) system_tokens.size() > max_batch_size) {
+        LOGe("%s: System prompt too long for context! %d tokens, max: %d",
+             __func__, (int) system_tokens.size(), max_batch_size);
+        return 1;
+    }
+
+    // Decode system tokens in batches
+    const int system_result = decode_tokens_in_batches(
+        g_context, g_batch, system_tokens, current_position);
+    if (system_result != 0) {
+        reset_long_term_states();
+        return system_result;
+    }
+
+    // Update position
+    system_prompt_position = current_position = (int) system_tokens.size();
+    return 0;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
+        JNIEnv *env,
+        jobject /*unused*/,
+        jstring juser_prompt,
+        jint n_predict
+) {
+    // A cancelled Flow may stop collecting between JNI calls. Recover its
+    // unfinished turn before admitting another prompt to the resident model.
+    if (!rollback_unfinished_turn()) return 4;
+    const size_t original_message_count = chat_msgs.size();
+    reset_short_term_states();
+
+    // Obtain and tokenize user prompt
+    const auto *const user_prompt = env->GetStringUTFChars(juser_prompt, nullptr);
+    LOGd("%s: User prompt received: \n%s", __func__, user_prompt);
+    std::string formatted_user_prompt(user_prompt);
+
+    // Format user prompt if applicable
+    const bool has_chat_template = common_chat_templates_was_explicit(g_chat_templates.get());
+    if (has_chat_template) {
+        formatted_user_prompt = chat_add_and_format(ROLE_USER, user_prompt);
+    }
+    env->ReleaseStringUTFChars(juser_prompt, user_prompt);
+
+    // Decode formatted user prompts
+    auto user_tokens = common_tokenize(g_context, formatted_user_prompt, has_chat_template, has_chat_template);
+    for (auto id: user_tokens) {
+        LOGv("token: `%s`\t -> `%d`", common_token_to_piece(g_context, id).c_str(), id);
+    }
+
+    // Reserve generation headroom before decoding the prompt. PLP can attach
+    // synchronized business context, so prompt size must be bounded against the
+    // *remaining* context, not just the total context size.
+    const int generation_reserve = std::max(1, std::min((int) n_predict, g_context_size / 2));
+    const int prompt_end_limit = g_context_size - OVERFLOW_HEADROOM - generation_reserve;
+
+    // Reclaim old conversational KV state first while preserving the system
+    // prompt. This keeps a warm model useful across many short local turns.
+    int shift_attempts = 0;
+    while (current_position > system_prompt_position &&
+           current_position + (int) user_tokens.size() > prompt_end_limit &&
+           shift_attempts < 8) {
+        const llama_pos before = current_position;
+        shift_context();
+        shift_attempts++;
+        if (current_position >= before) {
+            break;
+        }
+    }
+
+    const int available_prompt_tokens = prompt_end_limit - (int) current_position;
+    if (available_prompt_tokens <= 0) {
+        chat_msgs.resize(original_message_count);
+        pandora_local_ai::PromptDecodeResult result;
+        result.code = 3;
+        record_prompt_result(result, current_position, (int) user_tokens.size());
+        return result.code;
+    }
+    const int original_user_prompt_size = (int) user_tokens.size();
+    if (original_user_prompt_size > available_prompt_tokens) {
+        const int skipped_tokens = original_user_prompt_size - available_prompt_tokens;
+        // Keep the tail. Pandora places the current user request after bounded
+        // route/business context, so this preserves the actual request and the
+        // chat-template generation suffix under memory pressure.
+        user_tokens.erase(user_tokens.begin(), user_tokens.begin() + skipped_tokens);
+        LOGw(
+            "%s: User prompt exceeded remaining context; kept newest %d tokens and skipped %d.",
+            __func__,
+            available_prompt_tokens,
+            skipped_tokens);
+    }
+    const int user_prompt_size = (int) user_tokens.size();
+
+    // Decode user tokens in batches.
+    const int user_result = decode_tokens_in_batches(
+        g_context, g_batch, user_tokens, current_position, true);
+    if (user_result != 0) {
+        chat_msgs.resize(original_message_count);
+        if (user_result == 4) {
+            // A failed rollback means native KV may still contain uncommitted
+            // prompt cells. Latch the turn so the next prompt must retry the
+            // rollback (or fail closed) before reusing this context.
+            turn_start_position = current_position;
+            turn_start_message_count = original_message_count;
+            turn_in_progress = true;
+        }
+        return user_result;
+    }
+    turn_start_position = current_position;
+    turn_start_message_count = original_message_count;
+    turn_in_progress = true;
+
+    // Update position exactly once and cap generation inside the allocated
+    // context. This prevents the old silent zero-token failure mode.
+    current_position += user_prompt_size;
+    stop_generation_position = std::min(
+        (llama_pos) (current_position + generation_reserve),
+        (llama_pos) (g_context_size - OVERFLOW_HEADROOM));
+    return 0;
+}
+
+static bool is_valid_utf8(const char *string) {
+    if (!string) { return true; }
+
+    const auto *bytes = (const unsigned char *) string;
+    int num;
+
+    while (*bytes != 0x00) {
+        if ((*bytes & 0x80) == 0x00) {
+            // U+0000 to U+007F
+            num = 1;
+        } else if ((*bytes & 0xE0) == 0xC0) {
+            // U+0080 to U+07FF
+            num = 2;
+        } else if ((*bytes & 0xF0) == 0xE0) {
+            // U+0800 to U+FFFF
+            num = 3;
+        } else if ((*bytes & 0xF8) == 0xF0) {
+            // U+10000 to U+10FFFF
+            num = 4;
+        } else {
+            return false;
+        }
+
+        bytes += 1;
+        for (int i = 1; i < num; ++i) {
+            if ((*bytes & 0xC0) != 0x80) {
+                return false;
+            }
+            bytes += 1;
+        }
+    }
+    return true;
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
+        JNIEnv *env,
+        jobject /*unused*/
+) {
+    if (g_cancel_requested.load(std::memory_order_relaxed)) {
+        const bool restored = rollback_unfinished_turn();
+        throw_native_generation_error(env, restored, restored
+            ? "Native llama.cpp generation cancelled; unfinished turn rolled back."
+            : "Native llama.cpp cancellation rollback failed; reload required.");
+        return nullptr;
+    }
+
+    // A bounded response must finish BEFORE any context shift. Reaching the
+    // output limit is also a completed assistant message, not an abandoned turn.
+    if (current_position >= stop_generation_position ||
+        current_position >= g_context_size - OVERFLOW_HEADROOM) {
+        if (!close_turn_at_limit(env)) return nullptr;
+        finish_turn();
+        return nullptr;
+    }
+
+    // Sample next token
+    const auto new_token_id = common_sampler_sample(g_sampler, g_context, -1);
+    common_sampler_accept(g_sampler, new_token_id, true);
+
+    // Populate the batch with new token, then decode
+    common_batch_clear(g_batch);
+    common_batch_add(g_batch, new_token_id, current_position, {0}, true);
+    const int token_decode_result = llama_decode(g_context, g_batch);
+    if (token_decode_result != 0) {
+        const int failed_position = current_position;
+        const bool restored = rollback_unfinished_turn();
+        pandora_local_ai::PromptDecodeResult result;
+        result.code = restored ? (token_decode_result == 2 ? 9 : 2) : 4;
+        result.raw_decode_code = token_decode_result;
+        result.batch_size = 1;
+        result.rollback_failed = !restored;
+        record_prompt_result(result, failed_position, 1);
+        throw_native_generation_error(env, restored && token_decode_result == 2,
+            "Native llama.cpp token decode failed: raw_decode=" +
+            std::to_string(token_decode_result) + ", position=" +
+            std::to_string(failed_position) + ", rollback=" +
+            (restored ? "restored" : "failed_reload_required"));
+        return nullptr;
+    }
+
+    // Update position
+    current_position++;
+
+    // Stop if next token is EOG
+    if (llama_vocab_is_eog(llama_model_get_vocab(g_model), new_token_id)) {
+        LOGd("id: %d,\tIS EOG!\nSTOP.", new_token_id);
+        finish_turn();
+        return nullptr;
+    }
+
+    // If not EOG, convert to text
+    auto new_token_chars = common_token_to_piece(g_context, new_token_id);
+    cached_token_chars += new_token_chars;
+
+    // Create and return a valid UTF-8 Java string
+    jstring result = nullptr;
+    if (is_valid_utf8(cached_token_chars.c_str())) {
+        result = env->NewStringUTF(cached_token_chars.c_str());
+        LOGv("id: %d,\tcached: `%s`,\tnew: `%s`", new_token_id, cached_token_chars.c_str(), new_token_chars.c_str());
+
+        assistant_ss << cached_token_chars;
+        cached_token_chars.clear();
+    } else {
+        LOGv("id: %d,\tappend to cache", new_token_id);
+        result = env->NewStringUTF("");
+    }
+    return result;
+}
+
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_unload(JNIEnv * /*unused*/, jobject /*unused*/) {
+    // Reset long-term & short-term states
+    reset_long_term_states();
+    reset_short_term_states();
+
+    // Free up resources. Error-state cleanup can arrive after a partially
+    // initialized load, so every native resource must be nullable-safe.
+    if (g_sampler != nullptr) {
+        common_sampler_free(g_sampler);
+    }
+    g_chat_templates.reset();
+    llama_batch_free(g_batch);
+    g_batch = {};
+    if (g_context != nullptr) {
+        llama_free(g_context);
+    }
+    if (g_model != nullptr) {
+        llama_model_free(g_model);
+    }
+    g_model = nullptr;
+    g_context = nullptr;
+    g_sampler = nullptr;
+    g_context_size = DEFAULT_CONTEXT_SIZE;
+    g_gpu_layers_active = 0;
+    g_gpu_layers_requested = 0;
+    g_acceleration_attempted = false;
+    g_cpu_fallback_used = false;
+    g_model_path.clear();
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_shutdown(JNIEnv *, jobject /*unused*/) {
+    llama_backend_free();
+}

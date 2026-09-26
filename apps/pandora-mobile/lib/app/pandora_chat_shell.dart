@@ -7,10 +7,14 @@ import '../core/analytics/owner_analytics.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/design/pandora_tokens.dart';
 import '../core/widgets/pandora_mark.dart';
+import '../core/widgets/pandora_navigation_layout.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
-import '../features/enterprise/eurofish_enterprise_screen.dart';
+import '../features/enterprise/batalla_workspace_screen.dart';
+import '../features/enterprise/enterprise_vision_screen.dart';
+import '../features/enterprise/enterprise_workspace_home.dart';
+import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
@@ -45,20 +49,52 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         'Verify & Safety', Icons.shield_outlined, Icons.shield_rounded),
     _ChatDestination(
         'Operations Room', Icons.groups_2_outlined, Icons.groups_2_rounded),
+    _ChatDestination('Home', Icons.home_outlined, Icons.home_rounded),
     _ChatDestination(
-        'Euro-Fish', Icons.set_meal_outlined, Icons.set_meal_rounded),
+      'Vision Intelligence',
+      Icons.videocam_outlined,
+      Icons.videocam_rounded,
+    ),
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
+  Map<String, Object?>? _activeEnterpriseContext;
+  EnterpriseWorkspaceSelection? _activeWorkspaceSelection;
   final Set<int> _visited = <int>{9};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
   bool _historyLoading = false;
   bool _historyLoaded = false;
   int _index = 9;
+  final _drawerScrollController = ScrollController();
+  bool _drawerOpenScheduled = false;
+
+  @override
+  void dispose() {
+    _drawerScrollController.dispose();
+    super.dispose();
+  }
+
+  void _resetDrawerScroll() {
+    if (_drawerScrollController.hasClients) _drawerScrollController.jumpTo(0);
+  }
+
+  void _openDrawer() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (_drawerOpenScheduled) return;
+    _drawerOpenScheduled = true;
+    _resetDrawerScroll();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _drawerOpenScheduled = false;
+      _resetDrawerScroll();
+      _scaffoldKey.currentState?.openDrawer();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
 
   @override
   void initState() {
@@ -67,7 +103,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.screenViewed,
-        resultClass: 'pandora_chat',
+        resultClass: 'enterprise_home',
       ),
     );
   }
@@ -99,6 +135,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
   void _select(int value) {
     if (value < 0 || value >= _destinations.length) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       _scaffoldKey.currentState?.closeDrawer();
     }
@@ -118,7 +155,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       6 => 'saved_evidence',
       7 => 'verify_safety',
       8 => 'operations_room',
-      9 => 'eurofish',
+      9 => 'enterprise_home',
+      10 => 'vision_intelligence',
       _ => 'pandora_chat',
     };
     unawaited(
@@ -130,8 +168,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   void _newChat() {
+    setState(() {
+      _activeEnterpriseContext = null;
+      _activeWorkspaceSelection = null;
+      _roots.remove(0);
+      _visited.add(0);
+    });
     _select(0);
-    _chatKey.currentState?.newChat();
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       _scaffoldKey.currentState?.closeDrawer();
     }
@@ -152,7 +195,14 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   Future<void> _openThread(PandoraIntelligenceThread thread) async {
+    setState(() {
+      _activeEnterpriseContext = null;
+      _activeWorkspaceSelection = null;
+      _roots.remove(0);
+      _visited.add(0);
+    });
     _select(0);
+    await WidgetsBinding.instance.endOfFrame;
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       _scaffoldKey.currentState?.closeDrawer();
     }
@@ -367,14 +417,108 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+
+
+  String _sessionWorkspaceProfileKey() {
+    final value =
+        PandoraDependencies.of(context).auth.currentSession?.workspaceProfile;
+    return switch (value) {
+      'dan' => 'dan',
+      'secretary' => 'secretary',
+      'atty_batalla' => 'atty_batalla',
+      _ => 'atty_batalla',
+    };
+  }
+
+  String _activeWorkspaceProfileKey() {
+    final selected = _activeEnterpriseContext?['selectedObject'];
+    if (selected is Map) {
+      final value = selected['workspaceProfile'];
+      if (value == 'dan' || value == 'secretary' || value == 'atty_batalla') {
+        return value as String;
+      }
+    }
+    return _sessionWorkspaceProfileKey();
+  }
+
+
+  void _openWorkspace(EnterpriseWorkspaceSelection selection) {
+    final nextContext = selection.enterpriseContext;
+    if (selection.workspace.key == 'batalla-associates') {
+      final selected = Map<String, Object?>.from(
+        nextContext['selectedObject']! as Map,
+      );
+      selected['workspaceProfile'] = _sessionWorkspaceProfileKey();
+      nextContext['selectedObject'] = selected;
+    }
+    setState(() {
+      _activeEnterpriseContext = nextContext;
+      _activeWorkspaceSelection = selection;
+      _roots.remove(0);
+      _visited.add(0);
+    });
+    _select(0);
+    unawaited(
+      OwnerAnalytics.shared.capture(
+        OwnerAnalyticsEvent.screenViewed,
+        resultClass: 'enterprise_workspace_' +
+            selection.workspace.key +
+            '_' +
+            selection.section.routeSlug,
+      ),
+    );
+  }
+
+
+  void _openVisionChat() {
+    setState(() {
+      _activeWorkspaceSelection = null;
+      _activeEnterpriseContext = <String, Object?>{
+        'surface': 'enterprise_overview',
+        'route': '/enterprise/vision-intelligence',
+        'capabilities': const <String>[],
+        'identityScope': 'enterprise_workspace',
+        'selectedObject': <String, String>{
+          'feature': 'vision_intelligence',
+          'feed': 'kabukicho_camstreamer',
+          'source': 'CamStreamer',
+          'analysisState': 'display_only_public_demo',
+        },
+      };
+      _roots.remove(0);
+      _visited.add(0);
+    });
+    _select(0);
+  }
+
   Widget _root(int index) => _roots.putIfAbsent(
+
         index,
         () => switch (index) {
-          0 => AskPandoraScreen(
-              key: _chatKey,
-              onSearchChats: _searchChats,
-              onMore: () => _select(3),
-            ),
+          0 => _activeWorkspaceSelection?.section.routeSlug ==
+                  'tax-compliance'
+              ? TaxComplianceScreen(
+                  workspaceKey: _activeWorkspaceSelection!.workspace.key,
+                  workspaceName: _activeWorkspaceSelection!.workspace.name,
+                  enterpriseContext:
+                      _activeEnterpriseContext ?? _activeWorkspaceSelection!.enterpriseContext,
+                  onHome: () => _select(9),
+                )
+              : _activeWorkspaceSelection?.workspace.key ==
+                      'batalla-associates'
+                  ? BatallaWorkspaceScreen(
+                      initialRouteSlug:
+                          _activeWorkspaceSelection!.section.routeSlug,
+                      profileKey: _activeWorkspaceProfileKey(),
+                      onBackToWorkspaces: () => _select(9),
+                    )
+                  : AskPandoraScreen(
+                      key: _chatKey,
+                      onSearchChats: _searchChats,
+                      onMore: () => _select(3),
+                      onHome: () => _select(9),
+                      enterpriseContext: _activeEnterpriseContext,
+                    ),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
@@ -382,8 +526,14 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           5 => const PluginsScreen(),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
-          8 => const PandoraOperationsRoomScreen(),
-          9 => const EurofishEnterpriseScreen(),
+          8 => PandoraOperationsRoomScreen(onHome: () => _select(9)),
+          9 => EnterpriseWorkspaceHome(
+              onOpen: _openWorkspace,
+              onSearchChats: _searchChats,
+              onActivity: () => _select(4),
+              onMore: () => _select(3),
+            ),
+          10 => EnterpriseVisionScreen(onAskPandora: _openVisionChat),
           _ => AskPandoraScreen(key: _chatKey),
         },
       );
@@ -443,6 +593,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   Widget _sidePanel() => _PandoraSidePanel(
+        scrollController: _drawerScrollController,
         destinations: _destinations,
         selectedIndex: _index,
         onSelected: _select,
@@ -490,11 +641,18 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               key: _scaffoldKey,
               backgroundColor: PandoraV2Colors.canvas,
               onDrawerChanged: (open) {
-                if (open) unawaited(_refreshHistory());
+                if (open) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  _resetDrawerScroll();
+                  unawaited(_refreshHistory());
+                }
               },
+              drawerEnableOpenDragGesture: true,
+              drawerEdgeDragWidth: 32,
+              drawerScrimColor: const Color(0x99000000),
               drawer: Drawer(
                 width: 304,
-                backgroundColor: PandoraV2Colors.surface,
+                backgroundColor: PandoraV2Colors.canvas,
                 surfaceTintColor: Colors.transparent,
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.only(
@@ -505,7 +663,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                 child: SafeArea(child: _sidePanel()),
               ),
               body: PandoraNavigationScope(
-                openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+                openDrawer: _openDrawer,
                 child: body,
               ),
             );
@@ -517,6 +675,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 class _PandoraSidePanel extends StatelessWidget {
   const _PandoraSidePanel({
     required this.destinations,
+    required this.scrollController,
     required this.selectedIndex,
     required this.onSelected,
     required this.threads,
@@ -527,6 +686,7 @@ class _PandoraSidePanel extends StatelessWidget {
     required this.onManageThread,
   });
 
+  final ScrollController scrollController;
   final List<_ChatDestination> destinations;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -539,150 +699,80 @@ class _PandoraSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: PandoraV2Colors.surface,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 22, 18, 16),
-              child: Row(
-                children: [
-                  PandoraMark(size: 28),
-                  SizedBox(width: 11),
-                  Text(
-                    'Pandora',
-                    style: TextStyle(
-                      color: PandoraV2Colors.ink,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -.35,
-                    ),
-                  ),
-                ],
+    color: PandoraV2Colors.canvas,
+    child: PandoraNavigationLayout(
+      controller: scrollController,
+      scrollKey: const ValueKey<String>('pandora-side-panel-scroll'),
+      bodyPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      header: Padding(
+        key: const ValueKey<String>('pandora-side-panel-top-overlay'),
+        padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+        child: Row(children: [
+          const PandoraMark(size: 28),
+          const SizedBox(width: 11),
+          const Expanded(child: FittedBox(
+            fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+            child: Text('Pandora', style: TextStyle(color: PandoraV2Colors.ink, fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.35)),
+          )),
+          IconButton(key: const ValueKey<String>('pandora-search-chats'), tooltip: 'Search chats', onPressed: onSearchChats,
+              color: PandoraV2Colors.ink, icon: const Icon(Icons.search_rounded, size: 22)),
+        ]),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
+              child: Text('Recent chats', style: TextStyle(color: PandoraV2Colors.muted, fontSize: 12, fontWeight: FontWeight.w600))),
+          if (historyLoading && threads.isEmpty)
+            const Padding(padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 1.8))))
+          else if (threads.isEmpty)
+            const Padding(padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
+                child: Text('Your conversations will appear here.', style: TextStyle(color: PandoraV2Colors.muted, fontSize: 12.5)))
+          else
+            for (final thread in threads.take(12))
+              ListTile(
+                key: ValueKey<String>('pandora-thread-${thread.id}'),
+                title: Text(thread.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
+                trailing: IconButton(tooltip: 'Conversation options', icon: const Icon(Icons.more_horiz_rounded, size: 19), onPressed: () => onManageThread(thread)),
+                onTap: () => onOpenThread(thread),
               ),
-            ),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: PandoraV2Colors.line)),
+          for (final index in const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 2),
+              padding: const EdgeInsets.only(bottom: 4),
               child: ListTile(
-                key: const ValueKey<String>('pandora-new-chat'),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                leading: const Icon(Icons.edit_square, size: 21),
-                title: const Text('New chat',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                onTap: onNewChat,
+                selected: index == selectedIndex,
+                selectedColor: PandoraV2Colors.ink,
+                iconColor: PandoraV2Colors.muted,
+                textColor: PandoraV2Colors.ink,
+                selectedTileColor: PandoraV2Colors.soft,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                leading: Icon(index == selectedIndex ? destinations[index].selectedIcon : destinations[index].icon, size: 22),
+                title: Text(destinations[index].label, style: TextStyle(fontSize: 15, fontWeight: index == selectedIndex ? FontWeight.w700 : FontWeight.w500)),
+                onTap: () => onSelected(index),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-              child: ListTile(
-                key: const ValueKey<String>('pandora-search-chats'),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                leading: const Icon(Icons.search_rounded, size: 21),
-                title: const Text('Search chats',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                onTap: onSearchChats,
-              ),
+        ],
+      ),
+      footer: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Material(
+          color: const Color(0xE51A1E24), surfaceTintColor: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            key: const ValueKey<String>('pandora-new-chat'), onTap: onNewChat,
+            borderRadius: BorderRadius.circular(16),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              child: Row(children: [Icon(Icons.edit_square, size: 21), SizedBox(width: 11),
+                Expanded(child: Text('New chat', style: TextStyle(fontWeight: FontWeight.w700)))]),
             ),
-            const Divider(height: 1, color: PandoraV2Colors.line),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(10, 12, 10, 14),
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
-                    child: Text(
-                      'Recent chats',
-                      style: TextStyle(
-                        color: PandoraV2Colors.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  if (historyLoading && threads.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Center(
-                        child: SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 1.8),
-                        ),
-                      ),
-                    )
-                  else if (threads.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
-                      child: Text(
-                        'Your conversations will appear here.',
-                        style: TextStyle(
-                            color: PandoraV2Colors.muted, fontSize: 12.5),
-                      ),
-                    )
-                  else
-                    for (final thread in threads.take(12))
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: ListTile(
-                          dense: true,
-                          visualDensity: const VisualDensity(vertical: -2),
-                          key: ValueKey<String>('pandora-thread-${thread.id}'),
-                          title: Text(
-                            thread.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 13.5, fontWeight: FontWeight.w500),
-                          ),
-                          trailing: IconButton(
-                            tooltip: 'Conversation options',
-                            icon:
-                                const Icon(Icons.more_horiz_rounded, size: 19),
-                            onPressed: () => onManageThread(thread),
-                          ),
-                          onTap: () => onOpenThread(thread),
-                        ),
-                      ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Divider(height: 1, color: PandoraV2Colors.line),
-                  ),
-                  for (final index in const <int>[9, 0, 8, 1, 2, 4, 5, 6, 7, 3])
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: ListTile(
-                        selected: index == selectedIndex,
-                        selectedColor: PandoraV2Colors.ink,
-                        iconColor: PandoraV2Colors.muted,
-                        textColor: PandoraV2Colors.ink,
-                        selectedTileColor: PandoraV2Colors.soft,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        leading: Icon(
-                          index == selectedIndex
-                              ? destinations[index].selectedIcon
-                              : destinations[index].icon,
-                          size: 22,
-                        ),
-                        title: Text(
-                          destinations[index].label,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: index == selectedIndex
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ),
-                        ),
-                        onTap: () => onSelected(index),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _SearchChatsSheet extends StatefulWidget {

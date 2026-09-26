@@ -7,11 +7,14 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import android.util.Base64
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -80,9 +83,14 @@ class MainActivity : FlutterFragmentActivity() {
     )
     private var pendingResult: MethodChannel.Result? = null
     private var pendingSaveBytes: ByteArray? = null
+    private var localAiChannel: PandoraLocalAiChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        localAiChannel = PandoraLocalAiChannel(
+            this,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
         PandoraDeviceAgentChannel.install(
             this,
             flutterEngine.dartExecutor.binaryMessenger
@@ -99,8 +107,18 @@ class MainActivity : FlutterFragmentActivity() {
             "pandora/exact_preview",
             PandoraExactPreviewFactory(flutterEngine.dartExecutor.binaryMessenger)
         )
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            "pandora/camstreamer_kabukicho",
+            PandoraCamStreamerViewFactory()
+        )
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler(::handleCall)
+    }
+
+    override fun onDestroy() {
+        localAiChannel?.close()
+        localAiChannel = null
+        super.onDestroy()
     }
 
     private fun handleCall(call: MethodCall, result: MethodChannel.Result) {
@@ -363,6 +381,7 @@ class MainActivity : FlutterFragmentActivity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (localAiChannel?.onActivityResult(requestCode, resultCode, data) == true) return
         val result = pendingResult ?: return
         if (requestCode !in setOf(speechRequest, documentRequest, photoRequest, cameraRequest, saveDocumentRequest, phoneContactRequest)) return
         if (requestCode == saveDocumentRequest) {
@@ -906,5 +925,81 @@ private fun isSafeEmbeddedPreviewPath(path: String): Boolean {
     }
     return path.split("/").none {
         it.isBlank() || it == "." || it == ".." || it.length > 255
+    }
+}
+
+
+
+private class PandoraCamStreamerViewFactory :
+    io.flutter.plugin.platform.PlatformViewFactory(
+        io.flutter.plugin.common.StandardMessageCodec.INSTANCE
+    ) {
+    override fun create(
+        context: android.content.Context,
+        viewId: Int,
+        args: Any?
+    ): io.flutter.plugin.platform.PlatformView =
+        PandoraCamStreamerView(context)
+}
+
+private class PandoraCamStreamerView(
+    context: android.content.Context
+) : io.flutter.plugin.platform.PlatformView {
+    private val webView = WebView(context).apply {
+        setBackgroundColor(Color.BLACK)
+        settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = false
+            allowContentAccess = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mediaPlaybackRequiresUserGesture = false
+            setSupportMultipleWindows(false)
+        }
+        webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
+                request ?: return true
+                val uri = request.url
+
+                // CamStreamer's player can delegate playback to a secure
+                // nested media frame. Keep top-level navigation locked to
+                // CamStreamer without cancelling the HTTPS player subframe.
+                if (!request.isForMainFrame) {
+                    return uri.scheme != "https"
+                }
+
+                val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
+                val allowedHost =
+                    host == "camstreamer.com" || host.endsWith(".camstreamer.com")
+                return uri.scheme != "https" || !allowedHost
+            }
+        }
+
+        // Embedded HTML5 media needs WebChromeClient support. Modern Android
+        // WebView also blocks third-party cookies by default, which can break
+        // the provider's nested media session.
+        webChromeClient = WebChromeClient()
+        val playerWebView = this
+        CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                setAcceptThirdPartyCookies(playerWebView, true)
+            }
+        }
+
+        loadUrl(
+            "https://camstreamer.com/embed/VSnOa4OubclxMcFKpTws6Yv7U2rt0VbMfcrHomkq?rel=0"
+        )
+    }
+
+    override fun getView(): android.view.View = webView
+
+    override fun dispose() {
+        webView.stopLoading()
+        webView.loadUrl("about:blank")
+        webView.destroy()
     }
 }

@@ -1,0 +1,130 @@
+from __future__ import annotations
+
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+SCRIPT = Path(__file__).with_name("patch_inference_engine_android.py")
+
+
+class PatchInferenceEngineAndroidTest(unittest.TestCase):
+    def test_rewrites_native_diagnostics_fail_loud_generation_and_art_safe_jni(self) -> None:
+        implementation = """
+import dalvik.annotation.optimization.FastNative
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load native library", e)
+                throw e
+            }
+
+                load(pathToModel).let {
+                    // TODO-han.yin: find a better way to pass other error codes
+                    if (it != 0) throw UnsupportedArchitectureException()
+                }
+                prepare().let {
+                    if (it != 0) throw IOException("Failed to prepare resources")
+                }
+
+    @FastNative
+    private external fun generateNextToken(): String?
+
+    @FastNative
+    private external fun unload()
+
+            check(_readyForSystemPrompt) { "System prompt must be set ** RIGHT AFTER ** model loaded!" }
+
+            processSystemPrompt(prompt).let { result ->
+                if (result != 0) {
+                    RuntimeException("Failed to process system prompt: $result").also {
+                        _state.value = InferenceEngine.State.Error(it)
+                        throw it
+                    }
+                }
+            }
+
+            processUserPrompt(message, predictLength).let { result ->
+                if (result != 0) {
+                    Log.e(TAG, "Failed to process user prompt: $result")
+                    return@flow
+                }
+            }
+
+    override suspend fun bench(pp: Int, tg: Int, pl: Int, nr: Int): String =
+        withContext(llamaDispatcher) {
+            check(_state.value is InferenceEngine.State.ModelReady) {
+                "Benchmark request discarded due to: $state"
+            }
+            Log.i(TAG, "Start benchmark (pp: $pp, tg: $tg, pl: $pl, nr: $nr)")
+            _readyForSystemPrompt = false   // Just to be safe
+            _state.value = InferenceEngine.State.Benchmarking
+            benchModel(pp, tg, pl, nr).also {
+                _state.value = InferenceEngine.State.ModelReady
+            }
+        }
+
+                is InferenceEngine.State.Error -> {
+                    Log.i(TAG, "Resetting error states...")
+                    _state.value = InferenceEngine.State.Initialized
+                    Log.i(TAG, "States reset!")
+                    Unit
+                }
+"""
+        interface = """interface InferenceEngine {
+    suspend fun bench(pp: Int, tg: Int, pl: Int, nr: Int = 1): String
+
+    /**
+     * Unloads the currently loaded model.
+     */
+    fun cleanUp()
+}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            impl_path = Path(directory) / "InferenceEngineImpl.kt"
+            interface_path = Path(directory) / "InferenceEngine.kt"
+            impl_path.write_text(implementation, encoding="utf-8")
+            interface_path.write_text(interface, encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), str(impl_path), str(interface_path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            patched = impl_path.read_text(encoding="utf-8")
+            patched_interface = interface_path.read_text(encoding="utf-8")
+
+        self.assertIn("Native library initialization failed:", patched)
+        self.assertIn("Native llama.cpp model load failed with code ", patched)
+        self.assertIn("Native llama.cpp context preparation failed with code ", patched)
+        self.assertIn("Native llama.cpp user prompt failed with code ", patched)
+        self.assertIn("Native llama.cpp user prompt cancelled; prompt state restored.", patched)
+        self.assertIn("Native llama.cpp system prompt failed with code ", patched)
+        self.assertIn("Native llama.cpp system prompt cancelled.", patched)
+        self.assertIn("if (result == 9)", patched)
+        self.assertIn("throw CancellationException(", patched)
+        self.assertIn('code $result; " +', patched)
+        self.assertIn("nativeRuntimeDiagnostics()", patched)
+        self.assertIn("override fun runtimeDiagnostics(): String", patched)
+        self.assertIn("override fun requestCancel() = requestCancelNative()", patched)
+        self.assertIn("override fun clearCancelRequest() = clearCancelNative()", patched)
+        self.assertIn("requestCancelNative()", patched)
+        self.assertIn("clearCancelNative()", patched)
+        self.assertIn("Unloading native resources after error...", patched)
+        self.assertIn("Pandora reuses processSystemPrompt() as a warm conversation reset.", patched)
+        self.assertNotIn("System prompt must be set ** RIGHT AFTER ** model loaded!", patched)
+        self.assertNotIn("Failed to process user prompt: $result", patched)
+        self.assertNotIn("return@flow", patched)
+        self.assertNotIn("@FastNative", patched)
+        self.assertNotIn("dalvik.annotation.optimization.FastNative", patched)
+        self.assertEqual(
+            patched_interface.count("fun runtimeDiagnostics(): String"),
+            1,
+        )
+        self.assertEqual(patched_interface.count("fun requestCancel()"), 1)
+        self.assertEqual(patched_interface.count("fun clearCancelRequest()"), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

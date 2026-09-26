@@ -414,7 +414,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (intentError || !intent) throw new Error("INTENT_NOT_AVAILABLE");
     const { data: project, error: projectError } = await user
-      .from("projectos_projects")
+      .from("pandora_projects")
       .select("id,name,objective,config")
       .eq("id", intent.project_id)
       .eq("organization_id", intent.organization_id)

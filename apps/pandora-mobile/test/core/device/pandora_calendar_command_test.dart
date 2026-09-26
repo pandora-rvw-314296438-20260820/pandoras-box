@@ -53,6 +53,22 @@ void main() {
     expect(command.start, DateTime(2026, 9, 21, 9));
   });
 
+  test('team invite email is not hijacked by calendar create parsing', () {
+    final parsed = PandoraCalendarCommand.tryParse(
+      'add jovenong@yahoo.com',
+      now: now,
+    );
+    expect(parsed, isNull);
+  });
+
+  test('explicit team add command is not hijacked by calendar parsing', () {
+    final parsed = PandoraCalendarCommand.tryParse(
+      'Add on the team',
+      now: now,
+    );
+    expect(parsed, isNull);
+  });
+
   test('move command preserves old time identity and resolves new time', () {
     final parsed = PandoraCalendarCommand.tryParse(
       'Move my 3 PM meeting to 4 PM today',

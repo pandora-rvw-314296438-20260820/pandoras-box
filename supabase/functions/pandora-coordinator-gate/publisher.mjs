@@ -140,7 +140,18 @@ async function publishDecision(provider, envelope, now = new Date()) {
     if (asRecord(existing).status === "completed") throw new Error("SAME_GENERATION_STATE_CONFLICT");
   }
   let current = existing;
-  if (envelope.decision === "PASS") {
+  // GitHub check runs are terminal once completed. When a fresh generation
+  // supersedes a completed non-success prior generation on the same head,
+  // replace it atomically with the new final state instead of attempting to
+  // reopen the completed run as in_progress. Brand-new PASS checks still use
+  // in_progress -> success so no success exists before provider readback.
+  const replacesCompletedPrior = Boolean(
+    existing &&
+    priorMeta.generation < envelope.decisionGeneration &&
+    asRecord(existing).status === "completed" &&
+    asRecord(existing).conclusion !== "success"
+  );
+  if (envelope.decision === "PASS" && !replacesCompletedPrior) {
     const progress = inProgressState(desired, envelope.evaluatedAt);
     current = await writeAndRead({
       provider,

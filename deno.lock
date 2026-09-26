@@ -5,7 +5,7 @@
     "jsr:@supabase/functions-js@2.4.5": "2.4.5",
     "jsr:@supabase/supabase-js@2.57.2": "2.57.2",
     "npm:@electric-sql/pglite@0.5.8": "0.5.8",
-    "npm:@modelcontextprotocol/sdk@^1.30.0": "1.30.0_zod@3.25.76_hono@4.13.3_ajv@8.20.0_express@5.2.1",
+    "npm:@modelcontextprotocol/sdk@^1.30.0": "1.30.0_zod@3.25.76_hono@4.13.7_ajv@8.20.0_express@5.2.1",
     "npm:@supabase/auth-js@2.71.1": "2.71.1",
     "npm:@supabase/functions-js@2.4.5": "2.4.5",
     "npm:@supabase/node-fetch@2.6.15": "2.6.15",
@@ -14,6 +14,7 @@
     "npm:@supabase/storage-js@^2.10.4": "2.112.3",
     "npm:@types/cors@^2.8.19": "2.8.19",
     "npm:@types/express@^5.0.6": "5.0.6",
+    "npm:@types/node@*": "24.13.3",
     "npm:@types/node@24": "24.13.3",
     "npm:@types/three@~0.158.3": "0.158.3",
     "npm:@types/ws@^8.5.10": "8.18.1",
@@ -58,7 +59,7 @@
     "@electric-sql/pglite@0.5.8": {
       "integrity": "sha512-n9tsbUOhwx2epK1V0ZG9Ar4SHWUju04dhmzZXiSBXwBoleOvIfals33NAaWgagQVAL4Rbvx/Ptsu3P+pA09f6Q=="
     },
-    "@hono/node-server@2.1.1_hono@4.13.3": {
+    "@hono/node-server@2.1.1_hono@4.13.7": {
       "integrity": "sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==",
       "dependencies": [
         "hono"
@@ -77,7 +78,7 @@
         "@jridgewell/sourcemap-codec"
       ]
     },
-    "@modelcontextprotocol/sdk@1.30.0_zod@3.25.76_hono@4.13.3_ajv@8.20.0_express@5.2.1": {
+    "@modelcontextprotocol/sdk@1.30.0_zod@3.25.76_hono@4.13.7_ajv@8.20.0_express@5.2.1": {
       "integrity": "sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==",
       "dependencies": [
         "@hono/node-server",
@@ -610,8 +611,8 @@
     "helmet@8.3.0": {
       "integrity": "sha512-Qgpiaws3Sm30Av8Eah6sjMCZZwjlBu+E68rhpCWBshY1lb09HtLwj5GviX0OyQIn+ulUS0iX0AxN5n3tLZzz1w=="
     },
-    "hono@4.13.3": {
-      "integrity": "sha512-r8AO2mYHoLxSHkgafNeC/BXyb2vWRxD3jem4Ts+ptav8oTG5FIRifAjuJEmZI4bSvvc2ns0GxmIYiZnHqN3mMw=="
+    "hono@4.13.7": {
+      "integrity": "sha512-c8/gF9ac8Y78/agExVocyLevgR+JlpNB444Py0FSX8pJoPdYUfUzRcXtYEYGwt6l19qIlVZPN5Mfsw9jFShmQQ=="
     },
     "http-errors@2.0.1": {
       "integrity": "sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==",

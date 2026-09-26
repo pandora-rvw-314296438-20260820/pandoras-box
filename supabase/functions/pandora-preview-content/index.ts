@@ -72,7 +72,7 @@ Deno.serve(async(req:Request)=>{
     const projectId=text(body.projectId).toLowerCase(),versionId=text(body.versionId).toLowerCase(),mode=text(body.mode); if(!UUID_RE.test(projectId)||!UUID_RE.test(versionId)||![ "", FOCUS_MODE ].includes(mode)) throw new Error("EXACT_VERSION_REQUIRED");
 
     const admin=serviceClient();
-    const {data:project,error:projectError}=await admin.from("projectos_projects").select("id,organization_id").eq("id",projectId).maybeSingle(); if(projectError||!project) throw new Error("PROJECT_NOT_FOUND");
+    const {data:project,error:projectError}=await admin.from("pandora_projects").select("id,organization_id").eq("id",projectId).maybeSingle(); if(projectError||!project) throw new Error("PROJECT_NOT_FOUND");
     const organizationId=text(project.organization_id);
     const {data:membership,error:membershipError}=await admin.from("memberships").select("organization_id,role,status").eq("organization_id",organizationId).eq("user_id",authData.user.id).eq("status","active").in("role",["owner","admin"]).maybeSingle();
     if(membershipError||!membership) throw new Error("ORGANIZATION_ACCESS_REQUIRED");
