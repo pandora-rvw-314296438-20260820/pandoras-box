@@ -1,0 +1,31 @@
+
+name: Operations Runtime Seams
+on:
+  pull_request:
+  push:
+    branches: [main, feat/operations-runtime-seams-20260926]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+jobs:
+  runtime-seams:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Execute exact-source Memory/Router transport boundaries
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          node --test test/pandora-operations-workload-memory.test.js
+      - name: Install locked dependencies and verify API types
+        run: |
+          npm ci --ignore-scripts
+          npx tsc -p tsconfig.vercel.json
