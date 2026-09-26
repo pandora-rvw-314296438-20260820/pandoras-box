@@ -44,3 +44,37 @@ test('two independent senders receive only one send permission',async()=>{const 
 test('global model capacity serializes separate project workspaces in one organization',async()=>{const s=await setup({capacity:1}),t=await setup({org:s.org,capacity:1});await read(s,'admit',s.metadata);await read(t,'admit',t.metadata);const r=await competing(prep(s),prep(t));assert.equal(r.filter(x=>x.status==='fulfilled').length,1);assert.match(r.find(x=>x.status==='rejected').reason.message,/CAPACITY_HELD/);});
 test('half-open provider health admits one actual probe across independent sessions',async()=>{const s=await setup(),t=await setup({org:s.org});await read(s,'admit',s.metadata);await read(t,'admit',t.metadata);await sql(`insert into private.pandora_ops_inference_circuits(organization_id,model_key,state,retry_after) values(${literal(s.org)},'fixture:test','open',clock_timestamp()-interval '1 second')`);const r=await competing(prep(s),prep(t));assert.equal(r.filter(x=>x.status==='fulfilled').length,1);assert.match(r.find(x=>x.status==='rejected').reason.message,/CIRCUIT_HELD/);});
 test('caller revocation waits for existing scoped transaction then prevents new admission',async()=>{const s=await setup();const h=holding(op(s,'context',s.metadata));await h.ready;const revocation=sql(`update private.pandora_ops_inference_callers set enabled=false where token_digest=${literal(s.actor.callerDigest)} returning jsonb_build_object('revoked',not enabled)`);let blocked=false;for(let i=0;i<50;i++){const r=(await sql("select jsonb_build_object('blocked',exists(select 1 from pg_stat_activity where datname='pandora_inference_ci' and pid<>pg_backend_pid() and wait_event_type='Lock'))"))[0];if(r.blocked){blocked=true;break;}await new Promise(r=>setTimeout(r,20));}h.release();await h.done;assert.equal((await revocation)[0].revoked,true);assert.equal(blocked,true);await assert.rejects(()=>read(s,'admit',s.metadata),/CALLER_DENIED/);});
+
+test('legacy worker event and a concurrent control event cannot commit past an unobserved lower cursor',async()=>{
+ const s=await setup(),owner=randomUUID();await sql(`insert into public.memberships values(${literal(s.org)},${literal(owner)},'owner','active')`);
+ const feed=after=>`public.pandora_ops_event_feed_v1(${literal(s.org)},${literal(s.project)},${literal(owner)},${literal(after)}::bigint,200)`;
+ const initial=(await sql('select '+feed('0')))[0];
+ const registration=`public.pandora_ops_register_worker_v1(${literal(s.org)},${literal(s.project)},'LATE-W','fixture-late-worker',array['backend'],array[]::text[],1,'fixture:late-worker')`;
+ const h=holding(registration);await h.ready;
+ const later=sql(`select jsonb_build_object('value',public.pandora_ops_control_v1(${literal(s.org)},${literal(s.project)},1,'pause'))`);
+ let blocked=false;for(let i=0;i<50;i++){const value=(await sql("select jsonb_build_object('blocked',exists(select 1 from pg_stat_activity where datname='pandora_inference_ci' and pid<>pg_backend_pid() and wait_event_type='Lock'))"))[0];if(value.blocked){blocked=true;break;}await new Promise(r=>setTimeout(r,20));}
+ const during=(await sql('select '+feed(initial.nextCursor)))[0];assert.equal(during.nextCursor,initial.nextCursor);assert.equal(during.events.length,0);
+ h.release();await h.done;await later;assert.equal(blocked,true);
+ const after=(await sql('select '+feed(during.nextCursor)))[0];
+ assert.deepEqual(after.events.map(e=>e.type),['worker_acknowledged','owner_pause']);
+ assert.ok(BigInt(after.events[0].id)<BigInt(after.events[1].id));
+});
+test('two legacy event writers without workspace locks preserve the same commit-ordered cursor',async()=>{
+ const s=await setup(),scope=[s.org,s.project].map(literal).join(',');
+ const worker=name=>`public.pandora_ops_register_worker_v1(${scope},${literal(name)},${literal('fixture-'+name)},array['backend'],array[]::text[],1,'fixture:writer')`;
+ const results=await competing(worker('EVENT-A'),worker('EVENT-B'));assert.ok(results.every(r=>r.status==='fulfilled'));
+ const rows=(await sql(`select jsonb_build_object('events',jsonb_agg(jsonb_build_object('id',id,'key',event_key)order by id)) from private.pandora_ops_events where organization_id=${literal(s.org)} and project_id=${literal(s.project)} and event_key in ('worker:EVENT-A','worker:EVENT-B')`))[0];
+ assert.deepEqual(rows.events.map(e=>e.key),['worker:EVENT-A','worker:EVENT-B']);
+});
+test('native prepare recovery wins the row lock and denies a concurrent delayed send',async()=>{
+ const s=await setup();await read(s,'admit',s.metadata);const a=await read(s,'prepare',{requestId:s.metadata.requestId,modelKey:'fixture:test',policyDigest:s.policyDigest});
+ const results=await competing(op(s,'recover_prepare',{requestId:s.metadata.requestId}),op(s,'send',{requestId:s.metadata.requestId,attemptId:a.attemptId,policyDigest:s.policyDigest}));
+ assert.equal(results[0].status,'fulfilled');assert.equal(results[0].value[0].value.resolved,true);assert.equal(results[1].status,'rejected');assert.match(results[1].reason.message,/REQUEST_FENCED/);
+ const current=await read(s,'status',{requestId:s.metadata.requestId});assert.equal(current.attempts[0].state,'not_sent');assert.equal(current.attempts[0].billed_micros,0);
+});
+test('a concurrent committed send prevents recovery from falsely reporting not_sent',async()=>{
+ const s=await setup();await read(s,'admit',s.metadata);const a=await read(s,'prepare',{requestId:s.metadata.requestId,modelKey:'fixture:test',policyDigest:s.policyDigest});
+ const results=await competing(op(s,'send',{requestId:s.metadata.requestId,attemptId:a.attemptId,policyDigest:s.policyDigest}),op(s,'recover_prepare',{requestId:s.metadata.requestId}));
+ assert.ok(results.every(r=>r.status==='fulfilled'));assert.equal(results[0].value[0].value.canSend,true);assert.equal(results[1].value[0].value.resolved,false);
+ assert.equal((await read(s,'status',{requestId:s.metadata.requestId})).attempts[0].state,'sent');
+});

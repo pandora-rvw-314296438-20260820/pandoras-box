@@ -72,12 +72,12 @@ test('cross-owner and cross-project event feed access is denied',async()=>{const
 for(const patch of [{p_after:-1},{p_limit:0},{p_limit:201},{p_after:'9223372036854775807'}])test(`reject invalid event cursor ${JSON.stringify(patch)}`,async()=>{const s=await setup();await assert.rejects(()=>rpc('pandora_ops_event_feed_v1',{p_organization_id:s.org,p_project_id:s.project,p_actor_id:s.owner,p_after:0,p_limit:10,...patch}),/CURSOR/);});
 
 // Execute the actual JavaScript service against the actual native SQL, not an in-memory authority.
-async function serviceFixture(s,{execute,memory=null,performance=null}={}){
+async function serviceFixture(s,{execute,preflight,memory=null,performance=null}={}){
  const {NativeInferenceStore}=await import('../packages/pandora-operations-inference/native-store.mjs');
  const {OperationsInferenceService}=await import('../packages/pandora-operations-inference/service.mjs');
  const client={supabaseUrl:'https://jcyqixttuebxqqfkjonq.supabase.co',rpc:async(name,args)=>{try{return{data:await rpc(name,args),error:null};}catch(error){return{data:null,error:{message:error.message,code:error.code}};}}};
  const store=new NativeInferenceStore(client);let executions=0;
- const service=new OperationsInferenceService({store,providers:{fixture:{execute:async(...args)=>{executions++;if(execute)return execute(...args);const output='Fixture output';return{output,receipt:receipt('received',{outputDigest:api.sha256(output)})};}}},memory,performance});
+ const service=new OperationsInferenceService({store,providers:{fixture:{preflight,execute:async(...args)=>{executions++;if(execute)return execute(...args);const output='Fixture output';return{output,receipt:receipt('received',{outputDigest:api.sha256(output)})};}}},memory,performance});
  return{store,service,executions:()=>executions};
 }
 test('real service executes once through native authorization and records receipt without task completion',async()=>{const s=await setup(),f=await serviceFixture(s);const result=await f.service.infer(s.actor,s.raw);assert.equal(result.state,'verification_pending');assert.equal(result.taskComplete,false);assert.equal(result.output,'Fixture output');assert.equal(f.executions(),1);const native=await status(s);assert.equal(native.attempts.length,1);assert.equal(native.attempts[0].receipt.outputDigest,api.sha256(result.output));assert.equal(native.attempts[0].billed_micros,null);});
@@ -92,3 +92,59 @@ test('service known authorized rate-limit fallback uses a distinct durable attem
 test('service native verification consumes an existing output-and-request-bound independent PASS',async()=>{const s=await setup(),f=await serviceFixture(s);const result=await f.service.infer(s.actor,s.raw);await enrollVerifier(s);const native=await status(s);const id=await verification(s,{artifact_digest:result.outputDigest,runtime_target_digest:native.request.request_digest});const verified=await f.service.verify(s.actor,s.raw.requestId,id);assert.equal(verified.status.state,'verified');assert.equal(verified.status.taskComplete,false);const {modelOutcome}=await import('../packages/pandora-operations-inference/memory-adoption.mjs');const outcome=modelOutcome(verified.native);assert.equal(outcome.sourceRunId,s.raw.requestId);assert.equal(outcome.verificationStatus,'pass');assert.equal(outcome.billedCostMicros,null);assert.equal(outcome.estimatedCostMicros,null);assert.equal(outcome.downstreamOutcomeStatus,'unknown');assert.ok(outcome.evidenceRefs.includes('verification-run:'+id));});
 test('Memory adoption refuses an unverified provider response',async()=>{const s=await setup(),f=await serviceFixture(s);await f.service.infer(s.actor,s.raw);const {modelOutcome}=await import('../packages/pandora-operations-inference/memory-adoption.mjs');assert.throws(()=>modelOutcome(awaitablePlaceholder()),/VERIFIED_NATIVE/);function awaitablePlaceholder(){return{request:{state:'verification_pending'},attempts:[]};}});
 test('new native service never stores raw task context or provider output in request or receipt rows',async()=>{const s=await setup(),f=await serviceFixture(s);const output=await f.service.infer(s.actor,s.raw);const rows=await status(s);const text=JSON.stringify(rows);assert.equal(text.includes(s.raw.parts[0].text),false);assert.equal(text.includes(output.output),false);assert.equal(text.includes(output.outputDigest),true);});
+
+for(const [reason,sql]of[
+ ['pause',"update private.pandora_ops_workspaces set paused=true where organization_id=$1"],
+ ['caller revocation',"update private.pandora_ops_inference_callers set enabled=false where organization_id=$1"],
+ ['policy change',"update private.pandora_ops_inference_policies set policy=jsonb_set(policy,'{version}','\"changed\"') where organization_id=$1"],
+ ['task generation',"update private.pandora_ops_tasks set generation=generation+1 where organization_id=$1"]])test(`known rejected send after ${reason} is natively not_sent, not a provider-unknown hold`,async()=>{
+ const s=await setup(),f=await serviceFixture(s),send=f.store.send.bind(f.store);
+ f.store.send=async(...args)=>{await db.query(sql,[s.org]);return send(...args);};
+ const r=await f.service.infer(s.actor,s.raw);assert.equal(f.executions(),0);assert.equal(r.state,'cancelled');
+ const native=await status(s);assert.equal(native.attempts[0].state,'not_sent');assert.equal(native.attempts[0].billed_micros,0);
+ assert.equal((await db.query('select state from private.pandora_ops_leases where id=$1',[s.lease.id])).rows[0].state,'running');
+ await db.query('select private.pandora_ops_settle_v1($1,$2,$3,$4,0,$5)',[s.org,s.project,s.lease.id,s.lease.generation,'fixture:not-sent-settlement']);
+});
+test('unknown preparation response is recovered by native fencing without sending or replaying',async()=>{
+ const s=await setup(),f=await serviceFixture(s),prepare=f.store.prepare.bind(f.store);
+ f.store.prepare=async(...args)=>{await prepare(...args);throw new api.InferenceError('INFERENCE_TIMEOUT',{outcomeUnknown:true});};
+ const r=await f.service.infer(s.actor,s.raw);assert.equal(r.state,'cancelled');assert.equal(f.executions(),0);
+ const native=await status(s);assert.equal(native.attempts.length,1);assert.equal(native.attempts[0].state,'not_sent');assert.equal(native.attempts[0].billed_micros,0);
+ assert.equal((await f.service.infer(s.actor,s.raw)).state,'cancelled');assert.equal(f.executions(),0);
+});
+test('recovery before a delayed prepare permanently fences that request',async()=>{
+ const s=await setup();await call(s,'admit',s.metadata);const c=await call(s,'context',s.metadata);
+ const r=await call(s,'recover_prepare',{requestId:s.metadata.requestId});assert.equal(r.resolved,true);assert.equal(r.sendFenced,true);assert.equal(r.providerStopped,false);
+ await assert.rejects(()=>call(s,'prepare',{requestId:s.metadata.requestId,modelKey:'fixture:strong',policyDigest:c.policyDigest}),/REQUEST_FENCED/);
+ assert.equal((await status(s)).attempts.length,0);
+});
+test('a lost committed send response remains unknown, not falsely not_sent',async()=>{
+ const s=await setup(),f=await serviceFixture(s),send=f.store.send.bind(f.store);
+ f.store.send=async(...args)=>{await send(...args);throw new api.InferenceError('INFERENCE_TIMEOUT',{outcomeUnknown:true});};
+ const r=await f.service.infer(s.actor,s.raw);assert.equal(r.state,'reconciliation_required');assert.equal(f.executions(),0);
+ const native=await status(s);assert.equal(native.attempts[0].state,'reconciliation_required');assert.equal(native.attempts[0].billed_micros,null);
+ assert.equal((await db.query('select state from private.pandora_ops_leases where id=$1',[s.lease.id])).rows[0].state,'reconcile');
+});
+test('read-only provider preflight rejects before request admission or attempt reservation',async()=>{
+ const s=await setup(),f=await serviceFixture(s,{preflight:()=>{throw new api.InferenceError('INFERENCE_PAYLOAD_LIMIT');}});
+ await assert.rejects(()=>f.service.infer(s.actor,s.raw),/PAYLOAD_LIMIT/);assert.equal(f.executions(),0);
+ assert.equal((await db.query('select count(*)::int n from private.pandora_ops_inference_requests where organization_id=$1',[s.org])).rows[0].n,0);
+});
+test('recovery never releases a provider attempt with granted sending authority',async()=>{
+ const s=await setup(),a=await prepare(s);await send(s,a);
+ const r=await call(s,'recover_prepare',{requestId:s.metadata.requestId});assert.equal(r.resolved,false);assert.equal(r.providerStopped,false);
+ assert.equal((await status(s)).attempts[0].state,'sent');
+});
+test('actual native owner feed can consume receipt-less ingestion/control events without inventing evidence',async()=>{
+ const s=await setup(),{OperationsTheatre}=await import('../packages/pandora-operations-inference/theatre.mjs');
+ const theatre=new OperationsTheatre({readEvents:args=>rpc('pandora_ops_event_feed_v1',{p_organization_id:args.organizationId,p_project_id:args.projectId,p_actor_id:s.owner,p_after:args.after,p_limit:args.limit})});
+ theatre.reset({organizationId:s.org,projectId:s.project,sessionKey:'fixture-owner'});const view=await theatre.refresh();
+ assert.ok(view.events.some(e=>e.type==='tasks_ingested'&&e.receiptRef===null));assert.ok(view.events.some(e=>e.type==='owner_resume'&&e.receiptRef===null));
+ assert.ok(view.events.every(e=>e.progress===null));
+});
+test('binary image request traverses the real native service without false credential rejection',async()=>{
+ const image=require('./fixtures/inference-image-fixture.cjs')(),s=await setup({modelPatch:{classes:['vision'],modalities:['text','image'],imageTokenUpperBound:512}});
+ await db.query("update private.pandora_ops_inference_callers set classes=array['vision'] where organization_id=$1",[s.org]);
+ s.raw={...s.raw,taskClass:'vision',parts:[{type:'image',mimeType:'image/png',data:image.data}]};
+ const f=await serviceFixture(s);const r=await f.service.infer(s.actor,s.raw);assert.equal(r.state,'verification_pending');assert.equal(f.executions(),1);
+});

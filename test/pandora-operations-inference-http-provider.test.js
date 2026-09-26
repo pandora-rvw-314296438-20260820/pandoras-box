@@ -36,3 +36,26 @@ test('provider refuses phone-private before any transport',async()=>{const h=pro
 test('provider rejects credential-shaped output without echoing it',async()=>{const b=providerBody();b.candidates[0].content.parts=[{text:'ghp_'+'X'.repeat(24)}];const r=await providerHarness(200,b).p.execute(input(),model());assert.equal(r.receipt.code,'invalid_output');assert.equal(r.output,null);});
 test('native store rejects noncanonical targets',()=>{for(const url of ['https://example.test','http://jcyqixttuebxqqfkjonq.supabase.co','https://jcyqixttuebxqqfkjonq.supabase.co/?x=1'])assert.throws(()=>new NativeStore({supabaseUrl:url,rpc(){}}),/TARGET_DENIED/);});
 test('unknown provider transport error remains unknown, not a billed-zero failure',async()=>{const p=new Provider({supabaseUrl:'https://jcyqixttuebxqqfkjonq.supabase.co',rpc:async()=>({error:{message:'private'},data:null})});await assert.rejects(()=>p.execute(input(),model()),e=>e.code==='INFERENCE_PROVIDER_OUTCOME_UNKNOWN'&&e.outcomeUnknown===true);});
+
+test('multimodal HTTP parsing sizes opaque image encoding without plaintext credential heuristics',async()=>{
+ const image=require('./fixtures/inference-image-fixture.cjs')();const req=request('infer',{parts:[{type:'image',mimeType:'image/png',data:image.data}]});
+ const parsed=await http.readJson(req);assert.equal(parsed.parts[0].data,image.data);
+});
+test('concrete Gemini preflight and request accept valid image bytes containing a credential-like base64 segment',async()=>{
+ const image=require('./fixtures/inference-image-fixture.cjs')(),h=providerHarness(),r={...input(),taskClass:'vision',parts:[{type:'image',mimeType:'image/png',data:image.data}]};
+ assert.equal(h.p.preflight(r,model()).executionStarted,false);assert.equal(h.count(),0);
+ assert.equal((await h.p.execute(r,model())).receipt.state,'received');assert.equal(h.args().payload.p_body.contents[0].parts[0].inlineData.data,image.data);
+});
+test('Gemini preflight still scans text and context for actual credential-shaped material',()=>{
+ const image=require('./fixtures/inference-image-fixture.cjs')(),h=providerHarness();
+ assert.throws(()=>h.p.preflight({...input(),parts:[{type:'text',text:image.tokenLookingText}]},model()),/CREDENTIAL_REJECTED/);
+ assert.throws(()=>h.p.preflight({...input(),memoryContext:image.tokenLookingText},model()),/CREDENTIAL_REJECTED/);assert.equal(h.count(),0);
+});
+test('invalid successful mutation response is ambiguous, not proof the SQL mutation failed',async()=>{
+ const store=new NativeStore({supabaseUrl:'https://jcyqixttuebxqqfkjonq.supabase.co',rpc:async()=>({data:[],error:null})});
+ await assert.rejects(()=>store.send({},REQUEST,USER,'a'.repeat(64)),e=>e.code==='INFERENCE_STORE_RESPONSE_INVALID'&&e.outcomeUnknown===true);
+});
+test('native SQL send rejection is distinguished from a transport failure',async()=>{
+ const store=new NativeStore({supabaseUrl:'https://jcyqixttuebxqqfkjonq.supabase.co',rpc:async()=>({data:null,error:{code:'P0001',message:'INFERENCE_WORKSPACE_PAUSED'}})});
+ await assert.rejects(()=>store.send({},REQUEST,USER,'a'.repeat(64)),e=>e.code==='INFERENCE_WORKSPACE_PAUSED'&&e.outcomeUnknown===false);
+});

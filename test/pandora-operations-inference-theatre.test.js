@@ -16,3 +16,8 @@ test('read failure releases the lock for a subsequent explicit refresh',async()=
 test('bounded event retention keeps the newest exact events',async()=>{const t=new api.OperationsTheatre({readEvents:async()=>page([event('1'),event('2'),event('3')]),clock:()=>NOW,maxEvents:2});t.reset(scope());assert.deepEqual((await t.refresh()).events.map(e=>e.id),['2','3']);});
 test('reset to signed-out clears all event and tenant state',async()=>{const t=new api.OperationsTheatre({readEvents:async()=>page(),clock:()=>NOW});t.reset(scope());await t.refresh();t.reset();assert.equal(t.snapshot().scope,null);assert.equal(t.snapshot().events.length,0);await assert.rejects(()=>t.refresh(),/SCOPE_REQUIRED/);});
 test('renderer uses text nodes for untrusted event material',()=>{const created=[];const document={createElement(tag){const element={tag,children:[],textContent:'',setAttribute(){},appendChild(child){this.children.push(child);}};created.push(element);return element;}};let root;const container={replaceChildren(value){root=value;}};const unsafe=api.eventView({...event(),receiptRef:'<img src=x onerror=alert(1)>'});api.renderTheatre(container,{events:[unsafe]},{document});assert.equal(root.tag,'ol');assert.equal(created.some(e=>'innerHTML'in e),false);assert.ok(created.some(e=>e.textContent.includes('<img')));});
+
+test('real events without external receipts remain valid and do not acquire invented evidence',async()=>{
+ const t=new api.OperationsTheatre({readEvents:async()=>page([{...event('1','tasks_ingested'),receiptRef:null}]),clock:()=>NOW});
+ t.reset(scope());const view=await t.refresh();assert.equal(view.events[0].receiptRef,null);assert.equal(view.events[0].progress,null);
+});

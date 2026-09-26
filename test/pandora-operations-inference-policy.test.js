@@ -38,3 +38,23 @@ test('nested request bytes are immutable after digesting',()=>{const r=api.norma
 for(const key of ['taskId','requestId','leaseId','sourceSha'])test(`identity is a string, not coerced: ${key}`,()=>assert.throws(()=>api.normalizeRequest({...request(),[key]:123})));
 test('image bytes consume the model payload budget',()=>{const r=api.normalizeRequest({...request(),taskClass:'vision',parts:[{type:'image',mimeType:'image/png',data:'YQ=='.repeat(1)}]});assert.equal(r.inputBytes,4);const p=policy({models:[model({classes:['vision'],modalities:['image'],imageTokenUpperBound:10,maxInputBytes:1})]});assert.equal(api.selectCandidates(r,p,scope,null,opts).candidates.length,0);});
 test('mixed known and unknown history ordering is permutation independent',()=>{const models=[model({model:'a',estimatedLatencyMs:100}),model({model:'b',estimatedLatencyMs:1}),model({model:'c',estimatedLatencyMs:50})];const e=history([perf(models[0],{verificationPassCount:10}),perf(models[2],{verificationPassCount:5})]);const permutations=[[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];for(const order of permutations){const p=policy({models:order.map(i=>models[i]),maxAttempts:3});assert.deepEqual(api.selectCandidates(api.normalizeRequest(request()),p,scope,e,opts).candidates.map(m=>m.model),['a','c','b']);}});
+
+test('valid binary image with credential-looking base64 is not plaintext credential material',()=>{
+ const fixture=require('./fixtures/inference-image-fixture.cjs')();
+ assert.ok(fixture.data.includes(fixture.tokenLookingText));
+ const r=api.normalizeRequest({...request(),taskClass:'vision',parts:[{type:'image',mimeType:'image/png',data:fixture.data}]});
+ assert.equal(r.inputBytes,fixture.data.length);assert.equal(r.imageCount,1);
+ assert.throws(()=>api.normalizeRequest({...request(),parts:[{type:'text',text:fixture.tokenLookingText}]}),/CREDENTIAL_REJECTED/);
+ assert.throws(()=>api.normalizeRequest({...request(),parts:[{type:'image',mimeType:'image/png',data:fixture.data},{type:'text',text:fixture.tokenLookingText}]}),/CREDENTIAL_REJECTED/);
+});
+test('nullable latency has a total, permutation-independent order before price',()=>{
+ const models=[model({model:'A',estimatedLatencyMs:1,maxCostMicros:3}),model({model:'B',estimatedLatencyMs:null,maxCostMicros:1}),model({model:'C',estimatedLatencyMs:2,maxCostMicros:2})];
+ for(const order of [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]]){
+  const r=api.selectCandidates(api.normalizeRequest(request()),policy({models:order.map(i=>models[i]),maxAttempts:3}),scope,null,opts);
+  assert.deepEqual(r.candidates.map(x=>x.model),['A','C','B']);
+ }
+});
+test('all unknown latencies compare by price and stable model identity without assigning a latency',()=>{
+ const p=policy({models:[model({model:'Z',estimatedLatencyMs:null,maxCostMicros:2}),model({model:'B',estimatedLatencyMs:null,maxCostMicros:1}),model({model:'A',estimatedLatencyMs:null,maxCostMicros:1})],maxAttempts:3});
+ const r=api.selectCandidates(api.normalizeRequest(request()),p,scope,null,opts);assert.deepEqual(r.candidates.map(m=>m.model),['A','B','Z']);assert.ok(r.candidates.every(m=>m.estimatedLatencyMs===null));
+});
