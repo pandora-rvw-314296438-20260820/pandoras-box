@@ -100,7 +100,6 @@ export function createOperationsHandler({
 				"tasks",
 				"expectedRevision",
 				"taskId",
-				"maxConcurrency",
 			];
 			if (Object.keys(input).some((k) => !keys.includes(k)))
 				return response(400, { ok: false, code: "UNKNOWN_FIELD" });
@@ -147,14 +146,9 @@ export function createOperationsHandler({
 				name = "pandora_ops_ingest_v1";
 				params.p_tasks = input.tasks;
 			} else if (
-				[
-					"pause",
-					"resume",
-					"no_production",
-					"allow_production",
-					"cancel_task",
-					"set_max_concurrency",
-				].includes(input.operation)
+				["pause", "resume", "no_production", "cancel_task"].includes(
+					input.operation,
+				)
 			) {
 				if (
 					!Number.isSafeInteger(input.expectedRevision) ||
@@ -173,18 +167,6 @@ export function createOperationsHandler({
 					)
 				)
 					return response(400, { ok: false, code: "TASK_ID_REQUIRED" });
-				if (
-					input.operation === "set_max_concurrency" &&
-					!(
-						Number.isSafeInteger(input.maxConcurrency) &&
-						input.maxConcurrency >= 1 &&
-						input.maxConcurrency <= 16
-					)
-				)
-					return response(400, {
-						ok: false,
-						code: "MAX_CONCURRENCY_INVALID",
-					});
 				name = "pandora_ops_control_v1";
 				params.p_expected_revision = input.expectedRevision;
 				params.p_action = input.operation;
@@ -207,9 +189,6 @@ export function createOperationsHandler({
 									expectedRevision: input.expectedRevision,
 									...(input.operation === "cancel_task"
 										? { taskId: input.taskId }
-										: {}),
-									...(input.operation === "set_max_concurrency"
-										? { maxConcurrency: input.maxConcurrency }
 										: {}),
 								},
 			});

@@ -23,12 +23,8 @@ test("privileged functions are not public APIs",()=>{
   assert.match(migration,/revoke all on function public\.pandora_ops_set_max_concurrency_v1[\s\S]*from public,anon,authenticated/);
   assert.match(migration,/grant execute on function public\.pandora_ops_set_max_concurrency_v1[\s\S]*to service_role/);
 });
-test("operations endpoint exposes allow_production and set_max_concurrency with bounded input",()=>{
-  assert.match(handler,/"allow_production"/);
-  assert.match(handler,/"set_max_concurrency"/);
-  assert.match(handler,/"maxConcurrency"/);
-  assert.match(handler,/input\.maxConcurrency >= 1/);
-  assert.match(handler,/input\.maxConcurrency <= 16/);
-  assert.match(handler,/MAX_CONCURRENCY_INVALID/);
-  assert.match(handler,/maxConcurrency: input\.maxConcurrency/);
+
+test("existing frozen Operations Edge handler is not modified by this release",()=>{
+  const handler=fs.readFileSync("supabase/functions/pandora-operations-runtime/handler.mjs","utf8");
+  assert.doesNotMatch(handler,/set_max_concurrency/);
 });
