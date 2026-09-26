@@ -33,7 +33,7 @@ create table private.pandora_ops_inference_attempts (
  id uuid primary key default gen_random_uuid(), request_id uuid not null references private.pandora_ops_inference_requests(id),
  organization_id uuid not null, project_id uuid not null, ordinal integer not null check(ordinal between 1 and 3),
  model_key text not null, model_snapshot jsonb not null, policy_digest text not null check(policy_digest ~ '^[a-f0-9]{64}$'),
- state text not null default 'prepared' check(state in ('prepared','sent','received','failed','not_sent','reconciliation_required')),
+ circuit_generation bigint not null default 0, state text not null default 'prepared' check(state in ('prepared','sent','received','failed','not_sent','reconciliation_required')),
  reserved_micros bigint not null check(reserved_micros between 0 and 1000000000000), billed_micros bigint,
  receipt jsonb, billing_receipt text, created_at timestamptz not null default clock_timestamp(), completed_at timestamptz,
  unique(request_id,ordinal), unique(request_id,model_key),
@@ -43,7 +43,7 @@ create index pandora_ops_inference_attempts_capacity on private.pandora_ops_infe
 create table private.pandora_ops_inference_circuits (
  organization_id uuid not null, model_key text not null, failures integer not null default 0 check(failures>=0),
  state text not null default 'closed' check(state in ('closed','open','half_open')),
- retry_after timestamptz, probe_attempt uuid references private.pandora_ops_inference_attempts(id),
+ generation bigint not null default 0, retry_after timestamptz, probe_attempt uuid references private.pandora_ops_inference_attempts(id),
  primary key(organization_id,model_key)
 );
 alter table private.pandora_ops_inference_policies enable row level security;
@@ -98,7 +98,7 @@ create function public.pandora_ops_inference_transition_v1(p_operation text,p_ac
 returns jsonb language plpgsql security definer set search_path='' as $body$
 declare org uuid; project uuid; scope jsonb; r private.pandora_ops_inference_requests%rowtype;
  a private.pandora_ops_inference_attempts%rowtype; c private.pandora_ops_inference_circuits%rowtype;
- policy private.pandora_ops_inference_policies%rowtype; model jsonb; pd text; n integer; total numeric; receipt jsonb;
+ policy private.pandora_ops_inference_policies%rowtype; model jsonb; pd text; n integer; total numeric; v_receipt jsonb;
  v public.pandora_verification_runs%rowtype; verifier private.pandora_ops_workers%rowtype; now_at timestamptz:=clock_timestamp(); k text;
 begin
  if jsonb_typeof(p_actor) is distinct from 'object' or jsonb_typeof(p_payload) is distinct from 'object' or octet_length(p_payload::text)>32768 then raise exception 'INFERENCE_INPUT_INVALID'; end if;
@@ -164,7 +164,7 @@ begin
    return jsonb_build_object('canSend',true,'attemptId',a.id,'state','sent');
   end if;
   select value into model from jsonb_array_elements(policy.policy->'models') where (value->>'provider')||':'||(value->>'model')=p_payload->>'modelKey';
-  if model is null or model->>'approved' is distinct from 'true' or model->>'available' is distinct from 'true'
+  if model is null or not(model ?& array['provider','model','classes','approved','available','approvalExpiresAt','healthObservedAt','executionBoundary','riskTier','modalities','maxInputBytes','maxOutputTokens','contextTokens','imageTokenUpperBound','maxConcurrency','maxCostMicros']) or model->>'approved' is distinct from 'true' or model->>'available' is distinct from 'true'
    or (model->>'approvalExpiresAt')::timestamptz<=now_at or (model->>'healthObservedAt')::timestamptz>now_at+interval '5 seconds'
    or (model->>'healthObservedAt')::timestamptz<now_at-((policy.policy->>'maxHealthAgeMs')::bigint*interval '1 millisecond')
    or not coalesce((model->'classes') ? r.task_class,false) or model->>'executionBoundary'<>'cloud'
@@ -186,8 +186,8 @@ begin
   select * into c from private.pandora_ops_inference_circuits where organization_id=org and model_key=p_payload->>'modelKey' for update;
   if c.state='half_open' or c.probe_attempt is not null or (c.state='open' and (c.retry_after is null or c.retry_after>now_at)) then raise exception 'INFERENCE_CIRCUIT_HELD'; end if;
   if (select count(*) from private.pandora_ops_inference_attempts where organization_id=org and model_key=p_payload->>'modelKey' and state in ('prepared','sent','reconciliation_required')) >= (model->>'maxConcurrency')::int then raise exception 'INFERENCE_CAPACITY_HELD'; end if;
-  insert into private.pandora_ops_inference_attempts(request_id,organization_id,project_id,ordinal,model_key,model_snapshot,policy_digest,reserved_micros)
-  values(r.id,org,project,n+1,p_payload->>'modelKey',model,pd,(model->>'maxCostMicros')::bigint) returning * into a;
+  insert into private.pandora_ops_inference_attempts(request_id,organization_id,project_id,ordinal,model_key,model_snapshot,policy_digest,reserved_micros,circuit_generation)
+  values(r.id,org,project,n+1,p_payload->>'modelKey',model,pd,(model->>'maxCostMicros')::bigint,c.generation) returning * into a;
   if c.state='open' then update private.pandora_ops_inference_circuits set state='half_open',probe_attempt=a.id where organization_id=org and model_key=a.model_key; end if;
   perform private.pandora_ops_event_v1(org,project,'infer:route:'||a.id,r.task_key,'inference_routed','inference-attempt:'||a.id);
   return jsonb_build_object('created',true,'attemptId',a.id,'ordinal',a.ordinal,'reservedMicros',a.reserved_micros,'canSend',false);
@@ -203,46 +203,46 @@ begin
    perform private.pandora_ops_event_v1(org,project,'infer:billing:'||a.id,r.task_key,'inference_billing_reconciled',p_payload->>'receiptRef');
    return jsonb_build_object('recorded',true,'attemptId',a.id);
   end if;
-  receipt:=p_payload->'receipt';
-  if jsonb_typeof(receipt) is distinct from 'object' or octet_length(receipt::text)>8192 then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
-  for k in select jsonb_object_keys(receipt) loop
+  v_receipt:=p_payload->'receipt';
+  if jsonb_typeof(v_receipt) is distinct from 'object' or octet_length(v_receipt::text)>8192 then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
+  for k in select jsonb_object_keys(v_receipt) loop
    if k<>all(array['state','outputDigest','providerReceipt','billedCostMicros','usage','code','latencyMs','modelRevision']) then raise exception 'INFERENCE_RECEIPT_METADATA_ONLY'; end if;
   end loop;
-  if not coalesce(receipt->>'state' in ('received','failed','not_sent','reconciliation_required'),false)
-   or nullif(receipt->>'providerReceipt','') is null or length(receipt->>'providerReceipt')>500
-   or (receipt->>'billedCostMicros' is not null and not coalesce(receipt->>'billedCostMicros' ~ '^[0-9]{1,13}$' and (receipt->>'billedCostMicros')::bigint<=a.reserved_micros,false))
-   or (receipt->>'state'='received' and not coalesce(receipt->>'outputDigest' ~ '^[a-f0-9]{64}$',false)) then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
-  if a.receipt=receipt then return jsonb_build_object('recorded',true,'replayed',true,'attemptId',a.id,'state',a.state); end if;
-  if a.state not in ('prepared','sent','reconciliation_required') or (a.state='prepared' and receipt->>'state' not in ('not_sent','reconciliation_required'))
-   or (receipt->>'state'='not_sent' and (a.state<>'prepared' or receipt->>'billedCostMicros' is distinct from '0')) then raise exception 'INFERENCE_RECEIPT_CONFLICT'; end if;
-  update private.pandora_ops_inference_attempts set state=receipt->>'state',receipt=receipt,billed_micros=(receipt->>'billedCostMicros')::bigint,
-   completed_at=case when receipt->>'state'='reconciliation_required' then null else now_at end where id=a.id;
-  if receipt->>'state'='reconciliation_required' then
+  if not coalesce(v_receipt->>'state' in ('received','failed','not_sent','reconciliation_required'),false)
+   or nullif(v_receipt->>'providerReceipt','') is null or length(v_receipt->>'providerReceipt')>500
+   or (v_receipt->>'billedCostMicros' is not null and not coalesce(v_receipt->>'billedCostMicros' ~ '^[0-9]{1,13}$' and (v_receipt->>'billedCostMicros')::bigint<=a.reserved_micros,false))
+   or (v_receipt->>'state'='received' and not coalesce(v_receipt->>'outputDigest' ~ '^[a-f0-9]{64}$',false)) then raise exception 'INFERENCE_RECEIPT_INVALID'; end if;
+  if a.receipt=v_receipt then return jsonb_build_object('recorded',true,'replayed',true,'attemptId',a.id,'state',a.state); end if;
+  if a.state not in ('prepared','sent','reconciliation_required') or (a.state='prepared' and v_receipt->>'state' not in ('not_sent','reconciliation_required'))
+   or (v_receipt->>'state'='not_sent' and (a.state<>'prepared' or v_receipt->>'billedCostMicros' is distinct from '0')) then raise exception 'INFERENCE_RECEIPT_CONFLICT'; end if;
+  update private.pandora_ops_inference_attempts set state=v_receipt->>'state',receipt=v_receipt,billed_micros=(v_receipt->>'billedCostMicros')::bigint,
+   completed_at=case when v_receipt->>'state'='reconciliation_required' then null else now_at end where id=a.id;
+  if v_receipt->>'state'='reconciliation_required' then
    update private.pandora_ops_inference_requests set state='reconciliation_required' where id=r.id;
    perform public.pandora_ops_reconcile_required_v1(org,project,r.lease_id,r.generation,'INFERENCE_OUTCOME_UNKNOWN');
   else
    select * into c from private.pandora_ops_inference_circuits where organization_id=org and model_key=a.model_key for update;
-   if receipt->>'state'='received' then
-    update private.pandora_ops_inference_circuits set state='closed',failures=0,retry_after=null,probe_attempt=null where organization_id=org and model_key=a.model_key;
+   if v_receipt->>'state'='received' then
+    update private.pandora_ops_inference_circuits set state='closed',failures=0,retry_after=null,probe_attempt=null,generation=generation+1 where organization_id=org and model_key=a.model_key and generation=a.circuit_generation and (probe_attempt is null or probe_attempt=a.id);
     update private.pandora_ops_inference_requests set state=case when cancel_requested then 'cancel_requested' else 'verification_pending' end,selected_attempt=a.id where id=r.id;
-   elsif receipt->>'state'='failed' then
-    update private.pandora_ops_inference_circuits set failures=failures+1,state=case when failures+1>=3 or probe_attempt=a.id then 'open' else state end,
-     retry_after=case when failures+1>=3 or probe_attempt=a.id then now_at+interval '30 seconds' else retry_after end,probe_attempt=case when probe_attempt=a.id then null else probe_attempt end where organization_id=org and model_key=a.model_key;
+   elsif v_receipt->>'state'='failed' then
+    update private.pandora_ops_inference_circuits set failures=failures+1,generation=case when failures+1>=3 or probe_attempt=a.id then generation+1 else generation end,state=case when failures+1>=3 or probe_attempt=a.id then 'open' else state end,
+     retry_after=case when failures+1>=3 or probe_attempt=a.id then now_at+interval '30 seconds' else retry_after end,probe_attempt=case when probe_attempt=a.id then null else probe_attempt end where organization_id=org and model_key=a.model_key and generation=a.circuit_generation and (probe_attempt is null or probe_attempt=a.id);
     update private.pandora_ops_inference_requests set state='failed' where id=r.id;
    else
-    update private.pandora_ops_inference_circuits set state=case when probe_attempt=a.id then 'open' else state end,probe_attempt=case when probe_attempt=a.id then null else probe_attempt end where organization_id=org and model_key=a.model_key;
+    update private.pandora_ops_inference_circuits set state=case when probe_attempt=a.id then 'open' else state end,probe_attempt=case when probe_attempt=a.id then null else probe_attempt end where organization_id=org and model_key=a.model_key and generation=a.circuit_generation and (probe_attempt is null or probe_attempt=a.id);
     update private.pandora_ops_inference_requests set state=case when cancel_requested then 'cancelled' else 'admitted' end where id=r.id;
    end if;
   end if;
-  perform private.pandora_ops_event_v1(org,project,'infer:receipt:'||a.id||':'||(receipt->>'state'),r.task_key,'inference_'||(receipt->>'state'),receipt->>'providerReceipt');
-  return jsonb_build_object('recorded',true,'attemptId',a.id,'state',receipt->>'state','taskComplete',false);
+  perform private.pandora_ops_event_v1(org,project,'infer:receipt:'||a.id||':'||(v_receipt->>'state'),r.task_key,'inference_'||(v_receipt->>'state'),v_receipt->>'providerReceipt');
+  return jsonb_build_object('recorded',true,'attemptId',a.id,'state',v_receipt->>'state','taskComplete',false);
  end if;
  if p_operation='verify' then
   if r.cancel_requested or r.state not in ('verification_pending','verified') then raise exception 'INFERENCE_VERIFICATION_FENCED'; end if;
   select * into a from private.pandora_ops_inference_attempts where id=r.selected_attempt;
   select * into v from public.pandora_verification_runs where id=(p_payload->>'verificationRunId')::uuid and organization_id=org and project_id=project for share;
   if not found or v.status is distinct from 'PASS' or v.completed_at is null or v.source_commit is distinct from r.source_sha
-   or v.artifact_digest is distinct from a.receipt->>'outputDigest' or v.builder_identity is distinct from r.principal_key
+   or v.artifact_digest is distinct from a.receipt->>'outputDigest' or v.runtime_target_digest is distinct from r.request_digest or v.builder_identity is distinct from r.principal_key
    or nullif(v.verifier_identity,'') is null or v.verifier_identity=r.principal_key or v.required_check_profile is distinct from 'backend_service' then raise exception 'INFERENCE_CANONICAL_VERIFICATION_REQUIRED'; end if;
   select * into verifier from private.pandora_ops_workers where organization_id=org and project_id=project and principal_key=v.verifier_identity
    and worker_key<>r.worker_key and acknowledged and connected and health='ready' and heartbeat_at between now_at-interval '60 seconds' and now_at+interval '5 seconds' and 'release'=any(lanes);
