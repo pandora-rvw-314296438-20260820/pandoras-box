@@ -71,6 +71,27 @@ abstract interface class ExtraIdentityVerificationSource {
   });
 }
 
+const String pandoraFacebookWebRedirectUrl = 'https://mcpmaster.vercel.app/';
+const String pandoraFacebookAndroidRedirectUrl =
+    'com.banataosystems.pandora://login-callback/';
+
+String? pandoraFacebookRedirectUrl({
+  required bool isWeb,
+  required TargetPlatform platform,
+}) {
+  if (isWeb) return pandoraFacebookWebRedirectUrl;
+  if (platform == TargetPlatform.android) {
+    return pandoraFacebookAndroidRedirectUrl;
+  }
+  return null;
+}
+
+bool pandoraFacebookSignInSupported({
+  required bool isWeb,
+  required TargetPlatform platform,
+}) =>
+    pandoraFacebookRedirectUrl(isWeb: isWeb, platform: platform) != null;
+
 abstract interface class PandoraAuth {
   PandoraSession? get currentSession;
 
@@ -142,22 +163,25 @@ class SupabasePandoraAuth
 
   @override
   Future<void> signInWithFacebook() async {
-    if (!kIsWeb) {
+    final redirectTo = pandoraFacebookRedirectUrl(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+    );
+    if (redirectTo == null) {
       throw const PandoraAuthFailure(
-        'Facebook sign-in is available on the Pandora website.',
+        'Facebook sign-in is available on the Pandora website and Android app.',
       );
     }
-    if (!pandoraCanCompleteFacebookRedirect()) {
+    if (kIsWeb && !pandoraCanCompleteFacebookRedirect()) {
       throw const PandoraAuthFailure(
         'Facebook sign-in needs temporary browser storage. Enable storage and try again.',
       );
     }
     try {
-      // Supabase GoTrue requests email by default for Facebook.
       final launched = await _client.auth.signInWithOAuth(
         OAuthProvider.facebook,
-        redirectTo: 'https://mcpmaster.vercel.app/',
-        scopes: 'public_profile',
+        redirectTo: redirectTo,
+        scopes: 'public_profile,email',
       );
       if (!launched) {
         throw const PandoraAuthFailure(

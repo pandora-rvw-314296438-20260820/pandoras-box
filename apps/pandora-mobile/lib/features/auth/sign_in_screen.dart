@@ -173,7 +173,10 @@ class _SignInScreenState extends State<SignInScreen> {
                           onPressed: _busy ? null : _resetPassword,
                           child: const Text('Reset password'),
                         ),
-                        if (kIsWeb) ...[
+                        if (pandoraFacebookSignInSupported(
+                          isWeb: kIsWeb,
+                          platform: defaultTargetPlatform,
+                        )) ...[
                           const SizedBox(height: PandoraSpacing.sm),
                           OutlinedButton(
                             onPressed: _busy ? null : _signInWithFacebook,
