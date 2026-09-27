@@ -1,5 +1,7 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { resolveVercelWorkloadToken } from "../src/runtime/vercel-workload-identity.js";
+import releasePolicy from "../src/runtime/operations-source-release-policy.cjs";
+const { canContinueSourceBuilding } = releasePolicy;
 
 export const config = { api: { bodyParser: false }, maxDuration: 300 };
 
@@ -555,7 +557,7 @@ export default async function operationsNativeWorker(request: any, response: any
       { action: "operations_generic_source_release_step" },
       60_000,
     );
-    if (sourceRelease?.state && sourceRelease.state !== "idle") {
+    if (!canContinueSourceBuilding(sourceRelease?.state)) {
       return send(response, 200, {
         ok: true,
         state: sourceRelease.state,
