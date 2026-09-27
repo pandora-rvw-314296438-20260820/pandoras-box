@@ -134,7 +134,8 @@ test("Bedrock health proves STS and Converse without returning credentials", asy
   );
   const result = await probe();
   assert.equal(result.status, "healthy");
-  assert.equal(result.model, "us.openai.gpt-6-luna");
+  assert.equal(result.model, "openai.gpt-6-luna");
+  assert.equal(result.invocationTarget, "us.openai.gpt-6-luna");
   assert.equal(calls.length, 2);
   assert.equal(JSON.stringify(result).includes("ASIATEST"), false);
   assert.equal(JSON.stringify(result).includes("session"), false);
@@ -179,41 +180,25 @@ test("Bedrock catalog maps Astra to the governed US inference profile", async ()
   assert.equal(calls.length, 2);
 });
 
-test("legacy Vercel profile env does not override catalog authority", async () => {
-  const calls = [];
-  const result = await converseWithBedrock({
-    prompt: "Return DEFAULT_OK",
-    mode: "standard",
-    maxTokens: 16,
-    environment: {
-      AWS_ROLE_ARN: "arn:aws:iam::792289066859:role/PandoraVercelBedrockInferenceV2",
-      AWS_REGION: "us-east-1",
-      PANDORA_BEDROCK_STANDARD_MODEL: "us.openai.gpt-5.6-sol",
-    },
-    resolveWorkloadToken: async () => "oidc",
-    fetchFn: async (url, init) => {
-      calls.push(url);
-      if (url === "https://sts.amazonaws.com/") {
-        return response(
-          200,
-          "<AssumeRoleWithWebIdentityResponse><AssumeRoleWithWebIdentityResult><Credentials>" +
-            "<AccessKeyId>ASIATEST</AccessKeyId><SecretAccessKey>secret</SecretAccessKey>" +
-            "<SessionToken>session</SessionToken><Expiration>2026-09-27T08:00:00Z</Expiration>" +
-          "</Credentials></AssumeRoleWithWebIdentityResult></AssumeRoleWithWebIdentityResponse>",
-        );
-      }
-      assert.match(url, /\/model\/us\.openai\.gpt-6-astra\/converse$/);
-      return response(200, JSON.stringify({
-        output:{message:{content:[{text:"DEFAULT_OK"}]}},
-        usage:{inputTokens:3,outputTokens:2,totalTokens:5},
-        stopReason:"end_turn",
-      }));
-    },
-  });
-  assert.equal(result.modelId, "openai.gpt-6-astra");
-  assert.equal(calls.length, 2);
+test("invalid Bedrock env model override is rejected before STS", async () => {
+  let calls = 0;
+  await assert.rejects(
+    () => converseWithBedrock({
+      prompt: "no",
+      mode: "standard",
+      maxTokens: 16,
+      environment: {
+        AWS_ROLE_ARN: "arn:aws:iam::792289066859:role/PandoraVercelBedrockInferenceV2",
+        AWS_REGION: "us-east-1",
+        PANDORA_BEDROCK_STANDARD_MODEL: "us.openai.gpt-5.6-sol",
+      },
+      resolveWorkloadToken: async () => "oidc",
+      fetchFn: async () => { calls += 1; throw new Error("unexpected"); },
+    }),
+    /AWS_BEDROCK_MODEL_DENIED/,
+  );
+  assert.equal(calls, 0);
 });
-
 test("arbitrary Bedrock model identifiers are rejected before STS", async () => {
   let calls = 0;
   await assert.rejects(
