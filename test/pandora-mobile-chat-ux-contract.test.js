@@ -52,9 +52,5 @@ test('mobile chat uses the full adaptive viewport and keeps Enterprise context i
   assert.ok(screen.includes('extentAfter < 96'));
   assert.ok(screen.includes('if (!force && !_followLatest) return;'));
   assert.ok(screen.includes('String _sanitizeVisiblePandoraText(String input)'));
-  assert.ok(
-    screen.includes(
-      'this._(_sanitizeVisiblePandoraText(text), false)',
-    ),
-  );
+  assert.ok(screen.includes('_sanitizeVisiblePandoraText(text)'));
 });

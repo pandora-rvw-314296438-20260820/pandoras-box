@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -1173,7 +1174,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
             (turn.conversationLane == 'team_admin' ||
                 _isTeamAdministrationClarification(turn.reply));
         _messages.add(_ChatMessage.user(objective));
-        _messages.add(_ChatMessage.pandora(turn.reply));
+        _messages.add(_ChatMessage.pandora(
+          turn.reply,
+          authorizationUrl: turn.authorizationUrl,
+        ));
         _pendingMessage = null;
         _attachment = null;
         _imageAttachment = null;
@@ -1181,7 +1185,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       });
 
       final authorizationUrl = turn.authorizationUrl;
-      if (authorizationUrl != null) {
+      if (authorizationUrl != null && !kIsWeb) {
         final launched = await launchUrl(
           authorizationUrl,
           mode: LaunchMode.externalApplication,
@@ -2246,13 +2250,27 @@ class _ChatBubble extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: SelectableText(
-            message.text,
-            style: const TextStyle(
-              color: PandoraSimpleColors.ink,
-              fontSize: 15.5,
-              height: 1.52,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText(
+                message.text,
+                style: const TextStyle(
+                  color: PandoraSimpleColors.ink,
+                  fontSize: 15.5,
+                  height: 1.52,
+                ),
+              ),
+              if (message.authorizationUrl != null)
+                TextButton.icon(
+                  onPressed: () => launchUrl(
+                    message.authorizationUrl!,
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Continue to Meta'),
+                ),
+            ],
           ),
         ),
       ],
@@ -2895,13 +2913,22 @@ String _sanitizeVisiblePandoraText(String input) {
 String _sanitizeVisibleUserText(String input) => _stripInternalContext(input);
 
 class _ChatMessage {
-  const _ChatMessage._(this.text, this.isUser);
+  const _ChatMessage._(this.text, this.isUser, this.authorizationUrl);
 
   _ChatMessage.user(String text)
-      : this._(_sanitizeVisibleUserText(text), true);
-  _ChatMessage.pandora(String text)
-      : this._(_sanitizeVisiblePandoraText(text), false);
+      : this._(_sanitizeVisibleUserText(text), true, null);
+  _ChatMessage.pandora(String text, {Uri? authorizationUrl})
+      : this._(
+          _sanitizeVisiblePandoraText(text),
+          false,
+          authorizationUrl?.scheme == 'https' &&
+                  authorizationUrl?.host == 'www.facebook.com' &&
+                  authorizationUrl?.path.endsWith('/dialog/oauth') == true
+              ? authorizationUrl
+              : null,
+        );
 
   final String text;
   final bool isUser;
+  final Uri? authorizationUrl;
 }
