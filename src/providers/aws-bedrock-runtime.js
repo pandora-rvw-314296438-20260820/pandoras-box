@@ -32,14 +32,12 @@ function encodeModelPath(modelId) {
 }
 
 function runtimeConfig(environment = process.env) {
-  const configuredRole = String(environment.AWS_ROLE_ARN || "").trim();
-  if (configuredRole && configuredRole !== BEDROCK_ROLE_ARN) {
-    throw new Error("AWS_BEDROCK_ROLE_DENIED");
-  }
   const configuredRegion = String(environment.AWS_REGION || "").trim();
   if (configuredRegion && configuredRegion !== BEDROCK_REGION) {
     throw new Error("AWS_BEDROCK_REGION_DENIED");
   }
+  // The role is a source-bound security constant. Legacy deployment env may
+  // still name an older broad role, but runtime execution never consumes it.
   return { roleArn: BEDROCK_ROLE_ARN, region: BEDROCK_REGION };
 }
 
@@ -247,9 +245,14 @@ async function converseWithBedrock({
   now = new Date(),
   maxTokens = 256,
 }) {
-  const fastModel = environment.PANDORA_BEDROCK_FAST_MODEL?.trim() || DEFAULT_FAST_MODEL;
-  const standardModel =
-    environment.PANDORA_BEDROCK_STANDARD_MODEL?.trim() || DEFAULT_STANDARD_MODEL;
+  const requestedFast = String(environment.PANDORA_BEDROCK_FAST_MODEL || "").trim();
+  const requestedStandard = String(environment.PANDORA_BEDROCK_STANDARD_MODEL || "").trim();
+  // Accept only canonical foundation-model IDs from the governed catalog.
+  // Legacy inference-profile IDs are ignored instead of becoming authority.
+  const fastModel = getBedrockReasoningModel(requestedFast) ? requestedFast : DEFAULT_FAST_MODEL;
+  const standardModel = getBedrockReasoningModel(requestedStandard)
+    ? requestedStandard
+    : DEFAULT_STANDARD_MODEL;
   return converseWithBedrockModel({
     modelId: mode === "fast" ? fastModel : standardModel,
     prompt,
