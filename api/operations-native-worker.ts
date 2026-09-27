@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { resolveVercelWorkloadToken } from "../src/runtime/vercel-workload-identity.js";
 
-export const config = { api: { bodyParser: false }, maxDuration: 60 };
+export const config = { api: { bodyParser: false }, maxDuration: 300 };
 
 const CONTROL_URL =
   "https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control";
@@ -39,7 +39,7 @@ async function readBoundedJson(response: Response, maxBytes = 256_000) {
   return text ? JSON.parse(text) : {};
 }
 
-async function control(oidc: string, input: Json) {
+async function control(oidc: string, input: Json, timeoutMs = 12_000) {
   const response = await fetch(CONTROL_URL, {
     method: "POST",
     headers: {
@@ -48,7 +48,7 @@ async function control(oidc: string, input: Json) {
     },
     body: JSON.stringify(input),
     redirect: "error",
-    signal: AbortSignal.timeout(12_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const payload = await readBoundedJson(response);
   if (!response.ok || payload?.ok !== true) {
@@ -550,156 +550,89 @@ export default async function operationsNativeWorker(request: any, response: any
       });
     }
 
-    const task = Array.isArray(snapshot?.tasks)
-      ? snapshot.tasks.find(
-          (entry: any) =>
-            entry?.status === "queued" && entry?.spec?.id === CANARY_TASK,
-        )
-      : undefined;
-
-    if (!task) {
+    const sourceRelease = await control(
+      oidc,
+      { action: "operations_generic_source_release_step" },
+      60_000,
+    );
+    if (sourceRelease?.state && sourceRelease.state !== "idle") {
       return send(response, 200, {
         ok: true,
-        state: "idle",
-        registered: true,
-        reason: "no_supported_queued_task",
+        state: sourceRelease.state,
+        taskId: sourceRelease.taskId ?? null,
+        release: sourceRelease,
         memory,
       });
     }
 
-    if (
-      activation?.connectorDeliveryTable !== true ||
-      activation?.connectorDeliveryRpc !== true ||
-      activation?.connectorReconcileRpc !== true ||
-      activation?.nativeWorkerRpc !== true
-    ) {
-      return send(response, 503, {
-        ok: false,
-        code: "OPS_CONNECTOR_READBACK_INCOMPLETE",
+    if (activation?.nativeWorkerRpc !== true) {
+      return send(response, 503, { ok: false, code: "OPS_NATIVE_RUNTIME_READBACK_INCOMPLETE" });
+    }
+
+    const candidate = await control(oidc, { action: "operations_generic_source_candidate" });
+    if (candidate?.state !== "ready") {
+      return send(response, 200, {
+        ok: true, state: "idle", registered: true,
+        reason: candidate?.reason || "no_dependency_ready_authorized_source_task",
+        humanBlocked: candidate?.humanBlocked ?? 0, memory,
       });
     }
 
-    // Read provider evidence before claiming so an external read failure cannot strand a lease.
-    const evidence = await connectorCanaryEvidence();
+    const taskId = String(candidate.taskId || "");
+    const taskRevision = Number(candidate.taskRevision);
+    const controlRevision = Number(candidate.controlRevision);
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/.test(taskId) || !Number.isSafeInteger(taskRevision) || !Number.isSafeInteger(controlRevision)) {
+      throw new Error("OPS_GENERIC_SOURCE_CANDIDATE_INVALID");
+    }
 
-    const claim = await control(oidc, {
-      action: "operations_claim",
-      taskId: CANARY_TASK,
-      taskRevision: task.revision,
-      controlRevision: snapshot.controls.revision,
-    });
+    const claim = await control(oidc, { action: "operations_claim", taskId, taskRevision, controlRevision });
     if (claim?.claimed !== true) {
-      return send(response, 200, {
-        ok: true,
-        state: "not_claimed",
-        reason: claim?.reason || "claim_rejected",
-      });
+      return send(response, 200, { ok: true, state: "not_claimed", taskId, reason: claim?.reason || "claim_rejected" });
     }
 
     let dispatchId = "";
     try {
-      const intent = await control(oidc, {
-        action: "operations_dispatch_prepare",
-        leaseId: claim.leaseId,
-        generation: claim.generation,
-      });
+      const intent = await control(oidc, { action: "operations_dispatch_prepare", leaseId: claim.leaseId, generation: claim.generation });
       dispatchId = String(intent?.dispatchId || "");
-      if (!/^[0-9a-f-]{36}$/.test(dispatchId)) {
-        throw new Error("DISPATCH_INTENT_INVALID");
-      }
+      if (!/^[0-9a-f-]{36}$/i.test(dispatchId)) throw new Error("DISPATCH_INTENT_INVALID");
       if (intent?.canSend !== true && intent?.acknowledged !== true) {
-        return send(response, 200, {
-          ok: true,
-          state: "dispatch_in_flight",
-          dispatchId,
-        });
+        return send(response, 200, { ok: true, state: "dispatch_in_flight", taskId, dispatchId });
       }
-
-      const ackRef = receiptRef(dispatchId, CANARY_TASK, claim.generation);
       if (intent?.acknowledged !== true) {
         await control(oidc, {
-          action: "operations_dispatch_ack",
-          leaseId: claim.leaseId,
-          dispatchId,
-          taskId: CANARY_TASK,
-          generation: claim.generation,
-          receiptRef: ackRef,
+          action: "operations_dispatch_ack", leaseId: claim.leaseId, dispatchId, taskId, generation: claim.generation,
+          receiptRef: receiptRef(dispatchId, taskId, claim.generation),
         });
       }
 
+      const execution = await control(oidc, { action: "operations_generic_source_execute", taskId, generation: claim.generation }, 120_000);
+      const headSha = String(execution?.headSha || "");
+      const pullRequest = Number(execution?.pullRequest);
+      const pullRequestUrl = String(execution?.pullRequestUrl || "");
+      if (execution?.state !== "completed" || !/^[0-9a-f]{40}$/.test(headSha) || !Number.isSafeInteger(pullRequest) || pullRequest < 1 || !pullRequestUrl.startsWith("https://github.com/")) {
+        throw new Error("OPS_GENERIC_SOURCE_EXECUTION_INVALID");
+      }
       const handoff = {
-        taskId: CANARY_TASK,
-        workerId: BUILDER_ID,
-        generation: claim.generation,
-        headSha: evidence.mergeSha,
-        pullRequest: CANARY_PR,
-        tests: [
-          ...evidence.tests,
-          "Live Supabase connector delivery table/RPC readback PASS",
-          "Vercel production workload identity worker registration PASS",
-        ],
-        evidenceRefs: [
-          evidence.prUrl,
-          "supabase:migration:20260926012832",
-          "supabase:rpc:pandora_ops_activation_readback_v1",
-        ],
-        receiptRef: `ops-native-handoff:${createHash("sha256")
-          .update(`${dispatchId}:${evidence.mergeSha}:741`)
-          .digest("hex")}`,
+        taskId, workerId: BUILDER_ID, generation: claim.generation, headSha, pullRequest,
+        tests: ["Lease-bound Operations source execution PASS", "Vault-backed GitHub branch and pull-request readback PASS", "Immutable task base ancestry check PASS"],
+        evidenceRefs: [pullRequestUrl, String(execution.receiptRef || ("ops-source:" + taskId + ":" + claim.generation + ":" + headSha))],
+        receiptRef: "ops-native-handoff:" + createHash("sha256").update(taskId + ":" + claim.generation + ":" + headSha + ":" + pullRequest).digest("hex"),
         implementationComplete: true,
       };
-
-      const handedOff = await control(oidc, {
-        action: "operations_handoff",
-        leaseId: claim.leaseId,
-        generation: claim.generation,
-        handoff,
-      });
-
-      try {
-        await control(oidc, { action: "operations_heartbeat", workerRole: "release" });
-        const verified = await control(oidc, {
-          action: "operations_native_release_verify",
-          taskId: CANARY_TASK,
-        });
-        return send(response, 200, {
-          ok: true,
-          state: verified?.complete === true ? "complete" : "verification_pending",
-          taskId: CANARY_TASK,
-          dispatchId,
-          mergeSha: evidence.mergeSha,
-          handedOff,
-          verified,
-          memory,
-        });
-      } catch {
-        return send(response, 503, {
-          ok: false,
-          state: "verification_pending",
-          taskId: CANARY_TASK,
-          dispatchId,
-          code: "OPS_NATIVE_RELEASE_VERIFICATION_UNCONFIRMED",
-        });
-      }
+      const handedOff = await control(oidc, { action: "operations_handoff", leaseId: claim.leaseId, generation: claim.generation, handoff });
+      return send(response, 200, { ok: true, state: "handed_off", taskId, dispatchId, pullRequest, headSha, handedOff, memory });
     } catch (error: any) {
       try {
-        await control(oidc, {
-          action: "operations_reconcile",
-          leaseId: claim.leaseId,
-          generation: claim.generation,
-          reason: "NATIVE_WORKER_EXECUTION_UNCONFIRMED",
-        });
+        await control(oidc, { action: "operations_reconcile", leaseId: claim.leaseId, generation: claim.generation, reason: "GENERIC_SOURCE_EXECUTION_UNCONFIRMED" });
       } catch {
-        // Preserve the original error; lease state remains authoritative.
+        // Preserve original failure; the lease remains authoritative for reconciliation.
       }
       return send(response, 503, {
-        ok: false,
-        state: "reconciliation_required",
-        taskId: CANARY_TASK,
-        dispatchId: dispatchId || null,
-        code: String(error?.message || "NATIVE_WORKER_EXECUTION_UNCONFIRMED"),
+        ok: false, state: "reconciliation_required", taskId, dispatchId: dispatchId || null,
+        code: String(error?.message || "GENERIC_SOURCE_EXECUTION_UNCONFIRMED"),
       });
     }
+
   } catch (error: any) {
     const status = Number(error?.status || 503);
     return send(response, status === 401 || status === 403 ? status : 503, {

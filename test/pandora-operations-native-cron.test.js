@@ -60,8 +60,8 @@ test("native release verification is Operations-native and ProjectOS-free",()=>{
   assert.doesNotMatch(verify,/insert into public\.pandora_project_specs|insert into public\.pandora_project_versions/);
   assert.match(control,/operations_native_release_verify/);
   assert.match(control,/pandora_ops_native_release_verify_v1/);
-  assert.match(worker,/operations_native_release_verify/);
-  assert.match(worker,/OPS_NATIVE_RELEASE_VERIFICATION_UNCONFIRMED/);
+  assert.match(worker,/operations_generic_source_release_step/);
+  assert.match(worker,/GENERIC_SOURCE_EXECUTION_UNCONFIRMED/);
 });
 
 test("control bridge exposes only fixed nonce consumption",()=>{
