@@ -14,7 +14,7 @@ test('workflow router preserves ordered clause boundaries and separates reads fr
   assert.match(migration, /pandora_governed_mutation_request_v1/);
 });
 
-test('consequential workflow steps remain incomplete until ProjectOS execution and evidence', () => {
+test('consequential workflow steps remain incomplete until governed Pandora runtime execution and evidence', () => {
   assert.match(migration, /routed_to_projectos/);
   assert.match(migration, /all_projectos_plans_authorized/);
   assert.match(migration, /one_time_execution_claims/);
