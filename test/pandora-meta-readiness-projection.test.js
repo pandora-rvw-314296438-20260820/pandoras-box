@@ -37,7 +37,7 @@ test('FB-012 preserves owner/admin authorization and explicitly rejects missing 
   assert.match(sql, /grant execute on function public\.pandora_meta_connection_v1\(uuid\) to authenticated/);
 });
 
-test('FB-012 behavior rejects a signed-in non-member and unknown token expiry', async () => {
+test('FB-012 behavior rejects unauthorized, expired and unverified readiness across projection and dispatch', async () => {
   const { PGlite } = await import('@electric-sql/pglite');
   const db = new PGlite();
   try {
@@ -46,6 +46,9 @@ test('FB-012 behavior rejects a signed-in non-member and unknown token expiry', 
       create role authenticated;
       create schema auth;
       create schema private;
+      create schema extensions;
+      create schema vault;
+      create type extensions.http_response as (status integer, content_type text, headers text[], content text);
       create type public.connector_status as enum ('pending','active','degraded','revoked');
 
       create table public.memberships(
@@ -88,6 +91,22 @@ test('FB-012 behavior rejects a signed-in non-member and unknown token expiry', 
         updated_at timestamptz not null default now()
       );
 
+      create table public.credential_refs(
+        organization_id uuid not null,
+        installation_id uuid not null,
+        secret_ref text not null,
+        rotation_state text not null,
+        expires_at timestamptz
+      );
+      create table public.pandora_intelligence_threads(
+        id uuid primary key default gen_random_uuid(), organization_id uuid, project_id uuid,
+        created_by uuid, title text, status text, last_message_at timestamptz, updated_at timestamptz
+      );
+      create table public.pandora_intelligence_messages(
+        thread_id uuid, organization_id uuid, project_id uuid, author_role text, content text,
+        attachment_manifest jsonb, structured_response jsonb, provider text, model text
+      );
+
       create or replace function auth.uid() returns uuid
       language sql stable
       as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
@@ -96,7 +115,24 @@ test('FB-012 behavior rejects a signed-in non-member and unknown token expiry', 
       language sql immutable
       as $$ select array['ads_read','business_management']::text[] $$;
     `);
+    const native = fs.readFileSync(
+      'supabase/migrations/20260925063000_pandora_meta_native_capability_v1.sql', 'utf8',
+    );
+    const dispatchStart = native.indexOf('CREATE OR REPLACE FUNCTION public.pandora_chat_capability_dispatch_native_v1');
+    const dispatchEnd = native.indexOf('do $meta_native_contract$', dispatchStart);
+    assert.ok(dispatchStart >= 0 && dispatchEnd > dispatchStart);
+    await db.exec(native.slice(dispatchStart, dispatchEnd));
+    const definition = async () => (await db.query(
+      "select pg_get_functiondef('public.pandora_chat_capability_dispatch_native_v1(uuid,text,uuid,uuid)'::regprocedure) as body"
+    )).rows[0].body;
+    const beforeDispatch = await definition();
     await db.exec(sql);
+    const afterDispatch = await definition();
+    await db.exec(sql);
+    assert.equal(await definition(), afterDispatch, 'readiness migration is idempotent');
+    const stripMeta = (body) => body.slice(0, body.indexOf("elsif v_provider='meta' then"))
+      + body.slice(body.indexOf("elsif v_provider='google' then"));
+    assert.equal(stripMeta(afterDispatch), stripMeta(beforeDispatch), 'other provider lanes and guards remain intact');
 
     const org = '2270b266-59da-4c39-bfd9-9f8d08352af0';
     const outsider = '11111111-1111-4111-8111-111111111111';
@@ -128,6 +164,79 @@ test('FB-012 behavior rejects a signed-in non-member and unknown token expiry', 
     assert.equal(connection.tokenExpired, true);
     assert.equal(connection.canUseNow, false);
     assert.match(connection.guidance, /verifiable token expiry/);
+
+    const readConnection = async () => (await db.query(
+      `select public.pandora_meta_connection_v1('${org}'::uuid) as connection`
+    )).rows[0].connection;
+    const readDispatch = async () => (await db.query(
+      `select public.pandora_chat_capability_dispatch_native_v1('${org}'::uuid,'facebook status') as turn`
+    )).rows[0].turn;
+    let turn = await readDispatch();
+    assert.equal(turn.providerReadback.connected, true);
+    assert.equal(turn.providerReadback.canUseNow, false);
+    assert.equal(turn.providerReadback.verified, false);
+    assert.match(turn.reply, /verifiable token expiry/);
+    assert.doesNotMatch(turn.reply, /Pandora can read/);
+
+    const installation = '44444444-4444-4444-8444-444444444444';
+    await db.exec(`
+      update private.pandora_meta_connections
+      set token_expires_at=clock_timestamp()+interval '1 hour';
+      insert into public.connector_installations(
+        id,organization_id,provider,external_account_id,display_name,status,scopes,installed_by,last_health_check_at
+      ) values (
+        '${installation}','${org}','meta','456','Meta Page','active',
+        array['ads_read','business_management'],'${owner}',clock_timestamp()
+      );
+    `);
+    let ready = await readConnection();
+    assert.equal(ready.canUseNow, true);
+    assert.equal(ready.installations[0].credentialUsable, false);
+    assert.equal(ready.installations[0].canUseNow, false, 'missing credential is unusable');
+    await db.exec(`
+      insert into public.credential_refs(organization_id,installation_id,secret_ref,rotation_state,expires_at)
+      values ('${org}','${installation}','vault://55555555-5555-4555-8555-555555555555','current',clock_timestamp()+interval '1 hour');
+    `);
+    ready = await readConnection();
+    assert.equal(ready.installations[0].canUseNow, true);
+    turn = await readDispatch();
+    assert.equal(turn.providerReadback.verified, true);
+    assert.equal(turn.providerReadback.canUseNow, true);
+    assert.match(turn.reply, /Pandora can read/);
+
+    for (const [mutation, reason] of [
+      ["expires_at=clock_timestamp()-interval '1 second'", 'expired'],
+      ["expires_at=clock_timestamp()+interval '1 hour',rotation_state='revoked'", 'revoked'],
+      ["rotation_state='current',organization_id='66666666-6666-4666-8666-666666666666'", 'other tenant'],
+      [`organization_id='${org}',secret_ref='not-a-vault-reference'`, 'invalid reference'],
+    ]) {
+      await db.exec('update public.credential_refs set '+mutation);
+      ready = await readConnection();
+      assert.equal(ready.installations[0].credentialUsable, false, reason);
+      assert.equal(ready.installations[0].canUseNow, false, reason);
+    }
+    await db.exec(`
+      update public.credential_refs set secret_ref='vault://55555555-5555-4555-8555-555555555555',expires_at=null;
+    `);
+    assert.equal((await readConnection()).installations[0].canUseNow, true, 'non-expiring page credential keeps existing resolver semantics');
+
+    for (const [mutation, guidance] of [
+      ["token_expires_at=clock_timestamp()-interval '1 second'", /expired access token/],
+      ["token_expires_at=clock_timestamp()+interval '1 hour',scopes=array['ads_read']", /grant all required permissions/],
+      ["scopes=array['ads_read','business_management'],last_verified_at=clock_timestamp()-interval '25 hours'", /Refresh connection health/],
+      ["last_verified_at=clock_timestamp(),last_http_status=500", /Refresh connection health/],
+    ]) {
+      await db.exec('update private.pandora_meta_connections set '+mutation);
+      ready = await readConnection();
+      assert.equal(ready.canUseNow, false);
+      assert.equal(ready.installations[0].canUseNow, false, 'installation inherits unusable account readiness');
+      turn = await readDispatch();
+      assert.equal(turn.providerReadback.verified, false);
+      assert.equal(turn.providerReadback.canUseNow, false);
+      assert.match(turn.reply, guidance);
+      assert.doesNotMatch(turn.reply, /Pandora can read/);
+    }
+
   } finally {
     await db.close();
   }

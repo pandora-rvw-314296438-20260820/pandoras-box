@@ -88,7 +88,9 @@ begin
       'healthVerified',c.last_health_check_at is not null
         and c.last_health_check_at>=clock_timestamp()-interval '24 hours'
         and c.status='active'::public.connector_status,
-      'canUseNow',c.status='active'::public.connector_status
+      'credentialUsable',credential.usable,
+      'canUseNow',v_can_use and credential.usable
+        and c.status='active'::public.connector_status
         and v_required <@ coalesce(c.scopes,array[]::text[])
         and c.last_health_check_at is not null
         and c.last_health_check_at>=clock_timestamp()-interval '24 hours',
@@ -98,6 +100,15 @@ begin
   ),'[]'::jsonb)
   into v_installations
   from public.connector_installations c
+  cross join lateral (
+    select exists(
+      select 1 from public.credential_refs cr
+      where cr.organization_id=p_organization_id and cr.installation_id=c.id
+        and cr.rotation_state='current'
+        and cr.secret_ref ~ '^vault://[0-9a-fA-F-]{36}$'
+        and (cr.expires_at is null or cr.expires_at>clock_timestamp())
+    ) as usable
+  ) credential
   where c.organization_id=p_organization_id and c.provider='meta';
 
   return jsonb_build_object(
@@ -124,3 +135,111 @@ grant execute on function public.pandora_meta_connection_v1(uuid) to authenticat
 
 comment on function public.pandora_meta_connection_v1(uuid) is
   'Owner/admin Meta connection projection. canUseNow requires active tenant membership, connected state, known future token expiry, all required scopes and recent successful verification.';
+
+-- Preserve the deployed dispatcher and its authorization/resource guards.
+-- Only replace the exact Meta branch; unknown source requires reconciliation.
+do $meta_readiness_dispatch$
+declare
+  v_oid oid:=to_regprocedure('public.pandora_chat_capability_dispatch_native_v1(uuid,text,uuid,uuid)');
+  v_definition text;
+  v_start integer;
+  v_end integer;
+  v_lane text;
+  v_expected text:=$meta_before$elsif v_provider='meta' then
+    v_meta := public.pandora_meta_connection_v1(p_organization_id);
+    if coalesce((v_meta->>'connected')::boolean,false) then
+      v_reply := format(
+        'Meta Business is connected%s. Pandora can read the authorized Pages, ad accounts, campaigns, and aggregate ad performance. External changes remain approval-gated.',
+        case when nullif(v_meta #>> '{account,label}','') is null
+          then '' else ' as '||(v_meta #>> '{account,label}') end
+      );
+      v_result := jsonb_build_object(
+        'provider','meta','verified',true,
+        'connected',true,'state',v_meta->>'state',
+        'account',v_meta->'account','scopes',v_meta->'scopes',
+        'scopesVerified',v_meta->'scopesVerified',
+        'pages',v_meta->'pages','adAccounts',v_meta->'adAccounts',
+        'installations',v_meta->'installations',
+        'lastVerifiedAt',v_meta->'lastVerifiedAt',
+        'observedAt',now()
+      );
+    elsif v_norm ~ '\m(connect|authorize|authorization|sign in)\M' then
+      v_meta := public.pandora_meta_oauth_prepare_v1(p_organization_id);
+      v_reply := case
+        when coalesce((v_meta->>'ok')::boolean,false)
+          then 'Meta needs your authorization. Pandora prepared the secure Facebook OAuth handoff.'
+        else 'Meta authorization is not configured yet. Pandora needs the Meta App ID and App Secret in Supabase Vault before it can create the secure handoff.'
+      end;
+      v_result := jsonb_build_object(
+        'provider','meta','verified',false,
+        'connected',false,'authorization',v_meta,'observedAt',now()
+      );
+    else
+      v_reply := 'Meta is not connected yet. Pandora will not claim Facebook Page or Ads access until OAuth and provider readback are verified.';
+      v_result := jsonb_build_object(
+        'provider','meta','verified',false,
+        'connected',false,'state',coalesce(v_meta->>'state','Needs authorization'),
+        'observedAt',now()
+      );
+    end if;
+
+  $meta_before$;
+  v_replacement text:=$meta_after$elsif v_provider='meta' then
+    v_meta := public.pandora_meta_connection_v1(p_organization_id);
+    if coalesce((v_meta->>'canUseNow')::boolean,false) then
+      v_reply := format(
+        'Meta Business is connected%s. Pandora can read the authorized Pages, ad accounts, campaigns, and aggregate ad performance. External changes remain approval-gated.',
+        case when nullif(v_meta #>> '{account,label}','') is null
+          then '' else ' as '||(v_meta #>> '{account,label}') end
+      );
+      v_result := jsonb_build_object(
+        'provider','meta','verified',true,
+        'connected',true,'canUseNow',true,'state',v_meta->>'state',
+        'account',v_meta->'account','scopes',v_meta->'scopes',
+        'scopesVerified',v_meta->'scopesVerified',
+        'pages',v_meta->'pages','adAccounts',v_meta->'adAccounts',
+        'installations',v_meta->'installations',
+        'lastVerifiedAt',v_meta->'lastVerifiedAt',
+        'observedAt',now()
+      );
+    elsif v_norm ~ '\m(connect|authorize|authorization|sign in)\M' then
+      v_meta := public.pandora_meta_oauth_prepare_v1(p_organization_id);
+      v_reply := case
+        when coalesce((v_meta->>'ok')::boolean,false)
+          then 'Meta needs your authorization. Pandora prepared the secure Facebook OAuth handoff.'
+        else 'Meta authorization is not configured yet. Pandora needs the Meta App ID and App Secret in Supabase Vault before it can create the secure handoff.'
+      end;
+      v_result := jsonb_build_object(
+        'provider','meta','verified',false,
+        'connected',false,'canUseNow',false,'authorization',v_meta,'observedAt',now()
+      );
+    else
+      v_reply := coalesce(v_meta->>'guidance','Meta needs authorization or verification before Pandora can read Facebook Pages or Ads.');
+      v_result := jsonb_build_object(
+        'provider','meta','verified',false,
+        'connected',coalesce((v_meta->>'connected')::boolean,false),'canUseNow',false,
+        'state',coalesce(v_meta->>'state','Needs authorization'),
+        'guidance',v_meta->>'guidance',
+        'observedAt',now()
+      );
+    end if;
+
+  $meta_after$;
+begin
+  if v_oid is null then
+    raise exception 'pandora_meta_readiness_dispatch_missing' using errcode='55000';
+  end if;
+  v_definition:=pg_get_functiondef(v_oid);
+  v_start:=strpos(v_definition,$anchor$elsif v_provider='meta' then$anchor$);
+  v_end:=strpos(v_definition,$anchor$elsif v_provider='google' then$anchor$);
+  if v_start=0 or v_end<=v_start then
+    raise exception 'pandora_meta_readiness_dispatch_anchor_missing' using errcode='55000';
+  end if;
+  v_lane:=substring(v_definition from v_start for v_end-v_start);
+  if v_lane=v_expected then
+    execute overlay(v_definition placing v_replacement from v_start for v_end-v_start);
+  elsif v_lane<>v_replacement then
+    raise exception 'pandora_meta_readiness_dispatch_reconciliation_required' using errcode='55000';
+  end if;
+end;
+$meta_readiness_dispatch$;
