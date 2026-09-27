@@ -20,6 +20,12 @@ class FakeAuth implements PandoraAuth {
   Future<void> requestPasswordReset(String email) async {}
 
   @override
+  Future<void> signInWithFacebook() async {}
+
+  @override
+  Future<bool> hasActiveOwnerAccess() async => true;
+
+  @override
   Future<void> signIn({
     required String email,
     required String password,

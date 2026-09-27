@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
@@ -33,6 +34,17 @@ class _SignInScreenState extends State<SignInScreen> {
       await PandoraDependencies.of(context)
           .auth
           .signIn(email: _email.text.trim(), password: _password.text);
+    } on PandoraAuthFailure catch (error) {
+      _show(error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _signInWithFacebook() async {
+    setState(() => _busy = true);
+    try {
+      await PandoraDependencies.of(context).auth.signInWithFacebook();
     } on PandoraAuthFailure catch (error) {
       _show(error.message);
     } finally {
@@ -161,6 +173,13 @@ class _SignInScreenState extends State<SignInScreen> {
                           onPressed: _busy ? null : _resetPassword,
                           child: const Text('Reset password'),
                         ),
+                        if (kIsWeb) ...[
+                          const SizedBox(height: PandoraSpacing.sm),
+                          OutlinedButton(
+                            onPressed: _busy ? null : _signInWithFacebook,
+                            child: const Text('Continue with Facebook'),
+                          ),
+                        ],
                         const SizedBox(height: PandoraSpacing.sm),
                         Text(
                           'Sign in to continue to your private projects.',

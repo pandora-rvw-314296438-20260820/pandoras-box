@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../pandora_config.dart';
 
 class PandoraAuthFailure implements Exception {
   const PandoraAuthFailure(this.message);
@@ -76,9 +79,13 @@ abstract interface class PandoraAuth {
 
   Future<void> requestPasswordReset(String email);
 
+  Future<void> signInWithFacebook();
+
+  /// Checks active owner/admin membership under the database RLS policy.
+  Future<bool> hasActiveOwnerAccess();
+
   Future<void> signOut();
 }
-
 
 String? _workspacePresentationProfile(User user) {
   final metadata = user.userMetadata ?? const <String, dynamic>{};
@@ -130,6 +137,48 @@ class SupabasePandoraAuth
         'Pandora could not sign you in. Check your connection and try again.',
       );
     }
+  }
+
+  @override
+  Future<void> signInWithFacebook() async {
+    if (!kIsWeb) {
+      throw const PandoraAuthFailure(
+        'Facebook sign-in is available on the Pandora website.',
+      );
+    }
+    try {
+      final launched = await _client.auth.signInWithOAuth(
+        OAuthProvider.facebook,
+        redirectTo: 'https://mcpmaster.vercel.app/',
+        scopes: 'public_profile email',
+      );
+      if (!launched) {
+        throw const PandoraAuthFailure(
+          'Pandora could not open Facebook sign-in. Try again.',
+        );
+      }
+    } on PandoraAuthFailure {
+      rethrow;
+    } catch (_) {
+      throw const PandoraAuthFailure(
+        'Pandora could not open Facebook sign-in. Try again.',
+      );
+    }
+  }
+
+  @override
+  Future<bool> hasActiveOwnerAccess() async {
+    final userId = _client.auth.currentSession?.user.id;
+    if (userId == null) return false;
+    final membership = await _client
+        .from('memberships')
+        .select('role')
+        .eq('organization_id', PandoraConfig.organizationId)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+    final role = membership?['role'];
+    return role == 'owner' || role == 'admin';
   }
 
   @override
