@@ -24,6 +24,19 @@ const GitHubConfigSchema = zod_1.z.object({
 const nullableToUndefined = (schema) => schema.nullish().transform((value) => value ?? undefined);
 const optionalString = () => nullableToUndefined(zod_1.z.string());
 const optionalBoolean = () => nullableToUndefined(zod_1.z.boolean());
+function omitUndefined(value) {
+    if (Array.isArray(value))
+        return value.map((item) => item === undefined ? null : omitUndefined(item));
+    if (!value || typeof value !== 'object')
+        return value;
+    const output = {};
+    for (const [key, nested] of Object.entries(value)) {
+        if (nested === undefined)
+            continue;
+        output[key] = omitUndefined(nested);
+    }
+    return output;
+}
 // GitHub's `simple-user`.
 const GitHubSimpleUserSchema = zod_1.z.object({
     id: zod_1.z.number(),
@@ -132,7 +145,7 @@ class GitHubMCPServer {
                 throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
             }
             const data = await response.json();
-            return GitHubRepositorySchema.parse(data);
+            return omitUndefined(GitHubRepositorySchema.parse(data));
         }
         catch (error) {
             throw new Error(`Failed to get repository: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -175,7 +188,7 @@ class GitHubMCPServer {
                 throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
             }
             const data = await response.json();
-            return GitHubIssueSchema.parse(data);
+            return omitUndefined(GitHubIssueSchema.parse(data));
         }
         catch (error) {
             throw new Error(`Failed to get issue: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -283,7 +296,7 @@ class GitHubMCPServer {
                 throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
             }
             const data = await response.json();
-            return GitHubPullRequestSchema.parse(data);
+            return omitUndefined(GitHubPullRequestSchema.parse(data));
         }
         catch (error) {
             throw new Error(`Failed to get pull request: ${error instanceof Error ? error.message : 'Unknown error'}`);
