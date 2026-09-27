@@ -78,6 +78,7 @@ type ControlRpc =
   | "pandora_ops_generic_source_candidate_v1"
   | "pandora_ops_generic_source_execute_v1"
   | "pandora_ops_generic_source_release_step_v1"
+  | "pandora_ops_preflight_next_v1"
   | "pandora_ops_register_reasoning_rdp_bridge_v1"
   | "pandora_ops_reasoning_rdp_candidate_v1"
   | "pandora_ops_reasoning_rdp_begin_v1"
@@ -85,7 +86,9 @@ type ControlRpc =
   | "pandora_ops_reasoning_rdp_status_v1"
   | "pandora_ops_reasoning_rdp_verify_child_v1"
   | "pandora_ops_reasoning_rdp_parent_handoff_v1"
-  | "pandora_ops_reasoning_rdp_verify_parent_v1";
+  | "pandora_ops_reasoning_rdp_verify_parent_v1"
+  | "pandora_ops_register_rdp_artemis_verifier_v1"
+  | "pandora_ops_reasoning_rdp_queue_memory_v1";
 
 type ControlAction =
   | "catalog"
@@ -124,6 +127,7 @@ type ControlAction =
   | "operations_generic_source_candidate"
   | "operations_generic_source_execute"
   | "operations_generic_source_release_step"
+  | "operations_preflight_next"
   | "operations_reasoning_rdp_register"
   | "operations_reasoning_rdp_heartbeat"
   | "operations_reasoning_rdp_candidate"
@@ -134,7 +138,9 @@ type ControlAction =
   | "operations_reasoning_rdp_status"
   | "operations_reasoning_rdp_verify_child"
   | "operations_reasoning_rdp_parent_handoff"
-  | "operations_reasoning_rdp_verify_parent";
+  | "operations_reasoning_rdp_verify_parent"
+  | "operations_rdp_artemis_register"
+  | "operations_reasoning_rdp_queue_memory";
 
 interface ControlRoute {
   action: ControlAction;
@@ -607,6 +613,20 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
         p_project_id: OPERATIONS_PROJECT_ID,
         p_nonce: nonce,
         p_issued_at: issuedAt,
+      },
+    };
+  }
+
+  if (input.action === "operations_preflight_next") {
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_preflight_next",
+      rpc: "pandora_ops_preflight_next_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
       },
     };
   }
