@@ -1,7 +1,6 @@
 "use strict";
 
 const crypto = require("node:crypto");
-const { resolveVercelWorkloadToken } = require("../runtime/vercel-workload-identity.js");
 const {
   BEDROCK_REGION,
   BEDROCK_ROLE_ARN,
@@ -13,6 +12,11 @@ const DEFAULT_STANDARD_MODEL = "openai.gpt-6-astra";
 const HEALTH_OK = "PANDORA_BEDROCK_OK";
 const HEALTHY_TTL_MS = 5 * 60 * 1000;
 const DEGRADED_TTL_MS = 30 * 1000;
+
+async function resolveDefaultWorkloadToken() {
+  const { resolveVercelWorkloadToken } = require("../runtime/vercel-workload-identity.js");
+  return resolveVercelWorkloadToken();
+}
 
 function hmac(key, value, encoding) {
   return crypto.createHmac("sha256", key).update(value, "utf8").digest(encoding);
@@ -170,7 +174,7 @@ async function converseWithBedrockModel({
   system,
   environment = process.env,
   fetchFn = globalThis.fetch,
-  resolveWorkloadToken = resolveVercelWorkloadToken,
+  resolveWorkloadToken = resolveDefaultWorkloadToken,
   now = new Date(),
   maxTokens = 256,
 }) {
@@ -241,7 +245,7 @@ async function converseWithBedrock({
   mode = "standard",
   environment = process.env,
   fetchFn = globalThis.fetch,
-  resolveWorkloadToken = resolveVercelWorkloadToken,
+  resolveWorkloadToken = resolveDefaultWorkloadToken,
   now = new Date(),
   maxTokens = 256,
 }) {
@@ -267,7 +271,7 @@ async function converseWithBedrock({
 function createBedrockHealthProbe(
   environment = process.env,
   fetchFn = globalThis.fetch,
-  resolveWorkloadToken = resolveVercelWorkloadToken,
+  resolveWorkloadToken = resolveDefaultWorkloadToken,
   now = Date.now,
 ) {
   let cached;
