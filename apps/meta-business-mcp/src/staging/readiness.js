@@ -20,6 +20,10 @@ const EXPECTED_READ_DRAFT_TOOLS = [
     'meta_inbox_get_thread',
     'meta_page_get_insights',
     'meta_webhook_health',
+    'meta_ad_accounts_list',
+    'meta_ad_campaigns_list',
+    'meta_ad_account_insights',
+    'meta_campaign_insights',
     'meta_post_create_draft',
     'meta_comment_create_reply_draft',
     'meta_message_create_reply_draft',
@@ -162,7 +166,7 @@ class MetaStagingReadinessRunner {
             name: 'tool_catalog',
             ok: true,
             durationMs: listed.durationMs,
-            detail: 'exact twelve-tool read/draft catalog; no external writes',
+            detail: 'exact sixteen-tool read/draft catalog; no external writes',
         });
         const pageRead = await this.rpc(3, 'tools/call', {
             name: 'meta_page_get',

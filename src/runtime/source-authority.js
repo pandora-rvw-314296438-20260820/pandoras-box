@@ -28,7 +28,7 @@ function loadPolicy() {
     if (!parsed.canonical || typeof parsed.canonical !== 'object'
         || typeof parsed.canonical.vercel_project_name !== 'string'
         || !PROJECT_KEY.test(parsed.canonical.vercel_project_name)) {
-        throw new Error('source authority policy has no valid ProjectOS control project key');
+        throw new Error('source authority policy has no valid Pandora control project key');
     }
     return Object.freeze(parsed);
 }
@@ -40,10 +40,10 @@ function canonicalMemoryProjectKey() {
 }
 function memoryProjectKeyForProjectOsIntake(projectKey) {
     if (typeof projectKey !== 'string')
-        throw new Error('ProjectOS project key is required for Memory hydration');
+        throw new Error('Pandora project key is required for Memory hydration');
     const normalized = projectKey.trim().toLowerCase();
     if (!PROJECT_KEY.test(normalized))
-        throw new Error(`ProjectOS project key is invalid: ${projectKey}`);
+        throw new Error(`Pandora project key is invalid: ${projectKey}`);
     const canonicalRepositoryKey = typeof exports.sourceAuthorityPolicy.canonical.source_repository === 'string'
         ? exports.sourceAuthorityPolicy.canonical.source_repository.trim().toLowerCase().split('/').pop()
         : undefined;
