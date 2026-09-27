@@ -9,8 +9,19 @@ const OPERATIONS_NATIVE_WORKERS = Object.freeze({
   builder: Object.freeze({
     workerKey: "pandora-native-builder-v1",
     principalKey: "vercel:mcpmaster:operations-native-builder-v1",
-    lanes: ["backend", "reliability"],
-    capabilities: ["source.write", "ci.verify", "release.handoff", "runtime.deploy", "worker.reconcile"],
+    lanes: ["backend", "reliability", "web", "growth"],
+    capabilities: [
+      "source.write",
+      "ci.verify",
+      "release.handoff",
+      "runtime.deploy",
+      "worker.reconcile",
+      "provider.readback",
+      "security.verify",
+      "memory.integrate",
+      "inference.route",
+      "events.verify",
+    ],
     capacity: 1,
   }),
   release: Object.freeze({
@@ -60,7 +71,10 @@ type ControlRpc =
   | "pandora_ops_record_verification_v1"
   | "pandora_ops_verify_v1"
   | "pandora_ops_final_acceptance_readback_v1"
-  | "pandora_ops_wake_nonce_consume_v1";
+  | "pandora_ops_wake_nonce_consume_v1"
+  | "pandora_ops_generic_source_candidate_v1"
+  | "pandora_ops_generic_source_execute_v1"
+  | "pandora_ops_generic_source_release_step_v1";
 
 type ControlAction =
   | "catalog"
@@ -95,7 +109,10 @@ type ControlAction =
   | "operations_verification_record"
   | "operations_verification_accept"
   | "operations_final_acceptance_readback"
-  | "operations_wake_nonce_consume";
+  | "operations_wake_nonce_consume"
+  | "operations_generic_source_candidate"
+  | "operations_generic_source_execute"
+  | "operations_generic_source_release_step";
 
 interface ControlRoute {
   action: ControlAction;
@@ -564,6 +581,53 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
         p_project_id: OPERATIONS_PROJECT_ID,
         p_nonce: nonce,
         p_issued_at: issuedAt,
+      },
+    };
+  }
+
+  if (input.action === "operations_generic_source_candidate") {
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_generic_source_candidate",
+      rpc: "pandora_ops_generic_source_candidate_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
+      },
+    };
+  }
+
+  if (input.action === "operations_generic_source_execute") {
+    const taskId = requiredString(input, "taskId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    if (!taskId || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/.test(taskId) || generation === undefined) return undefined;
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_generic_source_execute",
+      rpc: "pandora_ops_generic_source_execute_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_task_key: taskId,
+        p_generation: generation,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
+      },
+    };
+  }
+
+  if (input.action === "operations_generic_source_release_step") {
+    const release = OPERATIONS_NATIVE_WORKERS.release;
+    return {
+      action: "operations_generic_source_release_step",
+      rpc: "pandora_ops_generic_source_release_step_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_verifier_key: release.workerKey,
+        p_principal_key: release.principalKey,
       },
     };
   }

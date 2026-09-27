@@ -15,8 +15,10 @@ const migration = fs.readFileSync(
   "utf8",
 );
 
-test("native worker is fixed to the canonical Operations scope and one canary task", () => {
-  assert.match(worker, /OPS-CLOUD-CONNECTORS-RELEASE-V1/);
+test("native worker stays in canonical Operations scope while admitting bounded generic source tasks", () => {
+  assert.match(worker, /operations_generic_source_candidate/);
+  assert.match(worker, /operations_generic_source_execute/);
+  assert.match(worker, /operations_generic_source_release_step/);
   assert.match(worker, /pandora-native-builder-v1/);
   assert.match(worker, /operations_wake_authorize/);
   assert.match(worker, /operations_reconcile/);
@@ -50,12 +52,14 @@ test("wake credential stays in Supabase Vault and is compared by digest", () => 
   assert.doesNotMatch(worker, /pandora_ops_wake_token_v1/);
 });
 
-test("canary reads evidence before claiming and reconciles post-claim failures", () => {
-  const evidenceAt = worker.indexOf("connectorCanaryEvidence()");
+test("generic source work claims before execution and reconciles ambiguous post-claim failures", () => {
+  const releaseAt = worker.indexOf('action: "operations_generic_source_release_step"');
+  const candidateAt = worker.indexOf('action: "operations_generic_source_candidate"');
   const claimAt = worker.indexOf('action: "operations_claim"');
+  const executeAt = worker.indexOf('action: "operations_generic_source_execute"');
   const reconcileAt = worker.indexOf('action: "operations_reconcile"');
-  assert.ok(evidenceAt >= 0 && claimAt > evidenceAt);
-  assert.ok(reconcileAt > claimAt);
-  assert.match(worker, /PR741_CHECK_READBACK_FAILED/);
-  assert.match(worker, /Live Supabase connector delivery table\/RPC readback PASS/);
+  assert.ok(releaseAt >= 0 && candidateAt > releaseAt);
+  assert.ok(claimAt > candidateAt && executeAt > claimAt);
+  assert.ok(reconcileAt > executeAt);
+  assert.match(worker, /GENERIC_SOURCE_EXECUTION_UNCONFIRMED/);
 });
