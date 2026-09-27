@@ -1,12 +1,15 @@
-
 "use strict";
 
 const crypto = require("node:crypto");
 const { resolveVercelWorkloadToken } = require("../runtime/vercel-workload-identity.js");
+const {
+  BEDROCK_REGION,
+  BEDROCK_ROLE_ARN,
+  getBedrockReasoningModel,
+} = require("./aws-bedrock-catalog.js");
 
-const DEFAULT_REGION = "us-east-1";
-const DEFAULT_FAST_MODEL = "us.openai.gpt-5.6-luna";
-const DEFAULT_STANDARD_MODEL = "us.openai.gpt-5.6-sol";
+const DEFAULT_FAST_MODEL = "openai.gpt-6-luna";
+const DEFAULT_STANDARD_MODEL = "openai.gpt-6-astra";
 const HEALTH_OK = "PANDORA_BEDROCK_OK";
 const HEALTHY_TTL_MS = 5 * 60 * 1000;
 const DEGRADED_TTL_MS = 30 * 1000;
@@ -28,6 +31,18 @@ function encodeModelPath(modelId) {
   return `/model/${encodeURIComponent(modelId)}/converse`;
 }
 
+function runtimeConfig(environment = process.env) {
+  const configuredRole = String(environment.AWS_ROLE_ARN || "").trim();
+  if (configuredRole && configuredRole !== BEDROCK_ROLE_ARN) {
+    throw new Error("AWS_BEDROCK_ROLE_DENIED");
+  }
+  const configuredRegion = String(environment.AWS_REGION || "").trim();
+  if (configuredRegion && configuredRegion !== BEDROCK_REGION) {
+    throw new Error("AWS_BEDROCK_REGION_DENIED");
+  }
+  return { roleArn: BEDROCK_ROLE_ARN, region: BEDROCK_REGION };
+}
+
 async function assumeRoleWithVercelOidc({
   roleArn,
   webIdentityToken,
@@ -35,7 +50,7 @@ async function assumeRoleWithVercelOidc({
   sessionName = "pandora-vercel-bedrock",
   durationSeconds = 900,
 }) {
-  if (!roleArn || !webIdentityToken) {
+  if (roleArn !== BEDROCK_ROLE_ARN || !webIdentityToken) {
     throw new Error("AWS_WORKLOAD_IDENTITY_UNAVAILABLE");
   }
   const body = new URLSearchParams({
@@ -76,6 +91,7 @@ function signBedrockRequest({
   credentials,
   now = new Date(),
 }) {
+  if (region !== BEDROCK_REGION) throw new Error("AWS_BEDROCK_REGION_DENIED");
   const service = "bedrock";
   const host = `bedrock-runtime.${region}.amazonaws.com`;
   const path = encodeModelPath(modelId);
@@ -128,40 +144,61 @@ function signBedrockRequest({
   };
 }
 
-async function converseWithBedrock({
+function normalizeParts({ prompt, parts }) {
+  if (Array.isArray(parts) && parts.length) {
+    return parts.map((part) => {
+      if (part?.type === "text" && typeof part.text === "string" && part.text) {
+        return { text: part.text };
+      }
+      if (
+        part?.type === "image" &&
+        typeof part.data === "string" &&
+        ["image/png", "image/jpeg", "image/webp"].includes(part.mimeType)
+      ) {
+        const format = part.mimeType === "image/jpeg" ? "jpeg" : part.mimeType.split("/")[1];
+        return { image: { format, source: { bytes: part.data } } };
+      }
+      throw new Error("AWS_BEDROCK_INPUT_INVALID");
+    });
+  }
+  if (typeof prompt !== "string" || !prompt.trim()) throw new Error("AWS_BEDROCK_INPUT_INVALID");
+  return [{ text: prompt }];
+}
+
+async function converseWithBedrockModel({
+  modelId,
   prompt,
-  mode = "standard",
+  parts,
+  system,
   environment = process.env,
   fetchFn = globalThis.fetch,
   resolveWorkloadToken = resolveVercelWorkloadToken,
   now = new Date(),
   maxTokens = 256,
 }) {
-  const roleArn = environment.AWS_ROLE_ARN?.trim();
-  const region = environment.AWS_REGION?.trim() || DEFAULT_REGION;
-  const fastModel = environment.PANDORA_BEDROCK_FAST_MODEL?.trim() || DEFAULT_FAST_MODEL;
-  const standardModel =
-    environment.PANDORA_BEDROCK_STANDARD_MODEL?.trim() || DEFAULT_STANDARD_MODEL;
-  const modelId = mode === "fast" ? fastModel : standardModel;
-  const workloadToken = await resolveWorkloadToken();
-  if (!workloadToken) {
-    throw new Error("AWS_WORKLOAD_IDENTITY_UNAVAILABLE");
+  const model = getBedrockReasoningModel(modelId);
+  if (!model) throw new Error("AWS_BEDROCK_MODEL_DENIED");
+  if (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > 8192) {
+    throw new Error("AWS_BEDROCK_OUTPUT_LIMIT_INVALID");
   }
+  const { roleArn, region } = runtimeConfig(environment);
+  const workloadToken = await resolveWorkloadToken();
+  if (!workloadToken) throw new Error("AWS_WORKLOAD_IDENTITY_UNAVAILABLE");
   const credentials = await assumeRoleWithVercelOidc({
     roleArn,
     webIdentityToken: workloadToken,
     fetchFn,
   });
   const requestBody = {
-    messages: [{ role: "user", content: [{ text: prompt }] }],
-    inferenceConfig: {
-      maxTokens,
-      temperature: 0,
-    },
+    messages: [{ role: "user", content: normalizeParts({ prompt, parts }) }],
+    inferenceConfig: { maxTokens, temperature: 0 },
   };
+  if (typeof system === "string" && system.trim()) {
+    requestBody.system = [{ text: system.trim() }];
+  }
   const signed = signBedrockRequest({
     region,
-    modelId,
+    modelId: model.invocationTarget,
     body: requestBody,
     credentials,
     now,
@@ -188,16 +225,40 @@ async function converseWithBedrock({
     .map((item) => (typeof item?.text === "string" ? item.text : ""))
     .join("")
     .trim();
-  if (!text) {
-    throw new Error("AWS_BEDROCK_RESPONSE_INVALID");
-  }
+  if (!text) throw new Error("AWS_BEDROCK_RESPONSE_INVALID");
   return {
     text,
-    modelId,
+    modelId: model.modelId,
+    invocationTarget: model.invocationTarget,
+    providerName: model.providerName,
     region,
     usage: payload?.usage || null,
     stopReason: payload?.stopReason || null,
+    providerRequestId: response.headers?.get?.("x-amzn-requestid") || null,
   };
+}
+
+async function converseWithBedrock({
+  prompt,
+  mode = "standard",
+  environment = process.env,
+  fetchFn = globalThis.fetch,
+  resolveWorkloadToken = resolveVercelWorkloadToken,
+  now = new Date(),
+  maxTokens = 256,
+}) {
+  const fastModel = environment.PANDORA_BEDROCK_FAST_MODEL?.trim() || DEFAULT_FAST_MODEL;
+  const standardModel =
+    environment.PANDORA_BEDROCK_STANDARD_MODEL?.trim() || DEFAULT_STANDARD_MODEL;
+  return converseWithBedrockModel({
+    modelId: mode === "fast" ? fastModel : standardModel,
+    prompt,
+    environment,
+    fetchFn,
+    resolveWorkloadToken,
+    now,
+    maxTokens,
+  });
 }
 
 function createBedrockHealthProbe(
@@ -214,34 +275,23 @@ function createBedrockHealthProbe(
     if (inFlight) return inFlight;
     inFlight = (async () => {
       const checkedAt = new Date(now()).toISOString();
-      const roleArn = environment.AWS_ROLE_ARN?.trim();
-      if (!roleArn) {
-        return {
-          status: "degraded",
-          service: "pandora-bedrock-runtime",
-          authentication: "vercel_oidc_sts",
-          checkedAt,
-          reason: "aws_role_unconfigured",
-        };
-      }
       try {
-        const result = await converseWithBedrock({
+        const result = await converseWithBedrockModel({
+          modelId: DEFAULT_FAST_MODEL,
           prompt: `Return exactly ${HEALTH_OK}`,
-          mode: "fast",
           environment,
           fetchFn,
           resolveWorkloadToken,
           now: new Date(now()),
           maxTokens: 16,
         });
-        if (result.text !== HEALTH_OK) {
-          throw new Error("AWS_BEDROCK_HEALTH_RESPONSE_MISMATCH");
-        }
+        if (result.text !== HEALTH_OK) throw new Error("AWS_BEDROCK_HEALTH_RESPONSE_MISMATCH");
         return {
           status: "healthy",
           service: "pandora-bedrock-runtime",
           authentication: "vercel_oidc_sts",
           model: result.modelId,
+          invocationTarget: result.invocationTarget,
           region: result.region,
           checkedAt,
         };
@@ -275,8 +325,12 @@ function createBedrockHealthProbe(
 module.exports = {
   DEFAULT_FAST_MODEL,
   DEFAULT_STANDARD_MODEL,
+  BEDROCK_ROLE_ARN,
+  BEDROCK_REGION,
+  runtimeConfig,
   assumeRoleWithVercelOidc,
   signBedrockRequest,
   converseWithBedrock,
+  converseWithBedrockModel,
   createBedrockHealthProbe,
 };
