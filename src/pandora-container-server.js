@@ -254,6 +254,7 @@ function createPandoraContainerApp(environment = process.env) {
     };
     app.get(['/privacy', '/privacy/', '/privacy-policy', '/privacy-policy/'], legalPage('privacy.html'));
     app.get(['/data-deletion', '/data-deletion/'], legalPage('data-deletion.html'));
+    app.get(['/terms', '/terms/'], legalPage('terms.html'));
     app.use('/api/operator', createContainerOperatorRuntime(environment));
     app.use('/api', (0, http_server_js_1.createHttpApp)());
     app.get([
