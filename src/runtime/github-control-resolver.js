@@ -8,7 +8,7 @@ const DEFAULT_MAX_RESPONSE_BYTES = 1000000;
 const GitHubAccountSchema = zod_1.z.object({
     id: zod_1.z.string().regex(/^[a-z][a-z0-9_-]{1,63}$/),
     label: zod_1.z.string().min(1).max(160),
-    authMode: zod_1.z.enum(['pat', 'oauth']).default('pat'),
+    authMode: zod_1.z.enum(['pat', 'oauth', 'github_app']).default('pat'),
     token: zod_1.z.string().min(1),
     allowMutations: zod_1.z.boolean().default(false),
     baseUrl: zod_1.z.literal('https://api.github.com').default('https://api.github.com'),
