@@ -2,6 +2,9 @@
 import {NativeInferenceStore,boundedCall} from './native-store.mjs';
 import {OperationsInferenceService} from './service.mjs';
 import {GeminiNativeProvider} from './gemini-native.mjs';
+import {BedrockNativeProvider} from './bedrock-native.mjs';
+import bedrockRuntime from '../../src/providers/aws-bedrock-runtime.js';
+import bedrockCatalog from '../../src/providers/aws-bedrock-catalog.js';
 import {createInferenceHandler} from './http-handler.mjs';
 import {InferenceError,UUID,record,demand} from './policy.mjs';
 import {createWorkloadOperationsMemory} from '../pandora-operations-memory/workload-rpc.mjs';
@@ -47,7 +50,14 @@ export function createVercelInferenceRuntime({supabaseUrl,serviceRoleKey,publish
  const client=new VercelInferenceRpc({supabaseUrl,serviceRoleKey,fetchFn,timeoutMs:120000});
  const store=new NativeInferenceStore(client);
  const memory=createWorkloadOperationsMemory({mapping:OPERATIONS_MEMORY_MAPPING,resolveWorkloadToken,fetchFn});
- const service=new OperationsInferenceService({store,providers:{gemini_rpc:new GeminiNativeProvider(client)},memory,performance:memory});
+ const bedrock=new BedrockNativeProvider({
+  catalog:bedrockCatalog.BEDROCK_REASONING_MODELS,
+  converse:(args)=>bedrockRuntime.converseWithBedrockModel({...args,fetchFn,resolveWorkloadToken}),
+ });
+ const service=new OperationsInferenceService({store,providers:{
+  gemini_rpc:new GeminiNativeProvider(client),
+  bedrock_converse:bedrock,
+ },memory,performance:memory});
  return createInferenceHandler({store,allowedOrigins,
   serviceForActor:actor=>{
    demand(actor?.organizationId===OPERATIONS_MEMORY_MAPPING.organizationId&&actor.projectId===OPERATIONS_MEMORY_MAPPING.projectId,'INFERENCE_MEMORY_MAPPING_DENIED');
