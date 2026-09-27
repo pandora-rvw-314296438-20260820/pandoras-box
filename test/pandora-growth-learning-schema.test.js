@@ -144,3 +144,22 @@ test("secret-shaped keys are rejected before projection", () => {
   value.evidence_refs = [{ type: "document", ref: "evidence:001", token: "should-never-be-accepted" }];
   assert.throws(() => validateGrowthLearning(value, scope), /sensitive_key_rejected/);
 });
+
+test("confidence accepts finite numbers only without coercing nonnumeric claims", () => {
+  for (const confidence of [0, 0.5, 1]) {
+    const value = base("provider_evidence");
+    value.confidence = confidence;
+    assert.equal(validateGrowthLearning(value, scope).confidence, confidence);
+  }
+  for (const confidence of [null, false, true, "", "0.9", [], [0.9], {}, NaN, Infinity, -Infinity, -0.1, 1.1]) {
+    const value = base("provider_evidence");
+    value.confidence = confidence;
+    assert.throws(
+      () => validateGrowthLearning(value, scope),
+      (error) => error instanceof GrowthLearningSchemaError && error.code === "confidence_invalid",
+    );
+  }
+  const missing = base("provider_evidence");
+  delete missing.confidence;
+  assert.throws(() => validateGrowthLearning(missing, scope), /learning_shape_invalid/);
+});

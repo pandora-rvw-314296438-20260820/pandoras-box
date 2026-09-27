@@ -199,7 +199,8 @@ function validateGrowthLearning(input, trustedScope) {
     fail("scope_mismatch");
   }
 
-  const confidence = Number(input.confidence);
+  if (typeof input.confidence !== "number") fail("confidence_invalid");
+  const confidence = input.confidence;
   if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) fail("confidence_invalid");
   if (claimKind === "assumption" && confidence > 0.5) fail("assumption_confidence_too_high");
 
