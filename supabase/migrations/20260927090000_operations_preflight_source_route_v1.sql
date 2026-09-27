@@ -165,7 +165,7 @@ begin
 
   return receipt||jsonb_build_object('state','preflighted');
 end;
-$function$
+$function$;
 
 revoke all on function public.pandora_ops_preflight_next_v1(uuid,uuid,text,text) from public,anon,authenticated;
 grant execute on function public.pandora_ops_preflight_next_v1(uuid,uuid,text,text) to service_role;
@@ -249,7 +249,7 @@ begin
     'spec',t.spec
   );
 end;
-$function$
+$function$;
 
 revoke all on function public.pandora_ops_generic_source_candidate_v1(uuid,uuid,text,text) from public,anon,authenticated;
 grant execute on function public.pandora_ops_generic_source_candidate_v1(uuid,uuid,text,text) to service_role;
