@@ -4,7 +4,7 @@
  * This module is intentionally read-only. It resolves which governed skills apply
  * to an intent; it never calls a provider and never mutates state. Selecting a
  * skill grants no authority to mutate anything: every provider mutation still
- * goes through the ProjectOS plan -> approval -> execute path.
+ * goes through the Pandora plan -> approval -> execute path.
  *
  * Vendor neutrality: the JSON registry under .agents/skills/registry is the single
  * authority. Vendor-specific loaders adapt this module's output; they must not
@@ -19,6 +19,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(HERE, '..', '..');
 const REGISTRY_DIR = path.join(REPO_ROOT, '.agents', 'skills', 'registry');
 const GOVERNANCE_BLOCK_PATH = path.join(REPO_ROOT, '.agents', 'runtime', 'GOVERNANCE_BLOCK.md');
+const CAPABILITY_FABRIC_PATH = path.join(REPO_ROOT, 'config', 'pandora-capability-fabric-v1.json');
 
 const ID_PATTERN = /^[a-z][a-z0-9-]{2,79}$/;
 // Vocabularies are taken from the registry itself; the registry is the authority.
@@ -32,6 +33,202 @@ const AUTONOMY = new Set([
 const LIFECYCLE_PHASES = new Set(['all', 'focused-entry', 'horizontal-growth', 'enterprise', 'ecosystem']);
 /** Risk tiers that may never proceed without an explicit approval gate. */
 const APPROVAL_REQUIRED_RISKS = new Set(['sensitive-write', 'high-risk']);
+
+const CAPABILITY_SKILL_MODES = Object.freeze(['discover', 'operate', 'verify']);
+
+function capabilityFabric() {
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(CAPABILITY_FABRIC_PATH, 'utf8'));
+  } catch {
+    throw new RegistryIntegrityError('capability fabric is unreadable');
+  }
+  if (
+    !parsed
+    || parsed.schemaVersion !== '1.0.0'
+    || parsed.canonicalRepository !== 'pandora-rvw-314296438-20260820/pandoras-box'
+    || parsed.principles?.catalogPresenceGrantsAuthority !== false
+    || !Array.isArray(parsed.packs)
+    || parsed.packs.length !== 48
+  ) {
+    throw new RegistryIntegrityError('capability fabric contract is invalid');
+  }
+  const capabilityCount = parsed.packs.reduce(
+    (total, pack) => total + (Array.isArray(pack.capabilities) ? pack.capabilities.length : 0),
+    0,
+  );
+  if (capabilityCount !== 377) {
+    throw new RegistryIntegrityError('capability fabric denominator mismatch', capabilityCount);
+  }
+  return parsed;
+}
+
+function capabilitySkillDescription(pack, mode) {
+  if (mode === 'discover') {
+    return 'Discovers ' + pack.name + ' capabilities, provider readiness, scopes, and activation gates without granting execution authority.';
+  }
+  if (mode === 'operate') {
+    return 'Operates ' + pack.name + ' through Pandora governed provider boundaries, preserving approvals, one-time execution, readback, and reconciliation.';
+  }
+  return 'Verifies ' + pack.name + ' outcomes against provider truth, tenant scope, evidence receipts, and the proof ladder.';
+}
+
+function capabilitySkillEntries() {
+  const fabric = capabilityFabric();
+  const out = [];
+  const seen = new Set();
+  for (const pack of fabric.packs) {
+    if (
+      !pack
+      || typeof pack.id !== 'string'
+      || !Array.isArray(pack.skillBlueprints)
+      || pack.skillBlueprints.length !== 3
+      || !Array.isArray(pack.capabilities)
+      || pack.capabilities.length === 0
+      || !Array.isArray(pack.providers)
+    ) {
+      throw new RegistryIntegrityError('capability pack skill contract is invalid', pack?.id);
+    }
+    for (let index = 0; index < CAPABILITY_SKILL_MODES.length; index += 1) {
+      const mode = CAPABILITY_SKILL_MODES[index];
+      const id = pack.skillBlueprints[index];
+      if (typeof id !== 'string' || !ID_PATTERN.test(id) || seen.has(id)) {
+        throw new RegistryIntegrityError('invalid or duplicate generated capability skill id', id);
+      }
+      seen.add(id);
+      const sensitive = pack.riskFloor === 'sensitive'
+        || ['owner_gate', 'privacy_gate', 'regulated_gate', 'provider_contract_required'].includes(pack.status);
+      const risk = mode === 'operate'
+        ? (sensitive ? 'sensitive-write' : 'reversible-write')
+        : 'read';
+      const autonomy = mode === 'operate'
+        ? (sensitive ? 'approval-before-side-effect' : 'autonomous-with-verification')
+        : mode === 'verify'
+          ? 'autonomous-with-verification'
+          : 'autonomous';
+      const discoverId = pack.skillBlueprints[0];
+      const depends_on = mode === 'discover'
+        ? ['recovering-canonical-project-state']
+        : mode === 'operate'
+          ? [discoverId, 'planning-governed-actions']
+          : [discoverId];
+      const providerNames = pack.providers
+        .map((provider) => provider?.provider)
+        .filter((provider) => typeof provider === 'string' && provider.length > 0);
+      out.push(Object.freeze({
+        id,
+        category: 'capability-fabric',
+        lifecycle_phase: 'all',
+        risk,
+        autonomy,
+        entrypoint: 'virtual:capability-fabric/' + pack.id + '/' + mode,
+        depends_on: Object.freeze(depends_on),
+        capabilities: Object.freeze([...pack.capabilities]),
+        routingText: [
+          capabilitySkillDescription(pack, mode),
+          pack.id,
+          pack.name,
+          pack.status,
+          ...pack.capabilities,
+          ...providerNames,
+        ].join(' '),
+        generatedCapabilitySkill: true,
+        capabilityPackId: pack.id,
+        capabilityPackName: pack.name,
+        capabilityPackStatus: pack.status,
+        capabilitySkillMode: mode,
+        providerNames: Object.freeze(providerNames),
+      }));
+    }
+  }
+  if (out.length !== 144) {
+    throw new RegistryIntegrityError('generated capability skill denominator mismatch', out.length);
+  }
+  return Object.freeze(out);
+}
+
+function generatedCapabilitySkillBody(skill) {
+  const description = capabilitySkillDescription(
+    { name: skill.capabilityPackName },
+    skill.capabilitySkillMode,
+  );
+  const providers = skill.providerNames.length > 0 ? skill.providerNames.join(', ') : 'provider discovery required';
+  const capabilities = skill.capabilities.join(', ');
+  const mode = skill.capabilitySkillMode;
+  const workflow = mode === 'discover'
+    ? [
+        'Recover current Pandora Memory and exact project/provider context.',
+        'Resolve the capability pack from the committed capability fabric and identify candidate providers.',
+        'Read provider connection, scope, tenant, legal/privacy, and activation state without mutating anything.',
+        'Classify each capability as active, installable, gated, or unavailable; never convert catalog presence into authority.',
+        'Return the minimum next action and evidence required to activate missing capability safely.',
+      ]
+    : mode === 'operate'
+      ? [
+          'Recover current Pandora Memory and resolve the exact capability, tenant, provider, and target.',
+          'Confirm the provider is active and authorized; stop on missing connection, scope, contract, privacy, regulatory, or owner gates.',
+          'For reads, execute least-privilege bounded access. For mutations, use Pandora Runtime and Tool Gateway durable plan -> approval where required -> one-time claim -> execution.',
+          'Read the provider back after the action. Treat an unknown outcome as reconciliation-required and never blind-retry.',
+          'Record evidence and propose only sanitized verified learning; do not self-promote canonical Memory.',
+        ]
+      : [
+          'Resolve the exact claimed outcome, target, provider identity, and proof stage.',
+          'Read provider truth independently from the implementation claim and verify tenant/scope boundaries.',
+          'Check the pack verification contract, persisted effects, expected negative paths, and rollback or reconciliation posture.',
+          'Separate provider outcome from downstream response processing and durable finalization.',
+          'Report PASS, FAIL, or BLOCKED with evidence; never elevate tested/deployed state to production-verified without proof.',
+        ];
+  return [
+    '---',
+    'name: ' + skill.id,
+    'description: ' + JSON.stringify(description),
+    '---',
+    '',
+    '# ' + skill.capabilityPackName + ' — ' + mode[0].toUpperCase() + mode.slice(1),
+    '',
+    '## Outcome',
+    '',
+    mode === 'discover'
+      ? 'A truthful readiness map for ' + skill.capabilityPackName + ', including providers, gates, and exact next actions.'
+      : mode === 'operate'
+        ? 'A governed ' + skill.capabilityPackName + ' operation whose authority, provider outcome, verification, and reconciliation state are explicit.'
+        : 'An evidence-backed verdict for a ' + skill.capabilityPackName + ' outcome with no proof-stage inflation.',
+    '',
+    '## Use when',
+    '',
+    '- The task concerns capability pack ' + skill.capabilityPackId + '.',
+    '- Relevant capability classes include: ' + capabilities + '.',
+    '- Candidate providers include: ' + providers + '.',
+    '',
+    '## Workflow',
+    '',
+    ...workflow.map((step, index) => String(index + 1) + '. ' + step),
+    '',
+    '## Proof required',
+    '',
+    '- Exact project, tenant, provider, target, and capability identity.',
+    '- Provider readback or an explicit unavailable/gated result.',
+    '- Evidence receipt for consequential outcomes.',
+    '- Proof-stage status that distinguishes implemented, tested, deployed, and production-verified.',
+    '',
+    '## Stop conditions',
+    '',
+    '- Provider connection, scope, tenant authority, or target identity is missing or ambiguous.',
+    '- The action would cross an owner, privacy, regulatory, spending, destructive, or provider-contract gate without explicit authority.',
+    '- Provider outcome is ambiguous and reconciliation has not completed.',
+    '- Verification evidence is stale, mismatched, or from a different source/head/tenant.',
+    '',
+    '## Outputs',
+    '',
+    '- ' + skill.capabilityPackId + '-capability-readiness',
+    '- ' + skill.capabilityPackId + '-provider-evidence',
+    '- ' + skill.capabilityPackId + '-verification-receipt',
+    '',
+    governanceBlock(),
+    '',
+  ].join('\n');
+}
+
 
 export class SkillsDisabledError extends Error {
   constructor() {
@@ -93,6 +290,11 @@ export function loadRegistry({ registryDir = REGISTRY_DIR } = {}) {
         routingText: readRoutingText(entry.entrypoint),
       }));
     }
+  }
+
+  for (const skill of capabilitySkillEntries()) {
+    if (skills.has(skill.id)) throw new RegistryIntegrityError('duplicate generated skill id', skill.id);
+    skills.set(skill.id, skill);
   }
 
   for (const skill of skills.values()) {
@@ -225,6 +427,8 @@ export function loadSkill(id, { registry = loadRegistry(), env = process.env } =
   if (!skillsEnabled(env)) throw new SkillsDisabledError();
   const skill = registry.skills.get(id);
   if (!skill) throw new RegistryIntegrityError('unknown skill', id);
-  const body = readFileSync(path.join(REPO_ROOT, skill.entrypoint), 'utf8');
+  const body = skill.generatedCapabilitySkill
+    ? generatedCapabilitySkillBody(skill)
+    : readFileSync(path.join(REPO_ROOT, skill.entrypoint), 'utf8');
   return Object.freeze({ ...skill, body, governanceEmbedded: body.includes('## Pandora governance contract (canonical, embedded)') });
 }
