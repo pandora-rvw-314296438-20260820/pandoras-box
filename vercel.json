@@ -109,6 +109,10 @@
       "destination": "/data-deletion.html"
     },
     {
+      "source": "/terms",
+      "destination": "/terms.html"
+    },
+    {
       "source": "/",
       "destination": "/pandora-web/index.html"
     },
