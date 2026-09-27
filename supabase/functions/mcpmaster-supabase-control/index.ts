@@ -76,7 +76,8 @@ type ControlRpc =
   | "pandora_ops_wake_nonce_consume_v1"
   | "pandora_ops_generic_source_candidate_v1"
   | "pandora_ops_generic_source_execute_v1"
-  | "pandora_ops_generic_source_release_step_v1";
+  | "pandora_ops_generic_source_release_step_v1"
+  | "pandora_ops_preflight_next_v1";
 
 type ControlAction =
   | "catalog"
@@ -114,7 +115,8 @@ type ControlAction =
   | "operations_wake_nonce_consume"
   | "operations_generic_source_candidate"
   | "operations_generic_source_execute"
-  | "operations_generic_source_release_step";
+  | "operations_generic_source_release_step"
+  | "operations_preflight_next";
 
 interface ControlRoute {
   action: ControlAction;
@@ -586,6 +588,20 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
         p_project_id: OPERATIONS_PROJECT_ID,
         p_nonce: nonce,
         p_issued_at: issuedAt,
+      },
+    };
+  }
+
+  if (input.action === "operations_preflight_next") {
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_preflight_next",
+      rpc: "pandora_ops_preflight_next_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
       },
     };
   }

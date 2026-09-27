@@ -573,10 +573,23 @@ export default async function operationsNativeWorker(request: any, response: any
 
     const candidate = await control(oidc, { action: "operations_generic_source_candidate" });
     if (candidate?.state !== "ready") {
+      const preflight = await control(oidc, { action: "operations_preflight_next" });
+      if (preflight?.state === "preflighted") {
+        return send(response, 200, {
+          ok: true,
+          state: "preflighted",
+          taskId: preflight.taskId ?? null,
+          executionClass: preflight.executionClass ?? null,
+          preflight,
+          memory,
+        });
+      }
       return send(response, 200, {
         ok: true, state: "idle", registered: true,
         reason: candidate?.reason || "no_dependency_ready_authorized_source_task",
-        humanBlocked: candidate?.humanBlocked ?? 0, memory,
+        humanBlocked: candidate?.humanBlocked ?? 0,
+        preflighted: preflight?.preflighted ?? null,
+        memory,
       });
     }
 
