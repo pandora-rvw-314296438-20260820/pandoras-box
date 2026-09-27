@@ -21,7 +21,7 @@ const LOGICAL_SCOPE_PERMISSIONS = Object.freeze({
   "pull_requests:read": ["pull_requests:read"],
   "pull_requests:write": ["pull_requests:write"],
   "workflows:read": ["actions:read"],
-  "workflows:write": ["workflows:write"],
+  "workflows:write": ["actions:write"],
 });
 
 class GitHubConnectResolverError extends Error {
