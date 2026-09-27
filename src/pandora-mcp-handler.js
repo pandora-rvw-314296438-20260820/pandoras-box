@@ -6,6 +6,8 @@ exports.createPandoraMcpHandler = createPandoraMcpHandler;
 exports.handlePandoraMcp = handlePandoraMcp;
 
 const { randomUUID } = require("node:crypto");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { ExecutionLedgerClient } = require("./runtime/execution-ledger-client.js");
 const {
     createProviderExecutionStateMachine,
@@ -67,6 +69,45 @@ const PROJECTOS_TOOL_ALIASES = Object.freeze({
     projectos_execute_plan: "pandora_execute_plan",
 });
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+let skillRuntimePromise;
+
+function skillRuntime() {
+    if (!skillRuntimePromise) {
+        const runtimePath = path.resolve(__dirname, "..", ".agents", "runtime", "pandora-skill-runtime.mjs");
+        skillRuntimePromise = import(pathToFileURL(runtimePath).href);
+    }
+    return skillRuntimePromise;
+}
+
+async function skillCatalogResult() {
+    const runtime = await skillRuntime();
+    const registry = runtime.loadRegistry();
+    const skills = registry.ids.map((id) => {
+        const skill = registry.skills.get(id);
+        return {
+            id: skill.id,
+            category: skill.category ?? null,
+            lifecyclePhase: skill.lifecycle_phase ?? null,
+            risk: skill.risk,
+            autonomy: skill.autonomy,
+            entrypoint: skill.entrypoint,
+            dependsOn: [...skill.depends_on],
+            capabilities: [...skill.capabilities],
+            generatedCapabilitySkill: skill.generatedCapabilitySkill === true,
+            capabilityPackId: skill.capabilityPackId ?? null,
+        };
+    });
+    return {
+        count: skills.length,
+        staticCoreSkillCount: skills.filter((skill) => !skill.generatedCapabilitySkill).length,
+        generatedCapabilitySkillCount: skills.filter((skill) => skill.generatedCapabilitySkill).length,
+        mutationAuthority: "pandora-runtime-tool-gateway",
+        grantsMutation: false,
+        skills,
+    };
+}
+
 
 exports.pandoraMcpVercelConfig = Object.freeze({
     api: { bodyParser: false },
@@ -258,6 +299,36 @@ function publicTools(dependencies) {
             },
         },
         {
+            name: "pandora_skill_catalog",
+            description: "List the governed Pandora skill runtime, including 51 static core skills and deterministic capability-fabric skills. Skill selection grants no mutation authority.",
+            inputSchema: { type: "object", additionalProperties: false },
+        },
+        {
+            name: "pandora_skill_route",
+            description: "Deterministically route an intent to governed Pandora skills and dependency closure without executing provider actions.",
+            inputSchema: {
+                type: "object",
+                required: ["intent"],
+                properties: {
+                    intent: { type: "string", minLength: 1, maxLength: 4000 },
+                    limit: { type: "integer", minimum: 1, maximum: 12, default: 5 },
+                },
+                additionalProperties: false,
+            },
+        },
+        {
+            name: "pandora_skill_load",
+            description: "Load one governed Pandora skill body by exact skill ID. Loading a skill grants no provider authority.",
+            inputSchema: {
+                type: "object",
+                required: ["skillId"],
+                properties: {
+                    skillId: { type: "string", minLength: 3, maxLength: 80, pattern: "^[a-z][a-z0-9-]{2,79}$" },
+                },
+                additionalProperties: false,
+            },
+        },
+        {
             name: "pandora_list_plans",
             description: "List durable Pandora plans and current one-time execution states.",
             inputSchema: {
@@ -430,6 +501,42 @@ async function workloadToken(dependencies) {
 
 function requiredToolScope(name, dependencies) {
     switch (name) {
+        case "pandora_skill_catalog":
+            return toolResult(await skillCatalogResult());
+        case "pandora_skill_route": {
+            const runtime = await skillRuntime();
+            const routed = runtime.route(requiredString(args.intent, "intent"), {
+                limit: Number.isInteger(args.limit) ? Math.min(Math.max(args.limit, 1), 12) : 5,
+            });
+            return toolResult({
+                intent: routed.intent,
+                selected: [...routed.selected],
+                closure: [...routed.closure],
+                approvalRequired: [...routed.approvalRequired],
+                mutationAuthority: routed.mutationAuthority,
+                grantsMutation: routed.grantsMutation,
+            });
+        }
+        case "pandora_skill_load": {
+            const runtime = await skillRuntime();
+            const loaded = runtime.loadSkill(requiredString(args.skillId, "skillId"));
+            return toolResult({
+                id: loaded.id,
+                category: loaded.category ?? null,
+                lifecyclePhase: loaded.lifecycle_phase ?? null,
+                risk: loaded.risk,
+                autonomy: loaded.autonomy,
+                entrypoint: loaded.entrypoint,
+                dependsOn: [...loaded.depends_on],
+                capabilities: [...loaded.capabilities],
+                generatedCapabilitySkill: loaded.generatedCapabilitySkill === true,
+                capabilityPackId: loaded.capabilityPackId ?? null,
+                governanceEmbedded: loaded.governanceEmbedded === true,
+                mutationAuthority: "pandora-runtime-tool-gateway",
+                grantsMutation: false,
+                body: loaded.body,
+            });
+        }
         case "pandora_capability_catalog":
             return toolResult(listCapabilityPacks());
         case "pandora_capability_search":
@@ -446,6 +553,9 @@ function requiredToolScope(name, dependencies) {
         case "pandora_capability_catalog":
         case "pandora_capability_search":
         case "pandora_capability_readiness":
+        case "pandora_skill_catalog":
+        case "pandora_skill_route":
+        case "pandora_skill_load":
         case "pandora_list_plans":
         case "pandora_list_audit":
         case "pandora_verify_audit":
@@ -713,7 +823,7 @@ function createPandoraMcpHandler(overrides = {}) {
                 rpcResult(response, id, {
                     protocolVersion: "2025-06-18",
                     capabilities: { tools: { listChanged: false } },
-                    serverInfo: { name: "Pandora MCP", version: "1.4.0-capability-fabric" },
+                    serverInfo: { name: "Pandora MCP", version: "1.5.0-capability-skills" },
                 });
                 return;
             }
