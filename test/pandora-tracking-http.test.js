@@ -8,6 +8,9 @@ const {
     buildDestinationUrl,
     createClickId,
     parseBearerKey,
+    parseConsentFlags,
+    parseSchemaVersion,
+    parseTestMarker,
     sanitizeIncomingQuery,
     sanitizeMetadata,
     sha256,
@@ -89,4 +92,27 @@ test("tracking hashes are deterministic and non-plaintext", () => {
   assert.match(digest, /^[0-9a-f]{64}$/);
   assert.notEqual(digest, "private-input");
   assert.equal(digest, sha256("private-input"));
+});
+
+
+test("tracking event schema version is explicit and bounded", () => {
+  assert.equal(parseSchemaVersion(undefined), 1);
+  assert.equal(parseSchemaVersion(1), 1);
+  assert.throws(() => parseSchemaVersion(2), (error) => error.code === "schema_version_invalid");
+  assert.throws(() => parseSchemaVersion("1"), (error) => error.code === "schema_version_invalid");
+});
+
+test("tracking consent flags are closed-schema booleans with fail-safe defaults", () => {
+  assert.deepEqual(parseConsentFlags(undefined), { analytics: false, marketing: false });
+  assert.deepEqual(parseConsentFlags({ analytics: true, marketing: false }), { analytics: true, marketing: false });
+  assert.throws(() => parseConsentFlags({ analytics: true }), (error) => error.code === "consent_invalid");
+  assert.throws(() => parseConsentFlags({ analytics: true, marketing: false, extra: true }), (error) => error.code === "consent_invalid");
+  assert.throws(() => parseConsentFlags({ analytics: "yes", marketing: false }), (error) => error.code === "consent_invalid");
+});
+
+test("tracking test marker is boolean-only and defaults false", () => {
+  assert.equal(parseTestMarker(undefined), false);
+  assert.equal(parseTestMarker(false), false);
+  assert.equal(parseTestMarker(true), true);
+  assert.throws(() => parseTestMarker("true"), (error) => error.code === "is_test_invalid");
 });

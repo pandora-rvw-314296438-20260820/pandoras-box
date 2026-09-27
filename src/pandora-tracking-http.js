@@ -26,6 +26,7 @@ const ALLOWED_QUERY_KEYS = new Set([
 ]);
 const PLATFORM_CLICK_KEYS = ["fbclid", "gclid", "ttclid", "msclkid"];
 const CONVERSION_TYPES = new Set(["lead", "qualified_lead", "booking", "sale", "refund"]);
+const TRACKING_EVENT_SCHEMA_VERSION = 1;
 
 class TrackingError extends Error {
   constructor(status, code, details = null) {
@@ -124,6 +125,33 @@ function parseOccurredAt(value) {
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) throw new TrackingError(400, "occurred_at_invalid");
   return date.toISOString();
+}
+
+function parseSchemaVersion(value) {
+  if (value === undefined || value === null || value === "") return TRACKING_EVENT_SCHEMA_VERSION;
+  if (!Number.isInteger(value) || value !== TRACKING_EVENT_SCHEMA_VERSION) {
+    throw new TrackingError(400, "schema_version_invalid");
+  }
+  return value;
+}
+
+function parseConsentFlags(value) {
+  if (value === undefined || value === null) return { analytics: false, marketing: false };
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TrackingError(400, "consent_invalid");
+  }
+  const names = Object.keys(value).sort();
+  if (names.length !== 2 || names[0] !== "analytics" || names[1] !== "marketing"
+      || typeof value.analytics !== "boolean" || typeof value.marketing !== "boolean") {
+    throw new TrackingError(400, "consent_invalid");
+  }
+  return { analytics: value.analytics, marketing: value.marketing };
+}
+
+function parseTestMarker(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value !== "boolean") throw new TrackingError(400, "is_test_invalid");
+  return value;
 }
 
 function queryString(parameters) {
@@ -341,6 +369,9 @@ function createPandoraTrackingRouter(options = {}) {
       const clickId = stringValue(req.body?.click_id, 40);
       const eventName = stringValue(req.body?.event_name, 64);
       const eventType = stringValue(req.body?.event_type, 32) || "event";
+      const schemaVersion = parseSchemaVersion(req.body?.schema_version);
+      const consent = parseConsentFlags(req.body?.consent);
+      const isTest = parseTestMarker(req.body?.is_test);
       if (!clickId || !CLICK_ID_RE.test(clickId)) throw new TrackingError(400, "click_id_invalid");
       if (!eventName || !EVENT_NAME_RE.test(eventName)) throw new TrackingError(400, "event_name_invalid");
       if (eventType !== "event") throw new TrackingError(403, "conversion_auth_required");
@@ -361,6 +392,9 @@ function createPandoraTrackingRouter(options = {}) {
           event_type: "event",
           event_name: eventName,
           source: "browser",
+          schema_version: schemaVersion,
+          consent,
+          is_test: isTest,
           metadata: sanitizeMetadata(req.body?.metadata),
         },
         prefer: "return=minimal",
@@ -378,6 +412,9 @@ function createPandoraTrackingRouter(options = {}) {
       const eventName = stringValue(req.body?.event_name, 64);
       const externalEventId = stringValue(req.body?.external_event_id, 200);
       const clickId = stringValue(req.body?.click_id, 40);
+      const schemaVersion = parseSchemaVersion(req.body?.schema_version);
+      const consent = parseConsentFlags(req.body?.consent);
+      const isTest = parseTestMarker(req.body?.is_test);
       if (!eventType || !CONVERSION_TYPES.has(eventType)) throw new TrackingError(400, "event_type_invalid");
       if (!eventName || !EVENT_NAME_RE.test(eventName)) throw new TrackingError(400, "event_name_invalid");
       if (!externalEventId) throw new TrackingError(400, "external_event_id_required");
@@ -411,6 +448,9 @@ function createPandoraTrackingRouter(options = {}) {
             value,
             currency,
             occurred_at: parseOccurredAt(req.body?.occurred_at),
+            schema_version: schemaVersion,
+            consent,
+            is_test: isTest,
             metadata: sanitizeMetadata(req.body?.metadata),
           },
           prefer: "return=representation",
@@ -511,6 +551,9 @@ module.exports = {
     buildDestinationUrl,
     createClickId,
     parseBearerKey,
+    parseConsentFlags,
+    parseSchemaVersion,
+    parseTestMarker,
     sanitizeIncomingQuery,
     sanitizeMetadata,
     sha256,
