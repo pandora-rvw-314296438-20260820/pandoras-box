@@ -30,7 +30,8 @@ begin
     and m.status='active'
   limit 1;
 
-  if v_role is null or v_role not in ('owner','admin') then
+  if v_role is null or v_role not in ('owner','admin')
+    or not private.pandora_is_active_org_admin_v1(p_organization_id) then
     raise exception 'pandora_meta_connection_owner_required' using errcode='42501';
   end if;
 

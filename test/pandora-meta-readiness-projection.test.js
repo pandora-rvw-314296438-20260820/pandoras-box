@@ -51,6 +51,8 @@ test('FB-012 behavior rejects unauthorized, expired and unverified readiness acr
       create type extensions.http_response as (status integer, content_type text, headers text[], content text);
       create type public.connector_status as enum ('pending','active','degraded','revoked');
 
+      create table public.organizations(id uuid primary key, status text not null);
+
       create table public.memberships(
         organization_id uuid not null,
         user_id uuid not null,
@@ -111,6 +113,17 @@ test('FB-012 behavior rejects unauthorized, expired and unverified readiness acr
       language sql stable
       as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
 
+      create or replace function private.pandora_is_active_org_admin_v1(p_organization_id uuid)
+      returns boolean language sql stable security invoker set search_path='' as $$
+        select auth.uid() is not null and p_organization_id is not null and exists (
+          select 1 from public.memberships m
+          join public.organizations o on o.id=m.organization_id
+          where m.organization_id=p_organization_id and m.user_id=auth.uid()
+            and m.status::text='active' and m.role::text in ('owner','admin')
+            and o.status='active'
+        );
+      $$;
+
       create or replace function private.pandora_meta_required_scopes_v1() returns text[]
       language sql immutable
       as $$ select array['ads_read','business_management']::text[] $$;
@@ -144,6 +157,7 @@ test('FB-012 behavior rejects unauthorized, expired and unverified readiness acr
 
     const owner = '22222222-2222-4222-8222-222222222222';
     await db.exec(`
+      insert into public.organizations(id,status) values ('${org}','active');
       insert into public.memberships(organization_id,user_id,status,role)
       values ('${org}','${owner}','active','owner');
 
@@ -171,6 +185,18 @@ test('FB-012 behavior rejects unauthorized, expired and unverified readiness acr
     const readDispatch = async (message = 'facebook status') => (await db.query(
       'select public.pandora_chat_capability_dispatch_native_v1($1::uuid,$2::text) as turn', [org, message]
     )).rows[0].turn;
+    await db.query("update public.organizations set status='suspended' where id=$1", [org]);
+    await assert.rejects(
+      readConnection(),
+      (error) => error.code === '42501' && /pandora_meta_connection_owner_required/.test(error.message),
+      'active owner membership cannot authorize an inactive organization',
+    );
+    await assert.rejects(
+      readDispatch(),
+      (error) => error.code === '42501' && /pandora_meta_connection_owner_required/.test(error.message),
+      'dispatcher cannot expose an inactive organization through connection readback',
+    );
+    await db.query("update public.organizations set status='active' where id=$1", [org]);
     let turn = await readDispatch();
     assert.equal(turn.providerReadback.connected, true);
     assert.equal(turn.providerReadback.canUseNow, false);
