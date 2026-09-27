@@ -228,14 +228,24 @@ set config_value=excluded.config_value,active=excluded.active,updated_at=exclude
 do $policy_block$
 declare v_policy jsonb;
 begin
-  if exists(
-    select 1 from private.pandora_ops_inference_policies
+  -- Fresh migration replay has schema but intentionally no production workspace seed.
+  -- Install the catalog/contract everywhere; seed the live policy only where the
+  -- canonical Operations workspace actually exists.
+  if not exists(
+    select 1 from private.pandora_ops_workspaces
     where organization_id='2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid
       and project_id='ee282126-3f61-4058-8c92-2fedbfcecf1f'::uuid
-      and active
   ) then
-    raise exception 'INFERENCE_POLICY_RECONCILIATION_REQUIRED';
-  end if;
+    raise notice 'BEDROCK_POLICY_SEED_SKIPPED_NO_CANONICAL_WORKSPACE';
+  else
+    if exists(
+      select 1 from private.pandora_ops_inference_policies
+      where organization_id='2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid
+        and project_id='ee282126-3f61-4058-8c92-2fedbfcecf1f'::uuid
+        and active
+    ) then
+      raise exception 'INFERENCE_POLICY_RECONCILIATION_REQUIRED';
+    end if;
 
   select jsonb_build_object(
     'version','bedrock-reasoning-fleet-v1',
@@ -293,6 +303,7 @@ begin
     1,v_policy,true,
     'owner:chat:2026-09-27:add-bedrock-reasoning-fleet'
   );
+  end if;
 end;
 $policy_block$;
 
