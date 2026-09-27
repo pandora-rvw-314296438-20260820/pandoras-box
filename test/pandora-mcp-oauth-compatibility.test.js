@@ -264,7 +264,7 @@ test("capability fabric is exposed as three read-only Pandora MCP tools", async 
   assert.equal(initialized.statusCode, 200);
   assert.deepEqual(initialized.body.result.serverInfo, {
     name: "Pandora MCP",
-    version: "1.4.0-capability-fabric",
+    version: "1.5.0-capability-skills",
   });
 
   const listed = await invoke(handler, {
@@ -274,12 +274,15 @@ test("capability fabric is exposed as three read-only Pandora MCP tools", async 
   });
   assert.equal(listed.statusCode, 200);
   const tools = listed.body.result.tools;
-  assert.equal(tools.length, 58);
+  assert.equal(tools.length, 61);
   assert.equal(JSON.stringify(tools).includes("ProjectOS"), false);
   for (const name of [
     "pandora_capability_catalog",
     "pandora_capability_search",
     "pandora_capability_readiness",
+    "pandora_skill_catalog",
+    "pandora_skill_route",
+    "pandora_skill_load",
   ]) {
     assert.equal(tools.filter((tool) => tool.name === name).length, 1, name);
   }
@@ -298,6 +301,73 @@ test("capability fabric is exposed as three read-only Pandora MCP tools", async 
   assert.equal(catalog.body.result.structuredContent.packCount, 48);
   assert.equal(catalog.body.result.structuredContent.capabilityCount, 377);
   assert.equal(catalog.body.result.structuredContent.catalogPresenceGrantsAuthority, false);
+});
+
+test("skill runtime exposes 195 governed skills and generated skill bodies", async () => {
+  const accessToken = "skill-runtime-test-access-token";
+  const handler = handlerWith({
+    async authenticate() {
+      return {
+        userId: USER_ID,
+        accessToken,
+        scopes: ["openid", "pandora:read"],
+        scopeClaimsPresent: true,
+        aal: "aal1",
+      };
+    },
+  });
+
+  const catalog = await invoke(handler, {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: {
+      jsonrpc: "2.0",
+      id: 24,
+      method: "tools/call",
+      params: { name: "pandora_skill_catalog", arguments: {} },
+    },
+  });
+  assert.equal(catalog.statusCode, 200);
+  assert.equal(catalog.body.result.structuredContent.count, 195);
+  assert.equal(catalog.body.result.structuredContent.staticCoreSkillCount, 51);
+  assert.equal(catalog.body.result.structuredContent.generatedCapabilitySkillCount, 144);
+  assert.equal(catalog.body.result.structuredContent.grantsMutation, false);
+
+  const routed = await invoke(handler, {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: {
+      jsonrpc: "2.0",
+      id: 25,
+      method: "tools/call",
+      params: {
+        name: "pandora_skill_route",
+        arguments: { intent: "hospitality reservation guest operations", limit: 8 },
+      },
+    },
+  });
+  assert.equal(routed.statusCode, 200);
+  assert.equal(routed.body.result.structuredContent.grantsMutation, false);
+  assert.ok(routed.body.result.structuredContent.selected.length > 0);
+
+  const loaded = await invoke(handler, {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: {
+      jsonrpc: "2.0",
+      id: 26,
+      method: "tools/call",
+      params: {
+        name: "pandora_skill_load",
+        arguments: { skillId: "discover-hospitality-capabilities" },
+      },
+    },
+  });
+  assert.equal(loaded.statusCode, 200);
+  assert.equal(loaded.body.result.structuredContent.generatedCapabilitySkill, true);
+  assert.equal(loaded.body.result.structuredContent.governanceEmbedded, true);
+  assert.equal(loaded.body.result.structuredContent.grantsMutation, false);
+  assert.match(loaded.body.result.structuredContent.body, /## Pandora governance contract/);
 });
 
 test("capability fabric tools require pandora:read", async () => {
