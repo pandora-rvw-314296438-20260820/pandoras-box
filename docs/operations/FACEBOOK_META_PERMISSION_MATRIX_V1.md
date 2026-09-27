@@ -34,7 +34,7 @@ The live server-side `private.pandora_meta_required_scopes_v1()` contract curren
 | `pages_show_list` | Enumerate Pages the authorized person manages | Meta permission review evidence is required for external use as applicable | Read-only discovery |
 | `pages_read_engagement` | Read Page content, metadata and engagement needed for reporting | Depends on `pages_show_list`; Meta documents login + displayed Page-content evidence for review | Read-only until later action approvals |
 | `ads_read` | Read Ads Insights and performance reporting | Meta documents this for Ads Insights; external use requires the applicable access/review tier | Read-only analytics |
-| `ads_management` | Future bounded campaign-management adapter | Depends on Page permissions; Meta review evidence includes a login plus read and write operation | The scope itself is **not** spend authority; Pandora writes remain blocked behind FB-041–FB-047 approvals |
+| `ads_management` | Future bounded campaign-management adapter | Depends on Page permissions; Meta review evidence includes a login plus read and write operation | The scope itself does not grant spend authority; Pandora writes remain blocked behind FB-041–FB-047 approvals |
 | `business_management` | Discover/manage Business Manager assets required by the approved business workflow | Depends on `pages_read_engagement` and `pages_show_list`; Meta documents login + business/ad-performance evidence for review | Asset authority only after owner authorization and provider readback |
 
 Source references are Meta's current Permissions Reference and Marketing API/Business Manager documentation.

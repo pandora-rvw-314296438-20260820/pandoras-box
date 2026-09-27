@@ -31,7 +31,7 @@ test('FB-010 matrix preserves publication, privacy, OAuth and spend gates', () =
     'App Review',
     'FB-011',
     'FB-046',
-    'not spend authority',
+    'does not grant spend authority',
     'external-customer',
   ]) assert.ok(matrix.toLowerCase().includes(required.toLowerCase()), required);
 });
