@@ -41,6 +41,14 @@ test("RDP worker only claims explicit read-risk RDP tasks",()=>{
   assert.match(endpoint,/TASK_PATTERN\.test/);
 });
 
+test("RDP handoff source identity comes from scheduler task state, not worker evidence",()=>{
+  assert.match(endpoint,/task\?\.spec\?\.source\?\.baseSha/);
+  assert.match(endpoint,/RDP_WORKER_SOURCE_BINDING_INVALID/);
+  assert.match(endpoint,/headSha: sourceSha/);
+  assert.match(endpoint,/source:\$\{sourceSha\}/);
+  assert.doesNotMatch(worker,/headSha\s*=/);
+});
+
 test("RDP executor is deterministic and has no source or release mutation commands",()=>{
   assert.match(worker,/Pandora GitHub Runner/);
   assert.match(worker,/flutter --version/);
