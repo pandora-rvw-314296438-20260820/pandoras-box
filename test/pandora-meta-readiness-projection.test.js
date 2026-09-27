@@ -168,8 +168,8 @@ test('FB-012 behavior rejects unauthorized, expired and unverified readiness acr
     const readConnection = async () => (await db.query(
       `select public.pandora_meta_connection_v1('${org}'::uuid) as connection`
     )).rows[0].connection;
-    const readDispatch = async () => (await db.query(
-      `select public.pandora_chat_capability_dispatch_native_v1('${org}'::uuid,'facebook status') as turn`
+    const readDispatch = async (message = 'facebook status') => (await db.query(
+      'select public.pandora_chat_capability_dispatch_native_v1($1::uuid,$2::text) as turn', [org, message]
     )).rows[0].turn;
     let turn = await readDispatch();
     assert.equal(turn.providerReadback.connected, true);
@@ -237,6 +237,18 @@ test('FB-012 behavior rejects unauthorized, expired and unverified readiness acr
       assert.doesNotMatch(turn.reply, /Pandora can read/);
     }
 
+    await db.exec(`
+      create or replace function public.pandora_meta_oauth_prepare_v1(p_organization_id uuid)
+      returns jsonb language sql as $$
+        select jsonb_build_object('ok',true,'authorizationUrl','https://www.facebook.com/test-only');
+      $$;
+    `);
+    const reconnect = await readDispatch('reconnect facebook');
+    assert.equal(reconnect.providerReadback.verified, false);
+    assert.equal(reconnect.providerReadback.canUseNow, false);
+    assert.equal(reconnect.providerReadback.authorization.ok, true);
+    assert.equal(reconnect.providerReadback.authorization.authorizationUrl, 'https://www.facebook.com/test-only');
+    assert.match(reconnect.reply, /secure Facebook OAuth handoff/);
   } finally {
     await db.close();
   }

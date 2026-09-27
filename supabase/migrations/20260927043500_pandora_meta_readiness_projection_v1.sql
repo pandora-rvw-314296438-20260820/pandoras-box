@@ -202,7 +202,7 @@ declare
         'lastVerifiedAt',v_meta->'lastVerifiedAt',
         'observedAt',now()
       );
-    elsif v_norm ~ '\m(connect|authorize|authorization|sign in)\M' then
+    elsif v_norm ~ '\m(connect|reconnect|authorize|authorization|sign in)\M' then
       v_meta := public.pandora_meta_oauth_prepare_v1(p_organization_id);
       v_reply := case
         when coalesce((v_meta->>'ok')::boolean,false)
