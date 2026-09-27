@@ -7,7 +7,6 @@ exports.buildToolConfiguration = buildToolConfiguration;
 exports.inspectToolConfiguration = inspectToolConfiguration;
 const tool_catalog_js_1 = require("./tool-catalog.js");
 const github_control_resolver_js_1 = require("./github-control-resolver.js");
-const github_connect_resolver_js_1 = require("./github-connect-resolver.js");
 const supabase_control_resolver_js_1 = require("./supabase-control-resolver.js");
 const crypto_1 = require("node:crypto");
 /**
@@ -158,35 +157,12 @@ function buildGitHubEnvironmentConfiguration() {
         grantedScopes: commaSeparatedEnvironment('GITHUB_GRANTED_SCOPES'),
     };
 }
-async function buildGitHubConfiguration(context, toolName) {
-    // Production repository-scoped GitHub work can use Vercel Connect to mint
-    // short-lived GitHub App installation tokens. The existing Vault-backed
-    // control catalog remains the staged fallback for account-scoped tools and
-    // rollback while Connect adoption is verified.
+async function buildGitHubConfiguration(context) {
+    // Production Vercel/OIDC is the governed primary path. A legacy GITHUB_TOKEN
+    // must never shadow the Supabase/Vault control catalog in production; keep
+    // the environment token only as the explicit non-OIDC fallback for local or
+    // recovery runtimes.
     const oidcToken = context.vercelOidcToken || process.env.VERCEL_OIDC_TOKEN;
-    const entry = tool_catalog_js_1.toolRegistry[toolName];
-    if (oidcToken && process.env.PANDORA_GITHUB_CONNECT_ENABLED === 'true'
-        && entry?.manifest?.scope === 'repository') {
-        const allowedRepositories = commaSeparatedEnvironment('PANDORA_GITHUB_CONNECT_ALLOWED_REPOSITORIES');
-        const grantedScopes = commaSeparatedEnvironment('PANDORA_GITHUB_CONNECT_GRANTED_SCOPES');
-        if (allowedRepositories.length === 0 || grantedScopes.length === 0) {
-            throw new MissingConfigurationError('github-connect', [
-                'PANDORA_GITHUB_CONNECT_ALLOWED_REPOSITORIES and PANDORA_GITHUB_CONNECT_GRANTED_SCOPES',
-            ]);
-        }
-        return new github_connect_resolver_js_1.GitHubConnectResolver().resolve(oidcToken, {
-            connectorUid: requiredEnvironmentValue('github-connect', 'PANDORA_GITHUB_CONNECTOR_UID'),
-            installationId: requiredEnvironmentValue('github-connect', 'PANDORA_GITHUB_CONNECT_INSTALLATION_ID'),
-            accountId: process.env.MCPMASTER_GITHUB_ACCOUNT_ID?.trim() || 'github-primary',
-            label: process.env.GITHUB_ACCOUNT_LABEL?.trim() || 'Vercel Connect GitHub App',
-            login: process.env.GITHUB_LOGIN?.trim() || undefined,
-            allowMutations: process.env.PANDORA_GITHUB_CONNECT_ALLOW_MUTATIONS === 'true',
-            allowedRepositories,
-            grantedScopes,
-            requiredProviderScopes: entry.manifest.requiredProviderScopes,
-            toolName,
-        });
-    }
     if (oidcToken) {
         return new github_control_resolver_js_1.GitHubControlResolver().resolve(oidcToken, process.env.MCPMASTER_GITHUB_ACCOUNT_ID);
     }
@@ -458,7 +434,7 @@ async function buildToolConfiguration(toolName, context = {}) {
         throw new UnknownToolError(toolName);
     }
     if (entry.handler === 'github') {
-        return { github: await buildGitHubConfiguration(context, toolName) };
+        return { github: await buildGitHubConfiguration(context) };
     }
     if (entry.handler === 'memory') {
         return { memory: buildMemoryConfiguration(context) };
