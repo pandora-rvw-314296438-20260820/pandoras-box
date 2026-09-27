@@ -1,0 +1,2046 @@
+{
+  "schemaVersion": "1.0.0",
+  "catalogVersion": "1.0.0",
+  "canonicalRepository": "pandora-rvw-314296438-20260820/pandoras-box",
+  "authority": "Pandora capability fabric",
+  "principles": {
+    "catalogPresenceGrantsAuthority": false,
+    "mutationAuthority": "Pandora Runtime and Tool Gateway",
+    "productionReleaseAuthority": "separate owner-authorized release gate",
+    "verifiedLearningOnly": true,
+    "credentialsInCatalog": false
+  },
+  "statusDefinitions": {
+    "active": "Executable through a currently governed Pandora provider surface.",
+    "active_internal": "Executable by a Pandora platform service but not necessarily public MCP.",
+    "staged_source": "Implementation exists in canonical source but deployment/authorization is not fully proven.",
+    "installable": "Capability schema is supported; provider connection and verification are required before execution.",
+    "owner_gate": "Connection may be installable, but consequential use requires owner authorization.",
+    "privacy_gate": "Use requires privacy/data-purpose authorization plus provider access.",
+    "regulated_gate": "Use depends on legal/regulatory/provider requirements and explicit authorization.",
+    "provider_contract_required": "No execution until a compatible provider/API contract and authority are verified."
+  },
+  "universalPolicy": {
+    "reads": "least privilege and tenant-scoped provider readback",
+    "writes": "durable plan -> approval when required -> one-time claim -> provider execution -> readback",
+    "destructive": "explicit owner authorization -> exact target -> one-shot execution -> reconciliation",
+    "unknownOutcome": "never blind-retry; reconcile provider state first",
+    "verification": "important outputs require independent evidence before completion",
+    "memory": "only sanitized verified outcomes may be proposed; canonical Memory remains review governed"
+  },
+  "packs": [
+    {
+      "id": "ai-reasoning",
+      "name": "AI & Reasoning",
+      "status": "active_internal",
+      "capabilities": [
+        "ai.reason",
+        "ai.deep-reason",
+        "ai.fast-code",
+        "ai.complex-code",
+        "ai.vision",
+        "ai.speech",
+        "ai.transcribe",
+        "ai.translate",
+        "ai.embed",
+        "ai.rerank",
+        "ai.evaluate",
+        "ai.route"
+      ],
+      "providers": [
+        {
+          "provider": "pandora-intelligence-router",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "openai",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "gemini",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "kimi",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "local-phone",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-ai-reasoning-capabilities",
+        "operate-ai-reasoning-safely",
+        "verify-ai-reasoning-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "web-computer",
+      "name": "Web & Computer Control",
+      "status": "installable",
+      "capabilities": [
+        "browser.navigate",
+        "browser.read",
+        "browser.form-fill",
+        "browser.upload",
+        "browser.download",
+        "browser.screenshot",
+        "browser.visual-verify",
+        "computer.command",
+        "computer.file-read",
+        "computer.file-write",
+        "desktop.gui"
+      ],
+      "providers": [
+        {
+          "provider": "remote-desktop",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "browser-automation",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-web-computer-capabilities",
+        "operate-web-computer-safely",
+        "verify-web-computer-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "communications",
+      "name": "Business Communications",
+      "status": "installable",
+      "capabilities": [
+        "email.search",
+        "email.read",
+        "email.draft",
+        "email.send",
+        "calendar.read",
+        "calendar.write",
+        "contacts.read",
+        "message.send",
+        "message.search",
+        "followup.schedule"
+      ],
+      "providers": [
+        {
+          "provider": "gmail",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "outlook",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "google-calendar",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "google-contacts",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "slack",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "teams",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-communications-capabilities",
+        "operate-communications-safely",
+        "verify-communications-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "telephony",
+      "name": "Telephony & Voice",
+      "status": "installable",
+      "capabilities": [
+        "voice.inbound",
+        "voice.outbound",
+        "voice.ivr",
+        "voice.voicemail",
+        "voice.transcribe",
+        "voice.summarize",
+        "voice.route",
+        "sms.send",
+        "sms.read"
+      ],
+      "providers": [
+        {
+          "provider": "vonage",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "twilio",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "sip",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-telephony-capabilities",
+        "operate-telephony-safely",
+        "verify-telephony-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "crm-sales",
+      "name": "CRM & Sales",
+      "status": "installable",
+      "capabilities": [
+        "crm.lead-read",
+        "crm.lead-write",
+        "crm.pipeline",
+        "crm.account",
+        "crm.activity",
+        "sales.qualify",
+        "sales.quote",
+        "sales.proposal",
+        "sales.followup",
+        "sales.forecast"
+      ],
+      "providers": [
+        {
+          "provider": "hubspot",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "salesforce",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "custom-crm",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-crm-sales-capabilities",
+        "operate-crm-sales-safely",
+        "verify-crm-sales-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "marketing",
+      "name": "Marketing & Growth",
+      "status": "staged_source",
+      "capabilities": [
+        "marketing.campaign-read",
+        "marketing.campaign-draft",
+        "marketing.campaign-write",
+        "marketing.insights",
+        "marketing.attribution",
+        "marketing.creative",
+        "marketing.audience",
+        "marketing.content-plan",
+        "marketing.social-read",
+        "marketing.social-publish"
+      ],
+      "providers": [
+        {
+          "provider": "meta",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "google-ads",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "tiktok",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "linkedin",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "email-marketing",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-marketing-capabilities",
+        "operate-marketing-safely",
+        "verify-marketing-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "commerce",
+      "name": "Commerce",
+      "status": "installable",
+      "capabilities": [
+        "commerce.catalog",
+        "commerce.product",
+        "commerce.inventory",
+        "commerce.order",
+        "commerce.return",
+        "commerce.promotion",
+        "commerce.customer",
+        "commerce.fulfillment"
+      ],
+      "providers": [
+        {
+          "provider": "shopify",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "woocommerce",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "marketplaces",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-commerce-capabilities",
+        "operate-commerce-safely",
+        "verify-commerce-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "payments",
+      "name": "Payments",
+      "status": "owner_gate",
+      "capabilities": [
+        "payment.status",
+        "payment.link-create",
+        "payment.invoice",
+        "payment.reconcile",
+        "payment.refund-request",
+        "payment.capture-request"
+      ],
+      "providers": [
+        {
+          "provider": "payment-gateway",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "speedypay",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "stripe-like",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "sensitive",
+      "skillBlueprints": [
+        "discover-payments-capabilities",
+        "operate-payments-safely",
+        "verify-payments-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "accounting-finance",
+      "name": "Accounting & Finance",
+      "status": "installable",
+      "capabilities": [
+        "finance.invoice",
+        "finance.ap",
+        "finance.ar",
+        "finance.expense",
+        "finance.reconcile",
+        "finance.cashflow",
+        "finance.pnl",
+        "finance.budget",
+        "finance.forecast",
+        "finance.management-report"
+      ],
+      "providers": [
+        {
+          "provider": "quickbooks",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "xero",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "custom-ledger",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-accounting-finance-capabilities",
+        "operate-accounting-finance-safely",
+        "verify-accounting-finance-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "tax-compliance",
+      "name": "Tax & Compliance",
+      "status": "regulated_gate",
+      "capabilities": [
+        "tax.obligation",
+        "tax.calendar",
+        "tax.evidence",
+        "tax.invoice-validate",
+        "tax.package",
+        "tax.review",
+        "tax.filing-handoff",
+        "compliance.audit-trail"
+      ],
+      "providers": [
+        {
+          "provider": "pandora-tax",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "bir-provider",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "certified-tax-provider",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "sensitive",
+      "skillBlueprints": [
+        "discover-tax-compliance-capabilities",
+        "operate-tax-compliance-safely",
+        "verify-tax-compliance-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "banking-treasury",
+      "name": "Banking & Treasury",
+      "status": "regulated_gate",
+      "capabilities": [
+        "bank.balance",
+        "bank.transactions",
+        "treasury.position",
+        "treasury.reconcile",
+        "treasury.anomaly",
+        "treasury.payment-proposal"
+      ],
+      "providers": [
+        {
+          "provider": "bank-feed",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "open-banking",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "sensitive",
+      "skillBlueprints": [
+        "discover-banking-treasury-capabilities",
+        "operate-banking-treasury-safely",
+        "verify-banking-treasury-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "procurement",
+      "name": "Procurement",
+      "status": "installable",
+      "capabilities": [
+        "procurement.rfq",
+        "procurement.vendor-compare",
+        "procurement.po",
+        "procurement.approval",
+        "procurement.receiving",
+        "procurement.vendor-performance"
+      ],
+      "providers": [
+        {
+          "provider": "erp",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "supplier-portals",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-procurement-capabilities",
+        "operate-procurement-safely",
+        "verify-procurement-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "supply-chain",
+      "name": "Supply Chain & Logistics",
+      "status": "installable",
+      "capabilities": [
+        "logistics.shipment",
+        "logistics.freight",
+        "logistics.container",
+        "logistics.customs",
+        "logistics.bill-of-lading",
+        "logistics.airway-bill",
+        "logistics.landed-cost",
+        "logistics.exception"
+      ],
+      "providers": [
+        {
+          "provider": "carrier-apis",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "customs-portals",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "freight-forwarders",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-supply-chain-capabilities",
+        "operate-supply-chain-safely",
+        "verify-supply-chain-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "inventory-warehouse",
+      "name": "Inventory & Warehouse",
+      "status": "installable",
+      "capabilities": [
+        "inventory.sku",
+        "inventory.stock",
+        "inventory.transfer",
+        "inventory.batch",
+        "inventory.barcode",
+        "inventory.count",
+        "inventory.reorder",
+        "inventory.forecast"
+      ],
+      "providers": [
+        {
+          "provider": "erp",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "wms",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "barcode",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-inventory-warehouse-capabilities",
+        "operate-inventory-warehouse-safely",
+        "verify-inventory-warehouse-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "hospitality",
+      "name": "Hospitality & Resort",
+      "status": "installable",
+      "capabilities": [
+        "hospitality.reservation",
+        "hospitality.guest",
+        "hospitality.concierge",
+        "hospitality.housekeeping",
+        "hospitality.maintenance",
+        "hospitality.occupancy",
+        "hospitality.revenue",
+        "hospitality.channel",
+        "hospitality.property-status"
+      ],
+      "providers": [
+        {
+          "provider": "pms",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "ota",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "plp-native",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-hospitality-capabilities",
+        "operate-hospitality-safely",
+        "verify-hospitality-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "restaurant-pos",
+      "name": "Restaurant & POS",
+      "status": "installable",
+      "capabilities": [
+        "restaurant.menu",
+        "restaurant.order",
+        "restaurant.kitchen",
+        "restaurant.reservation",
+        "restaurant.inventory",
+        "restaurant.food-cost",
+        "restaurant.delivery",
+        "restaurant.staff"
+      ],
+      "providers": [
+        {
+          "provider": "pos",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "delivery-platform",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "booking-platform",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-restaurant-pos-capabilities",
+        "operate-restaurant-pos-safely",
+        "verify-restaurant-pos-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "legal",
+      "name": "Legal Operations",
+      "status": "installable",
+      "capabilities": [
+        "legal.matter",
+        "legal.client",
+        "legal.intake",
+        "legal.calendar",
+        "legal.evidence",
+        "legal.document",
+        "legal.research",
+        "legal.billing",
+        "legal.paper-file",
+        "legal.communication"
+      ],
+      "providers": [
+        {
+          "provider": "legal-dms",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "calendar",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "research-provider",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "batalla-native",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-legal-capabilities",
+        "operate-legal-safely",
+        "verify-legal-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "documents",
+      "name": "Documents & Office",
+      "status": "installable",
+      "capabilities": [
+        "document.pdf",
+        "document.docx",
+        "document.sheet",
+        "document.slides",
+        "document.ocr",
+        "document.extract",
+        "document.compare",
+        "document.redact",
+        "document.template",
+        "document.convert"
+      ],
+      "providers": [
+        {
+          "provider": "google-drive",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "microsoft-office",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "pdf-engine",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-documents-capabilities",
+        "operate-documents-safely",
+        "verify-documents-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "esign-contracts",
+      "name": "E-Signatures & Contracts",
+      "status": "installable",
+      "capabilities": [
+        "esign.prepare",
+        "esign.send",
+        "esign.status",
+        "contract.version",
+        "contract.obligation",
+        "contract.renewal",
+        "contract.approval"
+      ],
+      "providers": [
+        {
+          "provider": "docusign",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "adobe-sign",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-esign-contracts-capabilities",
+        "operate-esign-contracts-safely",
+        "verify-esign-contracts-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "engineering",
+      "name": "Engineering & DevOps",
+      "status": "active",
+      "capabilities": [
+        "git.read",
+        "git.write-plan",
+        "git.pr",
+        "git.merge",
+        "ci.read",
+        "ci.retry",
+        "deploy.read",
+        "deploy.release",
+        "database.read",
+        "database.plan",
+        "logs.read",
+        "incident.engineering"
+      ],
+      "providers": [
+        {
+          "provider": "github",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "gitlab",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "supabase",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "vercel",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-engineering-capabilities",
+        "operate-engineering-safely",
+        "verify-engineering-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "data-analytics",
+      "name": "Data & Analytics",
+      "status": "installable",
+      "capabilities": [
+        "data.query",
+        "data.quality",
+        "data.transform",
+        "data.dashboard",
+        "data.kpi",
+        "data.cohort",
+        "data.forecast",
+        "data.anomaly",
+        "data.report"
+      ],
+      "providers": [
+        {
+          "provider": "postgres",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "warehouse",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "posthog",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "bi",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-data-analytics-capabilities",
+        "operate-data-analytics-safely",
+        "verify-data-analytics-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "project-management",
+      "name": "Project & Work Management",
+      "status": "installable",
+      "capabilities": [
+        "work.issue",
+        "work.task",
+        "work.project",
+        "work.sprint",
+        "work.roadmap",
+        "work.docs",
+        "work.status",
+        "work.handoff"
+      ],
+      "providers": [
+        {
+          "provider": "jira",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "linear",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "asana",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "monday",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "trello",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "notion",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "confluence",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-project-management-capabilities",
+        "operate-project-management-safely",
+        "verify-project-management-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "hr-workforce",
+      "name": "HR & Workforce",
+      "status": "installable",
+      "capabilities": [
+        "hr.candidate",
+        "hr.onboard",
+        "hr.employee",
+        "hr.schedule",
+        "hr.leave",
+        "hr.performance",
+        "hr.training",
+        "hr.payroll-handoff"
+      ],
+      "providers": [
+        {
+          "provider": "hris",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "ats",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "payroll",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-hr-workforce-capabilities",
+        "operate-hr-workforce-safely",
+        "verify-hr-workforce-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "identity-access",
+      "name": "Identity & Access",
+      "status": "owner_gate",
+      "capabilities": [
+        "identity.sso",
+        "identity.oauth",
+        "identity.provision",
+        "identity.role",
+        "identity.access-review",
+        "identity.device",
+        "identity.session"
+      ],
+      "providers": [
+        {
+          "provider": "supabase-auth",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "enterprise-idp",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "sensitive",
+      "skillBlueprints": [
+        "discover-identity-access-capabilities",
+        "operate-identity-access-safely",
+        "verify-identity-access-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "status": "active_internal",
+      "capabilities": [
+        "security.secret-scan",
+        "security.dependency-scan",
+        "security.code-scan",
+        "security.audit",
+        "security.permission-review",
+        "security.incident",
+        "security.anomaly",
+        "security.policy"
+      ],
+      "providers": [
+        {
+          "provider": "github-codeql",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "supabase-advisors",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "pandora-governance",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-security-capabilities",
+        "operate-security-safely",
+        "verify-security-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "customer-support",
+      "name": "Customer Support",
+      "status": "installable",
+      "capabilities": [
+        "support.ticket",
+        "support.reply",
+        "support.knowledge",
+        "support.sla",
+        "support.escalate",
+        "support.sentiment",
+        "support.resolution",
+        "support.learn"
+      ],
+      "providers": [
+        {
+          "provider": "zendesk",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "intercom",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "email",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-customer-support-capabilities",
+        "operate-customer-support-safely",
+        "verify-customer-support-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "scheduling",
+      "name": "Scheduling & Resource Booking",
+      "status": "installable",
+      "capabilities": [
+        "schedule.calendar",
+        "schedule.appointment",
+        "schedule.resource",
+        "schedule.reminder",
+        "schedule.recurring",
+        "schedule.availability"
+      ],
+      "providers": [
+        {
+          "provider": "google-calendar",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "outlook-calendar",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "booking-platform",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-scheduling-capabilities",
+        "operate-scheduling-safely",
+        "verify-scheduling-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "maps-location",
+      "name": "Maps & Location",
+      "status": "installable",
+      "capabilities": [
+        "location.geocode",
+        "location.route",
+        "location.travel-time",
+        "location.service-area",
+        "location.field-force",
+        "location.delivery-route"
+      ],
+      "providers": [
+        {
+          "provider": "maps-provider",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "logistics-provider",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-maps-location-capabilities",
+        "operate-maps-location-safely",
+        "verify-maps-location-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "travel",
+      "name": "Travel",
+      "status": "installable",
+      "capabilities": [
+        "travel.flight",
+        "travel.hotel",
+        "travel.itinerary",
+        "travel.approval",
+        "travel.expense",
+        "travel.disruption"
+      ],
+      "providers": [
+        {
+          "provider": "travel-provider",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "calendar",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-travel-capabilities",
+        "operate-travel-safely",
+        "verify-travel-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "government-portals",
+      "name": "Government & Public Services",
+      "status": "provider_contract_required",
+      "capabilities": [
+        "government.lookup",
+        "government.form-prepare",
+        "government.portal-read",
+        "government.portal-submit-plan",
+        "permit.track",
+        "regulatory.deadline"
+      ],
+      "providers": [
+        {
+          "provider": "government-portals",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "browser-automation",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-government-portals-capabilities",
+        "operate-government-portals-safely",
+        "verify-government-portals-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "physical-devices",
+      "name": "Physical Devices",
+      "status": "installable",
+      "capabilities": [
+        "device.info",
+        "device.health",
+        "device.camera",
+        "device.scanner",
+        "device.printer",
+        "device.barcode",
+        "device.nfc",
+        "device.bluetooth",
+        "device.iot"
+      ],
+      "providers": [
+        {
+          "provider": "phone",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "remote-desktop",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "device-bridge",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-physical-devices-capabilities",
+        "operate-physical-devices-safely",
+        "verify-physical-devices-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "phone-native-ai",
+      "name": "Phone-Native AI",
+      "status": "installable",
+      "capabilities": [
+        "local.infer",
+        "local.embed",
+        "local.rag",
+        "local.speech",
+        "local.vision-preprocess",
+        "local.document-preprocess",
+        "local.cache",
+        "local.private-task"
+      ],
+      "providers": [
+        {
+          "provider": "android-runtime",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "ios-runtime",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "qwen-local",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-phone-native-ai-capabilities",
+        "operate-phone-native-ai-safely",
+        "verify-phone-native-ai-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "video-operations",
+      "name": "Video & Visual Operations",
+      "status": "privacy_gate",
+      "capabilities": [
+        "video.stream",
+        "video.inspect",
+        "video.event-detect",
+        "video.snapshot",
+        "video.operational-verify"
+      ],
+      "providers": [
+        {
+          "provider": "camera-provider",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "vision-provider",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-video-operations-capabilities",
+        "operate-video-operations-safely",
+        "verify-video-operations-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "printing-scanning",
+      "name": "Printing & Scanning",
+      "status": "installable",
+      "capabilities": [
+        "scan.capture",
+        "scan.ocr",
+        "scan.file",
+        "print.document",
+        "print.label",
+        "print.queue"
+      ],
+      "providers": [
+        {
+          "provider": "scanner",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "printer",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "document-engine",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-printing-scanning-capabilities",
+        "operate-printing-scanning-safely",
+        "verify-printing-scanning-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "storage-files",
+      "name": "Files & Storage",
+      "status": "installable",
+      "capabilities": [
+        "files.search",
+        "files.read",
+        "files.write",
+        "files.share",
+        "files.archive",
+        "files.version",
+        "files.sync"
+      ],
+      "providers": [
+        {
+          "provider": "google-drive",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "onedrive",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "dropbox",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "s3",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-storage-files-capabilities",
+        "operate-storage-files-safely",
+        "verify-storage-files-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "knowledge-memory",
+      "name": "Knowledge & Memory",
+      "status": "active",
+      "capabilities": [
+        "memory.health",
+        "memory.search",
+        "memory.canonical-context",
+        "memory.evidence-propose",
+        "knowledge.graph",
+        "knowledge.rag",
+        "knowledge.conflict",
+        "knowledge.policy"
+      ],
+      "providers": [
+        {
+          "provider": "pandora-memory",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-knowledge-memory-capabilities",
+        "operate-knowledge-memory-safely",
+        "verify-knowledge-memory-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "research-intelligence",
+      "name": "Research & Intelligence",
+      "status": "installable",
+      "capabilities": [
+        "research.web",
+        "research.deep",
+        "research.market",
+        "research.competitor",
+        "research.public-record",
+        "research.extract",
+        "research.synthesize",
+        "research.source-check"
+      ],
+      "providers": [
+        {
+          "provider": "web",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "browser",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "data-providers",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-research-intelligence-capabilities",
+        "operate-research-intelligence-safely",
+        "verify-research-intelligence-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "automation-events",
+      "name": "Automation & Webhooks",
+      "status": "active_internal",
+      "capabilities": [
+        "automation.schedule",
+        "automation.condition",
+        "automation.webhook",
+        "automation.queue",
+        "automation.retry",
+        "automation.reconcile",
+        "automation.event"
+      ],
+      "providers": [
+        {
+          "provider": "operations-room",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "supabase-cron",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "webhooks",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-automation-events-capabilities",
+        "operate-automation-events-safely",
+        "verify-automation-events-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "agent-orchestration",
+      "name": "Agent-to-Agent Operations",
+      "status": "active_internal",
+      "capabilities": [
+        "agent.delegate",
+        "agent.parallelize",
+        "agent.capability-request",
+        "agent.lease",
+        "agent.handoff",
+        "agent.verify",
+        "agent.recover"
+      ],
+      "providers": [
+        {
+          "provider": "operations-room",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "intelligence-router",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-agent-orchestration-capabilities",
+        "operate-agent-orchestration-safely",
+        "verify-agent-orchestration-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "custom-systems",
+      "name": "Custom Company Systems",
+      "status": "installable",
+      "capabilities": [
+        "custom.api-read",
+        "custom.api-write-plan",
+        "custom.database",
+        "custom.webhook",
+        "custom.mcp",
+        "custom.browser-workflow"
+      ],
+      "providers": [
+        {
+          "provider": "custom-mcp",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "rest-api",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "browser",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-custom-systems-capabilities",
+        "operate-custom-systems-safely",
+        "verify-custom-systems-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "meta-business",
+      "name": "Meta Business",
+      "status": "staged_source",
+      "capabilities": [
+        "meta.page-read",
+        "meta.post-read",
+        "meta.comment-read",
+        "meta.inbox-read",
+        "meta.insights",
+        "meta.ad-account-read",
+        "meta.campaign-read",
+        "meta.ad-insights",
+        "meta.draft-post",
+        "meta.draft-reply",
+        "meta.publish-plan"
+      ],
+      "providers": [
+        {
+          "provider": "meta-business-mcp",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-meta-business-capabilities",
+        "operate-meta-business-safely",
+        "verify-meta-business-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "google-workspace",
+      "name": "Google Workspace",
+      "status": "installable",
+      "capabilities": [
+        "google.drive",
+        "google.docs",
+        "google.sheets",
+        "google.slides",
+        "google.calendar",
+        "google.contacts",
+        "google.gmail"
+      ],
+      "providers": [
+        {
+          "provider": "google-drive",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "gmail",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "google-calendar",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "google-contacts",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-google-workspace-capabilities",
+        "operate-google-workspace-safely",
+        "verify-google-workspace-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "microsoft-workspace",
+      "name": "Microsoft Workspace",
+      "status": "installable",
+      "capabilities": [
+        "microsoft.outlook",
+        "microsoft.calendar",
+        "microsoft.onedrive",
+        "microsoft.office-docs",
+        "microsoft.teams"
+      ],
+      "providers": [
+        {
+          "provider": "outlook",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "microsoft-365",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-microsoft-workspace-capabilities",
+        "operate-microsoft-workspace-safely",
+        "verify-microsoft-workspace-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "observability",
+      "name": "Observability & Product Analytics",
+      "status": "installable",
+      "capabilities": [
+        "observe.logs",
+        "observe.errors",
+        "observe.traces",
+        "observe.metrics",
+        "observe.product-analytics",
+        "observe.experiment",
+        "observe.feature-flag"
+      ],
+      "providers": [
+        {
+          "provider": "vercel",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "posthog",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "supabase",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-observability-capabilities",
+        "operate-observability-safely",
+        "verify-observability-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "email-delivery",
+      "name": "Transactional Email",
+      "status": "installable",
+      "capabilities": [
+        "email.transactional-send",
+        "email.template",
+        "email.audience",
+        "email.broadcast",
+        "email.delivery-status",
+        "email.webhook"
+      ],
+      "providers": [
+        {
+          "provider": "resend",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-email-delivery-capabilities",
+        "operate-email-delivery-safely",
+        "verify-email-delivery-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "ads-management",
+      "name": "Paid Advertising",
+      "status": "installable",
+      "capabilities": [
+        "ads.account",
+        "ads.campaign",
+        "ads.ad-group",
+        "ads.ad",
+        "ads.insights",
+        "ads.conversion",
+        "ads.creative",
+        "ads.budget-plan"
+      ],
+      "providers": [
+        {
+          "provider": "meta-ads",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "chatgpt-ads-manager",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "google-ads",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-ads-management-capabilities",
+        "operate-ads-management-safely",
+        "verify-ads-management-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "enterprise-content",
+      "name": "Enterprise Knowledge Systems",
+      "status": "installable",
+      "capabilities": [
+        "enterprise.search",
+        "enterprise.read",
+        "enterprise.issue",
+        "enterprise.wiki",
+        "enterprise.catalog"
+      ],
+      "providers": [
+        {
+          "provider": "atlassian",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "google-drive",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "microsoft",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-enterprise-content-capabilities",
+        "operate-enterprise-content-safely",
+        "verify-enterprise-content-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    },
+    {
+      "id": "cloud-platforms",
+      "name": "Cloud Platforms",
+      "status": "installable",
+      "capabilities": [
+        "cloud.compute-read",
+        "cloud.storage",
+        "cloud.serverless",
+        "cloud.database",
+        "cloud.analytics",
+        "cloud.deploy-plan",
+        "cloud.cost-read"
+      ],
+      "providers": [
+        {
+          "provider": "aws",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "gcp",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "azure",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "vercel",
+          "status": "discover_or_verify"
+        },
+        {
+          "provider": "supabase",
+          "status": "discover_or_verify"
+        }
+      ],
+      "riskFloor": "read",
+      "skillBlueprints": [
+        "discover-cloud-platforms-capabilities",
+        "operate-cloud-platforms-safely",
+        "verify-cloud-platforms-outcomes"
+      ],
+      "verification": [
+        "provider_readback",
+        "tenant_scope_check",
+        "evidence_receipt"
+      ],
+      "rollback": "reconcile_or_compensate_without_deleting_uncertain_evidence",
+      "memoryLearning": "verified_outcomes_only"
+    }
+  ]
+}
