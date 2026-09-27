@@ -88,7 +88,9 @@ function eligible(task: any) {
   return task?.status === "queued"
     && TASK_PATTERN.test(String(task?.spec?.id || ""))
     && task?.spec?.risk === "read"
-    && ["reliability", "mobile"].includes(String(task?.spec?.lane || ""))
+    && ["reliability", "mobile", "backend", "web"].includes(String(task?.spec?.lane || ""))
+    && /^[a-f0-9]{40}$/.test(String(task?.spec?.source?.baseSha || ""))
+    && task?.spec?.source?.repository === "pandora-rvw-314296438-20260820/pandoras-box"
     && capabilities.includes("rdp.execute");
 }
 
@@ -100,6 +102,8 @@ function profileForTask(task: any) {
   if (caps.includes("rdp.android.verify")) return "android_verify";
   if (caps.includes("rdp.flutter.verify")) return "flutter_verify";
   if (caps.includes("rdp.github_runner.verify")) return "github_runner_verify";
+  if (caps.includes("rdp.repo.test")) return "repo_test";
+  if (caps.includes("rdp.repo.build")) return "repo_build";
   return "toolchain_verify";
 }
 
@@ -177,6 +181,8 @@ export default async function operationsRdpWorker(request: any, response: any) {
           taskId: task.spec.id, title: task.spec.title, leaseId: claim.leaseId,
           generation: claim.generation, dispatchId: dispatch.dispatchId, expiresAt: claim.expiresAt,
           profile: profileForTask(task),
+          sourceSha: String(task.spec.source.baseSha),
+          repository: String(task.spec.source.repository),
         } });
       }
       return send(response, 200, { ok: true, state: "idle" });
@@ -215,13 +221,16 @@ export default async function operationsRdpWorker(request: any, response: any) {
         return send(response, 409, { ok: false, code: "RDP_WORKER_SOURCE_BINDING_INVALID" });
       }
       const evidence = input.evidence;
+      if (evidence.profile !== profileForTask(task)) {
+        return send(response, 400, { ok: false, code: "RDP_WORKER_PROFILE_MISMATCH" });
+      }
       const proofBasis = `${dispatchId}:${taskId}:${generation}:${evidence.profile}:${evidence.exitCode}:${evidence.stdoutSha256}`;
       const expectedProof = createHash("sha256").update(proofBasis).digest("hex");
       if (!safeEqualHex(expectedProof, evidence.proofSha256)) {
         return send(response, 400, { ok: false, code: "RDP_WORKER_PROOF_INVALID" });
       }
       const handoff = {
-        taskId, workerId: WORKER_KEY, generation, headSha: sourceSha, tests: evidence.tests,
+        taskId, workerId: WORKER_KEY, generation, headSha: sourceSha, dispatchId, tests: evidence.tests,
         evidenceRefs: [
           `rdp:${WORKER_KEY}:${evidence.profile}`,
           `sha256:${evidence.stdoutSha256}`,
