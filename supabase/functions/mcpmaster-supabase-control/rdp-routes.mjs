@@ -1,13 +1,15 @@
 const WORKER = Object.freeze({
   workerKey: "pandora-rdp-windows-01",
   principalKey: "rdp:EC2AMAZ-SPAE2VG:operations-worker-v1",
-  lanes: ["reliability", "mobile"],
+  lanes: ["reliability", "mobile", "backend", "web"],
   capabilities: [
     "rdp.execute",
     "rdp.toolchain.verify",
     "rdp.github_runner.verify",
     "rdp.android.verify",
     "rdp.flutter.verify",
+    "rdp.repo.test",
+    "rdp.repo.build",
     "worker.reconcile",
   ],
   capacity: 1,

@@ -134,7 +134,7 @@ test('wrong-organization or inactive membership cannot approve', async () => {
   const { handler, calls } = harness(null);
   const response = await invoke(handler, requestFor('pandora_approve_plan', { planId: PLAN_ID }));
   assert.equal(response.statusCode, 403);
-  assert.match(response.body.error.message, /active ProjectOS organization membership/);
+  assert.match(response.body.error.message, /active Pandora organization membership/);
   assert.equal(calls.length, 0);
 });
 
