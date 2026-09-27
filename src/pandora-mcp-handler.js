@@ -51,6 +51,7 @@ const METADATA_PATHS = new Set([
 const ACTIVE_ROLES = new Set(["owner", "admin", "operator", "member", "viewer"]);
 const EXECUTOR_ROLES = new Set(["owner", "admin"]);
 const LEGACY_PLAN_TOOL_PREFIX = "pandora_plan_";
+const PROJECTOS_PLAN_TOOL_PREFIX = "projectos_plan_";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 exports.pandoraMcpVercelConfig = Object.freeze({
@@ -292,6 +293,30 @@ function legacyPlannedTool(name) {
     ));
 }
 
+function normalizeProjectosToolName(name) {
+    switch (name) {
+        case "projectos_tool_catalog":
+            return "pandora_tool_catalog";
+        case "projectos_list_plans":
+            return "pandora_list_plans";
+        case "projectos_list_audit":
+            return "pandora_list_audit";
+        case "projectos_verify_audit":
+            return "pandora_verify_audit";
+        case "projectos_create_plan":
+            return "pandora_create_plan";
+        case "projectos_approve_plan":
+            return "pandora_approve_plan";
+        case "projectos_execute_plan":
+            return "pandora_execute_plan";
+        default:
+            if (name.startsWith(PROJECTOS_PLAN_TOOL_PREFIX)) {
+                return `${LEGACY_PLAN_TOOL_PREFIX}${name.slice(PROJECTOS_PLAN_TOOL_PREFIX.length)}`;
+            }
+            return name;
+    }
+}
+
 function requiredString(value, name) {
     if (typeof value !== "string" || value.trim().length === 0) {
         throw Object.assign(new Error(`${name} is required`), { status: 400 });
@@ -465,7 +490,8 @@ function safeMcpErrorMessage(error, status) {
         : "ProjectOS request failed.";
 }
 
-async function callTool(name, args, actor, dependencies) {
+async function callTool(requestedName, args, actor, dependencies) {
+    const name = normalizeProjectosToolName(requestedName);
     assertToolScope(name, actor);
     const plannedTool = legacyPlannedTool(name);
     if (plannedTool) {
