@@ -40,4 +40,5 @@ test('OIDC control exposes fixed source RPCs and broadens builder lanes', () => 
   assert.match(control,/pandora_ops_generic_source_release_step_v1/);
   assert.match(control,/lanes:\s*\["backend", "reliability", "web", "growth"\]/);
   assert.match(control,/verifyVercelToken/);
+  assert.match(control,/builder:[\s\S]*capacity:\s*4/);
 });
