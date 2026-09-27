@@ -42,7 +42,7 @@ async function user(db, id, email, metadata = {}) {
 async function identity(db, id, userId, provider, email) {
   return db.query(
     "insert into auth.identities(id,user_id,provider,identity_data) " +
-      "values($1,$2,$3,jsonb_build_object('email',$4))",
+      "values($1,$2,$3,jsonb_build_object('email',$4::text))",
     [id, userId, provider, email]
   );
 }
