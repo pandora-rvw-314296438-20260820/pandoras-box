@@ -37,6 +37,10 @@ test("Meta legal routes resolve to substantive public HTML instead of Pandora's 
         assert.match(body, /Proposed on 27 September 2026 for Owner review; not yet approved for publication/);
         assert.match(body, /an email address if Meta provides one/);
         assert.match(body, /separate from the optional Meta business connection/);
+        assert.match(body, /Supabase Auth manages the resulting sign-in session/);
+        assert.match(body, /<h2>Why we use Meta business-connection information/);
+        assert.match(body, /<h2>Meta business-connection storage and access/);
+        assert.match(body, /<h2>Meta business-connection retention/);
         assert.match(body, /<h2>Optional Meta business connection<\/h2>/);
       }
       if (route === "/data-deletion") {
@@ -44,6 +48,8 @@ test("Meta legal routes resolve to substantive public HTML instead of Pandora's 
         assert.match(body, /Proposed on 27 September 2026 for Owner review; not yet approved for publication/);
         assert.match(body, /Pandora account data deletion request/);
         assert.match(body, /Removing the Facebook identity separately may be unavailable/);
+        assert.match(body, /If Meta did not provide an email address/);
+        assert.match(body, /a safer way to verify that the account is yours/);
         assert.match(body, /Meta business-connection requests/);
         assert.match(body, /Pandora Meta data deletion request/);
       }
