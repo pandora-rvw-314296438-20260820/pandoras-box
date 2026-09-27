@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../pandora_config.dart';
+import 'pandora_session_storage.dart';
 
 class PandoraAuthFailure implements Exception {
   const PandoraAuthFailure(this.message);
@@ -144,6 +145,11 @@ class SupabasePandoraAuth
     if (!kIsWeb) {
       throw const PandoraAuthFailure(
         'Facebook sign-in is available on the Pandora website.',
+      );
+    }
+    if (!pandoraCanCompleteFacebookRedirect()) {
+      throw const PandoraAuthFailure(
+        'Facebook sign-in needs temporary browser storage. Enable storage and try again.',
       );
     }
     try {

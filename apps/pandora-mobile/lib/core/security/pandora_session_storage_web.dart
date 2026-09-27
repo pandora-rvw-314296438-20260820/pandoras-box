@@ -1,36 +1,24 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:web/web.dart' as web;
 
-import '../../pandora_config.dart';
-
-final _tabStorage = web.window.sessionStorage;
-final _sessionKey =
-    'pandora-client-sb-${Uri.parse(PandoraConfig.supabaseUrl).host.split('.').first}-auth-token';
-
-LocalStorage pandoraSessionStorage() => const _PandoraTabSessionStorage();
-GotrueAsyncStorage pandoraPkceStorage() => const _PandoraTabPkceStorage();
-
-class _PandoraTabSessionStorage extends LocalStorage {
-  const _PandoraTabSessionStorage();
-
-  @override
-  Future<void> initialize() async {}
-
-  @override
-  Future<bool> hasAccessToken() async =>
-      _tabStorage.getItem(_sessionKey) != null;
-
-  @override
-  Future<String?> accessToken() async => _tabStorage.getItem(_sessionKey);
-
-  @override
-  Future<void> removePersistedSession() async =>
-      _tabStorage.removeItem(_sessionKey);
-
-  @override
-  Future<void> persistSession(String persistSessionString) async =>
-      _tabStorage.setItem(_sessionKey, persistSessionString);
+// Accessing sessionStorage can throw when the browser blocks storage.
+// Probe lazily so email sign-in and app startup still work in that browser.
+web.Storage? _safeTabStorage() {
+  try {
+    final storage = web.window.sessionStorage;
+    const probeKey = 'pandora-client-pkce-storage-probe';
+    storage.setItem(probeKey, '1');
+    final available = storage.getItem(probeKey) == '1';
+    storage.removeItem(probeKey);
+    return available ? storage : null;
+  } catch (_) {
+    return null;
+  }
 }
+
+bool pandoraCanCompleteFacebookRedirect() => _safeTabStorage() != null;
+
+GotrueAsyncStorage pandoraPkceStorage() => const _PandoraTabPkceStorage();
 
 class _PandoraTabPkceStorage extends GotrueAsyncStorage {
   const _PandoraTabPkceStorage();
@@ -39,13 +27,19 @@ class _PandoraTabPkceStorage extends GotrueAsyncStorage {
 
   @override
   Future<String?> getItem({required String key}) async =>
-      _tabStorage.getItem(_key(key));
+      _safeTabStorage()?.getItem(_key(key));
 
   @override
-  Future<void> removeItem({required String key}) async =>
-      _tabStorage.removeItem(_key(key));
+  Future<void> removeItem({required String key}) async {
+    _safeTabStorage()?.removeItem(_key(key));
+  }
 
   @override
-  Future<void> setItem({required String key, required String value}) async =>
-      _tabStorage.setItem(_key(key), value);
+  Future<void> setItem({required String key, required String value}) async {
+    final storage = _safeTabStorage();
+    if (storage == null) {
+      throw StateError('Browser tab storage is unavailable');
+    }
+    storage.setItem(_key(key), value);
+  }
 }
