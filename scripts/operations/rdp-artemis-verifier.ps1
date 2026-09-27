@@ -50,23 +50,27 @@ if ($changed.ExitCode -ne 0) { throw "ARTEMIS_CHANGED_FILES_FAILED" }
 $changedFiles=@($changed.Output -split "\r?\n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
 $allOutput=[System.Text.StringBuilder]::new()
-foreach ($testPath in $Tests) {
-  $absolute=Join-Path $Worktree $testPath
-  if (!(Test-Path $absolute -PathType Leaf)) { throw "ARTEMIS_TEST_PATH_MISSING:$testPath" }
-  $run=Invoke-Native "node" @("--test",$absolute)
-  [void]$allOutput.AppendLine("TEST=$testPath")
-  [void]$allOutput.AppendLine($run.Output)
-  if ($run.ExitCode -ne 0) { throw "ARTEMIS_TEST_FAILED:$testPath" }
-  $results.Add([pscustomobject]@{name="node_test";pass=$true;detail=$testPath})
-}
+Push-Location $Worktree
+try {
+  foreach ($testPath in $Tests) {
+    if (!(Test-Path $testPath -PathType Leaf)) { throw "ARTEMIS_TEST_PATH_MISSING:$testPath" }
+    $run=Invoke-Native "node" @("--test",$testPath)
+    [void]$allOutput.AppendLine("TEST=$testPath")
+    [void]$allOutput.AppendLine($run.Output)
+    if ($run.ExitCode -ne 0) { throw "ARTEMIS_TEST_FAILED:$testPath" }
+    $results.Add([pscustomobject]@{name="node_test";pass=$true;detail=$testPath})
+  }
 
-$changedJs=@($changedFiles | Where-Object { $_ -match '\.js$' -and $_ -notmatch '^test/' })
-foreach ($relative in $changedJs) {
-  $syntax=Invoke-Native "node" @("--check",(Join-Path $Worktree $relative))
-  [void]$allOutput.AppendLine("SYNTAX=$relative")
-  [void]$allOutput.AppendLine($syntax.Output)
-  if ($syntax.ExitCode -ne 0) { throw "ARTEMIS_SYNTAX_FAILED:$relative" }
-  $results.Add([pscustomobject]@{name="node_syntax";pass=$true;detail=$relative})
+  $changedJs=@($changedFiles | Where-Object { $_ -match '\.js$' -and $_ -notmatch '^test/' })
+  foreach ($relative in $changedJs) {
+    $syntax=Invoke-Native "node" @("--check",$relative)
+    [void]$allOutput.AppendLine("SYNTAX=$relative")
+    [void]$allOutput.AppendLine($syntax.Output)
+    if ($syntax.ExitCode -ne 0) { throw "ARTEMIS_SYNTAX_FAILED:$relative" }
+    $results.Add([pscustomobject]@{name="node_syntax";pass=$true;detail=$relative})
+  }
+} finally {
+  Pop-Location
 }
 
 $deviceName = if ([string]::IsNullOrWhiteSpace($env:COMPUTERNAME)) { $MachineIdentity } else { $env:COMPUTERNAME }
