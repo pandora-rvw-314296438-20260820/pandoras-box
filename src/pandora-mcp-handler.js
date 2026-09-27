@@ -7,7 +7,6 @@ exports.handlePandoraMcp = handlePandoraMcp;
 
 const { randomUUID } = require("node:crypto");
 const path = require("node:path");
-const { pathToFileURL } = require("node:url");
 const { ExecutionLedgerClient } = require("./runtime/execution-ledger-client.js");
 const {
     createProviderExecutionStateMachine,
@@ -75,7 +74,11 @@ let skillRuntimePromise;
 function skillRuntime() {
     if (!skillRuntimePromise) {
         const runtimePath = path.resolve(__dirname, "..", ".agents", "runtime", "pandora-skill-runtime.mjs");
-        skillRuntimePromise = import(pathToFileURL(runtimePath).href);
+        // Node 24 can synchronously require ESM without top-level await. Wrapping
+        // it in a promise keeps the existing async caller contract while also
+        // surviving CommonJS compilation, which otherwise lowers import() to
+        // require() and cannot resolve a file:// URL.
+        skillRuntimePromise = Promise.resolve().then(() => require(runtimePath));
     }
     return skillRuntimePromise;
 }

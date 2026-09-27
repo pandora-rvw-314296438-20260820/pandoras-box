@@ -93,5 +93,5 @@ test("Gemini MCP tool catalog and dispatch fail closed outside its allowlist", a
     arguments: {},
   }));
   assert.equal(denied.statusCode, 400);
-  assert.match(denied.body.error.message, /Unknown ProjectOS MCP tool/);
+  assert.match(denied.body.error.message, /Unknown Pandora MCP tool/);
 });
