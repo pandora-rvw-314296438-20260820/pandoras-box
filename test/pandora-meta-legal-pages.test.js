@@ -34,14 +34,16 @@ test("Meta legal routes resolve to substantive public HTML instead of Pandora's 
       assert.match(body, /markjohnsonbanatao888@gmail\.com/, route);
       if (route === "/privacy") {
         assert.match(body, /Facebook account sign-in/);
-        assert.match(body, /Proposed for Owner review; not yet approved for publication/);
+        assert.match(body, /Proposed on 27 September 2026 for Owner review; not yet approved for publication/);
         assert.match(body, /an email address if Meta provides one/);
         assert.match(body, /separate from the optional Meta business connection/);
+        assert.match(body, /<h2>Optional Meta business connection<\/h2>/);
       }
       if (route === "/data-deletion") {
         assert.match(body, /Facebook account sign-in requests/);
-        assert.match(body, /Proposed for Owner review; not yet approved for publication/);
+        assert.match(body, /Proposed on 27 September 2026 for Owner review; not yet approved for publication/);
         assert.match(body, /Pandora account data deletion request/);
+        assert.match(body, /Removing the Facebook identity separately may be unavailable/);
         assert.match(body, /Meta business-connection requests/);
         assert.match(body, /Pandora Meta data deletion request/);
       }
