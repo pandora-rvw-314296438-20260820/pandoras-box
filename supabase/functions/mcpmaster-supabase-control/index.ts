@@ -3,7 +3,6 @@ import { createRemoteJWKSet, decodeJwt, jwtVerify } from "npm:jose@5.10.0";
 import { routeForCanonicalReleaseCapture } from "./canonical-release-capture-routes.mjs";
 import { assertProductionVercelClaims } from "./identity-policy.mjs";
 import { routeForRdpOperations } from "./rdp-routes.mjs";
-import { handleGeminiWorkerRequest } from "./gemini-worker-gateway.mjs";
 
 const CONTROL_ORGANIZATION_ID = "2270b266-59da-4c39-bfd9-9f8d08352af0";
 const OPERATIONS_PROJECT_ID = "ee282126-3f61-4058-8c92-2fedbfcecf1f";
@@ -45,10 +44,10 @@ type ControlRpc =
   | "get_supabase_control_accounts"
   | "get_github_control_accounts"
   | "get_runtime_security_config"
-  | "create_execution_plan"
-  | "approve_execution_plan"
-  | "claim_execution_plan"
-  | "finish_execution_plan"
+  | "pandora_create_execution_plan"
+  | "pandora_approve_execution_plan"
+  | "pandora_claim_execution_plan"
+  | "pandora_finish_execution_plan"
   | "list_execution_plans"
   | "list_execution_audit"
   | "verify_execution_audit_chain"
@@ -298,21 +297,19 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
 
   if (input.action === "execution_plan_create") {
     const requestId = requiredUuid(input, "requestId");
-    const intakeId = requiredUuid(input, "intakeId");
     const tool = requiredString(input, "tool");
     const risk = requiredString(input, "risk");
     const payloadHash = requiredString(input, "payloadHash");
     const expiresAt = requiredString(input, "expiresAt");
-    if (!requestId || !intakeId || !tool || !risk || !payloadHash || !expiresAt || !isRecord(input.args)) {
+    if (!requestId || !tool || !risk || !payloadHash || !expiresAt || !isRecord(input.args)) {
       return undefined;
     }
     return {
       action: "execution_plan_create",
-      rpc: "create_execution_plan",
+      rpc: "pandora_create_execution_plan",
       responseKey: "plan",
       params: {
         p_request_id: requestId,
-        p_intake_id: intakeId,
         p_tool: tool,
         p_risk: risk,
         p_args: input.args,
@@ -328,7 +325,7 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     if (!planId || !approvedBy) return undefined;
     return {
       action: "execution_plan_approve",
-      rpc: "approve_execution_plan",
+      rpc: "pandora_approve_execution_plan",
       responseKey: "plan",
       params: { p_plan_id: planId, p_approved_by: approvedBy },
     };
@@ -339,7 +336,7 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     if (!planId) return undefined;
     return {
       action: "execution_plan_claim",
-      rpc: "claim_execution_plan",
+      rpc: "pandora_claim_execution_plan",
       responseKey: "plan",
       params: { p_plan_id: planId },
     };
@@ -351,7 +348,7 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     if (!planId || !status) return undefined;
     return {
       action: "execution_plan_finish",
-      rpc: "finish_execution_plan",
+      rpc: "pandora_finish_execution_plan",
       responseKey: "plan",
       params: {
         p_plan_id: planId,
