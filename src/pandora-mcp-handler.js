@@ -209,7 +209,12 @@ function rpcError(response, id, code, message, status = 400) {
     response.status(status).json({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 }
 
-function publicTools() {
+function providerToolAllowed(name, dependencies) {
+    if (dependencies?.allowedToolNames === undefined) return true;
+    return dependencies.allowedToolNames instanceof Set && dependencies.allowedToolNames.has(name);
+}
+
+function publicTools(dependencies) {
     const controls = [
         {
             name: "pandora_tool_catalog",
@@ -273,7 +278,9 @@ function publicTools() {
             },
         },
     ];
-    const providerTools = getAllTools().flatMap((name) => {
+    const providerTools = getAllTools()
+        .filter((name) => providerToolAllowed(name, dependencies))
+        .flatMap((name) => {
         const definition = toolRegistry[name];
         if (classifyToolRisk(name) === "read") {
             return [{
@@ -295,10 +302,12 @@ function legacyPlanToolName(toolName) {
     return `${LEGACY_PLAN_TOOL_PREFIX}${toolName.replace(".", "_")}`;
 }
 
-function legacyPlannedTool(name) {
+function legacyPlannedTool(name, dependencies) {
     if (!name.startsWith(LEGACY_PLAN_TOOL_PREFIX)) return undefined;
     return getAllTools().find((toolName) => (
-        classifyToolRisk(toolName) !== "read" && legacyPlanToolName(toolName) === name
+        providerToolAllowed(toolName, dependencies)
+        && classifyToolRisk(toolName) !== "read"
+        && legacyPlanToolName(toolName) === name
     ));
 }
 
@@ -383,7 +392,7 @@ async function workloadToken(dependencies) {
     return token;
 }
 
-function requiredToolScope(name) {
+function requiredToolScope(name, dependencies) {
     switch (name) {
         case "pandora_tool_catalog":
         case "pandora_list_plans":
@@ -397,15 +406,15 @@ function requiredToolScope(name) {
         case "pandora_execute_plan":
             return "pandora:execute";
         default:
-            if (legacyPlannedTool(name)) return "pandora:plan";
-            if (toolRegistry[name]) {
+            if (legacyPlannedTool(name, dependencies)) return "pandora:plan";
+            if (toolRegistry[name] && providerToolAllowed(name, dependencies)) {
                 return classifyToolRisk(name) === "read" ? "pandora:read" : "pandora:plan";
             }
             return undefined;
     }
 }
 
-function assertToolScope(name, actor) {
+function assertToolScope(name, actor, dependencies) {
     const granted = new Set(Array.isArray(actor.identity?.scopes) ? actor.identity.scopes : []);
     if (!granted.has("openid")) {
         throw Object.assign(new Error("OAuth scope openid is required"), { status: 403, requiredScope: "openid" });
@@ -420,7 +429,7 @@ function assertToolScope(name, actor) {
             && [...granted].every((scope) => LEGACY_IDENTITY_SCOPES.has(scope));
         if (isBoundedLegacyGrant) return;
     }
-    const required = requiredToolScope(name);
+    const required = requiredToolScope(name, dependencies);
     if (!required || (!granted.has(required) && !granted.has("pandora:*"))) {
         throw Object.assign(new Error(`OAuth scope ${required || "pandora"} is required`), {
             status: 403,
@@ -430,7 +439,7 @@ function assertToolScope(name, actor) {
 }
 
 async function createDurablePlan(tool, toolArgs, dependencies) {
-    if (!toolRegistry[tool]) throw Object.assign(new Error(`Unknown tool: ${tool}`), { status: 400 });
+    if (!toolRegistry[tool] || !providerToolAllowed(tool, dependencies)) throw Object.assign(new Error(`Unknown tool: ${tool}`), { status: 400 });
     const payloadHash = executionPayloadHash(tool, toolArgs);
     return dependencies.ledger.createPlan(await workloadToken(dependencies), {
         requestId: randomUUID(),
@@ -488,12 +497,12 @@ async function callTool(name, args, actor, dependencies) {
     // Backward-compatible projectos_* connector aliases resolve to the canonical
     // pandora_* names before scope checks and dispatch; tools/list keeps pandora_* only.
     name = canonicalToolName(name);
-    assertToolScope(name, actor);
-    const plannedTool = legacyPlannedTool(name);
+    assertToolScope(name, actor, dependencies);
+    const plannedTool = legacyPlannedTool(name, dependencies);
     if (plannedTool) {
         return toolResult({ plan: await createDurablePlan(plannedTool, args, dependencies) });
     }
-    if (toolRegistry[name]) {
+    if (toolRegistry[name] && providerToolAllowed(name, dependencies)) {
         if (classifyToolRisk(name) !== "read") {
             throw Object.assign(new Error("A durable ProjectOS plan is required before any provider mutation"), {
                 status: 409,
@@ -509,7 +518,7 @@ async function callTool(name, args, actor, dependencies) {
     switch (name) {
         case "pandora_tool_catalog":
             return toolResult({
-                tools: getAllTools().map((name) => {
+                tools: getAllTools().filter((name) => providerToolAllowed(name, dependencies)).map((name) => {
                     const tool = toolRegistry[name];
                     return {
                         name,
@@ -563,7 +572,7 @@ async function callTool(name, args, actor, dependencies) {
             if (executionPayloadHash(claimed.tool, claimed.args) !== claimed.payloadHash) {
                 throw Object.assign(new Error("Execution plan payload hash mismatch"), { status: 409 });
             }
-            if (!toolRegistry[claimed.tool]) throw Object.assign(new Error(`Unknown tool: ${claimed.tool}`), { status: 400 });
+            if (!toolRegistry[claimed.tool] || !providerToolAllowed(claimed.tool, dependencies)) throw Object.assign(new Error(`Unknown tool: ${claimed.tool}`), { status: 400 });
             const startedAt = dependencies.now();
             try {
                 let destructiveCapabilityReservationUsed = false;
@@ -662,7 +671,7 @@ function createPandoraMcpHandler(overrides = {}) {
                 return;
             }
             if (body.method === "tools/list") {
-                rpcResult(response, id, { tools: publicTools() });
+                rpcResult(response, id, { tools: publicTools(dependencies) });
                 return;
             }
             if (body.method !== "tools/call") {
