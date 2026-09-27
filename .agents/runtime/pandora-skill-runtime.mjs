@@ -292,9 +292,14 @@ export function loadRegistry({ registryDir = REGISTRY_DIR } = {}) {
     }
   }
 
-  for (const skill of capabilitySkillEntries()) {
-    if (skills.has(skill.id)) throw new RegistryIntegrityError('duplicate generated skill id', skill.id);
-    skills.set(skill.id, skill);
+  // Synthetic capability-fabric skills belong only to the canonical registry.
+  // Fixture/custom registries stay isolated so their own integrity failures are
+  // not masked by dependencies from Pandora's canonical catalog.
+  if (path.resolve(registryDir) === path.resolve(REGISTRY_DIR)) {
+    for (const skill of capabilitySkillEntries()) {
+      if (skills.has(skill.id)) throw new RegistryIntegrityError('duplicate generated skill id', skill.id);
+      skills.set(skill.id, skill);
+    }
   }
 
   for (const skill of skills.values()) {
@@ -404,9 +409,22 @@ export function route(intent, { registry = loadRegistry(), limit = 5, env = proc
       if (identity.has(term)) score += 2; // name/category match is the strongest signal
       else if (trigger.has(term)) score += 1; // description / "use when" match
     }
-    if (score > 0) scored.push({ id: skill.id, score });
+    if (score > 0) {
+      scored.push({
+        id: skill.id,
+        score,
+        generatedCapabilitySkill: skill.generatedCapabilitySkill === true,
+      });
+    }
   }
-  scored.sort((a, b) => (b.score - a.score) || a.id.localeCompare(b.id));
+  // Core workflow skills win score ties so broad provider mentions cannot let
+  // virtual capability packs crowd out canonical planning/deploy/verification
+  // skills. A generated skill with a stronger score still wins normally.
+  scored.sort((a, b) =>
+    (b.score - a.score)
+    || (Number(a.generatedCapabilitySkill) - Number(b.generatedCapabilitySkill))
+    || a.id.localeCompare(b.id)
+  );
 
   const selected = scored.slice(0, limit).map((s) => s.id);
   const closure = selected.length > 0 ? dependencyClosure(registry, selected) : [];

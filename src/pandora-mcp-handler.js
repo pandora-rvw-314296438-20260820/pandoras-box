@@ -502,54 +502,6 @@ async function workloadToken(dependencies) {
 
 function requiredToolScope(name, dependencies) {
     switch (name) {
-        case "pandora_skill_catalog":
-            return toolResult(await skillCatalogResult());
-        case "pandora_skill_route": {
-            const runtime = await skillRuntime();
-            const routed = runtime.route(requiredString(args.intent, "intent"), {
-                limit: Number.isInteger(args.limit) ? Math.min(Math.max(args.limit, 1), 12) : 5,
-            });
-            return toolResult({
-                intent: routed.intent,
-                selected: [...routed.selected],
-                closure: [...routed.closure],
-                approvalRequired: [...routed.approvalRequired],
-                mutationAuthority: routed.mutationAuthority,
-                grantsMutation: routed.grantsMutation,
-            });
-        }
-        case "pandora_skill_load": {
-            const runtime = await skillRuntime();
-            const loaded = runtime.loadSkill(requiredString(args.skillId, "skillId"));
-            return toolResult({
-                id: loaded.id,
-                category: loaded.category ?? null,
-                lifecyclePhase: loaded.lifecycle_phase ?? null,
-                risk: loaded.risk,
-                autonomy: loaded.autonomy,
-                entrypoint: loaded.entrypoint,
-                dependsOn: [...loaded.depends_on],
-                capabilities: [...loaded.capabilities],
-                generatedCapabilitySkill: loaded.generatedCapabilitySkill === true,
-                capabilityPackId: loaded.capabilityPackId ?? null,
-                governanceEmbedded: loaded.governanceEmbedded === true,
-                mutationAuthority: "pandora-runtime-tool-gateway",
-                grantsMutation: false,
-                body: loaded.body,
-            });
-        }
-        case "pandora_capability_catalog":
-            return toolResult(listCapabilityPacks());
-        case "pandora_capability_search":
-            return toolResult(searchCapabilityFabric(
-                requiredString(args.query, "query"),
-                { limit: args.limit },
-            ));
-        case "pandora_capability_readiness":
-            return toolResult(capabilityReadiness({
-                packId: args.packId,
-                capability: args.capability,
-            }));
         case "pandora_tool_catalog":
         case "pandora_capability_catalog":
         case "pandora_capability_search":
@@ -575,7 +527,6 @@ function requiredToolScope(name, dependencies) {
             return undefined;
     }
 }
-
 function assertToolScope(name, actor, dependencies) {
     const granted = new Set(Array.isArray(actor.identity?.scopes) ? actor.identity.scopes : []);
     if (!granted.has("openid")) {
@@ -678,6 +629,54 @@ async function callTool(name, args, actor, dependencies) {
         ));
     }
     switch (name) {
+        case "pandora_skill_catalog":
+            return toolResult(await skillCatalogResult());
+        case "pandora_skill_route": {
+            const runtime = await skillRuntime();
+            const routed = runtime.route(requiredString(args.intent, "intent"), {
+                limit: Number.isInteger(args.limit) ? Math.min(Math.max(args.limit, 1), 12) : 5,
+            });
+            return toolResult({
+                intent: routed.intent,
+                selected: [...routed.selected],
+                closure: [...routed.closure],
+                approvalRequired: [...routed.approvalRequired],
+                mutationAuthority: routed.mutationAuthority,
+                grantsMutation: routed.grantsMutation,
+            });
+        }
+        case "pandora_skill_load": {
+            const runtime = await skillRuntime();
+            const loaded = runtime.loadSkill(requiredString(args.skillId, "skillId"));
+            return toolResult({
+                id: loaded.id,
+                category: loaded.category ?? null,
+                lifecyclePhase: loaded.lifecycle_phase ?? null,
+                risk: loaded.risk,
+                autonomy: loaded.autonomy,
+                entrypoint: loaded.entrypoint,
+                dependsOn: [...loaded.depends_on],
+                capabilities: [...loaded.capabilities],
+                generatedCapabilitySkill: loaded.generatedCapabilitySkill === true,
+                capabilityPackId: loaded.capabilityPackId ?? null,
+                governanceEmbedded: loaded.governanceEmbedded === true,
+                mutationAuthority: "pandora-runtime-tool-gateway",
+                grantsMutation: false,
+                body: loaded.body,
+            });
+        }
+        case "pandora_capability_catalog":
+            return toolResult(listCapabilityPacks());
+        case "pandora_capability_search":
+            return toolResult(searchCapabilityFabric(
+                requiredString(args.query, "query"),
+                { limit: args.limit },
+            ));
+        case "pandora_capability_readiness":
+            return toolResult(capabilityReadiness({
+                packId: args.packId,
+                capability: args.capability,
+            }));
         case "pandora_tool_catalog":
             return toolResult({
                 tools: getAllTools().filter((name) => providerToolAllowed(name, dependencies)).map((name) => {
