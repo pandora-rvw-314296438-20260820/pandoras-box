@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/data/plp_graphql_api.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 
@@ -286,7 +287,30 @@ class EnterpriseWorkspaceHome extends StatefulWidget {
 
 class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
   String? _expandedKey;
+  Map<String, Map<String, Object?>> _dashboardBySlug =
+      const <String, Map<String, Object?>>{};
   int _expansionGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadOwnerDashboards());
+  }
+
+  Future<void> _loadOwnerDashboards() async {
+    try {
+      final rows = await PlpGraphqlApi().loadOwnerDashboards();
+      if (!mounted) return;
+      final next = <String, Map<String, Object?>>{};
+      for (final row in rows) {
+        final slug = row['property_slug']?.toString().trim();
+        if (slug != null && slug.isNotEmpty) next[slug] = row;
+      }
+      setState(() => _dashboardBySlug = next);
+    } on PlpGraphqlException {
+      // Workspace navigation remains usable if live dashboard reads fail.
+    }
+  }
   final _scrollController = ScrollController();
   final _headerKeys = <String, GlobalKey>{
     for (final workspace in enterpriseWorkspaces) workspace.key: GlobalKey(),
@@ -464,6 +488,7 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                             key: ValueKey<String>('workspace-card-${workspace.key}'),
                             headerKey: _headerKeys[workspace.key]!,
                             workspace: workspace,
+                            dashboard: _dashboardBySlug[workspace.key],
                             expanded: _expandedKey == workspace.key,
                             onToggle: () => _toggle(workspace),
                             onOpen: (section) => _open(workspace, section),
@@ -486,6 +511,7 @@ class _WorkspaceCard extends StatelessWidget {
     super.key,
     required this.headerKey,
     required this.workspace,
+    required this.dashboard,
     required this.expanded,
     required this.onToggle,
     required this.onOpen,
@@ -493,6 +519,7 @@ class _WorkspaceCard extends StatelessWidget {
 
   final GlobalKey headerKey;
   final EnterpriseWorkspaceProfile workspace;
+  final Map<String, Object?>? dashboard;
   final bool expanded;
   final VoidCallback onToggle;
   final ValueChanged<EnterpriseWorkspaceSection> onOpen;
@@ -501,6 +528,7 @@ class _WorkspaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final home = workspace.sections.first;
     final tax = workspace.sections.firstWhere((section) => section.routeSlug == 'tax-compliance');
+    final dashboardSummary = _ownerDashboardSummary(dashboard);
     return Material(
       color: const Color(0xC90B0E12),
       borderRadius: BorderRadius.circular(25),
@@ -539,6 +567,23 @@ class _WorkspaceCard extends StatelessWidget {
                                   Text(workspace.subtitle, style: const TextStyle(
                                     color: Color(0xFFB8B8BB), fontSize: 14, height: 1.2,
                                   )),
+                                  if (dashboardSummary != null) ...[
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      dashboardSummary,
+                                      key: ValueKey<String>(
+                                        'workspace-dashboard-${workspace.key}',
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFFD8C7B3),
+                                        fontSize: 11.5,
+                                        height: 1.12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -644,4 +689,30 @@ class _WorkspaceLogo extends StatelessWidget {
       ),
     ),
   );
+}
+
+
+String? _ownerDashboardSummary(Map<String, Object?>? dashboard) {
+  if (dashboard == null || dashboard.isEmpty) return null;
+  final parts = <String>[];
+  final source = dashboard['source_status']?.toString().trim().toLowerCase();
+  if (source == 'healthy') parts.add('Connected');
+
+  final occupancy = num.tryParse(
+    dashboard['occupancy_percent']?.toString() ?? '',
+  );
+  if (occupancy != null) {
+    final value = occupancy == occupancy.roundToDouble()
+        ? occupancy.toStringAsFixed(0)
+        : occupancy.toStringAsFixed(1);
+    parts.add('$value% occupancy');
+  }
+
+  final arrivals = int.tryParse(
+    dashboard['arrivals_today']?.toString() ?? '',
+  );
+  if (arrivals != null) {
+    parts.add('$arrivals arrival${arrivals == 1 ? '' : 's'}');
+  }
+  return parts.isEmpty ? null : parts.join(' · ');
 }
