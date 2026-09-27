@@ -7,6 +7,7 @@ const migration=fs.readFileSync("supabase/migrations/20260927093535_operations_m
 const hold=fs.readFileSync("supabase/migrations/20260927112500_operations_model_rdp_vercel_hobby_hold_v1.sql","utf8");
 const consolidation=fs.readFileSync("supabase/migrations/20260928170000_operations_native_reasoning_rdp_consolidation_v1.sql","utf8");
 const nativeWorker=fs.readFileSync("api/operations-native-worker.ts","utf8");
+const reasoningFleet=fs.readFileSync("supabase/migrations/20260927070752_operations_reasoning_fleet_v1.sql","utf8");
 const routes=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/reasoning-rdp-routes.mjs","utf8");
 const control=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/index.ts","utf8");
 const rdp=fs.readFileSync("api/operations-rdp-worker.ts","utf8");
@@ -84,8 +85,8 @@ test("Gemini routes remain available while held Bedrock models stay in the catal
 test("Astra remains fail-closed and requires extra-high attested ChatGPT worker",()=>{
   assert.match(consolidation,/chatgpt_worker','required_thinking_effort','extra_high'/);
   assert.match(consolidation,/zero_workspace_budget_or_unattested_chatgpt_worker/);
-  assert.match(migration,/awaiting_live_model_attestation/);
-  assert.match(migration,/gpt-6-astra/);
+  assert.match(reasoningFleet,/awaiting_live_model_attestation/);
+  assert.match(reasoningFleet,/gpt-6-astra/);
 });
 
 test("RDP executor and ARTEMIS verifier remain separate and verified outcomes queue to Memory",()=>{
