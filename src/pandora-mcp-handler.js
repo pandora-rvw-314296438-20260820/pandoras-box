@@ -366,6 +366,7 @@ function defaultDependencies() {
         workloadToken: resolveVercelWorkloadToken,
         execute: executeTool,
         toolConfiguration: buildToolConfiguration,
+        canExecutePlan: (actor) => EXECUTOR_ROLES.has(actor.membership.role),
         now: Date.now,
     };
 }
@@ -560,7 +561,7 @@ async function callTool(name, args, actor, dependencies) {
             return toolResult({ plan });
         }
         case "pandora_execute_plan": {
-            if (!EXECUTOR_ROLES.has(actor.membership.role)) {
+            if (!dependencies.canExecutePlan(actor)) {
                 throw Object.assign(new Error("Plan execution requires a ProjectOS owner or admin session"), { status: 403 });
             }
             const planId = requiredUuid(args.planId, "planId");

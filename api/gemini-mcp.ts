@@ -10,6 +10,10 @@ const CONNECTOR_UID = 'github/pandora';
 const INSTALLATION_ID = '158056492';
 const CANONICAL_REPOSITORY = 'pandora-rvw-314296438-20260820/pandoras-box';
 const CANONICAL_LOGIN = 'pandora-rvw-314296438-20260820';
+const ORGANIZATION_ID = '2270b266-59da-4c39-bfd9-9f8d08352af0';
+const WORKER_IDENTITY_URL =
+  'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control/gemini-worker/identity';
+const WORKER_PRINCIPAL = 'vercel:mbanatao:mcpmaster:development:gemini-worker';
 
 const GEMINI_GITHUB_TOOLS = new Set([
   'github.get-repository',
@@ -26,6 +30,81 @@ const GEMINI_GITHUB_TOOLS = new Set([
   'github.read-repository-api',
   'github.write-repository-api',
 ]);
+
+function bearerValue(value: unknown) {
+  const header = typeof value === 'string'
+    ? value
+    : Array.isArray(value) && typeof value[0] === 'string'
+    ? value[0]
+    : '';
+  const match = header.match(/^Bearer\s+([A-Za-z0-9._~-]{80,4096})$/);
+  return match?.[1] || '';
+}
+
+class GeminiWorkerAuthenticator {
+  async authenticate(authorization: unknown) {
+    const token = bearerValue(authorization);
+    if (!token) throw Object.assign(new Error('Gemini worker identity is required'), { status: 401 });
+
+    let response: Response;
+    try {
+      response = await fetch(WORKER_IDENTITY_URL, {
+        method: 'GET',
+        headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
+        redirect: 'error',
+        signal: AbortSignal.timeout(8_000),
+      });
+    } catch {
+      throw Object.assign(new Error('Gemini worker identity verification failed'), { status: 503 });
+    }
+
+    const text = await response.text();
+    if (Buffer.byteLength(text, 'utf8') > 16_384) {
+      throw Object.assign(new Error('Gemini worker identity response is invalid'), { status: 503 });
+    }
+
+    let payload: any;
+    try { payload = JSON.parse(text); } catch { payload = null; }
+    if (
+      !response.ok
+      || payload?.ok !== true
+      || payload?.principalId !== WORKER_PRINCIPAL
+      || payload?.project !== 'mcpmaster'
+      || payload?.projectId !== 'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk'
+      || payload?.owner !== 'mbanatao'
+      || payload?.ownerId !== 'team_3yw1CN59ce4pj5SwyQGCAqN3'
+      || payload?.environment !== 'development'
+      || !Number.isFinite(Date.parse(String(payload?.expiresAt || '')))
+      || Date.parse(String(payload.expiresAt)) <= Date.now()
+    ) {
+      throw Object.assign(new Error('Gemini worker identity is not authorized'), { status: 401 });
+    }
+
+    return {
+      userId: WORKER_PRINCIPAL,
+      accessToken: token,
+      scopes: ['openid', 'pandora:read', 'pandora:plan', 'pandora:execute'],
+      scopeClaimsPresent: true,
+      aal: 'workload',
+    };
+  }
+}
+
+class GeminiWorkerMembershipResolver {
+  async resolve(organizationId: string, userId: string, accessToken: string) {
+    if (
+      organizationId !== ORGANIZATION_ID
+      || userId !== WORKER_PRINCIPAL
+      || typeof accessToken !== 'string'
+      || accessToken.length < 80
+    ) return null;
+    return {
+      organizationId: ORGANIZATION_ID,
+      userId: WORKER_PRINCIPAL,
+      role: 'operator',
+    };
+  }
+}
 
 const githubConnect = new GitHubConnectResolver();
 
@@ -58,8 +137,16 @@ async function geminiToolConfiguration(
   };
 }
 
+const workerAuthenticator = new GeminiWorkerAuthenticator();
+const workerMembership = new GeminiWorkerMembershipResolver();
+
 export const config = pandoraMcpVercelConfig;
 export default createPandoraMcpHandler({
   allowedToolNames: GEMINI_GITHUB_TOOLS,
+  authenticator: workerAuthenticator,
+  membershipResolver: workerMembership,
+  canExecutePlan: (actor: any) =>
+    actor?.membership?.role === 'operator'
+    && actor?.identity?.userId === WORKER_PRINCIPAL,
   toolConfiguration: geminiToolConfiguration,
 });
