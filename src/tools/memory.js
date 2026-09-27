@@ -261,14 +261,14 @@ class PandoraMemoryMCPServer {
 exports.PandoraMemoryMCPServer = PandoraMemoryMCPServer;
 exports.memoryTools = {
     'memory.health': {
-        description: 'Verify the OIDC-authenticated ProjectOS connection to Pandora Memory without exposing credentials or database access',
+        description: 'Verify the OIDC-authenticated Pandora connection to Pandora Memory without exposing credentials or database access',
         parameters: {
             type: 'object',
             properties: {},
         },
     },
     'memory.search': {
-        description: 'Retrieve namespace-isolated context from Pandora Memory through the allowlisted ProjectOS workload identity',
+        description: 'Retrieve namespace-isolated context from Pandora Memory through the allowlisted Pandora workload identity',
         parameters: {
             type: 'object',
             properties: {
@@ -314,8 +314,8 @@ exports.memoryTools = {
             type: 'object',
             properties: {
                 namespace: { type: 'string', enum: ['real_life', 'au'] },
-                projectId: { type: 'string', description: 'Exact ProjectOS project UUID when known' },
-                projectKey: { type: 'string', description: 'Exact ProjectOS project key when known' },
+                projectId: { type: 'string', description: 'Exact Pandora project UUID when known' },
+                projectKey: { type: 'string', description: 'Exact Pandora project key when known' },
                 title: { type: 'string' },
                 summary: { type: 'string', maxLength: 1800 },
                 proofStage: { type: 'string', enum: ['documented', 'implemented', 'tested', 'deployed', 'production_verified'] },
