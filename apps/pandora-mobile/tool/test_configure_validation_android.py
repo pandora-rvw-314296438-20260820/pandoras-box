@@ -148,7 +148,7 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(updated.count('android.intent.category.HOME'), 1)
-        self.assertEqual(updated.count('android.intent.category.DEFAULT'), 1)
+        self.assertEqual(updated.count('android.intent.category.DEFAULT'), 2)
         self.assertEqual(updated.count('android.intent.category.LAUNCHER'), 1)
         self.assertEqual(updated.count('android.intent.action.MAIN'), 2)
         self.assertIn('<uses-permission android:name="android.permission.CALL_PHONE"/>', updated)
@@ -162,6 +162,15 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
         self.assertNotIn('android:taskAffinity=""', updated)
         self.assertNotIn('android:lockTaskMode', updated)
         self.assertIn('without forcing default HOME', result.stdout)
+        self.assertEqual(updated.count('android.intent.action.VIEW'), 1)
+        self.assertEqual(updated.count('android.intent.category.BROWSABLE'), 1)
+        self.assertEqual(updated.count('android:scheme="com.banataosystems.pandora"'), 1)
+        self.assertEqual(updated.count('android:host="login-callback"'), 1)
+        self.assertIn(
+            'Configured Android Facebook OAuth callback: '
+            'com.banataosystems.pandora://login-callback/',
+            result.stdout,
+        )
 
     def test_refuses_preexisting_home_or_default_routing(self) -> None:
         manifest = _BASE_MANIFEST.replace(

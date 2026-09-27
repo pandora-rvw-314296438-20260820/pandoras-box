@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../pandora_config.dart';
+import 'pandora_session_storage.dart';
 
 class PandoraAuthFailure implements Exception {
   const PandoraAuthFailure(this.message);
@@ -67,6 +71,27 @@ abstract interface class ExtraIdentityVerificationSource {
   });
 }
 
+const String pandoraFacebookWebRedirectUrl = 'https://mcpmaster.vercel.app/';
+const String pandoraFacebookAndroidRedirectUrl =
+    'com.banataosystems.pandora://login-callback/';
+
+String? pandoraFacebookRedirectUrl({
+  required bool isWeb,
+  required TargetPlatform platform,
+}) {
+  if (isWeb) return pandoraFacebookWebRedirectUrl;
+  if (platform == TargetPlatform.android) {
+    return pandoraFacebookAndroidRedirectUrl;
+  }
+  return null;
+}
+
+bool pandoraFacebookSignInSupported({
+  required bool isWeb,
+  required TargetPlatform platform,
+}) =>
+    pandoraFacebookRedirectUrl(isWeb: isWeb, platform: platform) != null;
+
 abstract interface class PandoraAuth {
   PandoraSession? get currentSession;
 
@@ -76,9 +101,13 @@ abstract interface class PandoraAuth {
 
   Future<void> requestPasswordReset(String email);
 
+  Future<void> signInWithFacebook();
+
+  /// Checks active owner/admin membership under the database RLS policy.
+  Future<bool> hasActiveOwnerAccess();
+
   Future<void> signOut();
 }
-
 
 String? _workspacePresentationProfile(User user) {
   final metadata = user.userMetadata ?? const <String, dynamic>{};
@@ -130,6 +159,57 @@ class SupabasePandoraAuth
         'Pandora could not sign you in. Check your connection and try again.',
       );
     }
+  }
+
+  @override
+  Future<void> signInWithFacebook() async {
+    final redirectTo = pandoraFacebookRedirectUrl(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+    );
+    if (redirectTo == null) {
+      throw const PandoraAuthFailure(
+        'Facebook sign-in is available on the Pandora website and Android app.',
+      );
+    }
+    if (kIsWeb && !pandoraCanCompleteFacebookRedirect()) {
+      throw const PandoraAuthFailure(
+        'Facebook sign-in needs temporary browser storage. Enable storage and try again.',
+      );
+    }
+    try {
+      final launched = await _client.auth.signInWithOAuth(
+        OAuthProvider.facebook,
+        redirectTo: redirectTo,
+        scopes: 'public_profile,email',
+      );
+      if (!launched) {
+        throw const PandoraAuthFailure(
+          'Pandora could not open Facebook sign-in. Try again.',
+        );
+      }
+    } on PandoraAuthFailure {
+      rethrow;
+    } catch (_) {
+      throw const PandoraAuthFailure(
+        'Pandora could not open Facebook sign-in. Try again.',
+      );
+    }
+  }
+
+  @override
+  Future<bool> hasActiveOwnerAccess() async {
+    final userId = _client.auth.currentSession?.user.id;
+    if (userId == null) return false;
+    final membership = await _client
+        .from('memberships')
+        .select('role')
+        .eq('organization_id', PandoraConfig.organizationId)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+    final role = membership?['role'];
+    return role == 'owner' || role == 'admin';
   }
 
   @override

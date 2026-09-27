@@ -32,6 +32,12 @@ class _Auth implements PandoraAuth {
   Future<void> requestPasswordReset(String email) async {}
 
   @override
+  Future<void> signInWithFacebook() async {}
+
+  @override
+  Future<bool> hasActiveOwnerAccess() async => true;
+
+  @override
   Future<void> signIn({
     required String email,
     required String password,
@@ -180,6 +186,8 @@ class _MutableAuth implements PandoraAuth {
   final StreamController<PandoraSession?> _changes =
       StreamController<PandoraSession?>.broadcast(sync: true);
   PandoraSession? _session;
+  Future<bool>? ownerAccessCheck;
+  bool ownerAccess = true;
 
   void setSession(PandoraSession? session) {
     _session = session;
@@ -194,6 +202,13 @@ class _MutableAuth implements PandoraAuth {
 
   @override
   Future<void> requestPasswordReset(String email) async {}
+
+  @override
+  Future<void> signInWithFacebook() async {}
+
+  @override
+  Future<bool> hasActiveOwnerAccess() =>
+      ownerAccessCheck ?? Future<bool>.value(ownerAccess);
 
   @override
   Future<void> signIn({
@@ -461,6 +476,68 @@ void main() {
     await tester.tap(find.text('Work').last);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
+  });
+
+  testWidgets('new Facebook account has no owner or chat access', (
+    tester,
+  ) async {
+    await setTestSurface(tester, logicalSize: const Size(400, 800));
+    final auth = _MutableAuth(
+      const PandoraSession(userId: 'facebook-client'),
+    )..ownerAccess = false;
+    addTearDown(auth.close);
+    final repository = _Repository();
+
+    await tester.pumpWidget(
+      PandoraApp(
+        auth: auth,
+        repository: repository,
+        diagnostics: DiagnosticsStore(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your account is ready'), findsOneWidget);
+    expect(find.byType(PandoraShell), findsNothing);
+    expect(find.byTooltip('Open Settings'), findsNothing);
+    expect(repository.homeCalls, 0);
+
+    await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign in'), findsOneWidget);
+  });
+
+  testWidgets('late owner check cannot open a different user workspace', (
+    tester,
+  ) async {
+    await setTestSurface(tester, logicalSize: const Size(400, 800));
+    final oldCheck = Completer<bool>();
+    final auth = _MutableAuth(
+      const PandoraSession(userId: 'owner-a'),
+    )..ownerAccessCheck = oldCheck.future;
+    addTearDown(auth.close);
+    final repository = _Repository();
+
+    await tester.pumpWidget(
+      PandoraApp(
+        auth: auth,
+        repository: repository,
+        diagnostics: DiagnosticsStore(),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(PandoraShell), findsNothing);
+
+    auth.ownerAccessCheck = Future<bool>.value(false);
+    auth.setSession(const PandoraSession(userId: 'facebook-client-b'));
+    await tester.pumpAndSettle();
+    expect(find.text('Your account is ready'), findsOneWidget);
+    expect(find.byType(PandoraShell), findsNothing);
+
+    oldCheck.complete(true);
+    await tester.pumpAndSettle();
+    expect(find.byType(PandoraShell), findsNothing);
+    expect(repository.homeCalls, 0);
   });
 
   testWidgets('sign-out removes every pushed authenticated route', (

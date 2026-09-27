@@ -6,14 +6,15 @@ import 'app/pandora_app.dart';
 import 'app/pandora_runtime_bootstrap.dart';
 import 'core/local/pandora_local_store.dart';
 import 'core/security/mobile_auth_storage.dart';
+import 'core/security/pandora_session_storage.dart';
 import 'pandora_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  // Supabase sessions remain memory-only. Provider master credentials remain
-  // server/Vault-only; the APK receives only the scoped user session.
+  // Android sessions remain memory-only; web OAuth survives same-tab redirects.
+  // Provider credentials stay server-side. The client gets a user session.
   await PandoraMobileAuthStorage.clearLegacyPersistedSession(
     PandoraConfig.supabaseUrl,
   );
@@ -24,9 +25,7 @@ Future<void> main() async {
   await Supabase.initialize(
     url: PandoraConfig.supabaseUrl,
     publishableKey: PandoraConfig.supabasePublishableKey,
-    authOptions: const FlutterAuthClientOptions(
-      localStorage: EmptyLocalStorage(),
-    ),
+    authOptions: pandoraAuthClientOptions(),
   );
 
   final runtime = PandoraRuntimeBootstrap.create(
