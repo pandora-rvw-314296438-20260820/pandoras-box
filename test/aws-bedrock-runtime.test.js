@@ -53,7 +53,7 @@ test("STS exchange uses Vercel web identity with a 15 minute session", async () 
 test("Bedrock SigV4 request is scoped to approved runtime endpoint", () => {
   const signed = signBedrockRequest({
     region: "us-east-1",
-    modelId: "us.openai.gpt-5.6-luna",
+    modelId: "us.openai.gpt-6-luna",
     body: {
       messages: [{ role: "user", content: [{ text: "ping" }] }],
       inferenceConfig: { maxTokens: 16, temperature: 0 },
@@ -67,7 +67,7 @@ test("Bedrock SigV4 request is scoped to approved runtime endpoint", () => {
   });
   assert.equal(
     signed.url,
-    "https://bedrock-runtime.us-east-1.amazonaws.com/model/us.openai.gpt-5.6-luna/converse",
+    "https://bedrock-runtime.us-east-1.amazonaws.com/model/us.openai.gpt-6-luna/converse",
   );
   assert.match(
     signed.headers.authorization,
@@ -83,7 +83,7 @@ test("Bedrock health fails closed when workload identity is unavailable", async 
     {
       AWS_ROLE_ARN: "arn:aws:iam::792289066859:role/PandoraVercelBedrockInferenceV2",
       AWS_REGION: "us-east-1",
-      PANDORA_BEDROCK_FAST_MODEL: "us.openai.gpt-5.6-luna",
+      PANDORA_BEDROCK_FAST_MODEL: "openai.gpt-6-luna",
     },
     async () => {
       fetchCalls += 1;
@@ -105,7 +105,7 @@ test("Bedrock health proves STS and Converse without returning credentials", asy
     {
       AWS_ROLE_ARN: "arn:aws:iam::792289066859:role/PandoraVercelBedrockInferenceV2",
       AWS_REGION: "us-east-1",
-      PANDORA_BEDROCK_FAST_MODEL: "us.openai.gpt-5.6-luna",
+      PANDORA_BEDROCK_FAST_MODEL: "openai.gpt-6-luna",
     },
     async (url, init) => {
       calls.push({ url, init });
@@ -134,7 +134,7 @@ test("Bedrock health proves STS and Converse without returning credentials", asy
   );
   const result = await probe();
   assert.equal(result.status, "healthy");
-  assert.equal(result.model, "us.openai.gpt-5.6-luna");
+  assert.equal(result.model, "us.openai.gpt-6-luna");
   assert.equal(calls.length, 2);
   assert.equal(JSON.stringify(result).includes("ASIATEST"), false);
   assert.equal(JSON.stringify(result).includes("session"), false);
@@ -148,7 +148,7 @@ test("Bedrock catalog maps Astra to the governed US inference profile", async ()
     parts: [{ type: "text", text: "Return ASTRA_OK" }],
     maxTokens: 16,
     environment: {
-      AWS_ROLE_ARN: "arn:aws:iam::792289066859:role/PandoraVercelBedrockRuntime",
+      AWS_ROLE_ARN: "arn:aws:iam::792289066859:role/PandoraVercelBedrockInferenceV2",
       AWS_REGION: "us-east-1",
     },
     resolveWorkloadToken: async () => "oidc",
@@ -186,7 +186,7 @@ test("legacy Vercel profile env does not override catalog authority", async () =
     mode: "standard",
     maxTokens: 16,
     environment: {
-      AWS_ROLE_ARN: "arn:aws:iam::792289066859:role/PandoraVercelBedrockRuntime",
+      AWS_ROLE_ARN: "arn:aws:iam::792289066859:role/PandoraVercelBedrockInferenceV2",
       AWS_REGION: "us-east-1",
       PANDORA_BEDROCK_STANDARD_MODEL: "us.openai.gpt-5.6-sol",
     },
