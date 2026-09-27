@@ -43,6 +43,36 @@ export async function verifySignedHook(body, headers, configuredSecret, nowMilli
   return false;
 }
 
+async function readBoundedBody(request) {
+  const declaredLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) return null;
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_BODY_BYTES) {
+        await reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+}
+
 function isApprovedFacebookSignup(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   if (value.metadata?.name !== "before-user-created") return false;
@@ -64,8 +94,13 @@ function isApprovedFacebookSignup(value) {
 export async function handleFacebookSignupHook(request, configuredSecret, nowMilliseconds = Date.now()) {
   if (request.method !== "POST") return reply(405, { error: { http_code: 405, message: "Method not allowed" } });
   if (!configuredSecret) return reply(503, { error: { http_code: 503, message: "Signup policy unavailable" } });
-  const body = await request.text();
-  if (new TextEncoder().encode(body).length > MAX_BODY_BYTES) return reply(413, { error: { http_code: 413, message: "Signup policy request too large" } });
+  let body;
+  try {
+    body = await readBoundedBody(request);
+  } catch {
+    return reply(400, { error: { http_code: 400, message: "Invalid signup policy request" } });
+  }
+  if (body === null) return reply(413, { error: { http_code: 413, message: "Signup policy request too large" } });
   try {
     if (!await verifySignedHook(body, request.headers, configuredSecret, nowMilliseconds)) {
       return reply(401, { error: { http_code: 401, message: "Invalid signup policy signature" } });

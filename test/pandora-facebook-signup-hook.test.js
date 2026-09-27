@@ -115,6 +115,25 @@ test("oversized payload and invalid method fail closed", async () => {
   assert.equal((await decide(new Request("https://example.test/", { method: "GET" }))).status, 405);
 });
 
+test("streamed oversized body is cancelled before buffering the whole request", async () => {
+  let cancelled = false;
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(32_769));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const request = new Request("https://example.test/functions/v1/pandora-facebook-signup-hook", {
+    method: "POST",
+    body: stream,
+    duplex: "half",
+  });
+  assert.equal((await decide(request)).status, 413);
+  assert.equal(cancelled, true);
+});
+
 test("signed malformed JSON fails closed", async () => {
   assert.equal((await decide(signedRequest(facebook, { body: "not JSON" }))).status, 400);
 });
