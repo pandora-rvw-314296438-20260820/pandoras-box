@@ -46,7 +46,16 @@ function Invoke-RdpApi([hashtable]$Payload) {
 }
 
 function Command-Text([scriptblock]$Command) {
-  return (& $Command 2>&1 | Out-String).Trim()
+  $priorPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    $output = & $Command 2>&1
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) { throw "Native command failed with exit code $exitCode" }
+    return ($output | Out-String).Trim()
+  } finally {
+    $ErrorActionPreference = $priorPreference
+  }
 }
 
 function Run-Profile([string]$Profile) {

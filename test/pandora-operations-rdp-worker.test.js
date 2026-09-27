@@ -49,6 +49,13 @@ test("RDP handoff source identity comes from scheduler task state, not worker ev
   assert.doesNotMatch(worker,/headSha\s*=/);
 });
 
+test("native stderr is captured without converting successful commands into worker failures",()=>{
+  assert.match(worker,/\$ErrorActionPreference = "Continue"/);
+  assert.match(worker,/\$exitCode = \$LASTEXITCODE/);
+  assert.match(worker,/if \(\$exitCode -ne 0\)/);
+  assert.match(worker,/\$ErrorActionPreference = \$priorPreference/);
+});
+
 test("RDP executor is deterministic and has no source or release mutation commands",()=>{
   assert.match(worker,/Pandora GitHub Runner/);
   assert.match(worker,/flutter --version/);
