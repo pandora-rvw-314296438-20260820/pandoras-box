@@ -119,59 +119,7 @@ function Run-Profile([string]$Profile,[string]$SourceSha,[string]$Repository,[st
 
     if ($Profile -in @("repo_test","repo_build")) {
       if ($Repository -ne "pandora-rvw-314296438-20260820/pandoras-box") { throw "Repository authority mismatch" }
-      if ($SourceSha -notmatch '^[a-f0-9]{40}
-  } catch {
-    $exitCode = 1
-    $parts.Add("ERROR=$($_.Exception.GetType().Name)")
-    $tests.Add("RDP profile execution FAIL")
-  }
-
-  $stdout = $parts -join "`n---`n"
-  return @{ exitCode=$exitCode; stdoutSha256=(Get-Sha256Hex $stdout); tests=@($tests) }
-}
-
-New-Item -ItemType Directory -Path $WorkerRoot -Force | Out-Null
-Write-WorkerLog "worker_loop_started"
-
-while ($true) {
-  try {
-    $poll = Invoke-RdpApi @{ action = "poll" }
-    if ($poll.state -eq "offered" -and $poll.offer) {
-      $offer = $poll.offer
-      $accepted = Invoke-RdpApi @{
-        action = "accept"; taskId = [string]$offer.taskId; leaseId = [string]$offer.leaseId;
-        dispatchId = [string]$offer.dispatchId; generation = [int]$offer.generation
-      }
-      $profile = [string]$accepted.profile
-      Write-WorkerLog ("task_started " + [string]$offer.taskId + " profile=" + $profile)
-      $sourceSha = [string]$offer.sourceSha
-      $repository = [string]$offer.repository
-      $result = Run-Profile $profile $sourceSha $repository ([string]$offer.taskId)
-      if ([int]$result.exitCode -ne 0) {
-        Invoke-RdpApi @{
-          action="fail"; taskId=[string]$offer.taskId; leaseId=[string]$offer.leaseId;
-          dispatchId=[string]$offer.dispatchId; generation=[int]$offer.generation
-        } | Out-Null
-        Write-WorkerLog ("task_failed " + [string]$offer.taskId)
-      } else {
-        $proofBasis = "{0}:{1}:{2}:{3}:{4}:{5}" -f `
-          $offer.dispatchId,$offer.taskId,$offer.generation,$profile,$result.exitCode,$result.stdoutSha256
-        $proof = Get-Sha256Hex $proofBasis
-        Invoke-RdpApi @{
-          action="complete"; taskId=[string]$offer.taskId; leaseId=[string]$offer.leaseId;
-          dispatchId=[string]$offer.dispatchId; generation=[int]$offer.generation;
-          evidence=@{ profile=$profile; exitCode=[int]$result.exitCode;
-            stdoutSha256=[string]$result.stdoutSha256; proofSha256=$proof; tests=@($result.tests) }
-        } | Out-Null
-        Write-WorkerLog ("task_handed_off " + [string]$offer.taskId)
-      }
-    }
-  } catch {
-    Write-WorkerLog ("loop_error " + $_.Exception.GetType().Name)
-  }
-  Start-Sleep -Seconds ([Math]::Max(10,$PollSeconds))
-}
-) { throw "Source SHA invalid" }
+      if ($SourceSha -notmatch '^[a-f0-9]{40}$') { throw "Source SHA invalid" }
       if ([string]::IsNullOrWhiteSpace($TaskId)) { throw "Task identity missing" }
       $jobKey = (Get-Sha256Hex $TaskId).Substring(0,24)
       $jobRoot = Join-Path $WorkerRoot ("jobs\" + $jobKey)
@@ -234,7 +182,9 @@ while ($true) {
       }
       $profile = [string]$accepted.profile
       Write-WorkerLog ("task_started " + [string]$offer.taskId + " profile=" + $profile)
-      $result = Run-Profile $profile
+      $sourceSha = [string]$offer.sourceSha
+      $repository = [string]$offer.repository
+      $result = Run-Profile $profile $sourceSha $repository ([string]$offer.taskId)
       if ([int]$result.exitCode -ne 0) {
         Invoke-RdpApi @{
           action="fail"; taskId=[string]$offer.taskId; leaseId=[string]$offer.leaseId;
