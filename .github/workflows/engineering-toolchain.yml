@@ -54,6 +54,9 @@ jobs:
       - name: Verify Supabase repository contract
         run: npm run supabase:contract
 
+      - name: Replay all Supabase migrations in disposable PGlite
+        run: node scripts/replay-supabase-migrations.mjs
+
       - name: Verify MCP contract with Inspector
         run: npm run mcp:inspect
 

@@ -89,3 +89,5 @@ enabled = false
 [functions.pandora-base44-bridge]
 verify_jwt = false
 enabled = false
+
+

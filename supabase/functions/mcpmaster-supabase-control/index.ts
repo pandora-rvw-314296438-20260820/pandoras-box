@@ -2,6 +2,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "npm:jose@5.10.0";
 import { routeForCanonicalReleaseCapture } from "./canonical-release-capture-routes.mjs";
 import { assertProductionVercelClaims } from "./identity-policy.mjs";
+import { routeForRdpOperations } from "./rdp-routes.mjs";
+import { routeForReasoningRdpOperations } from "./reasoning-rdp-routes.mjs";
+import { handleGeminiWorkerRequest } from "./gemini-worker-gateway.mjs";
 
 const CONTROL_ORGANIZATION_ID = "2270b266-59da-4c39-bfd9-9f8d08352af0";
 const OPERATIONS_PROJECT_ID = "ee282126-3f61-4058-8c92-2fedbfcecf1f";
@@ -9,9 +12,20 @@ const OPERATIONS_NATIVE_WORKERS = Object.freeze({
   builder: Object.freeze({
     workerKey: "pandora-native-builder-v1",
     principalKey: "vercel:mcpmaster:operations-native-builder-v1",
-    lanes: ["backend", "reliability"],
-    capabilities: ["source.write", "ci.verify", "release.handoff", "runtime.deploy", "worker.reconcile"],
-    capacity: 1,
+    lanes: ["backend", "reliability", "web", "growth"],
+    capabilities: [
+      "source.write",
+      "ci.verify",
+      "release.handoff",
+      "runtime.deploy",
+      "worker.reconcile",
+      "provider.readback",
+      "security.verify",
+      "memory.integrate",
+      "inference.route",
+      "events.verify",
+    ],
+    capacity: 4,
   }),
   release: Object.freeze({
     workerKey: "pandora-native-release-v1",
@@ -21,6 +35,10 @@ const OPERATIONS_NATIVE_WORKERS = Object.freeze({
     capacity: 1,
   }),
 });
+const OPERATIONS_NATIVE_GENERIC_VERIFY_TASKS = new Set([
+  "OPS-MEMORY-CALLER-ADOPTION-V1",
+  "OPS-WHOLE-SHEET-ACCEPTANCE-V3",
+]);
 const MAX_REQUEST_BYTES = 256_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -28,10 +46,10 @@ type ControlRpc =
   | "get_supabase_control_accounts"
   | "get_github_control_accounts"
   | "get_runtime_security_config"
-  | "create_execution_plan"
-  | "approve_execution_plan"
-  | "claim_execution_plan"
-  | "finish_execution_plan"
+  | "pandora_create_execution_plan"
+  | "pandora_approve_execution_plan"
+  | "pandora_claim_execution_plan"
+  | "pandora_finish_execution_plan"
   | "list_execution_plans"
   | "list_execution_audit"
   | "verify_execution_audit_chain"
@@ -53,7 +71,24 @@ type ControlRpc =
   | "pandora_ops_wake_authorize_v1"
   | "pandora_ops_reconcile_required_v1"
   | "pandora_ops_native_release_verify_v1"
-  | "pandora_ops_wake_nonce_consume_v1";
+  | "pandora_ops_record_verification_v1"
+  | "pandora_ops_verify_v1"
+  | "pandora_ops_final_acceptance_readback_v1"
+  | "pandora_ops_wake_nonce_consume_v1"
+  | "pandora_ops_generic_source_candidate_v1"
+  | "pandora_ops_generic_source_execute_v1"
+  | "pandora_ops_generic_source_release_step_v1"
+  | "pandora_ops_preflight_next_v1"
+  | "pandora_ops_register_reasoning_rdp_bridge_v1"
+  | "pandora_ops_reasoning_rdp_candidate_v1"
+  | "pandora_ops_reasoning_rdp_begin_v1"
+  | "pandora_ops_reasoning_rdp_materialize_v1"
+  | "pandora_ops_reasoning_rdp_status_v1"
+  | "pandora_ops_reasoning_rdp_verify_child_v1"
+  | "pandora_ops_reasoning_rdp_parent_handoff_v1"
+  | "pandora_ops_reasoning_rdp_verify_parent_v1"
+  | "pandora_ops_register_rdp_artemis_verifier_v1"
+  | "pandora_ops_reasoning_rdp_queue_memory_v1";
 
 type ControlAction =
   | "catalog"
@@ -85,7 +120,27 @@ type ControlAction =
   | "operations_wake_authorize"
   | "operations_reconcile"
   | "operations_native_release_verify"
-  | "operations_wake_nonce_consume";
+  | "operations_verification_record"
+  | "operations_verification_accept"
+  | "operations_final_acceptance_readback"
+  | "operations_wake_nonce_consume"
+  | "operations_generic_source_candidate"
+  | "operations_generic_source_execute"
+  | "operations_generic_source_release_step"
+  | "operations_preflight_next"
+  | "operations_reasoning_rdp_register"
+  | "operations_reasoning_rdp_heartbeat"
+  | "operations_reasoning_rdp_candidate"
+  | "operations_reasoning_rdp_claim"
+  | "operations_reasoning_rdp_dispatch_ack"
+  | "operations_reasoning_rdp_begin"
+  | "operations_reasoning_rdp_materialize"
+  | "operations_reasoning_rdp_status"
+  | "operations_reasoning_rdp_verify_child"
+  | "operations_reasoning_rdp_parent_handoff"
+  | "operations_reasoning_rdp_verify_parent"
+  | "operations_rdp_artemis_register"
+  | "operations_reasoning_rdp_queue_memory";
 
 interface ControlRoute {
   action: ControlAction;
@@ -239,6 +294,12 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
   const canonicalCapture = routeForCanonicalReleaseCapture(input);
   if (canonicalCapture) return canonicalCapture as ControlRoute;
 
+  const rdpRoute = routeForRdpOperations(input, OPERATIONS_PROJECT_ID);
+  if (rdpRoute) return rdpRoute as ControlRoute;
+
+  const reasoningRdpRoute = routeForReasoningRdpOperations(input, OPERATIONS_PROJECT_ID);
+  if (reasoningRdpRoute) return reasoningRdpRoute as ControlRoute;
+
   if (input.action === "catalog") {
     return {
       action: "catalog",
@@ -266,21 +327,19 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
 
   if (input.action === "execution_plan_create") {
     const requestId = requiredUuid(input, "requestId");
-    const intakeId = requiredUuid(input, "intakeId");
     const tool = requiredString(input, "tool");
     const risk = requiredString(input, "risk");
     const payloadHash = requiredString(input, "payloadHash");
     const expiresAt = requiredString(input, "expiresAt");
-    if (!requestId || !intakeId || !tool || !risk || !payloadHash || !expiresAt || !isRecord(input.args)) {
+    if (!requestId || !tool || !risk || !payloadHash || !expiresAt || !isRecord(input.args)) {
       return undefined;
     }
     return {
       action: "execution_plan_create",
-      rpc: "create_execution_plan",
+      rpc: "pandora_create_execution_plan",
       responseKey: "plan",
       params: {
         p_request_id: requestId,
-        p_intake_id: intakeId,
         p_tool: tool,
         p_risk: risk,
         p_args: input.args,
@@ -296,7 +355,7 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     if (!planId || !approvedBy) return undefined;
     return {
       action: "execution_plan_approve",
-      rpc: "approve_execution_plan",
+      rpc: "pandora_approve_execution_plan",
       responseKey: "plan",
       params: { p_plan_id: planId, p_approved_by: approvedBy },
     };
@@ -307,7 +366,7 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     if (!planId) return undefined;
     return {
       action: "execution_plan_claim",
-      rpc: "claim_execution_plan",
+      rpc: "pandora_claim_execution_plan",
       responseKey: "plan",
       params: { p_plan_id: planId },
     };
@@ -319,7 +378,7 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     if (!planId || !status) return undefined;
     return {
       action: "execution_plan_finish",
-      rpc: "finish_execution_plan",
+      rpc: "pandora_finish_execution_plan",
       responseKey: "plan",
       params: {
         p_plan_id: planId,
@@ -558,6 +617,67 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     };
   }
 
+  if (input.action === "operations_preflight_next") {
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_preflight_next",
+      rpc: "pandora_ops_preflight_next_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
+      },
+    };
+  }
+
+  if (input.action === "operations_generic_source_candidate") {
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_generic_source_candidate",
+      rpc: "pandora_ops_generic_source_candidate_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
+      },
+    };
+  }
+
+  if (input.action === "operations_generic_source_execute") {
+    const taskId = requiredString(input, "taskId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    if (!taskId || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/.test(taskId) || generation === undefined) return undefined;
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "operations_generic_source_execute",
+      rpc: "pandora_ops_generic_source_execute_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_task_key: taskId,
+        p_generation: generation,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
+      },
+    };
+  }
+
+  if (input.action === "operations_generic_source_release_step") {
+    const release = OPERATIONS_NATIVE_WORKERS.release;
+    return {
+      action: "operations_generic_source_release_step",
+      rpc: "pandora_ops_generic_source_release_step_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_verifier_key: release.workerKey,
+        p_principal_key: release.principalKey,
+      },
+    };
+  }
+
   if (input.action === "operations_claim") {
     const taskId = requiredString(input, "taskId");
     const taskRevision = requiredInteger(input, "taskRevision", 0, Number.MAX_SAFE_INTEGER);
@@ -663,6 +783,62 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     };
   }
 
+  if (input.action === "operations_final_acceptance_readback") {
+    return {
+      action: "operations_final_acceptance_readback",
+      rpc: "pandora_ops_final_acceptance_readback_v1",
+      responseKey: "operations",
+      params: { p_project_id: OPERATIONS_PROJECT_ID },
+    };
+  }
+
+  if (input.action === "operations_verification_record") {
+    const taskId = requiredString(input, "taskId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    const status = requiredString(input, "status");
+    if (!taskId || !OPERATIONS_NATIVE_GENERIC_VERIFY_TASKS.has(taskId)
+      || generation === undefined || !["PASS", "FAIL", "BLOCKED"].includes(String(status))
+      || !isRecord(input.evidence)) return undefined;
+    const release = OPERATIONS_NATIVE_WORKERS.release;
+    return {
+      action: "operations_verification_record",
+      rpc: "pandora_ops_record_verification_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_task_key: taskId,
+        p_generation: generation,
+        p_verifier_key: release.workerKey,
+        p_principal_key: release.principalKey,
+        p_status: status,
+        p_evidence: input.evidence,
+      },
+    };
+  }
+
+  if (input.action === "operations_verification_accept") {
+    const taskId = requiredString(input, "taskId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    const verificationRunId = requiredUuid(input, "verificationRunId");
+    if (!taskId || !OPERATIONS_NATIVE_GENERIC_VERIFY_TASKS.has(taskId)
+      || generation === undefined || !verificationRunId || !isRecord(input.receipt)) return undefined;
+    const release = OPERATIONS_NATIVE_WORKERS.release;
+    return {
+      action: "operations_verification_accept",
+      rpc: "pandora_ops_verify_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_task_key: taskId,
+        p_generation: generation,
+        p_verifier_key: release.workerKey,
+        p_principal_key: release.principalKey,
+        p_verification_run_id: verificationRunId,
+        p_receipt: input.receipt,
+      },
+    };
+  }
+
   if (input.action === "operations_native_release_verify") {
     const taskId = requiredString(input, "taskId");
     if (taskId !== "OPS-CLOUD-CONNECTORS-RELEASE-V1") return undefined;
@@ -703,6 +879,9 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
 }
 
 Deno.serve(async (request: Request) => {
+  const geminiWorkerResponse = await handleGeminiWorkerRequest(request);
+  if (geminiWorkerResponse) return geminiWorkerResponse;
+
   if (request.method !== "POST") return response(405, { ok: false, error: "method_not_allowed" });
 
   const token = bearerToken(request);

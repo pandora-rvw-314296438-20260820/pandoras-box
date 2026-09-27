@@ -51,6 +51,18 @@ _HOME_FILTER = '''            <intent-filter>
                 <category android:name="android.intent.category.HOME"/>
                 <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>'''
+_FACEBOOK_OAUTH_SCHEME = 'com.banataosystems.pandora'
+_FACEBOOK_OAUTH_HOST = 'login-callback'
+_FACEBOOK_OAUTH_VIEW_ACTION = 'android.intent.action.VIEW'
+_FACEBOOK_OAUTH_BROWSABLE_CATEGORY = 'android.intent.category.BROWSABLE'
+_FACEBOOK_OAUTH_FILTER = '''            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="com.banataosystems.pandora"
+                    android:host="login-callback"/>
+            </intent-filter>'''
 _CANONICAL_MARK_SHA256 = (
     '8a35b74baec47b960a42bb74587f9c531d6cbf8d45f16061836a9e63f00efcc5'
 )
@@ -206,6 +218,18 @@ def configure_manifest(manifest: Path) -> int:
             file=sys.stderr,
         )
         return 1
+    if (
+        text.count(_FACEBOOK_OAUTH_SCHEME) != 0
+        or text.count(_FACEBOOK_OAUTH_HOST) != 0
+        or text.count(_FACEBOOK_OAUTH_VIEW_ACTION) != 0
+        or text.count(_FACEBOOK_OAUTH_BROWSABLE_CATEGORY) != 0
+    ):
+        print(
+            'Generated Android manifest already declares the Pandora Facebook OAuth callback; '
+            'refusing an ambiguous deep-link mutation.',
+            file=sys.stderr,
+        )
+        return 1
     if text.count(_LAUNCHER_FILTER) != 1:
         print(
             'Expected exactly one generated Flutter launcher intent filter; '
@@ -231,7 +255,7 @@ def configure_manifest(manifest: Path) -> int:
     updated = updated.replace(_GENERATED_ICON, _PANDORA_ICON, 1)
     updated = updated.replace(
         _LAUNCHER_FILTER,
-        f'{_LAUNCHER_FILTER}\n{_HOME_FILTER}',
+        f'{_LAUNCHER_FILTER}\n{_HOME_FILTER}\n{_FACEBOOK_OAUTH_FILTER}',
         1,
     )
     if internet_mentions == 0:
@@ -344,8 +368,20 @@ def configure_manifest(manifest: Path) -> int:
     if verified.count(_HOME_CATEGORY) != 1:
         print('Android HOME eligibility verification failed.', file=sys.stderr)
         return 1
-    if verified.count(_DEFAULT_CATEGORY) != 1:
-        print('Android HOME DEFAULT category verification failed.', file=sys.stderr)
+    if verified.count(_DEFAULT_CATEGORY) != 2:
+        print('Android HOME/OAuth DEFAULT category verification failed.', file=sys.stderr)
+        return 1
+    if verified.count(_FACEBOOK_OAUTH_VIEW_ACTION) != 1:
+        print('Android Facebook OAuth VIEW action verification failed.', file=sys.stderr)
+        return 1
+    if verified.count(_FACEBOOK_OAUTH_BROWSABLE_CATEGORY) != 1:
+        print('Android Facebook OAuth BROWSABLE category verification failed.', file=sys.stderr)
+        return 1
+    if verified.count(_FACEBOOK_OAUTH_SCHEME) != 1:
+        print('Android Facebook OAuth scheme verification failed.', file=sys.stderr)
+        return 1
+    if verified.count(_FACEBOOK_OAUTH_HOST) != 1:
+        print('Android Facebook OAuth host verification failed.', file=sys.stderr)
         return 1
     if verified.count(_LAUNCHER_CATEGORY) != 1:
         print('Android launcher recovery entry verification failed.', file=sys.stderr)
@@ -382,6 +418,7 @@ def configure_manifest(manifest: Path) -> int:
     print('Configured Android special access declaration: android.permission.SCHEDULE_EXACT_ALARM')
     print('Configured Android local reminder receiver: non-exported')
     print('Configured Android HOME eligibility without forcing default HOME')
+    print('Configured Android Facebook OAuth callback: com.banataosystems.pandora://login-callback/')
     return 0
 
 
