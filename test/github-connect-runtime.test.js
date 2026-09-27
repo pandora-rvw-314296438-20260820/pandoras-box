@@ -69,7 +69,7 @@ test("repository-scoped GitHub tools use Vercel Connect before the Vault catalog
       assert.deepEqual(body.authorizationDetails[0].repositories, [REPOSITORY]);
       assert.deepEqual(body.authorizationDetails[0].permissions, ["contents:read"]);
       return new Response(JSON.stringify({
-        token: "ghs_fixture_short_lived_token_value",
+        token: "fixture-short-lived-connect-token-value-123456789",
         expiresAt: Date.now() + 3_600_000,
         installationId: "158056492",
         connector: { id: "scl_fixture", uid: "github/pandora", type: "github" },
@@ -82,7 +82,7 @@ test("repository-scoped GitHub tools use Vercel Connect before the Vault catalog
     );
     assert.equal(calls.length, 1);
     assert.equal(configuration.github.authMode, "github_app_connect");
-    assert.equal(configuration.github.token, "ghs_fixture_short_lived_token_value");
+    assert.equal(configuration.github.token, "fixture-short-lived-connect-token-value-123456789");
     assert.deepEqual(configuration.github.allowedRepositories, [REPOSITORY]);
     assert.equal(configuration.github.allowMutations, true);
   } finally {

@@ -13,7 +13,7 @@ const INSTALLATION = "158056492";
 
 function tokenResponse(overrides = {}) {
   return new Response(JSON.stringify({
-    token: "ghs_fixture_short_lived_token_value",
+    token: "fixture-short-lived-connect-token-value-123456789",
     expiresAt: Date.now() + 3_600_000,
     installationId: INSTALLATION,
     connector: { id: "scl_fixture", uid: CONNECTOR, type: "github" },
@@ -58,7 +58,7 @@ test("GitHub Connect requests a short-lived app token scoped to the canonical re
   });
   const resolved = await resolver.resolve(OIDC, options());
   assert.equal(resolved.authMode, "github_app_connect");
-  assert.equal(resolved.token, "ghs_fixture_short_lived_token_value");
+  assert.equal(resolved.token, "fixture-short-lived-connect-token-value-123456789");
   assert.deepEqual(resolved.allowedRepositories, [REPOSITORY]);
   assert.equal(resolved.allowMutations, true);
   assert.equal(calls.length, 1);
