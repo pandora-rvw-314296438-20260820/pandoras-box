@@ -1,0 +1,25 @@
+# Facebook client signup guard (draft rollout)
+
+Scope: new Pandora clients may create a Supabase Auth account through Facebook sign-in with an email. Existing accounts continue to sign in. This guard does not request Page, portfolio, or ads permissions and does not touch the separate Pandora Meta Page connection.
+
+## Why this hook exists
+
+Production Auth currently has global disable_signup=true, which prevents all new OAuth users. Supabase Auth checks that setting before a Before User Created hook can admit a Facebook signup. Flipping it to false by itself would also admit new email and GitHub signups. A signed HTTP Before User Created hook can admit only new facebook users and deny the other providers. Supabase Auth creates user.app_metadata.provider on the server, after OAuth, and invokes the hook only when its account-linking decision is CreateAccount.
+
+Sources: [Supabase hook contract](https://supabase.com/docs/guides/auth/auth-hooks/before-user-created-hook), [Auth callback](https://github.com/supabase/auth/blob/master/internal/api/external.go), [Auth hook decision](https://github.com/supabase/auth/blob/master/internal/api/hooks.go), [provider assignment](https://github.com/supabase/auth/blob/master/internal/api/signup.go), [Facebook email retrieval](https://github.com/supabase/auth/blob/master/internal/api/provider/facebook.go).
+
+## Release order (must be separately authorized and verified)
+
+1. Merge this source PR only after all required exact-head checks and independent review. It is source only: no function deploy, Auth switch, credential creation, or database migration happens with this PR. Re-read the production deployment and Supabase Edge function registry before any new function deploy. Keep automatic Edge deploy disabled in supabase/config.toml; release the exact committed function through the governed provider path.
+2. Deploy pandora-facebook-signup-hook to production project jcyqixttuebxqqfkjonq from the exact source SHA with verify_jwt=false. This is allowed only because the handler requires a valid Standard Webhooks HMAC signature. The function never reads or writes the database. Configure a high-entropy BEFORE_USER_CREATED_HOOK_SECRET exclusively in the Supabase Edge secret store with format v1,whsec_<base64>. Configure the same value through a protected Supabase provider channel as hook_before_user_created_secrets in Supabase Auth. Do not put the value in GitHub, logs, screenshots, PR comments, or chat. If the protected secret-sharing channel is unavailable, stop.
+3. Keep disable_signup=true. Point Supabase Auth hook_before_user_created_uri to the exact function URL and set hook_before_user_created_enabled=true. Read back enabled flag, URL, function version, and verify_jwt=false without exposing signing material. Send requests with unsigned, wrong-key, stale, and valid test signatures; confirm only a valid signed Facebook event is permitted. Confirm an existing GitHub and email/password user can still sign in. A deny test for new email and GitHub accounts must show no new auth.users or auth.identities rows. A failed hook must block account creation.
+4. When the Meta app is Live, its legal URLs and Supabase callback are saved, and the Facebook provider has been configured with its App ID and secret in Supabase Auth only, set disable_signup=false. Keep the guard enabled continuously. Do not flip global signup if the hook and negative tests are not healthy. Check new Facebook sign-in in the live Pandora UI with public_profile,email only. Verify the session, new or previously linked auth.users.id, and auth.identities.provider=facebook without copying private details. Test both a new Facebook user and an existing confirmed email account, plus unconfirmed-email collision behavior before asserting there was no duplication or takeover.
+5. Verify new email and GitHub registration remain denied while existing email and GitHub login continue; monitor Auth and Edge errors and audit counts. Verify the Pandora Page connection independently still shows Facebook & Instagram connected.
+
+## Rollback
+
+Set disable_signup=true first and read it back. This blocks new Facebook, email, and GitHub signups without disabling existing logins. Leave the hook enabled while reconciling any in-flight callbacks; if it causes existing-user login failures, disable the hook only after global signup denial is read back. Disable the Facebook provider and remove the new sign-in button via governed release if needed. Never remove or revoke an existing Page token/grant as part of this rollback.
+
+## Constraints
+
+A provider outage, missing hook secret, signature failure, malformed event, unrecognized provider, missing email, or hook timeout denies new account creation. The function handles no Meta OAuth code or Page/ads grant and emits no user identity, token, raw webhook, or secret in logs. Production configuration and real sign-in tests are separate gates; this draft PR alone does not prove those outcomes. New provider permissions, business verification, a DB migration, or a UI step requiring a human still need the Owner's decision under the locked packet.
