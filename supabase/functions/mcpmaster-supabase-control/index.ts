@@ -22,7 +22,7 @@ const OPERATIONS_NATIVE_WORKERS = Object.freeze({
       "inference.route",
       "events.verify",
     ],
-    capacity: 1,
+    capacity: 4,
   }),
   release: Object.freeze({
     workerKey: "pandora-native-release-v1",
