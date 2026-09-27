@@ -56,8 +56,10 @@ void main() {
         home: SignInScreen(checkFacebookProviderEnabled: () async => ++reads == 1),
       ));
       await tester.pump();
-      expect(find.text('Continue with Facebook'), findsOneWidget);
-      await tester.tap(find.text('Continue with Facebook'));
+      final facebookButton = find.text('Continue with Facebook');
+      expect(facebookButton, findsOneWidget);
+      await tester.ensureVisible(facebookButton);
+      await tester.tap(facebookButton);
       await tester.pumpAndSettle();
       expect(reads, 2);
       expect(find.text('Continue with Facebook'), findsNothing);
