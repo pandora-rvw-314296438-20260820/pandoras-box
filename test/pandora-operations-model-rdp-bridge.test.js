@@ -4,13 +4,13 @@ const assert=require("node:assert/strict");
 const fs=require("node:fs");
 
 const migration=fs.readFileSync("supabase/migrations/20260927093535_operations_model_rdp_bridge_v1.sql","utf8");
+const hold=fs.readFileSync("supabase/migrations/20260927112500_operations_model_rdp_vercel_hobby_hold_v1.sql","utf8");
 const routes=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/reasoning-rdp-routes.mjs","utf8");
 const control=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/index.ts","utf8");
-const bridge=fs.readFileSync("api/operations-reasoning-rdp-bridge.ts","utf8");
 const rdp=fs.readFileSync("api/operations-rdp-worker.ts","utf8");
 const worker=fs.readFileSync("scripts/operations/rdp-worker.ps1","utf8");
 
-test("ordinary RDP automation tasks are model-first while direct OPS-RDP canaries stay direct",()=>{
+test("ordinary RDP automation tasks remain model-first while direct OPS-RDP canaries stay direct",()=>{
   assert.match(migration,/q\.task_key !~ '\^OPS-RDP-'/);
   assert.match(migration,/\(q\.spec->'requiredCapabilities'\) \? 'rdp\.execute'/);
   assert.match(migration,/q\.spec->>'risk'='read'/);
@@ -22,17 +22,16 @@ test("reasoning plan can choose only bounded profiles, never commands",()=>{
   assert.match(migration,/count\(\*\) from jsonb_object_keys\(plan\)\)<>2/);
   assert.match(migration,/plan \?& array\['profile','reason'\]/);
   assert.match(migration,/powershell\|cmd\\\.exe\|bash\|curl\|wget/);
-  assert.doesNotMatch(bridge,/childCommand|shellCommand|commandText|scriptText/);
-  assert.match(bridge,/arbitraryCommandAuthority: false/);
+  assert.match(migration,/allowed_profiles/);
+  assert.match(migration,/OPS_REASONING_RDP_PLAN_INVALID/);
 });
 
-test("bridge is exact-source, budget fenced and provider routed",()=>{
+test("model-first bridge contract stays exact-source, budget fenced and provider routed",()=>{
   assert.match(migration,/OPS_REASONING_RDP_INFERENCE_BUDGET_REQUIRED/);
   assert.match(migration,/workspaceAvailableMicros/);
   assert.match(migration,/structured_extraction/);
   assert.match(migration,/no_fresh_approved_structured_extraction_model/);
   assert.match(migration,/sourceSha/);
-  assert.match(bridge,/api\/operations-inference\?operation=infer/);
 });
 
 test("child execution is independently verified before parent convergence",()=>{
@@ -54,22 +53,22 @@ test("RDP repo profiles only run canonical main ancestry and never publish sourc
   assert.doesNotMatch(worker,/\bvercel\s+(deploy|promote|rollback)\b/i);
 });
 
-test("bridge uses signed minute wake and Operations replay fence",()=>{
-  assert.match(migration,/pandora-operations-reasoning-rdp-bridge-v1/);
-  assert.match(migration,/\* \* \* \* \*/);
-  assert.match(bridge,/PANDORA_OPS_WAKE_HMAC_SECRET/);
-  assert.match(bridge,/operations_wake_nonce_consume/);
-  assert.match(bridge,/PANDORA_REASONING_RDP_INFERENCE_TOKEN/);
+test("model-first standalone Vercel wake is held instead of exceeding Hobby function limit",()=>{
+  assert.equal(fs.existsSync("api/operations-reasoning-rdp-bridge.ts"),false);
+  assert.match(hold,/pandora-operations-reasoning-rdp-bridge-v1/);
+  assert.match(hold,/cron\.unschedule/);
+  assert.match(hold,/operations_model_rdp_bridge','enabled','false'/);
+  assert.match(hold,/vercel_hobby_function_limit_and_zero_workspace_budget/);
 });
 
-test("control plane exposes dedicated bridge identity rather than reusing builder identity",()=>{
+test("control plane preserves dedicated model-first bridge identity for later consolidation",()=>{
   assert.match(control,/routeForReasoningRdpOperations/);
   assert.match(routes,/pandora-reasoning-rdp-bridge-v1/);
   assert.match(routes,/vercel:mcpmaster:reasoning-rdp-bridge-v1/);
   assert.match(routes,/pandora_ops_reasoning_rdp_materialize_v1/);
 });
 
-test("Gemini routes are restored while held Bedrock models remain in the catalog",()=>{
+test("Gemini routes remain available while held Bedrock models stay in the catalog",()=>{
   assert.match(migration,/gemini-3\.5-flash-lite/);
   assert.match(migration,/gemini-3\.7-flash/);
   assert.match(migration,/gemini-3\.1-pro-preview/);
