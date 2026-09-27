@@ -3,6 +3,7 @@ import { createRemoteJWKSet, decodeJwt, jwtVerify } from "npm:jose@5.10.0";
 import { routeForCanonicalReleaseCapture } from "./canonical-release-capture-routes.mjs";
 import { assertProductionVercelClaims } from "./identity-policy.mjs";
 import { routeForRdpOperations } from "./rdp-routes.mjs";
+import { handleGeminiWorkerRequest } from "./gemini-worker-gateway.mjs";
 
 const CONTROL_ORGANIZATION_ID = "2270b266-59da-4c39-bfd9-9f8d08352af0";
 const OPERATIONS_PROJECT_ID = "ee282126-3f61-4058-8c92-2fedbfcecf1f";
