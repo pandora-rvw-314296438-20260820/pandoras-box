@@ -476,6 +476,16 @@ class _PluginsScreenState extends State<PluginsScreen> {
                 ),
               ),
             ),
+            if (plugin.id == 'meta' && !plugin.installed) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Press Send in Ask Pandora to prepare a secure Facebook authorization link.',
+                style: TextStyle(
+                  color: PandoraV2Colors.muted,
+                  fontSize: 12.5,
+                ),
+              ),
+            ],
             if (plugin.installed) ...[
               const SizedBox(height: 8),
               SizedBox(
@@ -506,8 +516,12 @@ class _PluginsScreenState extends State<PluginsScreen> {
     final prompt = switch (action) {
       _PluginAction.manage =>
         'Manage ${plugin.name}. First verify the live connection, account identity, current scopes and capabilities. Use bounded reads when authorized. Use Pandora\'s governed Tool Gateway for consequential changes and show me only the approval or blocker that actually needs me.',
+      _PluginAction.connect when plugin.id == 'meta' =>
+        'Connect Facebook',
       _PluginAction.connect =>
         'Connect ${plugin.name}. Check the live authorization state, exact account and scopes required. If owner authorization is required, show the secure Needs You step. Do not claim this plugin is connected until provider readback verifies it.',
+      _PluginAction.reconnect when plugin.id == 'meta' =>
+        'Connect Facebook',
       _PluginAction.reconnect =>
         'Reconnect ${plugin.name}. Verify the current failure first, preserve existing safe state, request only the authorization actually required, then read back provider health. Do not claim recovery until the provider is verified usable.',
       _PluginAction.disconnect =>
