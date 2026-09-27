@@ -51,6 +51,16 @@ const METADATA_PATHS = new Set([
 const ACTIVE_ROLES = new Set(["owner", "admin", "operator", "member", "viewer"]);
 const EXECUTOR_ROLES = new Set(["owner", "admin"]);
 const LEGACY_PLAN_TOOL_PREFIX = "pandora_plan_";
+const PROJECTOS_PLAN_TOOL_PREFIX = "projectos_plan_";
+const PROJECTOS_COMPATIBILITY_TOOL_ALIASES = Object.freeze({
+    projectos_tool_catalog: "pandora_tool_catalog",
+    projectos_list_plans: "pandora_list_plans",
+    projectos_list_audit: "pandora_list_audit",
+    projectos_verify_audit: "pandora_verify_audit",
+    projectos_create_plan: "pandora_create_plan",
+    projectos_approve_plan: "pandora_approve_plan",
+    projectos_execute_plan: "pandora_execute_plan",
+});
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 exports.pandoraMcpVercelConfig = Object.freeze({
@@ -290,6 +300,15 @@ function legacyPlannedTool(name) {
     return getAllTools().find((toolName) => (
         classifyToolRisk(toolName) !== "read" && legacyPlanToolName(toolName) === name
     ));
+}
+
+function canonicalMcpToolName(name) {
+    const alias = PROJECTOS_COMPATIBILITY_TOOL_ALIASES[name];
+    if (alias) return alias;
+    if (name.startsWith(PROJECTOS_PLAN_TOOL_PREFIX)) {
+        return `${LEGACY_PLAN_TOOL_PREFIX}${name.slice(PROJECTOS_PLAN_TOOL_PREFIX.length)}`;
+    }
+    return name;
 }
 
 function requiredString(value, name) {
@@ -648,7 +667,7 @@ function createPandoraMcpHandler(overrides = {}) {
                 return;
             }
             const params = requiredObject(body.params, "params");
-            const name = requiredString(params.name, "params.name");
+            const name = canonicalMcpToolName(requiredString(params.name, "params.name"));
             const args = params.arguments === undefined ? {} : requiredObject(params.arguments, "params.arguments");
             rpcResult(response, id, await callTool(name, args, current, dependencies));
         } catch (error) {
