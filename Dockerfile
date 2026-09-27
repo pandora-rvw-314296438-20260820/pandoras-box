@@ -31,6 +31,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/packages/shared-security/dist ./packages/shared-security/dist
 COPY --from=builder /app/apps/meta-business-mcp/dist ./apps/meta-business-mcp/dist
 COPY apps/control-tower ./apps/control-tower
+COPY .agents ./.agents
+COPY config/pandora-capability-fabric-v1.json ./config/pandora-capability-fabric-v1.json
 COPY public ./public
 
 USER meta-mcp
