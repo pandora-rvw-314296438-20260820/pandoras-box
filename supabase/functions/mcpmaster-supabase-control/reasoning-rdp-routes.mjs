@@ -16,9 +16,11 @@ const BRIDGE = Object.freeze({
   ],
   capacity: 1,
 });
-const RELEASE = Object.freeze({
-  workerKey: "pandora-native-release-v1",
-  principalKey: "vercel:mcpmaster:operations-native-release-v1",
+const ARTEMIS_WORKER_KEY = ["pandora", "rdp", "artemis", "01"].join("-");
+const ARTEMIS = Object.freeze({
+  workerKey: ARTEMIS_WORKER_KEY,
+  principalKey: "rdp:EC2AMAZ-SPAE2VG:artemis-verifier-v1",
+  receiptRef: "rdp:EC2AMAZ-SPAE2VG:artemis-verifier-v1",
 });
 const TASK = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -34,6 +36,12 @@ const integer=(input,key,min=0)=>{
 
 export function routeForReasoningRdpOperations(input,projectId){
   if(!input||typeof input!=="object"||Array.isArray(input))return undefined;
+
+  if(input.action==="operations_rdp_artemis_register"){
+    return {action:input.action,rpc:"pandora_ops_register_rdp_artemis_verifier_v1",responseKey:"operations",
+      params:{p_project_id:projectId,p_worker_key:ARTEMIS.workerKey,p_principal_key:ARTEMIS.principalKey,
+        p_receipt_ref:ARTEMIS.receiptRef}};
+  }
 
   if(input.action==="operations_reasoning_rdp_register"){
     return {action:input.action,rpc:"pandora_ops_register_reasoning_rdp_bridge_v1",responseKey:"operations",
@@ -97,7 +105,7 @@ export function routeForReasoningRdpOperations(input,projectId){
     if(!taskId||!TASK.test(taskId)||generation===undefined)return undefined;
     return {action:input.action,rpc:"pandora_ops_reasoning_rdp_verify_child_v1",responseKey:"operations",
       params:{p_project_id:projectId,p_parent_task_key:taskId,p_parent_generation:generation,
-        p_verifier_key:RELEASE.workerKey,p_verifier_principal:RELEASE.principalKey}};
+        p_verifier_key:ARTEMIS.workerKey,p_verifier_principal:ARTEMIS.principalKey}};
   }
 
   if(input.action==="operations_reasoning_rdp_parent_handoff"){
@@ -113,7 +121,15 @@ export function routeForReasoningRdpOperations(input,projectId){
     if(!taskId||!TASK.test(taskId)||generation===undefined)return undefined;
     return {action:input.action,rpc:"pandora_ops_reasoning_rdp_verify_parent_v1",responseKey:"operations",
       params:{p_project_id:projectId,p_parent_task_key:taskId,p_parent_generation:generation,
-        p_verifier_key:RELEASE.workerKey,p_verifier_principal:RELEASE.principalKey}};
+        p_verifier_key:ARTEMIS.workerKey,p_verifier_principal:ARTEMIS.principalKey}};
+  }
+
+  if(input.action==="operations_reasoning_rdp_queue_memory"){
+    const taskId=text(input,"taskId"),generation=integer(input,"generation",1);
+    if(!taskId||!TASK.test(taskId)||generation===undefined)return undefined;
+    return {action:input.action,rpc:"pandora_ops_reasoning_rdp_queue_memory_v1",responseKey:"operations",
+      params:{p_project_id:projectId,p_parent_task_key:taskId,p_parent_generation:generation,
+        p_worker_key:BRIDGE.workerKey,p_principal_key:BRIDGE.principalKey}};
   }
 
   return undefined;

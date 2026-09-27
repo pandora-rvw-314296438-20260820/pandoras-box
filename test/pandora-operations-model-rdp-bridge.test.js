@@ -5,6 +5,9 @@ const fs=require("node:fs");
 
 const migration=fs.readFileSync("supabase/migrations/20260927093535_operations_model_rdp_bridge_v1.sql","utf8");
 const hold=fs.readFileSync("supabase/migrations/20260927112500_operations_model_rdp_vercel_hobby_hold_v1.sql","utf8");
+const consolidation=fs.readFileSync("supabase/migrations/20260928170000_operations_native_reasoning_rdp_consolidation_v1.sql","utf8");
+const nativeWorker=fs.readFileSync("api/operations-native-worker.ts","utf8");
+const reasoningFleet=fs.readFileSync("supabase/migrations/20260927070752_operations_reasoning_fleet_v1.sql","utf8");
 const routes=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/reasoning-rdp-routes.mjs","utf8");
 const control=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/index.ts","utf8");
 const rdp=fs.readFileSync("api/operations-rdp-worker.ts","utf8");
@@ -53,12 +56,15 @@ test("RDP repo profiles only run canonical main ancestry and never publish sourc
   assert.doesNotMatch(worker,/\bvercel\s+(deploy|promote|rollback)\b/i);
 });
 
-test("model-first standalone Vercel wake is held instead of exceeding Hobby function limit",()=>{
+test("model-first wake is consolidated into the existing native worker without adding a Vercel function",()=>{
   assert.equal(fs.existsSync("api/operations-reasoning-rdp-bridge.ts"),false);
-  assert.match(hold,/pandora-operations-reasoning-rdp-bridge-v1/);
   assert.match(hold,/cron\.unschedule/);
-  assert.match(hold,/operations_model_rdp_bridge','enabled','false'/);
-  assert.match(hold,/vercel_hobby_function_limit_and_zero_workspace_budget/);
+  assert.match(nativeWorker,/runReasoningRdpStep/);
+  assert.match(nativeWorker,/operations_reasoning_rdp_candidate/);
+  assert.match(nativeWorker,/operations_reasoning_rdp_materialize/);
+  assert.match(consolidation,/operations_model_rdp_bridge','enabled','true'/);
+  assert.match(consolidation,/wake_path','operations-native-worker-v1'/);
+  assert.match(consolidation,/standalone_vercel_function','false'/);
 });
 
 test("control plane preserves dedicated model-first bridge identity for later consolidation",()=>{
@@ -74,4 +80,21 @@ test("Gemini routes remain available while held Bedrock models stay in the catal
   assert.match(migration,/gemini-3\.1-pro-preview/);
   assert.match(migration,/allowedProviders.*bedrock.*gemini/s);
   assert.match(migration,/maxCostMicros',1000000/);
+});
+
+test("Astra remains fail-closed and requires extra-high attested ChatGPT worker",()=>{
+  assert.match(consolidation,/chatgpt_worker','required_thinking_effort','extra_high'/);
+  assert.match(consolidation,/zero_workspace_budget_or_unattested_chatgpt_worker/);
+  assert.match(reasoningFleet,/awaiting_live_model_attestation/);
+  assert.match(reasoningFleet,/gpt-6-astra/);
+});
+
+test("RDP executor and ARTEMIS verifier remain separate and verified outcomes queue to Memory",()=>{
+  assert.match(routes,/\["pandora", "rdp", "artemis", "01"\]\.join\("-"\)/);
+  assert.match(routes,/pandora_ops_register_rdp_artemis_verifier_v1/);
+  assert.match(routes,/pandora_ops_reasoning_rdp_queue_memory_v1/);
+  assert.match(consolidation,/pandora_verified_learning_outbox/);
+  assert.match(consolidation,/executorWorker','pandora-rdp-windows-01'/);
+  assert.match(consolidation,/verifierWorker','pandora-rdp-artemis-01'/);
+  assert.match(consolidation,/canonicalMemoryWritten',false/);
 });
