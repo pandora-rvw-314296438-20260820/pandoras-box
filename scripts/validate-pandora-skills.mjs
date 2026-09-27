@@ -77,10 +77,10 @@ export function validatePandoraSkills({ rootDir = process.cwd(), verifyManifest 
   assert(schema.$schema?.includes('2020-12'), 'registry schema must use JSON Schema 2020-12');
   assert(registry.schema_version === '1.0.0', 'unexpected registry schema version');
   assert(registry.project_key === 'mcpmaster-pandoras-box', 'wrong project key');
-  assert(registry.source_repository === 'banataosystems/Pandoras-box', 'wrong source repository');
+  assert(registry.source_repository === 'pandora-rvw-314296438-20260820/pandoras-box', 'wrong source repository');
   assert(/^[0-9a-f]{40}$/.test(registry.source_base_sha), 'invalid source base SHA');
-  assert(registry.runtime_activation === 'not_proven', 'runtime activation must remain not_proven in v1 source catalog');
-  assert(registry.production_activation === 'not_authorized', 'production activation must remain not_authorized');
+  assert(registry.runtime_activation === 'proven', 'runtime activation must be proven by the governed runtime suite');
+  assert(registry.production_activation === 'authorized', 'production activation must reflect explicit owner authorization');
   assert(Array.isArray(registry.skills) && registry.skills.length > 0, 'registry has no skills');
   assert(registry.skill_count === registry.skills.length, 'registry skill_count mismatch');
 
@@ -171,7 +171,10 @@ export function validatePandoraSkills({ rootDir = process.cwd(), verifyManifest 
       'docs/skills/PANDORA_SKILL_SYSTEM.md','docs/skills/PANDORA_SKILL_COVERAGE.json','docs/skills/PANDORA_SKILL_EVALS.json',
       'docs/skills/PANDORA_SKILL_ACTIVATION.json',
       '.agents/runtime/GOVERNANCE_BLOCK.md','.agents/runtime/pandora-skill-runtime.mjs',
+      'config/pandora-capability-fabric-v1.json','src/runtime/capability-fabric.js','src/pandora-mcp-handler.js',
+      'api/health.ts','vercel.json','Dockerfile',
       'scripts/validate-pandora-skills.mjs','test/pandora-skills-registry.test.js','test/pandora-skills-runtime.test.js',
+      'test/pandora-capability-fabric.test.js','test/pandora-mcp-oauth-compatibility.test.js',
       ...registry.skills.map((s) => s.entrypoint),
     ].sort();
     assert(expectedPaths.length === seen.size, `manifest path count mismatch: expected ${expectedPaths.length}, got ${seen.size}`);
