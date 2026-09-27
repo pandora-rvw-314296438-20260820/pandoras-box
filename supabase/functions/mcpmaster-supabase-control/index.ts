@@ -86,7 +86,9 @@ type ControlRpc =
   | "pandora_ops_reasoning_rdp_status_v1"
   | "pandora_ops_reasoning_rdp_verify_child_v1"
   | "pandora_ops_reasoning_rdp_parent_handoff_v1"
-  | "pandora_ops_reasoning_rdp_verify_parent_v1";
+  | "pandora_ops_reasoning_rdp_verify_parent_v1"
+  | "pandora_ops_register_rdp_artemis_verifier_v1"
+  | "pandora_ops_reasoning_rdp_queue_memory_v1";
 
 type ControlAction =
   | "catalog"
@@ -136,7 +138,9 @@ type ControlAction =
   | "operations_reasoning_rdp_status"
   | "operations_reasoning_rdp_verify_child"
   | "operations_reasoning_rdp_parent_handoff"
-  | "operations_reasoning_rdp_verify_parent";
+  | "operations_reasoning_rdp_verify_parent"
+  | "operations_rdp_artemis_register"
+  | "operations_reasoning_rdp_queue_memory";
 
 interface ControlRoute {
   action: ControlAction;

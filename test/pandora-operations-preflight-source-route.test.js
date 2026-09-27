@@ -8,12 +8,15 @@ const migration = fs.readFileSync('supabase/migrations/20260927090000_operations
 const worker = fs.readFileSync('api/operations-native-worker.ts','utf8');
 const control = fs.readFileSync('supabase/functions/mcpmaster-supabase-control/index.ts','utf8');
 
-test('preflight behavior is source-tracked and service-role only', () => {
+test('arbitrary Operations preflight is source-tracked and service-role only', () => {
   assert.match(migration,/pandora_ops_preflight_next_v1/);
   assert.match(migration,/for update skip locked/i);
   assert.match(migration,/task_preflight_completed/);
   assert.match(migration,/do_not_infer_or_satisfy_human_authority/);
   assert.match(migration,/grant execute on function public\.pandora_ops_preflight_next_v1[\s\S]*service_role/);
+  assert.doesNotMatch(migration,/task_key like 'FB-%'/);
+  assert.match(migration,/reasoning_rdp_ready/);
+  assert.match(migration,/task_key !~ '\^OPS-\(RDP-\(AUTO\|DIRECT\)\|CHATGPT-DIRECT\)-'/);
 });
 test('native source selector excludes external-worker routed tasks', () => {
   assert.match(migration,/verification->>'executionRoute'[\s\S]*external_worker_required/);

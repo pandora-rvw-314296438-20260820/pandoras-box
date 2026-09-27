@@ -7,6 +7,11 @@ export const config = { api: { bodyParser: false }, maxDuration: 300 };
 
 const CONTROL_URL =
   "https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control";
+const INFERENCE_URL =
+  "https://mcpmaster.vercel.app/api/operations-inference?operation=infer";
+const REASONING_TASK_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/;
+const REASONING_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
 const MEMORY_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-memory-bridge";
 const MEMORY_PROJECT_ID = "7c686cbd-d968-49d5-86cc-918f5e777bd2";
@@ -467,6 +472,240 @@ function receiptRef(dispatchId: string, taskId: string, generation: number) {
   return `ops-native-ack:${digest}`;
 }
 
+function reasoningInferenceToken() {
+  const token = String(process.env.PANDORA_REASONING_RDP_INFERENCE_TOKEN || "");
+  return /^opw_[A-Za-z0-9._~-]{32,256}$/.test(token) ? token : "";
+}
+
+function reasoningAckRef(dispatchId: string, taskId: string, generation: number) {
+  return "reasoning-rdp-ack:" + createHash("sha256")
+    .update(`${dispatchId}:${taskId}:${generation}:reasoning-rdp-native-v1`)
+    .digest("hex");
+}
+
+async function inferReasoning(token: string, payload: Json) {
+  const response = await fetch(INFERENCE_URL, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    redirect: "error",
+    signal: AbortSignal.timeout(55_000),
+  });
+  const body = await readBoundedJson(response, 128_000);
+  if (!response.ok) {
+    throw Object.assign(new Error(String(body?.error || "INFERENCE_REQUEST_FAILED")), {
+      status: response.status,
+    });
+  }
+  return body;
+}
+
+async function advanceReasoningRdp(oidc: string, status: Json) {
+  const taskId = String(status?.parentTaskId || "");
+  const generation = Number(status?.parentGeneration);
+  if (!REASONING_TASK_PATTERN.test(taskId) || !Number.isSafeInteger(generation) || generation < 1) {
+    return { state: "idle" };
+  }
+
+  if (status.state === "child_handed_off") {
+    await control(oidc, { action: "operations_rdp_artemis_register" });
+    const verification = await control(oidc, {
+      action: "operations_reasoning_rdp_verify_child",
+      taskId,
+      generation,
+    });
+    return { state: "child_complete", taskId, verification };
+  }
+
+  if (status.state === "child_complete") {
+    return control(oidc, {
+      action: "operations_reasoning_rdp_parent_handoff",
+      taskId,
+      generation,
+    });
+  }
+
+  if (status.state === "parent_handed_off") {
+    await control(oidc, { action: "operations_rdp_artemis_register" });
+    const verification = await control(oidc, {
+      action: "operations_reasoning_rdp_verify_parent",
+      taskId,
+      generation,
+    });
+    const learning = await control(oidc, {
+      action: "operations_reasoning_rdp_queue_memory",
+      taskId,
+      generation,
+    });
+    return { state: "complete", taskId, verification, learning };
+  }
+
+  if (status.state === "complete") {
+    const learning = await control(oidc, {
+      action: "operations_reasoning_rdp_queue_memory",
+      taskId,
+      generation,
+    });
+    return { state: "complete", taskId, learning };
+  }
+
+  if (status.state === "reasoning") {
+    const leaseId = String(status?.parentLeaseId || "");
+    if (REASONING_UUID_PATTERN.test(leaseId)) {
+      await control(oidc, {
+        action: "operations" + "_reconcile",
+        leaseId,
+        generation,
+        reason: "REASONING_OUTPUT_UNRECOVERABLE",
+      });
+    }
+    return { state: "reconciliation_required", taskId, reason: "reasoning_output_not_durable" };
+  }
+
+  return status;
+}
+
+async function runReasoningRdpStep(oidc: string) {
+  await control(oidc, { action: "operations_reasoning_rdp_register" });
+  await control(oidc, { action: "operations_reasoning_rdp_heartbeat" });
+
+  let status = await control(oidc, { action: "operations_reasoning_rdp_status" });
+  if (status?.state && status.state !== "idle") {
+    const advanced = await advanceReasoningRdp(oidc, status);
+    if (advanced?.state === "child_complete" || advanced?.state === "parent_handed_off") {
+      status = await control(oidc, { action: "operations_reasoning_rdp_status" });
+      return advanceReasoningRdp(oidc, status);
+    }
+    return advanced;
+  }
+
+  const candidate = await control(oidc, { action: "operations_reasoning_rdp_candidate" });
+  if (candidate?.state !== "ready") return candidate || { state: "idle" };
+
+  const token = reasoningInferenceToken();
+  if (!token) {
+    return {
+      state: "held",
+      taskId: candidate?.taskId ?? null,
+      reason: "inference_token_unavailable",
+    };
+  }
+
+  const taskId = String(candidate.taskId || "");
+  const taskRevision = Number(candidate.taskRevision);
+  const controlRevision = Number(candidate.controlRevision);
+  if (!REASONING_TASK_PATTERN.test(taskId) ||
+      !Number.isSafeInteger(taskRevision) ||
+      !Number.isSafeInteger(controlRevision)) {
+    throw new Error("OPS_REASONING_RDP_CANDIDATE_INVALID");
+  }
+
+  const claim = await control(oidc, {
+    action: "operations_reasoning_rdp_claim",
+    taskId,
+    taskRevision,
+    controlRevision,
+  });
+  if (claim?.claimed !== true) {
+    return { state: "not_claimed", taskId, reason: claim?.reason || "claim_rejected" };
+  }
+
+  const leaseId = String(claim.leaseId || "");
+  const generation = Number(claim.generation);
+  let dispatchId = "";
+  try {
+    const intent = await control(oidc, {
+      action: "operations_dispatch_prepare",
+      leaseId,
+      generation,
+    });
+    dispatchId = String(intent?.dispatchId || "");
+    if (!REASONING_UUID_PATTERN.test(dispatchId)) throw new Error("OPS_REASONING_RDP_DISPATCH_INVALID");
+    if (intent?.acknowledged !== true) {
+      if (intent?.canSend !== true) {
+        return { state: "dispatch_in_flight", taskId, dispatchId };
+      }
+      await control(oidc, {
+        action: "operations_reasoning_rdp_dispatch_ack",
+        leaseId,
+        dispatchId,
+        taskId,
+        generation,
+        receiptRef: reasoningAckRef(dispatchId, taskId, generation),
+      });
+    }
+
+    const begun = await control(oidc, {
+      action: "operations_reasoning_rdp_begin",
+      taskId,
+      leaseId,
+      generation,
+    });
+    if (begun?.state !== "reasoning" ||
+        !REASONING_UUID_PATTERN.test(String(begun?.requestId || "")) ||
+        !/^[a-f0-9]{40}$/.test(String(begun?.sourceSha || "")) ||
+        typeof begun?.prompt !== "string") {
+      throw new Error("OPS_REASONING_RDP_BEGIN_INVALID");
+    }
+
+    const inference = await inferReasoning(token, {
+      requestId: begun.requestId,
+      taskId,
+      leaseId,
+      generation,
+      sourceSha: begun.sourceSha,
+      taskClass: "structured_extraction",
+      parts: [{ type: "text", text: begun.prompt }],
+      maxOutputTokens: Number(begun.maxOutputTokens || 128),
+      maxCostMicros: Number(begun.maxCostMicros || 0),
+      deadlineMs: Number(begun.deadlineMs || 45000),
+    });
+
+    if (inference?.state !== "verification_pending" ||
+        typeof inference?.output !== "string" ||
+        !/^[a-f0-9]{64}$/.test(String(inference?.outputDigest || ""))) {
+      throw new Error("OPS_REASONING_RDP_MODEL_OUTPUT_UNAVAILABLE");
+    }
+
+    const materialized = await control(oidc, {
+      action: "operations_reasoning_rdp_materialize",
+      taskId,
+      generation,
+      output: inference.output,
+    }, 20_000);
+
+    return {
+      state: materialized?.state || "child_queued",
+      taskId,
+      childTaskId: materialized?.childTaskId || null,
+      profile: materialized?.profile || null,
+      reasoningRequestId: begun.requestId,
+      reasoningOutputDigest: inference.outputDigest,
+      arbitraryCommandAuthority: false,
+    };
+  } catch (error: any) {
+    try {
+      await control(oidc, {
+        action: "operations" + "_reconcile",
+        leaseId,
+        generation,
+        reason: "REASONING_RDP_EXECUTION_UNCONFIRMED",
+      });
+    } catch {
+      // The retained lease remains authoritative for reconciliation.
+    }
+    return {
+      state: "reconciliation_required",
+      taskId,
+      dispatchId: dispatchId || null,
+      code: String(error?.message || "REASONING_RDP_EXECUTION_UNCONFIRMED"),
+    };
+  }
+}
+
 export default async function operationsNativeWorker(request: any, response: any) {
   const isCronWake = request.method === "GET";
   const isPostWake = request.method === "POST";
@@ -548,6 +787,24 @@ export default async function operationsNativeWorker(request: any, response: any
         state: verification?.verified?.complete === true ? "complete" : "verification_pending",
         taskId: verification.taskId,
         verification,
+        memory,
+      });
+    }
+
+    const reasoningRdp = await runReasoningRdpStep(oidc);
+    const passiveReasoningStates = new Set([
+      "idle",
+      "budget_required",
+      "model_route_unavailable",
+      "held",
+      "ineligible",
+    ]);
+    if (!passiveReasoningStates.has(String(reasoningRdp?.state || "idle"))) {
+      return send(response, reasoningRdp?.state === "reconciliation_required" ? 503 : 200, {
+        ok: reasoningRdp?.state !== "reconciliation_required",
+        state: reasoningRdp?.state || "idle",
+        taskId: reasoningRdp?.taskId ?? null,
+        reasoningRdp,
         memory,
       });
     }

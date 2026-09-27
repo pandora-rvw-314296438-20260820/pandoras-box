@@ -47,8 +47,8 @@ begin
   select q.* into t
   from private.pandora_ops_tasks q
   where q.organization_id=p_organization_id and q.project_id=p_project_id
-    and q.task_key like 'FB-%'
     and q.status='queued'
+    and q.task_key !~ '^OPS-(RDP-(AUTO|DIRECT)|CHATGPT-DIRECT)-'
     and not exists (
       select 1 from private.pandora_ops_events e
       where e.organization_id=q.organization_id and e.project_id=q.project_id
@@ -65,7 +65,7 @@ begin
       'preflighted',(
         select count(*) from private.pandora_ops_events e
         where e.organization_id=p_organization_id and e.project_id=p_project_id
-          and e.event_type='task_preflight_completed' and e.task_key like 'FB-%'
+          and e.event_type='task_preflight_completed'
       )
     );
   end if;
@@ -113,6 +113,15 @@ begin
       'prepare_implementation_and_verification_plan',
       'inspect_existing_source_and_provider_evidence',
       'do_not_mutate_external_provider_before_dependencies_complete'
+    );
+  elsif t.spec->>'risk'='read'
+    and t.spec->>'verificationProfile'='automation'
+    and (t.spec->'requiredCapabilities') ? 'rdp.execute' then
+    execution_class:='reasoning_rdp_ready';
+    safe_work:=jsonb_build_array(
+      'route_reasoning_through_governed_inference_policy',
+      'materialize_only_a_bounded_rdp_execution_profile',
+      'require_independent_rdp_release_verification_and_verified_memory_outcome'
     );
   elsif t.spec->>'risk'='source'
     and t.spec->>'lane'=any(k.lanes)
