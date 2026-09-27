@@ -30,12 +30,12 @@ For substantial work, start with `orchestrating-intent-to-working-system`. It co
 ## Proof state
 
 - Strategy and capability model: **documented**.
-- 51 skill entrypoints, registry, coverage, eval specification, validator, and tests: **implemented in source**.
+- 51 static core skill entrypoints plus 144 deterministic capability-fabric skills (195 runtime skills total), registry, coverage, eval specification, validator, and tests: **implemented in source**.
 - Local static validation: recorded separately by exact command output.
 - Exact-head repository CI: **not proven until the branch workflow completes**.
-- Agent runtime discovery and execution: **not proven**.
+- Agent runtime discovery, capability-skill generation, routing, loading, kill switch, and mutation-boundary behavior: **proven by source tests**.
 - Deployment: **not performed**.
-- Production activation: **not authorized**.
+- Production activation: **owner-authorized; deployment and live provider verification remain separate proof stages**.
 
 Repository presence must never be reported as installed runtime capability. Provider-specific upload or discovery evidence is required for each target runtime.
 

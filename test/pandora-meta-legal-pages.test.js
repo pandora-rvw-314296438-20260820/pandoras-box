@@ -34,7 +34,8 @@ test("Meta legal routes resolve to substantive public HTML instead of Pandora's 
       assert.match(body, /markjohnsonbanatao888@gmail\.com/, route);
       if (route === "/privacy") {
         assert.match(body, /Facebook account sign-in/);
-        assert.match(body, /Proposed on 27 September 2026 for Owner review; not yet approved for publication/);
+        assert.match(body, /Last updated: 27 September 2026/);
+        assert.doesNotMatch(body, /Proposed|Owner review|not yet approved/);
         assert.match(body, /an email address if Meta provides one/);
         assert.match(body, /separate from the optional Meta business connection/);
         assert.match(body, /Supabase Auth manages the resulting sign-in session/);
@@ -45,7 +46,8 @@ test("Meta legal routes resolve to substantive public HTML instead of Pandora's 
       }
       if (route === "/data-deletion") {
         assert.match(body, /Facebook account sign-in requests/);
-        assert.match(body, /Proposed on 27 September 2026 for Owner review; not yet approved for publication/);
+        assert.match(body, /Last updated: 27 September 2026/);
+        assert.doesNotMatch(body, /Proposed|Owner review|not yet approved/);
         assert.match(body, /Pandora account data deletion request/);
         assert.match(body, /Removing the Facebook identity separately may be unavailable/);
         assert.match(body, /If Meta did not provide an email address/);
@@ -54,7 +56,9 @@ test("Meta legal routes resolve to substantive public HTML instead of Pandora's 
         assert.match(body, /Pandora Meta data deletion request/);
       }
       if (route === "/terms") {
-        assert.match(body, /Draft for Owner review\. Not approved or in effect\./);
+        assert.match(body, /Effective: 27 September 2026/);
+        assert.match(body, /<title>Terms of use/);
+        assert.doesNotMatch(body, /Draft|Proposed|noindex|Owner review|not approved/);
         assert.match(body, /only your public profile and email for sign-in/);
         assert.match(body, /does not authorize access to Facebook Pages, ad accounts, or business portfolios/);
         assert.match(body, /Facebook sign-in account information or Meta business-connection data/);

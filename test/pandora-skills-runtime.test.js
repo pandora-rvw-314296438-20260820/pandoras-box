@@ -25,10 +25,14 @@ test('registry discovery is deterministic and structurally valid', async () => {
   const a = m.loadRegistry();
   const b = m.loadRegistry();
   assert.deepEqual(a.ids, b.ids, 'discovery must be order-stable');
-  assert.equal(a.ids.length, 51);
+  assert.equal(a.ids.length, 195);
   assert.equal(new Set(a.ids).size, a.ids.length, 'skill ids must be unique');
   for (const skill of a.skills.values()) {
-    assert.ok(fs.existsSync(path.join(ROOT, skill.entrypoint)), `${skill.id} entrypoint must exist`);
+    if (skill.generatedCapabilitySkill) {
+      assert.match(skill.entrypoint, /^virtual:capability-fabric\//, `${skill.id} virtual entrypoint`);
+    } else {
+      assert.ok(fs.existsSync(path.join(ROOT, skill.entrypoint)), `${skill.id} entrypoint must exist`);
+    }
     assert.ok(skill.capabilities.length > 0, `${skill.id} must declare capabilities`);
   }
 });
@@ -86,6 +90,49 @@ test('malformed, duplicate, and cyclic registries are rejected', async () => {
   assert.throws(() => m.loadRegistry({ registryDir: tmp }), /marked autonomous/);
 
   fs.rmSync(tmp, { recursive: true, force: true });
+});
+
+test('capability fabric deterministically contributes 144 governed virtual skills', async () => {
+  const m = await load();
+  const registry = m.loadRegistry();
+  const generated = [...registry.skills.values()].filter((skill) => skill.generatedCapabilitySkill);
+  assert.equal(generated.length, 144);
+  assert.equal(new Set(generated.map((skill) => skill.id)).size, 144);
+  assert.equal(new Set(generated.flatMap((skill) => skill.capabilities)).size, 377);
+
+  for (const skill of generated) {
+    assert.match(skill.entrypoint, /^virtual:capability-fabric\//);
+    const loaded = m.loadSkill(skill.id, { registry });
+    assert.equal(loaded.governanceEmbedded, true, `${skill.id} governance contract`);
+    assert.match(loaded.body, /## Outcome/);
+    assert.match(loaded.body, /## Use when/);
+    assert.match(loaded.body, /## Workflow/);
+    assert.match(loaded.body, /## Proof required/);
+    assert.match(loaded.body, /## Stop conditions/);
+    assert.match(loaded.body, /## Outputs/);
+  }
+});
+
+test('generated sensitive capability operations surface approval requirements', async () => {
+  const m = await load();
+  const registry = m.loadRegistry();
+  for (const id of [
+    'operate-payments-safely',
+    'operate-tax-compliance-safely',
+    'operate-banking-treasury-safely',
+    'operate-identity-access-safely',
+    'operate-video-operations-safely',
+  ]) {
+    const skill = registry.skills.get(id);
+    assert.ok(skill, id);
+    assert.equal(skill.risk, 'sensitive-write');
+    assert.equal(skill.autonomy, 'approval-before-side-effect');
+    const routed = m.route(id.replace(/-/g, ' '), { registry, limit: 8 });
+    assert.equal(routed.grantsMutation, false);
+    assert.ok(routed.approvalRequired.includes(id) || routed.closure.some(
+      (skillId) => registry.skills.get(skillId)?.risk === 'sensitive-write',
+    ));
+  }
 });
 
 // B. Routing -----------------------------------------------------------------
@@ -233,6 +280,6 @@ test('disabling the runtime restores prior behaviour without deleting evidence',
   // Rollback is a switch, not a deletion: the catalog and its evidence survive.
   assert.throws(() => m.route('anything', { env: off }), /disabled/);
   const registry = m.loadRegistry();
-  assert.equal(registry.ids.length, 51, 'registry evidence must remain intact while disabled');
+  assert.equal(registry.ids.length, 195, 'core plus generated capability skill evidence must remain intact while disabled');
   assert.ok(fs.existsSync(path.join(ROOT, 'docs/skills/PANDORA_SKILL_MANIFEST.sha256')));
 });

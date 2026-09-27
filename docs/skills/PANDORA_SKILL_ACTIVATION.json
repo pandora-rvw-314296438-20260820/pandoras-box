@@ -1,27 +1,27 @@
 {
   "schema_version": "1.0.0",
-  "catalog_version": "1.1.0",
+  "catalog_version": "1.2.0",
   "note": "Repository presence is never runtime activation. Each stage below is proven separately and must not be collapsed.",
   "stages": {
     "sandbox_enabled": {
       "state": true,
-      "evidence": "test/pandora-skills-runtime.test.js executes discovery, routing, kill switch, and mutation-boundary proofs against the governed runtime."
+      "evidence": "test/pandora-skills-runtime.test.js and test/pandora-capability-fabric.test.js prove core discovery, 144 generated capability skills, routing, kill switch, readiness gates, and mutation-boundary behavior."
     },
     "canonical_source_enabled": {
       "state": true,
-      "evidence": ".agents/runtime/pandora-skill-runtime.mjs plus the 51-skill registry are committed on the PR #68 lineage and validated in CI."
+      "evidence": "Canonical source contains 51 static core skills plus 144 deterministic capability-fabric skills generated from 48 packs / 377 capability classes."
     },
     "deployed": {
       "state": false,
-      "evidence": "No deployment binds this catalog to a running Pandora runtime."
+      "evidence": "A production deployment must bind the exact merged source containing the capability fabric, skill runtime, packaging, and MCP surface before this stage becomes true."
     },
     "production_authorized": {
-      "state": false,
-      "evidence": "Merge and production activation remain separately owner-authorized."
+      "state": true,
+      "evidence": "Owner explicitly authorized adding the complete capability and skill expansion on 2026-09-27. Provider-specific legal, privacy, spending, destructive, and regulatory gates remain independent."
     },
     "production_verified": {
       "state": false,
-      "evidence": "No production runtime has discovered, routed, and executed a governed skill."
+      "evidence": "Requires exact-source production deployment plus live health and authenticated MCP catalog/search/readiness/skill readback."
     }
   },
   "kill_switch": {
@@ -32,6 +32,13 @@
   },
   "mutation_authority": {
     "grants_mutation": false,
-    "path": "Pandora Runtime + Tool Gateway plan -> approval where required -> execute -> provider readback -> evidence -> proof-stage update"
+    "path": "Pandora Runtime + Tool Gateway plan -> approval where required -> one-time execute -> provider readback -> evidence -> proof-stage update"
+  },
+  "runtime_counts": {
+    "static_core_skills": 51,
+    "generated_capability_skills": 144,
+    "total_runtime_skills": 195,
+    "capability_packs": 48,
+    "capability_classes": 377
   }
 }

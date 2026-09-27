@@ -58,7 +58,21 @@ function Command-Text([scriptblock]$Command) {
   }
 }
 
-function Run-Profile([string]$Profile) {
+function Invoke-LoggedNative([string]$Name,[scriptblock]$Command,[string]$LogPath) {
+  $priorPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    & $Command *> $LogPath
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) { throw "$Name failed with exit code $exitCode" }
+    if (!(Test-Path $LogPath)) { throw "$Name evidence log missing" }
+    return (Get-FileHash -Algorithm SHA256 $LogPath).Hash.ToLower()
+  } finally {
+    $ErrorActionPreference = $priorPreference
+  }
+}
+
+function Run-Profile([string]$Profile,[string]$SourceSha,[string]$Repository,[string]$TaskId) {
   $parts = New-Object System.Collections.Generic.List[string]
   $tests = New-Object System.Collections.Generic.List[string]
   $exitCode = 0
@@ -103,6 +117,46 @@ function Run-Profile([string]$Profile) {
       $tests.Add("Flutter toolchain execution PASS")
     }
 
+    if ($Profile -in @("repo_test","repo_build")) {
+      if ($Repository -ne "pandora-rvw-314296438-20260820/pandoras-box") { throw "Repository authority mismatch" }
+      if ($SourceSha -notmatch '^[a-f0-9]{40}$') { throw "Source SHA invalid" }
+      if ([string]::IsNullOrWhiteSpace($TaskId)) { throw "Task identity missing" }
+      $jobKey = (Get-Sha256Hex $TaskId).Substring(0,24)
+      $jobRoot = Join-Path $WorkerRoot ("jobs\" + $jobKey)
+      Remove-Item $jobRoot -Recurse -Force -ErrorAction SilentlyContinue
+      New-Item -ItemType Directory -Path $jobRoot -Force | Out-Null
+
+      Command-Text { git -C $jobRoot init }
+      Command-Text { git -C $jobRoot remote add origin "https://github.com/pandora-rvw-314296438-20260820/pandoras-box.git" }
+      $fetchLog = Join-Path $jobRoot "fetch.log"
+      $fetchHash = Invoke-LoggedNative "git fetch" { git -C $jobRoot fetch --no-tags origin main } $fetchLog
+      Command-Text { git -C $jobRoot cat-file -e ($SourceSha + "^{commit}") }
+      & git -C $jobRoot merge-base --is-ancestor $SourceSha FETCH_HEAD
+      if ($LASTEXITCODE -ne 0) { throw "Source SHA is not an ancestor of canonical main" }
+      Command-Text { git -C $jobRoot checkout --detach $SourceSha }
+      $actual = (Command-Text { git -C $jobRoot rev-parse HEAD }).Trim()
+      if ($actual -ne $SourceSha) { throw "Exact source checkout mismatch" }
+      $parts.Add("SOURCE=$actual;FETCH_SHA256=$fetchHash")
+      $tests.Add("Exact source SHA is an ancestor of canonical main PASS")
+
+      $installLog = Join-Path $jobRoot "npm-ci.log"
+      $installHash = Invoke-LoggedNative "npm ci" { npm.cmd --prefix $jobRoot ci --ignore-scripts --no-audit --no-fund } $installLog
+      $parts.Add("NPM_CI_SHA256=$installHash")
+
+      if ($Profile -eq "repo_test") {
+        $runLog = Join-Path $jobRoot "npm-test.log"
+        $runHash = Invoke-LoggedNative "npm test" { npm.cmd --prefix $jobRoot test } $runLog
+        $parts.Add("NPM_TEST_SHA256=$runHash")
+        $tests.Add("Canonical repository test suite execution PASS")
+      } else {
+        $runLog = Join-Path $jobRoot "npm-build.log"
+        $runHash = Invoke-LoggedNative "npm build" { npm.cmd --prefix $jobRoot run build } $runLog
+        $parts.Add("NPM_BUILD_SHA256=$runHash")
+        $tests.Add("Canonical repository build execution PASS")
+      }
+      $tests.Add("Repository execution remained detached and non-publishing PASS")
+    }
+
     if ($tests.Count -eq 0) { throw "Unsupported RDP profile" }
   } catch {
     $exitCode = 1
@@ -128,7 +182,9 @@ while ($true) {
       }
       $profile = [string]$accepted.profile
       Write-WorkerLog ("task_started " + [string]$offer.taskId + " profile=" + $profile)
-      $result = Run-Profile $profile
+      $sourceSha = [string]$offer.sourceSha
+      $repository = [string]$offer.repository
+      $result = Run-Profile $profile $sourceSha $repository ([string]$offer.taskId)
       if ([int]$result.exitCode -ne 0) {
         Invoke-RdpApi @{
           action="fail"; taskId=[string]$offer.taskId; leaseId=[string]$offer.leaseId;
