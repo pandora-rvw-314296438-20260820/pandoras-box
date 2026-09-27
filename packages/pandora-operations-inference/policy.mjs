@@ -89,7 +89,7 @@ export function validatePolicy(raw) {
   exact(raw, ['version','models','maxAttempts','maxHealthAgeMs','minHistorySamples','maxHistoryAgeMs','minimumRiskTier',
     'allowedBoundaries','allowedProviders','allowedFallbackCodes','override','requireMemoryContext']);
   demand(ID.test(raw.version) && Array.isArray(raw.models) && raw.models.length <= 128, 'INFERENCE_POLICY_INVALID');
-  demand(integer(raw.maxAttempts, 1, 3) && integer(raw.maxHealthAgeMs, 1000, 3600000)
+  demand(integer(raw.maxAttempts, 1, 3) && integer(raw.maxHealthAgeMs, 1000, 2592000000)
     && integer(raw.minHistorySamples, 1, 1000000) && integer(raw.maxHistoryAgeMs, 1000, 31536000000), 'INFERENCE_POLICY_LIMIT_INVALID');
   exact(raw.minimumRiskTier, ['read','source','preview','production','destructive']);
   demand(Object.values(raw.minimumRiskTier).every(v => integer(v, 0, 3)), 'INFERENCE_RISK_POLICY_INVALID');
