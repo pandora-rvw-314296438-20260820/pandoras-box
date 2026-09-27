@@ -54,6 +54,7 @@
     {"source": "/privacy", "destination": "/privacy.html"},
     {"source": "/privacy-policy", "destination": "/privacy.html"},
     {"source": "/data-deletion", "destination": "/data-deletion.html"},
+    {"source": "/terms", "destination": "/terms.html"},
     {"source": "/", "destination": "/pandora-web/index.html"},
     {"source": "/health", "destination": "/api/health"},
     {"source": "/mcp", "destination": "/api/mcp"},
