@@ -147,10 +147,11 @@ class SupabasePandoraAuth
       );
     }
     try {
+      // Supabase GoTrue requests email by default for Facebook.
       final launched = await _client.auth.signInWithOAuth(
         OAuthProvider.facebook,
         redirectTo: 'https://mcpmaster.vercel.app/',
-        scopes: 'public_profile email',
+        scopes: 'public_profile',
       );
       if (!launched) {
         throw const PandoraAuthFailure(
