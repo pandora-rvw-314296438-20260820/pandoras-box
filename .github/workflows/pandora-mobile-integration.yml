@@ -54,10 +54,10 @@ jobs:
           echo "mobile=${mobile}" >> "$GITHUB_OUTPUT"
           echo "mobile impact: ${mobile}" >> "$GITHUB_STEP_SUMMARY"
 
-  verify:
+  verify_android_heavy:
     needs: mobile-impact
     if: ${{ needs.mobile-impact.outputs.mobile == 'true' }}
-    name: Exact source / Flutter / Android
+    name: Flutter / Android full validation
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     outputs:
@@ -492,10 +492,10 @@ jobs:
           retention-days: 7
 
 
-  verify-ios:
+  verify_ios_heavy:
     needs: mobile-impact
     if: ${{ needs.mobile-impact.outputs.mobile == 'true' }}
-    name: Exact source / Flutter / iOS
+    name: Flutter / iOS full validation
     runs-on: macos-15
     timeout-minutes: 40
     env:
@@ -627,3 +627,70 @@ jobs:
             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
             --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
           test -d build/ios/iphonesimulator/Runner.app
+
+  verify:
+    needs: [mobile-impact, verify_android_heavy]
+    if: ${{ always() }}
+    name: Exact source / Flutter / Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      MOBILE_IMPACT: ${{ needs.mobile-impact.outputs.mobile }}
+      HEAVY_RESULT: ${{ needs.verify_android_heavy.result }}
+      DETECT_RESULT: ${{ needs.mobile-impact.result }}
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact source and Android gate result
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$DETECT_RESULT" = "success"
+          if [[ "$MOBILE_IMPACT" == "true" ]]; then
+            test "$HEAVY_RESULT" = "success"
+            echo "Android full validation passed for mobile-impacting exact source." >> "$GITHUB_STEP_SUMMARY"
+          else
+            test "$HEAVY_RESULT" = "skipped"
+            echo "Android exact-source gate passed: no mobile-impacting files changed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  verify-ios:
+    needs: [mobile-impact, verify_ios_heavy]
+    if: ${{ always() }}
+    name: Exact source / Flutter / iOS
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      MOBILE_IMPACT: ${{ needs.mobile-impact.outputs.mobile }}
+      HEAVY_RESULT: ${{ needs.verify_ios_heavy.result }}
+      DETECT_RESULT: ${{ needs.mobile-impact.result }}
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact source and iOS gate result
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$DETECT_RESULT" = "success"
+          if [[ "$MOBILE_IMPACT" == "true" ]]; then
+            test "$HEAVY_RESULT" = "success"
+            echo "iOS full validation passed for mobile-impacting exact source." >> "$GITHUB_STEP_SUMMARY"
+          else
+            test "$HEAVY_RESULT" = "skipped"
+            echo "iOS exact-source gate passed: no mobile-impacting files changed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
