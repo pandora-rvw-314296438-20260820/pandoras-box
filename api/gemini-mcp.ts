@@ -1,5 +1,3 @@
-[Reading 152 lines from start (total: 152 lines, 0 remaining)]
-
 import {
   createPandoraMcpHandler,
   pandoraMcpVercelConfig,
@@ -152,5 +150,3 @@ export default createPandoraMcpHandler({
     && actor?.identity?.userId === WORKER_PRINCIPAL,
   toolConfiguration: geminiToolConfiguration,
 });
-
-[executed on device: EC2AMAZ-SPAE2VG (5f764e06-9fbb-456c-bce0-1775e021a577)]
