@@ -32,10 +32,24 @@ test("Meta legal routes resolve to substantive public HTML instead of Pandora's 
       const body = await response.text();
       assert.match(body, new RegExp(`<h1>${heading}<\\/h1>`), route);
       assert.match(body, /markjohnsonbanatao888@gmail\.com/, route);
+      if (route === "/privacy") {
+        assert.match(body, /Facebook account sign-in/);
+        assert.match(body, /Proposed for Owner review; not yet approved for publication/);
+        assert.match(body, /an email address if Meta provides one/);
+        assert.match(body, /separate from the optional Meta business connection/);
+      }
+      if (route === "/data-deletion") {
+        assert.match(body, /Facebook account sign-in requests/);
+        assert.match(body, /Proposed for Owner review; not yet approved for publication/);
+        assert.match(body, /Pandora account data deletion request/);
+        assert.match(body, /Meta business-connection requests/);
+        assert.match(body, /Pandora Meta data deletion request/);
+      }
       if (route === "/terms") {
         assert.match(body, /Draft for Owner review\. Not approved or in effect\./);
         assert.match(body, /only your public profile and email for sign-in/);
         assert.match(body, /does not authorize access to Facebook Pages, ad accounts, or business portfolios/);
+        assert.match(body, /Facebook sign-in account information or Meta business-connection data/);
       }
       assert.doesNotMatch(body, /main\.dart\.js/, route);
     }
