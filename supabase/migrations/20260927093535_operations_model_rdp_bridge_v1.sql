@@ -154,6 +154,28 @@ begin
     );
   end if;
 
+  if not exists(
+    select 1
+    from private.pandora_ops_inference_policies p,
+         lateral jsonb_array_elements(p.policy->'models') m
+    where p.organization_id=p_organization_id and p.project_id=p_project_id and p.active
+      and m->>'available'='true'
+      and coalesce((m->'classes') ? 'structured_extraction',false)
+      and coalesce((p.policy->'allowedProviders') ? (m->>'provider'),false)
+      and m->>'executionBoundary'='cloud'
+      and m->>'transport' in ('gemini_rpc','bedrock_converse')
+      and m->>'maxCostMicros' is not null
+      and (m->>'maxCostMicros')::bigint<=least(1000000,(t.spec->>'maxCostMicros')::bigint)
+      and (m->>'approvalExpiresAt')::timestamptz>clock_timestamp()
+      and (m->>'healthObservedAt')::timestamptz<=clock_timestamp()+interval '5 seconds'
+      and (m->>'healthObservedAt')::timestamptz>=clock_timestamp()-((p.policy->>'maxHealthAgeMs')::bigint*interval '1 millisecond')
+  ) then
+    return jsonb_build_object(
+      'state','model_route_unavailable','taskId',t.task_key,
+      'reason','no_fresh_approved_structured_extraction_model'
+    );
+  end if;
+
   return jsonb_build_object(
     'state','ready','taskId',t.task_key,'taskRevision',t.revision,
     'controlRevision',w.revision,'sourceSha',t.spec#>>'{source,baseSha}',
