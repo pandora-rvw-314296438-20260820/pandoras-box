@@ -206,6 +206,14 @@ export default async function operationsRdpWorker(request: any, response: any) {
 
     if (action === "complete") {
       if (!validEvidence(input.evidence)) return send(response, 400, { ok: false, code: "RDP_WORKER_EVIDENCE_INVALID" });
+      const snapshot = await control(oidc, { action: "operations_snapshot" });
+      const task = Array.isArray(snapshot?.tasks)
+        ? snapshot.tasks.find((entry: any) => entry?.spec?.id === taskId)
+        : undefined;
+      const sourceSha = String(task?.spec?.source?.baseSha || "");
+      if (!/^[0-9a-f]{40}$/.test(sourceSha)) {
+        return send(response, 409, { ok: false, code: "RDP_WORKER_SOURCE_BINDING_INVALID" });
+      }
       const evidence = input.evidence;
       const proofBasis = `${dispatchId}:${taskId}:${generation}:${evidence.profile}:${evidence.exitCode}:${evidence.stdoutSha256}`;
       const expectedProof = createHash("sha256").update(proofBasis).digest("hex");
@@ -213,8 +221,13 @@ export default async function operationsRdpWorker(request: any, response: any) {
         return send(response, 400, { ok: false, code: "RDP_WORKER_PROOF_INVALID" });
       }
       const handoff = {
-        taskId, workerId: WORKER_KEY, generation, tests: evidence.tests,
-        evidenceRefs: [`rdp:${WORKER_KEY}:${evidence.profile}`, `sha256:${evidence.stdoutSha256}`, `dispatch:${dispatchId}`],
+        taskId, workerId: WORKER_KEY, generation, headSha: sourceSha, tests: evidence.tests,
+        evidenceRefs: [
+          `rdp:${WORKER_KEY}:${evidence.profile}`,
+          `sha256:${evidence.stdoutSha256}`,
+          `dispatch:${dispatchId}`,
+          `source:${sourceSha}`,
+        ],
         receiptRef: `rdp-worker:${evidence.proofSha256}`, implementationComplete: true,
         machineProof: { profile: evidence.profile, exitCode: evidence.exitCode,
           stdoutSha256: evidence.stdoutSha256, proofSha256: evidence.proofSha256 },
