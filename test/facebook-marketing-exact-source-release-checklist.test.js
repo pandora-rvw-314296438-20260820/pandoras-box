@@ -13,8 +13,8 @@ test('FB-008 checklist binds exact source and current runtime targets', () => {
   for (const required of [
     'FB-008',
     'pandora-rvw-314296438-20260820/pandoras-box',
-    '2bbf80a544e46aa7a8a3d7ff41abea52b1a8b7de',
-    'dpl_6Ahggpr2HTenQ32diQxkuAUedbLn',
+    '2052edd4db6f5d5fd60c19603dbb3fa9af3022ad',
+    'dpl_Eiqs2w23JUT1oCEKUci2NtkXuu4Q',
     'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk',
     'jcyqixttuebxqqfkjonq',
     'ivmvufhcsezyhczzondn',

@@ -2,10 +2,11 @@
 
 **Tracker task:** FB-008  
 **Canonical repository:** `pandora-rvw-314296438-20260820/pandoras-box`  
-**Baseline main SHA at checklist creation:** `2bbf80a544e46aa7a8a3d7ff41abea52b1a8b7de`  
+**Convergence base main SHA:** `2052edd4db6f5d5fd60c19603dbb3fa9af3022ad`  
 **Meta Business Login merge:** `f4675344f99a3d2cc23a9c360c9512826e921c5c`  
 **Operations generic-worker merge:** `74e7849f4e58c9d9dccbac50b106d4bde9c76e8e`  
-**Operations builder-capacity merge:** `2bbf80a544e46aa7a8a3d7ff41abea52b1a8b7de`
+**Operations builder-capacity merge:** `2bbf80a544e46aa7a8a3d7ff41abea52b1a8b7de`  
+**Operations release-safety merge:** `2052edd4db6f5d5fd60c19603dbb3fa9af3022ad`
 
 This checklist is a release gate, not permission to spend, connect a customer, publish a Meta app, or bypass owner/privacy/security approval.
 
@@ -28,8 +29,8 @@ A candidate fails this gate if the provider reports a different head, base, merg
 As of this checklist's creation:
 
 - Vercel project: `mcpmaster` / `prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk`.
-- Vercel production deployment: `dpl_6Ahggpr2HTenQ32diQxkuAUedbLn`.
-- That deployment is bound to source SHA `74e7849f4e58c9d9dccbac50b106d4bde9c76e8e`.
+- Vercel production deployment: `dpl_Eiqs2w23JUT1oCEKUci2NtkXuu4Q`.
+- That deployment is bound to source SHA `2052edd4db6f5d5fd60c19603dbb3fa9af3022ad` and contains the fail-closed source-release guard.
 - Canonical production alias: `mcpmaster.vercel.app`.
 - Supabase main project: `jcyqixttuebxqqfkjonq`.
 - Supabase control Edge Function: `mcpmaster-supabase-control`, verified live at version 72 after merge `2bbf80a544e46aa7a8a3d7ff41abea52b1a8b7de`.
