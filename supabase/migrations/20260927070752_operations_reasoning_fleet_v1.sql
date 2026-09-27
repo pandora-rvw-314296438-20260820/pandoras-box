@@ -11,8 +11,8 @@ create table if not exists private.pandora_bedrock_reasoning_catalog (
   inference_types text[] not null,
   risk_tier integer not null check (risk_tier between 0 and 3),
   capability_classes text[] not null,
-  observed_at timestamptz not null,
-  source_ref text not null
+  observed_at timestamptz not null default '2026-09-27T07:07:52Z'::timestamptz,
+  source_ref text not null default 'aws:bedrock:us-east-1:list-foundation-models+list-inference-profiles'
 );
 
 alter table private.pandora_bedrock_reasoning_catalog enable row level security;
@@ -20,7 +20,7 @@ revoke all on private.pandora_bedrock_reasoning_catalog from public,anon,authent
 
 insert into private.pandora_bedrock_reasoning_catalog(
   model_id,model_name,provider_name,invocation_target,input_modalities,inference_types,
-  risk_tier,capability_classes,observed_at,source_ref
+  risk_tier,capability_classes
 ) values
 (
   'amazon.nova-2-lite-v1:0',
