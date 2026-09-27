@@ -6,6 +6,8 @@ exports.createPandoraMcpHandler = createPandoraMcpHandler;
 exports.handlePandoraMcp = handlePandoraMcp;
 
 const { randomUUID } = require("node:crypto");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { ExecutionLedgerClient } = require("./runtime/execution-ledger-client.js");
 const {
     createProviderExecutionStateMachine,
@@ -14,6 +16,11 @@ const { buildToolConfiguration } = require("./runtime/service-config.js");
 const { classifyToolRisk } = require("./runtime/tool-policy.js");
 const { resolveVercelWorkloadToken } = require("./runtime/vercel-workload-identity.js");
 const { executeTool, getAllTools, toolRegistry } = require("./tools/index.js");
+const {
+    listCapabilityPacks,
+    searchCapabilityFabric,
+    capabilityReadiness,
+} = require("./runtime/capability-fabric.js");
 const { executionPayloadHash } = require("./runtime/execution-payload.js");
 const { createDestructiveCapabilityReservationIntent } = require("./runtime/destructive-capability-reservation.js");
 const { loadOperatorPublicConfig } = require("./operator-public-config.js");
@@ -62,6 +69,45 @@ const PROJECTOS_TOOL_ALIASES = Object.freeze({
     projectos_execute_plan: "pandora_execute_plan",
 });
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+let skillRuntimePromise;
+
+function skillRuntime() {
+    if (!skillRuntimePromise) {
+        const runtimePath = path.resolve(__dirname, "..", ".agents", "runtime", "pandora-skill-runtime.mjs");
+        skillRuntimePromise = import(pathToFileURL(runtimePath).href);
+    }
+    return skillRuntimePromise;
+}
+
+async function skillCatalogResult() {
+    const runtime = await skillRuntime();
+    const registry = runtime.loadRegistry();
+    const skills = registry.ids.map((id) => {
+        const skill = registry.skills.get(id);
+        return {
+            id: skill.id,
+            category: skill.category ?? null,
+            lifecyclePhase: skill.lifecycle_phase ?? null,
+            risk: skill.risk,
+            autonomy: skill.autonomy,
+            entrypoint: skill.entrypoint,
+            dependsOn: [...skill.depends_on],
+            capabilities: [...skill.capabilities],
+            generatedCapabilitySkill: skill.generatedCapabilitySkill === true,
+            capabilityPackId: skill.capabilityPackId ?? null,
+        };
+    });
+    return {
+        count: skills.length,
+        staticCoreSkillCount: skills.filter((skill) => !skill.generatedCapabilitySkill).length,
+        generatedCapabilitySkillCount: skills.filter((skill) => skill.generatedCapabilitySkill).length,
+        mutationAuthority: "pandora-runtime-tool-gateway",
+        grantsMutation: false,
+        skills,
+    };
+}
+
 
 exports.pandoraMcpVercelConfig = Object.freeze({
     api: { bodyParser: false },
@@ -153,7 +199,7 @@ function protectedResourceMetadata() {
     const origin = resourceOrigin();
     return {
         resource: `${origin}/mcp`,
-        resource_name: "Banatao Systems ProjectOS",
+        resource_name: "Pandora",
         authorization_servers: [AUTHORIZATION_SERVER],
         scopes_supported: [...MCP_OAUTH_SCOPES],
         bearer_methods_supported: ["header"],
@@ -218,12 +264,73 @@ function publicTools(dependencies) {
     const controls = [
         {
             name: "pandora_tool_catalog",
-            description: "List ProjectOS provider tools and their enforced risk, scope, allowlist, and approval policy.",
+            description: "List Pandora provider tools and their enforced risk, scope, allowlist, and approval policy.",
             inputSchema: { type: "object", additionalProperties: false },
         },
         {
+            name: "pandora_capability_catalog",
+            description: "List Pandora capability packs, activation state, provider candidates, verification contracts, and skill blueprints. Catalog presence grants no execution authority.",
+            inputSchema: { type: "object", additionalProperties: false },
+        },
+        {
+            name: "pandora_capability_search",
+            description: "Search the governed Pandora capability fabric without installing or executing a provider.",
+            inputSchema: {
+                type: "object",
+                required: ["query"],
+                properties: {
+                    query: { type: "string", minLength: 1, maxLength: 4000 },
+                    limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+                },
+                additionalProperties: false,
+            },
+        },
+        {
+            name: "pandora_capability_readiness",
+            description: "Resolve whether a capability pack is active now or requires connection, owner, privacy, regulatory, or provider-contract gates. This action is read-only.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    packId: { type: "string", minLength: 1, maxLength: 80 },
+                    capability: { type: "string", minLength: 1, maxLength: 120 },
+                },
+                anyOf: [{ required: ["packId"] }, { required: ["capability"] }],
+                additionalProperties: false,
+            },
+        },
+        {
+            name: "pandora_skill_catalog",
+            description: "List the governed Pandora skill runtime, including 51 static core skills and deterministic capability-fabric skills. Skill selection grants no mutation authority.",
+            inputSchema: { type: "object", additionalProperties: false },
+        },
+        {
+            name: "pandora_skill_route",
+            description: "Deterministically route an intent to governed Pandora skills and dependency closure without executing provider actions.",
+            inputSchema: {
+                type: "object",
+                required: ["intent"],
+                properties: {
+                    intent: { type: "string", minLength: 1, maxLength: 4000 },
+                    limit: { type: "integer", minimum: 1, maximum: 12, default: 5 },
+                },
+                additionalProperties: false,
+            },
+        },
+        {
+            name: "pandora_skill_load",
+            description: "Load one governed Pandora skill body by exact skill ID. Loading a skill grants no provider authority.",
+            inputSchema: {
+                type: "object",
+                required: ["skillId"],
+                properties: {
+                    skillId: { type: "string", minLength: 3, maxLength: 80, pattern: "^[a-z][a-z0-9-]{2,79}$" },
+                },
+                additionalProperties: false,
+            },
+        },
+        {
             name: "pandora_list_plans",
-            description: "List durable ProjectOS plans and current one-time execution states.",
+            description: "List durable Pandora plans and current one-time execution states.",
             inputSchema: {
                 type: "object",
                 properties: { limit: { type: "integer", minimum: 1, maximum: 500 } },
@@ -232,7 +339,7 @@ function publicTools(dependencies) {
         },
         {
             name: "pandora_list_audit",
-            description: "List recent hash-linked ProjectOS execution audit events.",
+            description: "List recent hash-linked Pandora execution audit events.",
             inputSchema: {
                 type: "object",
                 properties: { limit: { type: "integer", minimum: 1, maximum: 500 } },
@@ -241,12 +348,12 @@ function publicTools(dependencies) {
         },
         {
             name: "pandora_verify_audit",
-            description: "Verify the ProjectOS execution audit hash chain.",
+            description: "Verify the Pandora execution audit hash chain.",
             inputSchema: { type: "object", additionalProperties: false },
         },
         {
             name: "pandora_create_plan",
-            description: "Create an exact durable ProjectOS plan. This does not approve or execute it.",
+            description: "Create an exact durable Pandora plan. This does not approve or execute it.",
             inputSchema: {
                 type: "object",
                 required: ["tool", "args"],
@@ -259,7 +366,7 @@ function publicTools(dependencies) {
         },
         {
             name: "pandora_approve_plan",
-            description: "Approve one exact pending durable plan as an authenticated ProjectOS owner or admin. Approval does not execute it.",
+            description: "Approve one exact pending durable plan as an authenticated Pandora owner or admin. Approval does not execute it.",
             inputSchema: {
                 type: "object",
                 required: ["planId"],
@@ -285,13 +392,13 @@ function publicTools(dependencies) {
         if (classifyToolRisk(name) === "read") {
             return [{
                 name,
-                description: `${definition.description} [ProjectOS risk: read]`,
+                description: `${definition.description} [Pandora risk: read]`,
                 inputSchema: definition.inputSchema,
             }];
         }
         return [{
             name: legacyPlanToolName(name),
-            description: `Create a durable ProjectOS plan for ${name}. This does not execute the operation until an authorized approval and execution call occur.`,
+            description: `Create a durable Pandora plan for ${name}. This does not execute the operation until an authorized approval and execution call occur.`,
             inputSchema: definition.inputSchema,
         }];
     });
@@ -379,23 +486,77 @@ async function actorFor(request, dependencies) {
         identity.accessToken,
     );
     if (!membership || !ACTIVE_ROLES.has(membership.role)) {
-        throw Object.assign(new Error("An active ProjectOS organization membership is required"), { status: 403 });
+        throw Object.assign(new Error("An active Pandora organization membership is required"), { status: 403 });
     }
     if (membership.organizationId !== dependencies.organizationId || membership.userId !== identity.userId) {
-        throw Object.assign(new Error("ProjectOS membership does not match the authenticated user and organization"), { status: 403 });
+        throw Object.assign(new Error("Pandora membership does not match the authenticated user and organization"), { status: 403 });
     }
     return { identity, membership };
 }
 
 async function workloadToken(dependencies) {
     const token = (await dependencies.workloadToken())?.trim();
-    if (!token) throw Object.assign(new Error("The server-side ProjectOS workload identity is unavailable"), { status: 503 });
+    if (!token) throw Object.assign(new Error("The server-side Pandora workload identity is unavailable"), { status: 503 });
     return token;
 }
 
 function requiredToolScope(name, dependencies) {
     switch (name) {
+        case "pandora_skill_catalog":
+            return toolResult(await skillCatalogResult());
+        case "pandora_skill_route": {
+            const runtime = await skillRuntime();
+            const routed = runtime.route(requiredString(args.intent, "intent"), {
+                limit: Number.isInteger(args.limit) ? Math.min(Math.max(args.limit, 1), 12) : 5,
+            });
+            return toolResult({
+                intent: routed.intent,
+                selected: [...routed.selected],
+                closure: [...routed.closure],
+                approvalRequired: [...routed.approvalRequired],
+                mutationAuthority: routed.mutationAuthority,
+                grantsMutation: routed.grantsMutation,
+            });
+        }
+        case "pandora_skill_load": {
+            const runtime = await skillRuntime();
+            const loaded = runtime.loadSkill(requiredString(args.skillId, "skillId"));
+            return toolResult({
+                id: loaded.id,
+                category: loaded.category ?? null,
+                lifecyclePhase: loaded.lifecycle_phase ?? null,
+                risk: loaded.risk,
+                autonomy: loaded.autonomy,
+                entrypoint: loaded.entrypoint,
+                dependsOn: [...loaded.depends_on],
+                capabilities: [...loaded.capabilities],
+                generatedCapabilitySkill: loaded.generatedCapabilitySkill === true,
+                capabilityPackId: loaded.capabilityPackId ?? null,
+                governanceEmbedded: loaded.governanceEmbedded === true,
+                mutationAuthority: "pandora-runtime-tool-gateway",
+                grantsMutation: false,
+                body: loaded.body,
+            });
+        }
+        case "pandora_capability_catalog":
+            return toolResult(listCapabilityPacks());
+        case "pandora_capability_search":
+            return toolResult(searchCapabilityFabric(
+                requiredString(args.query, "query"),
+                { limit: args.limit },
+            ));
+        case "pandora_capability_readiness":
+            return toolResult(capabilityReadiness({
+                packId: args.packId,
+                capability: args.capability,
+            }));
         case "pandora_tool_catalog":
+        case "pandora_capability_catalog":
+        case "pandora_capability_search":
+        case "pandora_capability_readiness":
+        case "pandora_skill_catalog":
+        case "pandora_skill_route":
+        case "pandora_skill_load":
         case "pandora_list_plans":
         case "pandora_list_audit":
         case "pandora_verify_audit":
@@ -422,10 +583,10 @@ function assertToolScope(name, actor, dependencies) {
     }
     const projectScopes = [...granted].filter((scope) => scope.startsWith("pandora:"));
     if (projectScopes.length === 0) {
-        // Existing ChatGPT installations were consented before ProjectOS action
+        // Existing ChatGPT installations were consented before Pandora action
         // scopes existed. Keep only that exact identity grant compatible until
         // staged connector re-consent is complete; any broader or malformed
-        // non-ProjectOS grant remains fail closed.
+        // non-Pandora grant remains fail closed.
         const isBoundedLegacyGrant = IDENTITY_SCOPES.every((scope) => granted.has(scope))
             && [...granted].every((scope) => LEGACY_IDENTITY_SCOPES.has(scope));
         if (isBoundedLegacyGrant) return;
@@ -490,8 +651,8 @@ function safeMcpErrorMessage(error, status) {
         if (message && Buffer.byteLength(message, "utf8") <= 1000) return message;
     }
     return status >= 500
-        ? "ProjectOS provider execution failed; consult the governed audit record."
-        : "ProjectOS request failed.";
+        ? "Pandora provider execution failed; consult the governed audit record."
+        : "Pandora request failed.";
 }
 
 async function callTool(name, args, actor, dependencies) {
@@ -505,7 +666,7 @@ async function callTool(name, args, actor, dependencies) {
     }
     if (toolRegistry[name] && providerToolAllowed(name, dependencies)) {
         if (classifyToolRisk(name) !== "read") {
-            throw Object.assign(new Error("A durable ProjectOS plan is required before any provider mutation"), {
+            throw Object.assign(new Error("A durable Pandora plan is required before any provider mutation"), {
                 status: 409,
             });
         }
@@ -550,7 +711,7 @@ async function callTool(name, args, actor, dependencies) {
         }
         case "pandora_approve_plan": {
             if (!canApprovePandoraPlan(actor)) {
-                throw Object.assign(new Error("Plan approval requires a ProjectOS owner or admin session"), { status: 403 });
+                throw Object.assign(new Error("Plan approval requires a Pandora owner or admin session"), { status: 403 });
             }
             const planId = requiredUuid(args.planId, "planId");
             const plan = assertPlanIdentity(await dependencies.ledger.approvePlan(
@@ -562,7 +723,7 @@ async function callTool(name, args, actor, dependencies) {
         }
         case "pandora_execute_plan": {
             if (!dependencies.canExecutePlan(actor)) {
-                throw Object.assign(new Error("Plan execution requires a ProjectOS owner or admin session"), { status: 403 });
+                throw Object.assign(new Error("Plan execution requires a Pandora owner or admin session"), { status: 403 });
             }
             const planId = requiredUuid(args.planId, "planId");
             const token = await workloadToken(dependencies);
@@ -615,7 +776,7 @@ async function callTool(name, args, actor, dependencies) {
             }
         }
         default:
-            throw Object.assign(new Error(`Unknown ProjectOS MCP tool: ${name}`), { status: 400 });
+            throw Object.assign(new Error(`Unknown Pandora MCP tool: ${name}`), { status: 400 });
     }
 }
 
@@ -663,7 +824,7 @@ function createPandoraMcpHandler(overrides = {}) {
                 rpcResult(response, id, {
                     protocolVersion: "2025-06-18",
                     capabilities: { tools: { listChanged: false } },
-                    serverInfo: { name: "MCPMaster ProjectOS", version: "1.3.0-recovered" },
+                    serverInfo: { name: "Pandora MCP", version: "1.5.0-capability-skills" },
                 });
                 return;
             }
