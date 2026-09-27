@@ -91,9 +91,3 @@ verify_jwt = false
 enabled = false
 
 
-# Headless Gemini CLI on the authorized AWS worker presents a short-lived,
-# exact-project Vercel development OIDC token. The function validates that
-# token itself before reading the Vault-backed Gemini provider credential.
-[functions.pandora-gemini-worker-gateway]
-verify_jwt = false
-enabled = false

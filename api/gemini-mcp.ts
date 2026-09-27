@@ -1,3 +1,5 @@
+[Reading 152 lines from start (total: 152 lines, 0 remaining)]
+
 import {
   createPandoraMcpHandler,
   pandoraMcpVercelConfig,
@@ -12,7 +14,7 @@ const CANONICAL_REPOSITORY = 'pandora-rvw-314296438-20260820/pandoras-box';
 const CANONICAL_LOGIN = 'pandora-rvw-314296438-20260820';
 const ORGANIZATION_ID = '2270b266-59da-4c39-bfd9-9f8d08352af0';
 const WORKER_IDENTITY_URL =
-  'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-gemini-worker-gateway/identity';
+  'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control/gemini-worker/identity';
 const WORKER_PRINCIPAL = 'vercel:mbanatao:mcpmaster:development:gemini-worker';
 
 const GEMINI_GITHUB_TOOLS = new Set([
@@ -150,3 +152,5 @@ export default createPandoraMcpHandler({
     && actor?.identity?.userId === WORKER_PRINCIPAL,
   toolConfiguration: geminiToolConfiguration,
 });
+
+[executed on device: EC2AMAZ-SPAE2VG (5f764e06-9fbb-456c-bce0-1775e021a577)]

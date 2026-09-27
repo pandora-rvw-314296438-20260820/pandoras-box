@@ -1,4 +1,3 @@
-import "jsr:@supabase/functions-js@2.4.5/edge-runtime.d.ts";
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "npm:jose@5.10.0";
 
 const ISSUER = "https://oidc.vercel.com/mbanatao";
@@ -10,16 +9,14 @@ const PROJECT_ID = "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk";
 const ENVIRONMENT = "development";
 const SUBJECT = "owner:mbanatao:project:mcpmaster:environment:development";
 const PRINCIPAL = "vercel:mbanatao:mcpmaster:development:gemini-worker";
-const FUNCTION_SLUG = "pandora-gemini-worker-gateway";
+const ROUTE_MARKER = "/mcpmaster-supabase-control/gemini-worker";
 const GEMINI_ORIGIN = "https://generativelanguage.googleapis.com";
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const MAX_QUERY_BYTES = 2048;
 const MODEL_PATH = /^\/v1(?:alpha|beta)?\/models(?:\/[A-Za-z0-9._-]{1,160}(?::[A-Za-z][A-Za-z0-9]{0,63})?)?$/;
 const SAFE_QUERY_KEY = /^[A-Za-z0-9_.\-$]{1,64}$/;
 
-type Claims = Record<string, unknown>;
-
-function json(status: number, body: Record<string, unknown>) {
+function json(status, body) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -30,28 +27,43 @@ function json(status: number, body: Record<string, unknown>) {
   });
 }
 
-function bearer(request: Request) {
+function gatewayPath(url) {
+  const path = url.pathname;
+  const index = path.indexOf(ROUTE_MARKER);
+  if (index < 0) return null;
+  const prefix = path.slice(0, index);
+  if (prefix && prefix !== "/functions/v1") return null;
+  const suffix = path.slice(index + ROUTE_MARKER.length);
+  return suffix || "/";
+}
+
+function bearer(request) {
   const value = request.headers.get("authorization") || "";
   const match = value.match(/^Bearer\s+([A-Za-z0-9._~-]{80,4096})$/);
   return match?.[1] || "";
 }
 
-function audienceValues(value: unknown): string[] {
+function audienceValues(value) {
   if (typeof value === "string") return [value];
   return Array.isArray(value) && value.every((entry) => typeof entry === "string")
-    ? value as string[]
+    ? value
     : [];
 }
 
-async function verifyWorker(token: string): Promise<Claims> {
+async function verifyWorker(token) {
   if (!token) throw new Error("WORKER_UNAUTHORIZED");
-  const unverified = decodeJwt(token) as Claims;
+  const unverified = decodeJwt(token);
   if (unverified.iss !== ISSUER) throw new Error("WORKER_UNAUTHORIZED");
   const audiences = audienceValues(unverified.aud);
-  if (audiences.length !== 1 || audiences[0] !== AUDIENCE) throw new Error("WORKER_UNAUTHORIZED");
+  if (audiences.length !== 1 || audiences[0] !== AUDIENCE) {
+    throw new Error("WORKER_UNAUTHORIZED");
+  }
 
   const jwks = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks`));
-  const { payload } = await jwtVerify(token, jwks, { issuer: ISSUER, audience: AUDIENCE });
+  const { payload } = await jwtVerify(token, jwks, {
+    issuer: ISSUER,
+    audience: AUDIENCE,
+  });
   if (
     payload.environment !== ENVIRONMENT
     || payload.project !== PROJECT
@@ -61,38 +73,44 @@ async function verifyWorker(token: string): Promise<Claims> {
     || payload.sub !== SUBJECT
     || payload.scope !== SUBJECT
   ) throw new Error("WORKER_UNAUTHORIZED");
-  return payload as Claims;
+  return payload;
 }
 
 function serviceRoleKey() {
-  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  if (legacy) return legacy;
   const modern = Deno.env.get("SUPABASE_SECRET_KEYS");
   if (modern) {
     try {
-      const parsed = JSON.parse(modern) as Record<string, unknown>;
-      if (typeof parsed.default === "string" && parsed.default.trim()) return parsed.default.trim();
+      const parsed = JSON.parse(modern);
+      if (typeof parsed.default === "string" && parsed.default.trim()) {
+        return parsed.default.trim();
+      }
     } catch {
-      // Fall through to unavailable.
+      // Fall through to the legacy built-in key.
     }
   }
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  if (legacy) return legacy;
   throw new Error("CONTROL_CREDENTIAL_UNAVAILABLE");
+}
+
+function serviceHeaders(key) {
+  const headers = {
+    apikey: key,
+    "content-type": "application/json",
+  };
+  if (!key.startsWith("sb_secret_")) headers.authorization = `Bearer ${key}`;
+  return headers;
 }
 
 async function geminiApiKey() {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
   if (!supabaseUrl) throw new Error("CONTROL_DATABASE_UNAVAILABLE");
   const key = serviceRoleKey();
-  const headers: Record<string, string> = {
-    apikey: key,
-    "content-type": "application/json",
-  };
-  if (!key.startsWith("sb_secret_")) headers.authorization = `Bearer ${key}`;
   const response = await fetch(
     `${supabaseUrl}/rest/v1/rpc/pandora_gemini_stream_credential_service_20260901`,
     {
       method: "POST",
-      headers,
+      headers: serviceHeaders(key),
       body: "{}",
       redirect: "error",
       signal: AbortSignal.timeout(8_000),
@@ -106,16 +124,7 @@ async function geminiApiKey() {
   return value.trim();
 }
 
-function routedPath(url: URL) {
-  const marker = `/${FUNCTION_SLUG}`;
-  const index = url.pathname.indexOf(marker);
-  const suffix = index >= 0
-    ? url.pathname.slice(index + marker.length)
-    : url.pathname;
-  return suffix || "/";
-}
-
-function upstreamQuery(input: URL) {
+function upstreamQuery(input) {
   const query = new URLSearchParams();
   for (const [key, value] of input.searchParams) {
     if (key.toLowerCase() === "key") continue;
@@ -127,7 +136,7 @@ function upstreamQuery(input: URL) {
   return encoded ? `?${encoded}` : "";
 }
 
-async function bodyBytes(request: Request) {
+async function bodyBytes(request) {
   if (request.method === "GET") return undefined;
   const declared = Number(request.headers.get("content-length") || "0");
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) throw new Error("REQUEST_TOO_LARGE");
@@ -136,7 +145,7 @@ async function bodyBytes(request: Request) {
   return bytes;
 }
 
-function upstreamHeaders(request: Request, apiKey: string) {
+function upstreamHeaders(request, apiKey) {
   const headers = new Headers();
   const contentType = request.headers.get("content-type");
   const accept = request.headers.get("accept");
@@ -148,7 +157,7 @@ function upstreamHeaders(request: Request, apiKey: string) {
   return headers;
 }
 
-function responseHeaders(upstream: Response) {
+function responseHeaders(upstream) {
   const headers = new Headers({
     "cache-control": "no-store",
     "x-content-type-options": "nosniff",
@@ -160,21 +169,26 @@ function responseHeaders(upstream: Response) {
   return headers;
 }
 
-Deno.serve(async (request: Request) => {
+export async function handleGeminiWorkerRequest(request) {
+  const url = new URL(request.url);
+  const path = gatewayPath(url);
+  if (path === null) return null;
   if (request.headers.get("origin")) return json(403, { ok: false, error: "WORKER_REQUEST_DENIED" });
 
-  let claims: Claims;
+  let claims;
   try {
     claims = await verifyWorker(bearer(request));
   } catch {
     return json(401, { ok: false, error: "WORKER_UNAUTHORIZED" });
   }
 
-  const url = new URL(request.url);
-  const path = routedPath(url);
   if (path === "/identity") {
-    if (!["GET", "POST"].includes(request.method)) return json(405, { ok: false, error: "METHOD_NOT_ALLOWED" });
-    const expiresAt = typeof claims.exp === "number" ? new Date(claims.exp * 1000).toISOString() : null;
+    if (!["GET", "POST"].includes(request.method)) {
+      return json(405, { ok: false, error: "METHOD_NOT_ALLOWED" });
+    }
+    const expiresAt = typeof claims.exp === "number"
+      ? new Date(claims.exp * 1000).toISOString()
+      : null;
     return json(200, {
       ok: true,
       principalId: PRINCIPAL,
@@ -214,4 +228,4 @@ Deno.serve(async (request: Request) => {
       : 502;
     return json(status, { ok: false, error: code });
   }
-});
+}
