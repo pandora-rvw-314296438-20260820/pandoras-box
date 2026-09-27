@@ -4,24 +4,60 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/design/pandora_tokens.dart';
 import '../../core/security/pandora_auth.dart';
+import '../../core/security/facebook_provider_settings.dart';
 import '../../core/widgets/pandora_mark.dart';
 
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+  const SignInScreen({super.key, this.checkFacebookProviderEnabled});
+
+  /// Tests may supply a settings read; production always calls Supabase Auth.
+  final Future<bool> Function()? checkFacebookProviderEnabled;
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _SignInScreenState extends State<SignInScreen>
+    with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _busy = false;
   bool _showPassword = false;
+  bool _facebookProviderEnabled = false;
+
+  Future<bool> _providerEnabled() =>
+      (widget.checkFacebookProviderEnabled ?? pandoraFacebookProviderEnabled)();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshFacebookProvider();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshFacebookProvider();
+  }
+
+  Future<void> _refreshFacebookProvider() async {
+    if (!pandoraFacebookSignInSupported(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+    )) return;
+    var enabled = false;
+    try {
+      enabled = await _providerEnabled();
+    } catch (_) {
+      // Settings failures are an unavailable provider, not an OAuth launch.
+    }
+    if (mounted) setState(() => _facebookProviderEnabled = enabled);
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -44,9 +80,20 @@ class _SignInScreenState extends State<SignInScreen> {
   Future<void> _signInWithFacebook() async {
     setState(() => _busy = true);
     try {
+      // Recheck at click time: a stale visible button cannot start OAuth after
+      // the provider was disabled between the settings read and the tap.
+      if (!await _providerEnabled()) {
+        if (mounted) setState(() => _facebookProviderEnabled = false);
+        _show('Facebook sign-in is not available yet.');
+        return;
+      }
+      if (!mounted) return;
       await PandoraDependencies.of(context).auth.signInWithFacebook();
     } on PandoraAuthFailure catch (error) {
       _show(error.message);
+    } catch (_) {
+      if (mounted) setState(() => _facebookProviderEnabled = false);
+      _show('Facebook sign-in is not available yet.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -173,7 +220,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           onPressed: _busy ? null : _resetPassword,
                           child: const Text('Reset password'),
                         ),
-                        if (pandoraFacebookSignInSupported(
+                        if (_facebookProviderEnabled && pandoraFacebookSignInSupported(
                           isWeb: kIsWeb,
                           platform: defaultTargetPlatform,
                         )) ...[
