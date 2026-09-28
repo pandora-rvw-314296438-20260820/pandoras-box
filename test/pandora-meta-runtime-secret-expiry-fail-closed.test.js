@@ -240,7 +240,7 @@ test("repair changes only the marketing NULL-expiry predicate and preserves ACLs
   assert.notEqual(expected, before);
   assert.equal(after, expected);
   assert.match(after, /session_user not in/);
-  assert.match(after, /request\\.jwt\\.claims/);
+  assert.match(after, /request\.jwt\.claims/);
   assert.match(
     after,
     /cr\.expires_at is null or cr\.expires_at>now\(\)/,
