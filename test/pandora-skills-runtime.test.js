@@ -37,6 +37,17 @@ test('registry discovery is deterministic and structurally valid', async () => {
   }
 });
 
+test('runtime root resolution prefers packaged cwd assets and fails closed without canonical assets', async () => {
+  const m = await load();
+  const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'pandora-root-'));
+  assert.equal(m.resolveRepoRoot([ROOT]), ROOT);
+  assert.equal(m.resolveRepoRoot([tmp, ROOT]), ROOT);
+  assert.throws(
+    () => m.resolveRepoRoot([tmp]),
+    (error) => error?.code === 'pandora_skill_asset_root_unavailable',
+  );
+});
+
 test('every registered capability is covered by at least one skill', async () => {
   const m = await load();
   const registry = m.loadRegistry();
@@ -304,8 +315,18 @@ test('Vercel skill-runtime entrypoints are statically traceable and recursively 
   );
   assert.match(
     handler,
+    /path\.resolve\(process\.cwd\(\), "\.agents", "runtime", "pandora-skill-runtime\.mjs"\)/,
+    'MCP must prefer the packaged cwd runtime asset',
+  );
+  assert.match(
+    handler,
+    /runtimeCandidates\.find\(\(candidate\) => existsSync\(candidate\)\)/,
+    'MCP must fall back only to an existing runtime asset',
+  );
+  assert.match(
+    handler,
     /require\(runtimePath\)/,
-    'compiler-safe handler keeps its runtime path indirection while Vercel tracing lives in api/mcp.ts',
+    'compiler-safe handler keeps runtime loading outside the src emit graph',
   );
 
   for (const functionName of ['api/mcp.ts', 'api/health.ts']) {
