@@ -35,11 +35,11 @@ Read the envelope before the content:
 Results can be large. When the payload exceeds what you need, extract with `jq` rather than reading it whole; keep the recovery cheap.
 
 ### 3. Capability inventory
-`projectos_tool_catalog` — what can actually be done, at what risk, under what allowlist. Never assume a tool exists. An unauthenticated connector is a real constraint to report, not a detail to route around.
+`pandora_tool_catalog` — what can actually be done, at what risk, under what allowlist. Never assume a tool exists. An unauthenticated connector is a real constraint to report, not a detail to route around.
 
 ### 4. Execution state
-- `projectos_list_plans` — in-flight, completed, and **failed** plans. Failed plans are open loops; read `intakeStatus` and the failure reason.
-- `projectos_verify_audit` — chain validity and event count. An invalid chain is an incident, not a warning.
+- `pandora_list_plans` — in-flight, completed, and **failed** plans. Failed plans are open loops; read `intakeStatus` and the failure reason.
+- `pandora_verify_audit` — chain validity and event count. An invalid chain is an incident, not a warning.
 
 ### 5. Provider truth
 Only for providers this work actually touches:
@@ -53,7 +53,7 @@ Only for providers this work actually touches:
 Fill this in. An unknown is a finding, not a blank to guess at.
 
 ```
-IDENTITY      project key · canonical repository · Memory namespace · ProjectOS project ID
+IDENTITY      project key · canonical repository · Memory namespace · Pandora project ID
 PURPOSE       what this project is for, in one sentence
 PHASE         current roadmap phase and what closes it
 SOURCE        default branch head SHA + tree SHA · active branches · open PRs with exact heads

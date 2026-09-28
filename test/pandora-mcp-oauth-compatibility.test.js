@@ -400,3 +400,40 @@ test("capability fabric tools require pandora:read", async () => {
   assert.equal(response.statusCode, 403);
   assert.equal(response.headers["www-authenticate"], 'Bearer error="insufficient_scope", scope="pandora:read"');
 });
+
+test("retired ProjectOS tool aliases fail closed instead of routing to Pandora tools", async () => {
+  const accessToken = "projectos-retirement-test-access-token";
+  const handler = handlerWith({
+    async authenticate() {
+      return {
+        userId: USER_ID,
+        accessToken,
+        scopes: MCP_SCOPES,
+        scopeClaimsPresent: true,
+        aal: "aal1",
+      };
+    },
+  });
+
+  for (const [id, name] of [
+    [80, "projectos_tool_catalog"],
+    [81, "projectos_plan_github_write_repository_api"],
+  ]) {
+    const response = await invoke(handler, {
+      method: "POST",
+      headers: { authorization: `Bearer ${accessToken}` },
+      body: {
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: { name, arguments: {} },
+      },
+    });
+    assert.equal(response.statusCode, 410, name);
+    assert.deepEqual(response.body.error, {
+      code: -32000,
+      message: "ProjectOS tool aliases are retired; use canonical Pandora tool names",
+    }, name);
+  }
+});
+

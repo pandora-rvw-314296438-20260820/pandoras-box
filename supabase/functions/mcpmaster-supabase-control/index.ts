@@ -53,10 +53,6 @@ type ControlRpc =
   | "list_execution_plans"
   | "list_execution_audit"
   | "verify_execution_audit_chain"
-  | "save_projectos_checkpoint"
-  | "get_projectos_checkpoint"
-  | "list_projectos_events"
-  | "verify_projectos_event_chain"
   | "consume_runtime_rate_limit"
   | "get_canonical_release_status"
   | "capture_canonical_supabase_release_receipt"
@@ -102,10 +98,6 @@ type ControlAction =
   | "execution_plan_list"
   | "execution_audit_list"
   | "execution_audit_verify"
-  | "projectos_checkpoint_save"
-  | "projectos_checkpoint_get"
-  | "projectos_event_list"
-  | "projectos_event_verify"
   | "runtime_rate_limit_consume"
   | "canonical_release_status"
   | "canonical_supabase_receipt_capture"
@@ -420,94 +412,6 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
       rpc: "verify_execution_audit_chain",
       responseKey: "verification",
       params: {},
-    };
-  }
-
-  if (input.action === "projectos_checkpoint_save") {
-    const projectKey = requiredString(input, "projectKey");
-    const expectedVersion = requiredInteger(input, "expectedVersion", 0, Number.MAX_SAFE_INTEGER);
-    const status = requiredString(input, "status");
-    const sourceRepository = requiredString(input, "sourceRepository");
-    const sourceCommitSha = requiredString(input, "sourceCommitSha");
-    const planVersion = requiredString(input, "planVersion");
-    const observedAt = requiredString(input, "observedAt");
-    const phaseKey = typeof input.phaseKey === "string" && input.phaseKey.length <= 160 ? input.phaseKey : null;
-    const primaryTaskKey = typeof input.primaryTaskKey === "string" && input.primaryTaskKey.length <= 160
-      ? input.primaryTaskKey
-      : null;
-    const eventType = typeof input.eventType === "string" ? input.eventType : "projectos.checkpoint.saved";
-    const runId = typeof input.runId === "string" ? input.runId : null;
-    const stepId = typeof input.stepId === "string" ? input.stepId : null;
-    if (
-      !projectKey
-      || expectedVersion === undefined
-      || !status
-      || !sourceRepository
-      || !sourceCommitSha
-      || !planVersion
-      || !observedAt
-      || !isRecord(input.state)
-      || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)
-      || !["active", "blocked", "paused", "complete", "archived"].includes(status)
-      || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(sourceRepository)
-      || !/^[0-9a-f]{40}$/.test(sourceCommitSha)
-      || !/^projectos\.[a-z0-9_.-]{1,127}$/.test(eventType)
-    ) return undefined;
-    return {
-      action: "projectos_checkpoint_save",
-      rpc: "save_projectos_checkpoint",
-      responseKey: "checkpoint",
-      params: {
-        p_project_key: projectKey,
-        p_expected_version: expectedVersion,
-        p_status: status,
-        p_phase_key: phaseKey,
-        p_primary_task_key: primaryTaskKey,
-        p_source_repository: sourceRepository,
-        p_source_commit_sha: sourceCommitSha,
-        p_plan_version: planVersion,
-        p_state_redacted: input.state,
-        p_observed_at: observedAt,
-        p_event_type: eventType,
-        p_run_id: runId,
-        p_step_id: stepId,
-      },
-    };
-  }
-
-  if (input.action === "projectos_checkpoint_get") {
-    const projectKey = requiredString(input, "projectKey");
-    if (!projectKey || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)) return undefined;
-    return {
-      action: "projectos_checkpoint_get",
-      rpc: "get_projectos_checkpoint",
-      responseKey: "checkpoint",
-      params: { p_project_key: projectKey },
-    };
-  }
-
-  if (input.action === "projectos_event_list") {
-    const projectKey = requiredString(input, "projectKey");
-    if (!projectKey || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)) return undefined;
-    return {
-      action: "projectos_event_list",
-      rpc: "list_projectos_events",
-      responseKey: "events",
-      params: {
-        p_project_key: projectKey,
-        p_limit: typeof input.limit === "number" ? Math.min(Math.max(Math.floor(input.limit), 1), 500) : 100,
-      },
-    };
-  }
-
-  if (input.action === "projectos_event_verify") {
-    const projectKey = requiredString(input, "projectKey");
-    if (!projectKey || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)) return undefined;
-    return {
-      action: "projectos_event_verify",
-      rpc: "verify_projectos_event_chain",
-      responseKey: "verification",
-      params: { p_project_key: projectKey },
     };
   }
 
