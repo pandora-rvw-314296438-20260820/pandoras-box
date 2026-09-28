@@ -37,6 +37,9 @@ jobs:
       LOCAL_MODEL_SHA256: '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d'
       LOCAL_MODEL_NAME: 'qwen2.5-3b-instruct-q4_k_m.gguf'
       APK_FILENAME: 'Euro-Fish-Pandora-Enterprise.apk'
+      ARTIFACT_CLASS: 'validation-candidate'
+      PRODUCTION_RELEASE: 'false'
+      DISTRIBUTION_SCOPE: 'github-actions-validation-only'
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -245,6 +248,11 @@ jobs:
             echo "target_abi=arm64-v8a"
             echo "build_mode=release"
             echo "apk_filename=$APK_FILENAME"
+            echo "artifact_class=$ARTIFACT_CLASS"
+            echo "production_release=$PRODUCTION_RELEASE"
+            echo "distribution_scope=$DISTRIBUTION_SCOPE"
+            echo "production_signing_verified=false"
+            echo "install_authority=none"
             echo "apk_sha256=$(sha256sum "$final_apk" | cut -d ' ' -f1)"
             echo "apk_size_bytes=$(stat -c '%s' "$final_apk")"
             echo "signing_evidence_sha256=$(sha256sum .eurofish-android-build/eurofish-package-evidence/signing.txt | cut -d ' ' -f1)"
@@ -256,11 +264,24 @@ jobs:
           cat "$manifest"
           test "$(sha256sum "$final_apk" | cut -d ' ' -f1)" =             "$(grep '^apk_sha256=' "$manifest" | cut -d= -f2-)"
 
-      - name: Upload exact Euro-Fish APK and evidence
+      - name: Enforce validation-only distribution boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=.eurofish-android-build/Euro-Fish-Pandora-Enterprise.manifest.txt
+          test "$(grep '^artifact_class=' "$manifest")" = 'artifact_class=validation-candidate'
+          test "$(grep '^production_release=' "$manifest")" = 'production_release=false'
+          test "$(grep '^distribution_scope=' "$manifest")" = 'distribution_scope=github-actions-validation-only'
+          test "$(grep '^production_signing_verified=' "$manifest")" = 'production_signing_verified=false'
+          test "$(grep '^install_authority=' "$manifest")" = 'install_authority=none'
+          test "$(grep '^physical_device_verified=' "$manifest")" = 'physical_device_verified=false'
+
+      - name: Upload validation-only Euro-Fish APK and evidence
+        if: ${{ github.event_name != 'pull_request' }}
         id: upload_eurofish_apk
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
-          name: eurofish-pandora-enterprise-${{ env.SOURCE_SHA }}
+          name: eurofish-pandora-validation-${{ env.SOURCE_SHA }}
           path: |
             .eurofish-android-build/Euro-Fish-Pandora-Enterprise.apk
             .eurofish-android-build/Euro-Fish-Pandora-Enterprise.manifest.txt
@@ -268,9 +289,10 @@ jobs:
             .eurofish-android-build/eurofish-package-evidence
           if-no-files-found: error
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
 
-      - name: Publish provider locator
+      - name: Publish validation-only provider locator
+        if: ${{ github.event_name != 'pull_request' }}
         shell: bash
         env:
           ARTIFACT_ID: ${{ steps.upload_eurofish_apk.outputs.artifact-id }}
@@ -280,11 +302,14 @@ jobs:
           manifest=.eurofish-android-build/Euro-Fish-Pandora-Enterprise.manifest.txt
           apk_sha="$(grep '^apk_sha256=' "$manifest" | cut -d= -f2-)"
           apk_size="$(grep '^apk_size_bytes=' "$manifest" | cut -d= -f2-)"
-          printf 'EUROFISH_PANDORA_ANDROID_RECEIPT source_sha=%s apk_sha256=%s apk_size_bytes=%s package=%s artifact_id=%s artifact_digest=%s\n'             "$SOURCE_SHA" "$apk_sha" "$apk_size" "$EXPECTED_PACKAGE" "$ARTIFACT_ID" "$ARTIFACT_DIGEST"
+          printf 'EUROFISH_PANDORA_ANDROID_VALIDATION_RECEIPT source_sha=%s apk_sha256=%s apk_size_bytes=%s package=%s artifact_class=%s production_release=%s distribution_scope=%s artifact_id=%s artifact_digest=%s\n'             "$SOURCE_SHA" "$apk_sha" "$apk_size" "$EXPECTED_PACKAGE" "$ARTIFACT_CLASS" "$PRODUCTION_RELEASE" "$DISTRIBUTION_SCOPE" "$ARTIFACT_ID" "$ARTIFACT_DIGEST"
           {
-            echo '### Euro-Fish Pandora Enterprise APK'
+            echo '### Euro-Fish Pandora Enterprise validation-only APK'
             echo
             echo "- Source SHA: `$SOURCE_SHA`"
+            echo "- Artifact class: `$ARTIFACT_CLASS`"
+            echo "- Production release: `$PRODUCTION_RELEASE`"
+            echo "- Distribution scope: `$DISTRIBUTION_SCOPE`"
             echo "- Package: `$EXPECTED_PACKAGE`"
             echo "- APK: `$APK_FILENAME`"
             echo "- APK SHA-256: `$apk_sha`"
