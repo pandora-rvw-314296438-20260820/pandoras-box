@@ -140,8 +140,7 @@ begin
       o.state = 'pending'
       or (
         o.state = 'processing'
-        and o.lease_until is not null
-        and o.lease_until < v_now
+        and (o.lease_until is null or o.lease_until < v_now)
       )
     )
       and o.attempt_count < 5
