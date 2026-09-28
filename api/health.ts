@@ -41,7 +41,7 @@ export default async function health(_request: unknown, response: any) {
         routeSelectedCount: routed.selected.length,
         generatedLoadVerified: generatedProbe.governanceEmbedded === true,
         mutationAuthority: routed.mutationAuthority,
-        grantsMutation: routed.grantsMutation === true,
+        grantsMutation: routed.grantsMutation,
       },
       timestamp: new Date().toISOString(),
     });
