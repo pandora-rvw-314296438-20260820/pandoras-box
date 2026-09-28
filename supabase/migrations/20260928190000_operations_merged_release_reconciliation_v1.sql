@@ -66,6 +66,21 @@ begin
  select * into t from private.pandora_ops_tasks
  where organization_id=p_organization_id and project_id=p_project_id and task_key=p_task_key for update;
  if not found then raise exception 'OPS_MERGED_RELEASE_TASK_FENCED'; end if;
+ if t.task_key='FB-012' or t.spec->>'risk'='production'
+    or t.spec->>'verificationProfile'='production_release' then
+  raise exception 'OPS_MERGED_RELEASE_PRODUCTION_TASK_UNSUPPORTED' using errcode='22023';
+ end if;
+ if t.task_key<>'FB-025'
+    or p_spec_digest is distinct from 'a9cebabf19bbac53eaab1d27b4394efc8d1d943549bdbb1fc1ecda486ee7aefc'
+    or t.spec_digest is distinct from 'a9cebabf19bbac53eaab1d27b4394efc8d1d943549bdbb1fc1ecda486ee7aefc'
+    or t.spec->>'risk' is distinct from 'source'
+    or t.spec->>'verificationProfile' is distinct from 'backend_service'
+    or t.spec#>>'{source,repository}' is distinct from 'pandora-rvw-314296438-20260820/pandoras-box'
+    or t.spec#>>'{source,baseSha}' is distinct from 'f4675344f99a3d2cc23a9c360c9512826e921c5c'
+    or t.spec->'acceptance' is distinct from
+       '["Schema distinguishes verified fact, user decision, provider evidence, inference, assumption, and superseded information."]'::jsonb then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_SPEC_UNSUPPORTED' using errcode='22023';
+ end if;
  select * into w from private.pandora_ops_workers
  where organization_id=p_organization_id and project_id=p_project_id
    and worker_key=p_reconciler_worker_key and principal_key=p_reconciler_principal_key;
@@ -207,6 +222,344 @@ begin
    'receiptId',receipt.id,'completionGranted',false);
 end;
 $fn$;
+-- Complete only FB-025 source verification from provider-owned, exact-head evidence.
+create function public.pandora_ops_verify_merged_release_source_v1(
+ p_organization_id uuid, p_project_id uuid, p_task_key text, p_generation bigint,
+ p_spec_digest text, p_expected_head_sha text, p_reconciliation_receipt_id uuid,
+ p_verifier_worker_key text, p_verifier_principal_key text
+) returns jsonb language plpgsql security definer set search_path='' as $fn$
+declare
+ t private.pandora_ops_tasks%rowtype;
+ receipt private.pandora_ops_merged_release_receipts%rowtype;
+ response jsonb; pr jsonb; checks jsonb; comment_full jsonb; comment_carry jsonb;
+ timeline jsonb; merged_event jsonb; merge_commit jsonb;
+ check_rows jsonb; provider_readback jsonb; evidence jsonb; recorded jsonb; verification_id uuid;
+ item jsonb; item_path text; item_sha text;
+ total_count integer; run_count integer; required_count integer; page integer;
+begin
+ if session_user not in ('postgres','service_role')
+    and coalesce(auth.jwt()->>'role','')<>'service_role' then
+  raise exception 'OPS_MERGED_RELEASE_SERVICE_ROLE_REQUIRED' using errcode='42501';
+ end if;
+ if p_task_key<>'FB-025' then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_TASK_UNSUPPORTED' using errcode='22023';
+ end if;
+ if p_generation is null or p_generation<1
+    or not coalesce(p_spec_digest ~ '^[a-f0-9]{64}$',false)
+    or not coalesce(p_expected_head_sha ~ '^[a-f0-9]{40}$',false)
+    or p_reconciliation_receipt_id is null then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_INPUT_INVALID' using errcode='22023';
+ end if;
+ if p_verifier_worker_key is distinct from 'pandora-native-release-v1'
+    or p_verifier_principal_key is distinct from 'vercel:mcpmaster:operations-native-release-v1' then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_VERIFIER_DENIED' using errcode='42501';
+ end if;
+ perform 1 from private.pandora_ops_project_bindings
+ where organization_id=p_organization_id and project_id=p_project_id and state='active' for share;
+ if not found then raise exception 'OPS_PROJECT_SCOPE_DENIED' using errcode='42501'; end if;
+ perform 1 from private.pandora_ops_workspaces
+ where organization_id=p_organization_id and project_id=p_project_id and not paused for update;
+ if not found then raise exception 'OPS_WORKSPACE_PAUSED'; end if;
+ select * into t from private.pandora_ops_tasks
+ where organization_id=p_organization_id and project_id=p_project_id and task_key=p_task_key for update;
+ if not found or t.generation is distinct from p_generation
+    or p_spec_digest is distinct from 'a9cebabf19bbac53eaab1d27b4394efc8d1d943549bdbb1fc1ecda486ee7aefc'
+    or t.spec_digest is distinct from p_spec_digest or t.head_sha is distinct from p_expected_head_sha
+    or t.head_sha is distinct from '3e38b571ae963cc663e622fc1a75d5578b6fb7a2'
+    or t.status not in ('verifying','complete') or t.cancel_requested
+    or t.spec->>'risk' is distinct from 'source'
+    or t.spec->>'verificationProfile' is distinct from 'backend_service'
+    or t.spec#>>'{source,repository}' is distinct from 'pandora-rvw-314296438-20260820/pandoras-box'
+    or t.spec#>>'{source,baseSha}' is distinct from 'f4675344f99a3d2cc23a9c360c9512826e921c5c'
+    or t.spec->'acceptance' is distinct from
+       '["Schema distinguishes verified fact, user decision, provider evidence, inference, assumption, and superseded information."]'::jsonb then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_TASK_FENCED';
+ end if;
+ select * into receipt from private.pandora_ops_merged_release_receipts
+ where id=p_reconciliation_receipt_id for share;
+ if not found
+    or receipt.organization_id is distinct from p_organization_id
+    or receipt.project_id is distinct from p_project_id
+    or receipt.task_key is distinct from t.task_key
+    or receipt.adopted_generation is distinct from t.generation
+    or receipt.task_spec_digest is distinct from t.spec_digest
+    or receipt.prior_head_sha is distinct from '5448f61715b139dff7bbedf9d3056ca80cadb585'
+    or receipt.head_sha is distinct from t.head_sha
+    or receipt.repository is distinct from 'pandora-rvw-314296438-20260820/pandoras-box'
+    or receipt.pull_request is distinct from 786
+    or receipt.reconciler_worker_key is distinct from p_verifier_worker_key
+    or receipt.reconciler_principal_key is distinct from p_verifier_principal_key then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_RECEIPT_MISMATCH';
+ end if;
+
+ response:=private.pandora_integration_github_api_20260825(
+  'GET','/repos/pandora-rvw-314296438-20260820/pandoras-box/pulls/786',null);
+ pr:=response->'body';
+ if response->>'status' is distinct from '200'
+    or pr->>'number' is distinct from '786' or pr->>'state' is distinct from 'closed'
+    or pr->'merged' is distinct from 'true'::jsonb or pr->>'merged_at' is null
+    or pr#>>'{base,ref}' is distinct from 'main'
+    or pr#>>'{base,repo,full_name}' is distinct from receipt.repository
+    or pr#>>'{head,repo,full_name}' is distinct from receipt.repository
+    or pr#>>'{head,sha}' is distinct from t.head_sha then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_PR_MISMATCH';
+ end if;
+ for page in 1..10 loop
+  response:=private.pandora_integration_github_api_20260825(
+   'GET','/repos/pandora-rvw-314296438-20260820/pandoras-box/issues/786/timeline?per_page=100&page='||page,null);
+  if response->>'status' is distinct from '200'
+     or jsonb_typeof(response->'body') is distinct from 'array' then
+   raise exception 'OPS_MERGED_RELEASE_SOURCE_TIMELINE_UNAVAILABLE';
+  end if;
+  timeline:=response->'body';
+  select e into merged_event from jsonb_array_elements(timeline) e
+   where e->>'event'='merged' order by e->>'created_at' desc limit 1;
+  exit when merged_event is not null or jsonb_array_length(timeline)<100;
+ end loop;
+ if merged_event->>'commit_id' is distinct from receipt.merge_sha then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_MERGE_BINDING_MISMATCH';
+ end if;
+ response:=private.pandora_integration_github_api_20260825(
+  'GET','/repos/pandora-rvw-314296438-20260820/pandoras-box/commits/'||receipt.merge_sha,null);
+ merge_commit:=response->'body';
+ if response->>'status' is distinct from '200'
+    or merge_commit->>'sha' is distinct from receipt.merge_sha
+    or jsonb_typeof(merge_commit->'parents') is distinct from 'array'
+    or not exists(select 1 from jsonb_array_elements(merge_commit->'parents') p where p->>'sha'=t.head_sha) then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_MERGE_PARENT_MISMATCH';
+ end if;
+
+ response:=private.pandora_integration_github_api_20260825(
+  'GET','/repos/pandora-rvw-314296438-20260820/pandoras-box/commits/'||t.head_sha||'/check-runs?per_page=100',null);
+ checks:=response->'body';
+ if response->>'status' is distinct from '200'
+    or jsonb_typeof(checks->'check_runs') is distinct from 'array'
+    or not coalesce(checks->>'total_count' ~ '^[0-9]+$',false) then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_CHECK_READBACK_FAILED';
+ end if;
+ total_count:=(checks->>'total_count')::integer;
+ run_count:=jsonb_array_length(checks->'check_runs');
+ if total_count<1 or total_count>100 or total_count<>run_count then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_CHECK_SET_INCOMPLETE';
+ end if;
+ if exists(select 1 from jsonb_array_elements(checks->'check_runs') c
+   where not coalesce(c->>'id' ~ '^[1-9][0-9]*$',false)
+      or not coalesce(length(c->>'name') between 1 and 200,false)
+      or c->>'head_sha' is distinct from t.head_sha
+      or not coalesce(c#>>'{app,id}' ~ '^[1-9][0-9]*$',false)
+      or not coalesce(length(c#>>'{app,slug}') between 1 and 120,false)
+      or c->>'status' is distinct from 'completed'
+      or coalesce(c->>'conclusion','') not in ('success','neutral','skipped')) then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_CHECKS_NOT_GREEN';
+ end if;
+ if (select count(*) from jsonb_array_elements(checks->'check_runs')) <>
+    (select count(distinct c->>'name') from jsonb_array_elements(checks->'check_runs') c) then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_CHECK_DUPLICATE';
+ end if;
+ select count(*) into required_count from jsonb_array_elements(checks->'check_runs') c
+ where (c->>'name',c->>'conclusion') in (
+  ('Pandora coordinator / integration','success'),('node24','success'),
+  ('Windows worker contract','success'),('canonical-release-source-contract','success'),
+  ('Dependency review','success')
+ );
+ if required_count<>5 or not exists(
+  select 1 from jsonb_array_elements(checks->'check_runs') c
+  where c->>'id'='108608310169' and c->>'name'='Pandora coordinator / integration'
+    and c->>'head_sha'=t.head_sha and c#>>'{app,id}'='4785021'
+    and c->>'conclusion'='success'
+ ) then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_REQUIRED_CHECK_MISSING';
+ end if;
+ select jsonb_agg(jsonb_build_object('id',(c->>'id')::bigint,'name',c->>'name',
+          'headSha',c->>'head_sha','appId',(c#>>'{app,id}')::bigint,'appSlug',c#>>'{app,slug}',
+          'conclusion',c->>'conclusion') order by c->>'name',(c->>'id')::bigint)
+ into check_rows from jsonb_array_elements(checks->'check_runs') c;
+
+ response:=private.pandora_integration_github_api_20260825(
+  'GET','/repos/pandora-rvw-314296438-20260820/pandoras-box/issues/comments/5854323698',null);
+ comment_full:=response->'body';
+ if response->>'status' is distinct from '200' or comment_full->>'id' is distinct from '5854323698'
+    or comment_full#>>'{user,login}' is distinct from 'coderabbitai[bot]'
+    or comment_full#>>'{user,id}' is distinct from '136622811'
+    or comment_full#>>'{user,type}' is distinct from 'Bot'
+    or comment_full#>>'{performed_via_github_app,id}' is distinct from '347564'
+    or comment_full#>>'{performed_via_github_app,slug}' is distinct from 'coderabbitai'
+    or comment_full->>'created_at' is distinct from '2026-09-27T08:46:48Z'
+    or comment_full->>'updated_at' is distinct from '2026-09-27T11:10:38Z'
+    or octet_length(comment_full->>'body')<>10461
+    or pg_catalog.encode(extensions.digest(pg_catalog.convert_to(comment_full->>'body','UTF8'),'sha256'),'hex')
+       is distinct from 'defa2c5cfceab021d282fa1cd3904de894bf0c2abf1c3223d55a9d5612feda08'
+    or position('57ff9a46-47b0-4ba2-bad8-cb80de09efd0' in comment_full->>'body')=0
+    or position('5448f61715b139dff7bbedf9d3056ca80cadb585' in comment_full->>'body')=0 then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_FULL_REVIEW_MISMATCH';
+ end if;
+
+ response:=private.pandora_integration_github_api_20260825(
+  'GET','/repos/pandora-rvw-314296438-20260820/pandoras-box/issues/comments/5855325039',null);
+ comment_carry:=response->'body';
+ if response->>'status' is distinct from '200' or comment_carry->>'id' is distinct from '5855325039'
+    or comment_carry#>>'{user,login}' is distinct from 'coderabbitai[bot]'
+    or comment_carry#>>'{user,id}' is distinct from '136622811'
+    or comment_carry#>>'{user,type}' is distinct from 'Bot'
+    or comment_carry#>>'{performed_via_github_app,id}' is distinct from '347564'
+    or comment_carry#>>'{performed_via_github_app,slug}' is distinct from 'coderabbitai'
+    or comment_carry->>'created_at' is distinct from '2026-09-27T11:12:57Z'
+    or comment_carry->>'updated_at' is distinct from '2026-09-27T11:12:57Z'
+    or octet_length(comment_carry->>'body')<>5465
+    or pg_catalog.encode(extensions.digest(pg_catalog.convert_to(comment_carry->>'body','UTF8'),'sha256'),'hex')
+       is distinct from '4f5b0f33bfce1bdffafce66db3bf3af62c89ea9a2310f727cf87ad6f4e6061de'
+    or position('5448f61715b139dff7bbedf9d3056ca80cadb585' in comment_carry->>'body')=0
+    or position('3e38b571ae963cc663e622fc1a75d5578b6fb7a2' in comment_carry->>'body')=0
+    or position('a4bad29c027b4d78d821f94eb1aeddbbc5d46991' in comment_carry->>'body')=0
+    or position('13ea5c37f04d7c07fdf6439a0e1bbd97d27b6f36' in comment_carry->>'body')=0
+    or position('0f2f9eab39fab6a89f48ab52bb1f1d4e1726a04d' in comment_carry->>'body')=0 then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_CARRIED_REVIEW_MISMATCH';
+ end if;
+
+ foreach item in array array[
+  jsonb_build_object('path','docs/growth/FB025_GROWTH_LEARNING_SCHEMA.md','sha','a4bad29c027b4d78d821f94eb1aeddbbc5d46991'),
+  jsonb_build_object('path','src/pandora-growth-learning-schema.js','sha','13ea5c37f04d7c07fdf6439a0e1bbd97d27b6f36'),
+  jsonb_build_object('path','test/pandora-growth-learning-schema.test.js','sha','0f2f9eab39fab6a89f48ab52bb1f1d4e1726a04d')
+ ] loop
+  item_path:=item->>'path'; item_sha:=item->>'sha';
+  response:=private.pandora_integration_github_api_20260825(
+   'GET','/repos/pandora-rvw-314296438-20260820/pandoras-box/contents/'||item_path||'?ref='||t.head_sha,null);
+  if response->>'status' is distinct from '200'
+     or response#>>'{body,path}' is distinct from item_path
+     or response#>>'{body,type}' is distinct from 'file'
+     or response#>>'{body,sha}' is distinct from item_sha then
+   raise exception 'OPS_MERGED_RELEASE_SOURCE_BLOB_MISMATCH';
+  end if;
+ end loop;
+
+ response:=private.pandora_integration_github_api_20260825(
+  'GET','/repos/pandora-rvw-314296438-20260820/pandoras-box/pulls/786',null);
+ if response->>'status' is distinct from '200'
+    or response#>>'{body,head,sha}' is distinct from t.head_sha
+    or response#>'{body,merged}' is distinct from 'true'::jsonb
+    or response#>>'{body,state}' is distinct from 'closed' then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_READBACK_CHANGED';
+ end if;
+
+ provider_readback:=jsonb_build_object(
+  'repository',receipt.repository,'pullRequest',786,'headSha',t.head_sha,'mergeSha',receipt.merge_sha,
+  'checks',check_rows,
+  'fullReview',jsonb_build_object('commentId',5854323698,'bodySha256','defa2c5cfceab021d282fa1cd3904de894bf0c2abf1c3223d55a9d5612feda08','updatedAt','2026-09-27T11:10:38Z'),
+  'carriedReview',jsonb_build_object('commentId',5855325039,'bodySha256','4f5b0f33bfce1bdffafce66db3bf3af62c89ea9a2310f727cf87ad6f4e6061de','updatedAt','2026-09-27T11:12:57Z'),
+  'blobs',jsonb_build_object(
+   'docs/growth/FB025_GROWTH_LEARNING_SCHEMA.md','a4bad29c027b4d78d821f94eb1aeddbbc5d46991',
+   'src/pandora-growth-learning-schema.js','13ea5c37f04d7c07fdf6439a0e1bbd97d27b6f36',
+   'test/pandora-growth-learning-schema.test.js','0f2f9eab39fab6a89f48ab52bb1f1d4e1726a04d'
+  )
+ );
+ evidence:=jsonb_build_object(
+  'taskId',t.task_key,'generation',t.generation::text,'headSha',t.head_sha,
+  'taskSpecDigest',t.spec_digest,'criteria',t.spec->'acceptance',
+  'ref','ops-merged-release:'||receipt.id||':'||t.head_sha,
+  'providerReadback',provider_readback
+ );
+ recorded:=public.pandora_ops_record_verification_v1(
+  p_organization_id,p_project_id,t.task_key,t.generation,
+  p_verifier_worker_key,p_verifier_principal_key,'PASS',evidence);
+ verification_id:=(recorded->>'verificationRunId')::uuid;
+ return public.pandora_ops_verify_v1(
+   p_organization_id,p_project_id,t.task_key,t.generation,
+   p_verifier_worker_key,p_verifier_principal_key,verification_id,
+   evidence||jsonb_build_object('verificationRunId',verification_id::text)
+  )||jsonb_build_object('providerReadbackVerified',true,'reconciliationReceiptId',receipt.id);
+end;
+$fn$;
+
+-- One fixed native-release step makes the historical FB-025 repair retryable without caller evidence.
+create function public.pandora_ops_merged_release_source_step_v1(
+ p_organization_id uuid, p_project_id uuid, p_worker_key text, p_principal_key text
+) returns jsonb language plpgsql security definer set search_path='' as $fn$
+declare
+ t private.pandora_ops_tasks%rowtype;
+ reconciled jsonb; verified jsonb;
+ receipt_id uuid; receipt_count bigint; did_reconcile boolean:=false;
+begin
+ if session_user not in ('postgres','service_role')
+    and coalesce(auth.jwt()->>'role','')<>'service_role' then
+  raise exception 'OPS_MERGED_RELEASE_SERVICE_ROLE_REQUIRED' using errcode='42501';
+ end if;
+ if p_worker_key is distinct from 'pandora-native-release-v1'
+    or p_principal_key is distinct from 'vercel:mcpmaster:operations-native-release-v1' then
+  raise exception 'OPS_MERGED_RELEASE_SOURCE_VERIFIER_DENIED' using errcode='42501';
+ end if;
+ perform 1 from private.pandora_ops_project_bindings
+ where organization_id=p_organization_id and project_id=p_project_id and state='active' for share;
+ if not found then raise exception 'OPS_PROJECT_SCOPE_DENIED' using errcode='42501'; end if;
+ perform 1 from private.pandora_ops_workspaces
+ where organization_id=p_organization_id and project_id=p_project_id and not paused for update;
+ if not found then raise exception 'OPS_WORKSPACE_PAUSED'; end if;
+ select * into t from private.pandora_ops_tasks
+ where organization_id=p_organization_id and project_id=p_project_id and task_key='FB-025' for update;
+ if not found then
+  return jsonb_build_object('state','idle','taskId','FB-025','reason','task_missing');
+ end if;
+ if t.cancel_requested
+    or t.spec_digest is distinct from 'a9cebabf19bbac53eaab1d27b4394efc8d1d943549bdbb1fc1ecda486ee7aefc'
+    or t.spec->>'risk' is distinct from 'source'
+    or t.spec->>'verificationProfile' is distinct from 'backend_service'
+    or t.spec#>>'{source,repository}' is distinct from 'pandora-rvw-314296438-20260820/pandoras-box'
+    or t.spec#>>'{source,baseSha}' is distinct from 'f4675344f99a3d2cc23a9c360c9512826e921c5c'
+    or t.spec->'acceptance' is distinct from
+       '["Schema distinguishes verified fact, user decision, provider evidence, inference, assumption, and superseded information."]'::jsonb then
+  return jsonb_build_object('state','held','taskId','FB-025','reason','source_spec_drift',
+    'status',t.status,'generation',t.generation,'headSha',t.head_sha);
+ end if;
+
+ if t.head_sha='5448f61715b139dff7bbedf9d3056ca80cadb585'
+    and t.generation=4 and t.revision=12 and t.status in ('handed_off','verifying') then
+  reconciled:=public.pandora_ops_reconcile_merged_release_v1(
+   p_organization_id,p_project_id,gen_random_uuid(),t.task_key,t.generation,t.revision,
+   t.spec_digest,t.head_sha,p_worker_key,p_principal_key);
+  receipt_id:=(reconciled->>'receiptId')::uuid;
+  did_reconcile:=true;
+  select * into t from private.pandora_ops_tasks
+  where organization_id=p_organization_id and project_id=p_project_id and task_key='FB-025' for update;
+ elsif t.head_sha='3e38b571ae963cc663e622fc1a75d5578b6fb7a2'
+    and t.generation=5 and t.status in ('verifying','complete') then
+  select count(*),min(id::text)::uuid into receipt_count,receipt_id
+  from private.pandora_ops_merged_release_receipts
+  where organization_id=p_organization_id and project_id=p_project_id and task_key='FB-025'
+    and adopted_generation=t.generation and task_spec_digest=t.spec_digest and head_sha=t.head_sha;
+  if receipt_count<>1 then
+   return jsonb_build_object('state','held','taskId','FB-025','reason','reconciliation_receipt_missing_or_ambiguous',
+     'status',t.status,'generation',t.generation,'headSha',t.head_sha);
+  end if;
+ else
+  return jsonb_build_object('state','held','taskId','FB-025','reason','source_state_not_eligible',
+    'status',t.status,'generation',t.generation,'headSha',t.head_sha);
+ end if;
+
+ verified:=public.pandora_ops_verify_merged_release_source_v1(
+  p_organization_id,p_project_id,t.task_key,t.generation,t.spec_digest,t.head_sha,
+  receipt_id,p_worker_key,p_principal_key);
+ select * into t from private.pandora_ops_tasks
+ where organization_id=p_organization_id and project_id=p_project_id and task_key='FB-025';
+ return jsonb_build_object(
+  'state','complete','taskId',t.task_key,'generation',t.generation,'headSha',t.head_sha,
+  'reconciliationReceiptId',receipt_id,'reconciled',did_reconcile,'verification',verified);
+end;
+$fn$;
+
+revoke all on function public.pandora_ops_merged_release_source_step_v1(uuid,uuid,text,text)
+ from public,anon,authenticated;
+grant execute on function public.pandora_ops_merged_release_source_step_v1(uuid,uuid,text,text)
+ to service_role;
+comment on function public.pandora_ops_merged_release_source_step_v1(uuid,uuid,text,text) is
+ 'Fixed native-release retry step for the pinned historical FB-025 source repair. It reconciles and verifies atomically or returns an explicit idle/held state without caller-selected task, receipt, verdict or evidence.';
+
+revoke all on function public.pandora_ops_verify_merged_release_source_v1(
+ uuid,uuid,text,bigint,text,text,uuid,text,text) from public,anon,authenticated;
+grant execute on function public.pandora_ops_verify_merged_release_source_v1(
+ uuid,uuid,text,bigint,text,text,uuid,text,text) to service_role;
+comment on function public.pandora_ops_verify_merged_release_source_v1(
+ uuid,uuid,text,bigint,text,text,uuid,text,text) is
+ 'Task-specific FB-025 source acceptance from fixed GitHub PR, exact-head checks, immutable CodeRabbit review digests and reviewed blob identities. FB-012 production release remains unsupported.';
+
 revoke all on function private.pandora_ops_merged_release_immutable_v1()
  from public,anon,authenticated,service_role;
 revoke all on function public.pandora_ops_reconcile_merged_release_v1(
