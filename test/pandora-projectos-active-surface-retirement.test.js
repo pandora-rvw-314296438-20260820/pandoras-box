@@ -11,6 +11,15 @@ const activeGuidance = [
   ".claude/skills/pandora-control-tower/SKILL.md",
   ".claude/skills/pandora-governed-execution/SKILL.md",
   ".claude/skills/pandora-governance-contract/references/risk-classification.md",
+  ".claude/skills/DEPENDENCY_GRAPH.md",
+  ".claude/skills/README.md",
+  ".claude/skills/pandora-auth/SKILL.md",
+  ".claude/skills/pandora-evidence-ledger/SKILL.md",
+  ".claude/skills/pandora-governance-contract/SKILL.md",
+  ".claude/skills/pandora-project-recovery/SKILL.md",
+  ".claude/skills/pandora-router/SKILL.md",
+  ".agents/skills/planning-governed-actions/SKILL.md",
+  "PROJECT_CUSTOM_INSTRUCTION.md",
 ].map((path) => fs.readFileSync(path, "utf8")).join("\n");
 const historicalHandler = fs.readFileSync("src/projectos-mcp-handler.js", "utf8");
 const retirementMigration = fs.readFileSync(
