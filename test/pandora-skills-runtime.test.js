@@ -283,3 +283,31 @@ test('disabling the runtime restores prior behaviour without deleting evidence',
   assert.equal(registry.ids.length, 195, 'core plus generated capability skill evidence must remain intact while disabled');
   assert.ok(fs.existsSync(path.join(ROOT, 'docs/skills/PANDORA_SKILL_MANIFEST.sha256')));
 });
+
+test('Vercel skill-runtime entrypoints are statically traceable and recursively packaged', () => {
+  const health = fs.readFileSync(path.join(ROOT, 'api/health.ts'), 'utf8');
+  const handler = fs.readFileSync(path.join(ROOT, 'src/pandora-mcp-handler.js'), 'utf8');
+  const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
+
+  assert.match(
+    health,
+    /import\('\.\.\/\.agents\/runtime\/pandora-skill-runtime\.mjs'\)/,
+    'health must use a literal dynamic import so Vercel can trace the runtime',
+  );
+  assert.doesNotMatch(health, /pathToFileURL|runtimePath|process\.cwd\(\).*pandora-skill-runtime/);
+
+  assert.match(
+    handler,
+    /require\("\.\.\/\.agents\/runtime\/pandora-skill-runtime\.mjs"\)/,
+    'MCP must use a literal require so Vercel can trace the runtime',
+  );
+  assert.doesNotMatch(handler, /require\(runtimePath\)|path\.resolve\(__dirname[^\n]*pandora-skill-runtime/);
+
+  for (const functionName of ['api/mcp.ts', 'api/health.ts']) {
+    assert.equal(
+      vercel.functions[functionName].includeFiles,
+      '{.agents/**/*,config/pandora-capability-fabric-v1.json}',
+      functionName + ' must recursively package the canonical skill registry and governance files',
+    );
+  }
+});
