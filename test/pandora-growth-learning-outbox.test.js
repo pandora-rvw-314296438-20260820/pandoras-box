@@ -199,6 +199,57 @@ test("delivery acceptance requires exact candidate and review bindings", () => {
   }
 });
 
+test("already-reviewed terminal receipts require HTTP 200 and exact review status", () => {
+  const projected = projectGrowthLearningOutbox(learning("verified_fact"), scope);
+  const candidate = projected.outbox.payload.growth_learning.candidate;
+  const statuses = [
+    "needs_clarification", "blocked_namespace_mismatch", "blocked_sensitive",
+    "blocked_policy", "approved_for_append", "rejected", "archived",
+  ];
+  for (const reviewStatus of statuses) {
+    const response = {
+      ok: true,
+      status: "already_reviewed",
+      source_event_id: projected.outbox.payload.source_event_id,
+      learning_id: candidate.source_event_id,
+      content_hash: candidate.content_hash,
+      candidate_id: "11111111-1111-4111-8111-111111111111",
+      review_item_id: "22222222-2222-4222-8222-222222222222",
+      review_status: reviewStatus,
+      deduplicated: true,
+    };
+    const result = validateGrowthLearningIntakeAcceptance(
+      projected.outbox.payload, response, 200,
+    );
+    assert.equal(result.delivered, true);
+    assert.equal(result.review_status, reviewStatus);
+    assert.equal(result.canonical_memory_written, false);
+    assert.throws(
+      () => validateGrowthLearningIntakeAcceptance(
+        projected.outbox.payload, response, 202,
+      ),
+      (error) => error instanceof GrowthLearningOutboxError,
+    );
+  }
+  const bad = {
+    ok: true,
+    status: "already_reviewed",
+    source_event_id: projected.outbox.payload.source_event_id,
+    learning_id: candidate.source_event_id,
+    content_hash: candidate.content_hash,
+    candidate_id: "11111111-1111-4111-8111-111111111111",
+    review_item_id: "22222222-2222-4222-8222-222222222222",
+    review_status: "pending_review",
+    deduplicated: true,
+  };
+  assert.throws(
+    () => validateGrowthLearningIntakeAcceptance(
+      projected.outbox.payload, bad, 200,
+    ),
+    (error) => error instanceof GrowthLearningOutboxError,
+  );
+});
+
 test("delivery acceptance recomputes every signed binding and fixed scope", () => {
   const projected = projectGrowthLearningOutbox(learning("verified_fact"), scope);
   assert.equal(
