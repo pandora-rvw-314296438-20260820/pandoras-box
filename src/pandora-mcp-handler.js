@@ -6,7 +6,6 @@ exports.createPandoraMcpHandler = createPandoraMcpHandler;
 exports.handlePandoraMcp = handlePandoraMcp;
 
 const { randomUUID } = require("node:crypto");
-const path = require("node:path");
 const { ExecutionLedgerClient } = require("./runtime/execution-ledger-client.js");
 const {
     createProviderExecutionStateMachine,
@@ -63,12 +62,12 @@ let skillRuntimePromise;
 
 function skillRuntime() {
     if (!skillRuntimePromise) {
-        const runtimePath = path.resolve(__dirname, "..", ".agents", "runtime", "pandora-skill-runtime.mjs");
-        // Node 24 can synchronously require ESM without top-level await. Wrapping
-        // it in a promise keeps the existing async caller contract while also
-        // surviving CommonJS compilation, which otherwise lowers import() to
-        // require() and cannot resolve a file:// URL.
-        skillRuntimePromise = Promise.resolve().then(() => require(runtimePath));
+        // Keep the specifier literal so Vercel's Node file tracer includes the
+        // canonical .agents runtime in the serverless bundle. Node 24 supports
+        // synchronous require() of ESM modules without top-level await.
+        skillRuntimePromise = Promise.resolve().then(
+            () => require("../.agents/runtime/pandora-skill-runtime.mjs"),
+        );
     }
     return skillRuntimePromise;
 }
