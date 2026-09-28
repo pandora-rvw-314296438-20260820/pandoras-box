@@ -220,7 +220,25 @@ begin
     'GET','/repos/'||v_repository||'/git/ref/heads/main',null
   );
   if coalesce((main_response->>'status')::integer,0)<>200
-     or not coalesce(main_response#>>'{body,object,sha}' ~ '^[a-f0-9]{40}
+     or not coalesce(main_response#>>'{body,object,sha}' ~ '^[a-f0-9]{40}$',false) then
+    raise exception 'OPS_EXTERNAL_SUCCESS_MAIN_READBACK_FAILED';
+  end if;
+  v_current_main_sha:=main_response#>>'{body,object,sha}';
+  v_stale_base:=v_current_main_sha is distinct from v_observed_base_sha;
+  if v_stale_base then
+    current_base_compare_response:=private.pandora_integration_github_api_20260825(
+      'GET','/repos/'||v_repository||'/compare/'||v_observed_base_sha||'%2E%2E%2E'||v_current_main_sha,null
+    );
+    if coalesce((current_base_compare_response->>'status')::integer,0)<>200 then
+      raise exception 'OPS_EXTERNAL_SUCCESS_CURRENT_BASE_READBACK_FAILED';
+    end if;
+    current_base_compare_body:=coalesce(current_base_compare_response->'body','{}'::jsonb);
+    if not coalesce(current_base_compare_body->>'status' in ('ahead','identical'),false)
+       or coalesce((current_base_compare_body->>'behind_by')::integer,-1)<>0 then
+      raise exception 'OPS_EXTERNAL_SUCCESS_CURRENT_BASE_DIVERGED';
+    end if;
+  end if;
+
   compare_response:=private.pandora_integration_github_api_20260825(
     'GET','/repos/'||v_repository||'/compare/'||v_observed_base_sha||'%2E%2E%2E'||v_observed_head_sha,null
   );
@@ -323,124 +341,6 @@ begin
     'taskId',task.task_key,'generation',p_generation,
     'headSha',v_observed_head_sha,'leaseReleased',true,'complete',false,
     'staleBase',v_stale_base,'currentMainSha',v_current_main_sha,
-    'replayed',false,'receiptId',existing.id
-  );
-end;
-$fn$;
-
-,false) then
-    raise exception 'OPS_EXTERNAL_SUCCESS_MAIN_READBACK_FAILED';
-  end if;
-  v_current_main_sha:=main_response#>>'{body,object,sha}';
-  v_stale_base:=v_current_main_sha is distinct from v_observed_base_sha;
-  if v_stale_base then
-    current_base_compare_response:=private.pandora_integration_github_api_20260825(
-      'GET','/repos/'||v_repository||'/compare/'||v_observed_base_sha||'%2E%2E%2E'||v_current_main_sha,null
-    );
-    if coalesce((current_base_compare_response->>'status')::integer,0)<>200 then
-      raise exception 'OPS_EXTERNAL_SUCCESS_CURRENT_BASE_READBACK_FAILED';
-    end if;
-    current_base_compare_body:=coalesce(current_base_compare_response->'body','{}'::jsonb);
-    if not coalesce(current_base_compare_body->>'status' in ('ahead','identical'),false)
-       or coalesce((current_base_compare_body->>'behind_by')::integer,-1)<>0 then
-      raise exception 'OPS_EXTERNAL_SUCCESS_CURRENT_BASE_DIVERGED';
-    end if;
-  end if;
-
-  compare_response:=private.pandora_integration_github_api_20260825(
-    'GET','/repos/'||v_repository||'/compare/'||v_observed_base_sha||'%2E%2E%2E'||v_observed_head_sha,null
-  );
-  if coalesce((compare_response->>'status')::integer,0)<>200 then
-    raise exception 'OPS_EXTERNAL_SUCCESS_COMPARE_READBACK_FAILED';
-  end if;
-  compare_body:=coalesce(compare_response->'body','{}'::jsonb);
-  if not coalesce(compare_body->>'status' in ('ahead','identical'),false)
-     or coalesce((compare_body->>'behind_by')::integer,-1)<>0 then
-    raise exception 'OPS_EXTERNAL_SUCCESS_SOURCE_DIVERGED';
-  end if;
-
-  base_compare_response:=private.pandora_integration_github_api_20260825(
-    'GET','/repos/'||v_repository||'/compare/'||v_requested_base_sha||'%2E%2E%2E'||v_observed_base_sha,null
-  );
-  if coalesce((base_compare_response->>'status')::integer,0)<>200 then
-    raise exception 'OPS_EXTERNAL_SUCCESS_BASE_READBACK_FAILED';
-  end if;
-  base_compare_body:=coalesce(base_compare_response->'body','{}'::jsonb);
-  if not coalesce(base_compare_body->>'status' in ('ahead','identical'),false)
-     or coalesce((base_compare_body->>'behind_by')::integer,-1)<>0 then
-    raise exception 'OPS_EXTERNAL_SUCCESS_BASE_DIVERGED';
-  end if;
-
-  if task.head_sha is not null then
-    prior_compare_response:=private.pandora_integration_github_api_20260825(
-      'GET','/repos/'||v_repository||'/compare/'||task.head_sha||'%2E%2E%2E'||v_observed_head_sha,null
-    );
-    if coalesce((prior_compare_response->>'status')::integer,0)<>200 then
-      raise exception 'OPS_EXTERNAL_SUCCESS_PRIOR_HEAD_READBACK_FAILED';
-    end if;
-    prior_compare_body:=coalesce(prior_compare_response->'body','{}'::jsonb);
-    if not coalesce(prior_compare_body->>'status' in ('ahead','identical'),false)
-       or coalesce((prior_compare_body->>'behind_by')::integer,-1)<>0 then
-      raise exception 'OPS_EXTERNAL_SUCCESS_PRIOR_HEAD_DIVERGED';
-    end if;
-  end if;
-
-  v_provider_operation_id:='github:pull_request_branch_update:'||v_pull_request::text||':'||v_observed_head_sha;
-  v_action_digest:=encode(extensions.digest(convert_to(jsonb_build_object(
-    'provider','github','operation','pull_request_branch_update',
-    'providerOperationId',v_provider_operation_id,
-    'repository',v_repository,'pullRequest',v_pull_request,'branch',v_branch,
-    'requestedBaseSha',v_requested_base_sha,'observedBaseSha',v_observed_base_sha,
-    'observedHeadSha',v_observed_head_sha
-  )::text,'UTF8'),'sha256'),'hex');
-  v_readback:=jsonb_build_object(
-    'provider','github','method','GET','pullRequest',v_pull_request,
-    'repository',v_repository,'branch',v_branch,'headSha',v_observed_head_sha,
-    'baseBranch','main','baseSha',v_observed_base_sha,'pullRequestState',pr_body->>'state',
-    'lineageStatus',compare_body->>'status','behindBy',(compare_body->>'behind_by')::integer,
-    'requestedBaseLineageStatus',base_compare_body->>'status',
-    'requestedBaseBehindBy',(base_compare_body->>'behind_by')::integer,
-    'priorHeadSha',task.head_sha,
-    'priorHeadLineageStatus',prior_compare_body->>'status',
-    'priorHeadBehindBy',case when prior_compare_body ? 'behind_by'
-      then (prior_compare_body->>'behind_by')::integer else null end
-  );
-  v_provider_receipt_sha256:=encode(
-    extensions.digest(convert_to(v_readback::text,'UTF8'),'sha256'),'hex'
-  );
-
-  insert into private.pandora_ops_external_success_receipts(
-    organization_id,project_id,lease_id,generation,task_key,
-    reconciler_worker_key,reconciler_principal_key,provider,operation,
-    provider_operation_id,action_digest,provider_receipt_sha256,repository,
-    pull_request,branch,requested_base_sha,observed_base_sha,prior_task_head_sha,observed_head_sha,
-    receipt_ref,receipt,provider_readback
-  ) values (
-    p_organization_id,p_project_id,p_lease_id,p_generation,task.task_key,
-    p_reconciler_worker_key,p_reconciler_principal_key,'github','pull_request_branch_update',
-    v_provider_operation_id,v_action_digest,v_provider_receipt_sha256,v_repository,
-    v_pull_request,v_branch,v_requested_base_sha,v_observed_base_sha,task.head_sha,v_observed_head_sha,
-    p_receipt->>'ref',p_receipt,v_readback
-  ) returning * into existing;
-
-  -- This changes the task's current source projection but preserves the original
-  -- handoff and every historical event. The immutable receipt is the authority
-  -- for why verification now targets the externally observed head.
-  update private.pandora_ops_tasks
-     set status='verifying',revision=revision+1,head_sha=v_observed_head_sha
-   where organization_id=p_organization_id and project_id=p_project_id
-     and task_key=task.task_key;
-  perform private.pandora_ops_settle_v1(
-    p_organization_id,p_project_id,p_lease_id,p_generation,0,p_receipt->>'ref'
-  );
-  perform private.pandora_ops_event_v1(
-    p_organization_id,p_project_id,'external-success:'||p_lease_id::text,
-    task.task_key,'external_success_reconciled',p_receipt->>'ref'
-  );
-
-  return jsonb_build_object(
-    'state','verifying','taskId',task.task_key,'generation',p_generation,
-    'headSha',v_observed_head_sha,'leaseReleased',true,'complete',false,
     'replayed',false,'receiptId',existing.id
   );
 end;
