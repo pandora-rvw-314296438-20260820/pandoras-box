@@ -16,6 +16,7 @@ const REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
 const MEMORY_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-memory-bridge";
 const MEMORY_PROJECT_ID = "7c686cbd-d968-49d5-86cc-918f5e777bd2";
 const BUILDER_ID = "pandora-native-builder-v1";
+const GENERIC_SOURCE_FANOUT = 4;
 const RELEASE_ID = "pandora-native-release-v1";
 const CANARY_TASK = "OPS-CLOUD-CONNECTORS-RELEASE-V1";
 const MEMORY_ADOPTION_TASK = "OPS-MEMORY-CALLER-ADOPTION-V1";
@@ -732,141 +733,37 @@ async function runReasoningRdpStep(oidc: string) {
   }
 }
 
-export default async function operationsNativeWorker(request: any, response: any) {
-  const isCronWake = request.method === "GET";
-  const isPostWake = request.method === "POST";
-  if ((!isCronWake && !isPostWake) || request.headers.origin) {
-    return send(response, 403, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
+type GenericSourceClaim = {
+  taskId: string;
+  claim: Json;
+};
+
+function parseGenericSourceCandidate(candidate: any) {
+  const taskId = String(candidate?.taskId || "");
+  const taskRevision = Number(candidate?.taskRevision);
+  const controlRevision = Number(candidate?.controlRevision);
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/.test(taskId) ||
+    !Number.isSafeInteger(taskRevision) ||
+    !Number.isSafeInteger(controlRevision)
+  ) {
+    throw new Error("OPS_GENERIC_SOURCE_CANDIDATE_INVALID");
   }
+  return { taskId, taskRevision, controlRevision };
+}
 
-  const url = new URL(String(request.url || "/api/operations-native-worker"), "https://mcpmaster.vercel.app");
-  if (url.search || url.hash) return send(response, 403, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
-
-  let tokenSha256 = "";
-  let signed: { nonce: string; issuedAt: number } | null = null;
-  let manualWake = false;
-  if (isCronWake) {
-    const declared = Number(request.headers["content-length"] || "0");
-    if (!Number.isSafeInteger(declared) || declared !== 0 || !cronAuthorized(request)) {
-      return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
-    }
-  } else {
-    signed = signedWake(request);
-    if (!signed) {
-      const authorization = String(request.headers.authorization || "");
-      const match = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]{32,512})$/);
-      if (!match) return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
-      manualWake = true;
-      tokenSha256 = createHash("sha256").update(match[1]).digest("hex");
-    }
-  }
-
-  const oidc = await resolveVercelWorkloadToken();
-  if (!oidc) return send(response, 503, { ok: false, code: "OPS_NATIVE_IDENTITY_UNAVAILABLE" });
-
-  try {
-    if (manualWake) {
-      const authorized = await control(oidc, {
-        action: "operations_wake_authorize",
-        tokenSha256,
-      });
-      if (authorized !== true) {
-        return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
-      }
-    } else if (signed) {
-      const consumed = await control(oidc, {
-        action: "operations_wake_nonce_consume",
-        nonce: signed.nonce,
-        issuedAt: signed.issuedAt,
-      });
-      if (consumed !== true) {
-        return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_REPLAY_DENIED" });
-      }
-    }
-
-    const memory = await memoryContextCanary(oidc);
-
-    await control(oidc, { action: "operations_native_register", workerRole: "builder" });
-    await control(oidc, { action: "operations_native_register", workerRole: "release" });
-    await control(oidc, { action: "operations_heartbeat", workerRole: "builder" });
-    await control(oidc, { action: "operations_heartbeat", workerRole: "release" });
-
-    const [snapshot, activation] = await Promise.all([
-      control(oidc, { action: "operations_snapshot" }),
-      control(oidc, { action: "operations_activation_readback" }),
-    ]);
-
-    if (snapshot?.controls?.paused === true) {
-      return send(response, 200, {
-        ok: true,
-        state: "paused",
-        registered: true,
-        queuedTasks: activation?.queuedTasks ?? null,
-        memory,
-      });
-    }
-
-    const verification = await verifySupportedHandedOffTask(oidc, snapshot, memory);
-    if (verification) {
-      return send(response, 200, {
-        ok: true,
-        state: verification?.verified?.complete === true ? "complete" : "verification_pending",
-        taskId: verification.taskId,
-        verification,
-        memory,
-      });
-    }
-
-    const mergedFacebookSource = await verifyMergedFacebookSource(oidc, snapshot);
-    if (mergedFacebookSource?.state === "complete") {
-      return send(response, 200, {
-        ok: true,
-        state: "complete",
-        taskId: "FB-025",
-        release: mergedFacebookSource,
-        memory,
-      });
-    }
-
-    const reasoningRdp = await runReasoningRdpStep(oidc);
-    const passiveReasoningStates = new Set([
-      "idle",
-      "budget_required",
-      "model_route_unavailable",
-      "held",
-      "ineligible",
-    ]);
-    if (!passiveReasoningStates.has(String(reasoningRdp?.state || "idle"))) {
-      return send(response, reasoningRdp?.state === "reconciliation_required" ? 503 : 200, {
-        ok: reasoningRdp?.state !== "reconciliation_required",
-        state: reasoningRdp?.state || "idle",
-        taskId: reasoningRdp?.taskId ?? null,
-        reasoningRdp,
-        memory,
-      });
-    }
-
-    const sourceRelease = await control(
-      oidc,
-      { action: "operations_generic_source_release_step" },
-      60_000,
-    );
-    if (!canContinueSourceBuilding(sourceRelease?.state)) {
-      return send(response, 200, {
-        ok: true,
-        state: sourceRelease.state,
-        taskId: sourceRelease.taskId ?? null,
-        release: sourceRelease,
-        memory,
-      });
-    }
-
-    if (activation?.nativeWorkerRpc !== true) {
-      return send(response, 503, { ok: false, code: "OPS_NATIVE_RUNTIME_READBACK_INCOMPLETE" });
-    }
-
-    const candidate = await control(oidc, { action: "operations_generic_source_candidate" });
-    if (candidate?.state !== "ready") {
+async function claimGenericSourceBatch(oidc: string) {
+  const claims: GenericSourceClaim[] = [];
+  let lastCandidate: any = {
+    state: "idle",
+    reason: "no_dependency_ready_authorized_source_task",
+  };
+  let attempts = 0;
+  while (claims.length < GENERIC_SOURCE_FANOUT && attempts < GENERIC_SOURCE_FANOUT * 2) {
+    attempts += 1;
+    const batch = await claimGenericSourceBatch(oidc);
+    if (batch.claims.length === 0) {
+      const candidate = batch.lastCandidate;
       const preflight = await control(oidc, { action: "operations_preflight_next" });
       if (preflight?.state === "preflighted") {
         return send(response, 200, {
@@ -879,69 +776,45 @@ export default async function operationsNativeWorker(request: any, response: any
         });
       }
       return send(response, 200, {
-        ok: true, state: "idle", registered: true,
+        ok: true,
+        state: "idle",
+        registered: true,
         reason: candidate?.reason || "no_dependency_ready_authorized_source_task",
         humanBlocked: candidate?.humanBlocked ?? 0,
         mergedFacebookSource,
         preflighted: preflight?.preflighted ?? null,
+        sourceFanout: { limit: GENERIC_SOURCE_FANOUT, claimed: 0, results: [] },
         memory,
       });
     }
 
-    const taskId = String(candidate.taskId || "");
-    const taskRevision = Number(candidate.taskRevision);
-    const controlRevision = Number(candidate.controlRevision);
-    if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/.test(taskId) || !Number.isSafeInteger(taskRevision) || !Number.isSafeInteger(controlRevision)) {
-      throw new Error("OPS_GENERIC_SOURCE_CANDIDATE_INVALID");
-    }
+    const results = await Promise.all(
+      batch.claims.map((item) => executeClaimedGenericSourceTask(oidc, item)),
+    );
+    const reconciliationRequired = results.some(
+      (result) => result.state === "reconciliation_required",
+    );
+    const state =
+      reconciliationRequired
+        ? "reconciliation_required"
+        : results.length === 1
+          ? results[0].state
+          : results.every((result) => result.state === "handed_off")
+            ? "source_fanout_handed_off"
+            : "source_fanout_progress";
 
-    const claim = await control(oidc, { action: "operations_claim", taskId, taskRevision, controlRevision });
-    if (claim?.claimed !== true) {
-      return send(response, 200, { ok: true, state: "not_claimed", taskId, reason: claim?.reason || "claim_rejected" });
-    }
-
-    let dispatchId = "";
-    try {
-      const intent = await control(oidc, { action: "operations_dispatch_prepare", leaseId: claim.leaseId, generation: claim.generation });
-      dispatchId = String(intent?.dispatchId || "");
-      if (!/^[0-9a-f-]{36}$/i.test(dispatchId)) throw new Error("DISPATCH_INTENT_INVALID");
-      if (intent?.canSend !== true && intent?.acknowledged !== true) {
-        return send(response, 200, { ok: true, state: "dispatch_in_flight", taskId, dispatchId });
-      }
-      if (intent?.acknowledged !== true) {
-        await control(oidc, {
-          action: "operations_dispatch_ack", leaseId: claim.leaseId, dispatchId, taskId, generation: claim.generation,
-          receiptRef: receiptRef(dispatchId, taskId, claim.generation),
-        });
-      }
-
-      const execution = await control(oidc, { action: "operations_generic_source_execute", taskId, generation: claim.generation }, 120_000);
-      const headSha = String(execution?.headSha || "");
-      const pullRequest = Number(execution?.pullRequest);
-      const pullRequestUrl = String(execution?.pullRequestUrl || "");
-      if (execution?.state !== "completed" || !/^[0-9a-f]{40}$/.test(headSha) || !Number.isSafeInteger(pullRequest) || pullRequest < 1 || !pullRequestUrl.startsWith("https://github.com/")) {
-        throw new Error("OPS_GENERIC_SOURCE_EXECUTION_INVALID");
-      }
-      const handoff = {
-        taskId, workerId: BUILDER_ID, generation: claim.generation, headSha, pullRequest,
-        tests: ["Lease-bound Operations source execution PASS", "Vault-backed GitHub branch and pull-request readback PASS", "Immutable task base ancestry check PASS"],
-        evidenceRefs: [pullRequestUrl, String(execution.receiptRef || ("ops-source:" + taskId + ":" + claim.generation + ":" + headSha))],
-        receiptRef: "ops-native-handoff:" + createHash("sha256").update(taskId + ":" + claim.generation + ":" + headSha + ":" + pullRequest).digest("hex"),
-        implementationComplete: true,
-      };
-      const handedOff = await control(oidc, { action: "operations_handoff", leaseId: claim.leaseId, generation: claim.generation, handoff });
-      return send(response, 200, { ok: true, state: "handed_off", taskId, dispatchId, pullRequest, headSha, handedOff, memory });
-    } catch (error: any) {
-      try {
-        await control(oidc, { action: "operations_reconcile", leaseId: claim.leaseId, generation: claim.generation, reason: "GENERIC_SOURCE_EXECUTION_UNCONFIRMED" });
-      } catch {
-        // Preserve original failure; the lease remains authoritative for reconciliation.
-      }
-      return send(response, 503, {
-        ok: false, state: "reconciliation_required", taskId, dispatchId: dispatchId || null,
-        code: String(error?.message || "GENERIC_SOURCE_EXECUTION_UNCONFIRMED"),
-      });
-    }
+    return send(response, reconciliationRequired ? 503 : 200, {
+      ok: !reconciliationRequired,
+      state,
+      taskId: results.length === 1 ? results[0].taskId : null,
+      taskIds: results.map((result) => result.taskId),
+      sourceFanout: {
+        limit: GENERIC_SOURCE_FANOUT,
+        claimed: batch.claims.length,
+        results,
+      },
+      memory,
+    });
 
   } catch (error: any) {
     const status = Number(error?.status || 503);
