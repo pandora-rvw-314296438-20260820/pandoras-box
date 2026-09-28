@@ -228,12 +228,19 @@ async function fixture() {
 test("repair changes only the marketing NULL-expiry predicate and preserves ACLs", async () => {
   const before = runtimeFunction(baseMigration);
   const after = runtimeFunction(repairMigration);
-  const expected = before.replace(
-    "and (c.token_expires_at is null or c.token_expires_at>now())",
-    "and c.token_expires_at is not null and c.token_expires_at>now()",
-  );
+  const expected = before
+    .replace(
+      "if current_user not in ('service_role','postgres','supabase_admin') then raise exception 'pandora_meta_runtime_service_role_required' using errcode='42501'; end if;",
+      "if session_user not in ('postgres','service_role','supabase_admin') and coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role','') <> 'service_role' then raise exception 'pandora_meta_runtime_service_role_required' using errcode='42501'; end if;",
+    )
+    .replace(
+      "and (c.token_expires_at is null or c.token_expires_at>now())",
+      "and c.token_expires_at is not null and c.token_expires_at>now()",
+    );
   assert.notEqual(expected, before);
   assert.equal(after, expected);
+  assert.match(after, /session_user not in/);
+  assert.match(after, /request\\.jwt\\.claims/);
   assert.match(
     after,
     /cr\.expires_at is null or cr\.expires_at>now\(\)/,
