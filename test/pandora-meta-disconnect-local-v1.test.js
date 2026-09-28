@@ -45,6 +45,6 @@ test("FB-014 reconnect is a fresh OAuth commit and owner UI remains AAL2/governe
   assert.match(metaRuntime, /key_version=public\.credential_refs\.key_version\+1[\s\S]*rotation_state='current'/);
   assert.match(metaRuntime, /on conflict\(organization_id\) do update[\s\S]*status='connected'/);
   assert.match(ownerApi, /action !== "test" && context\.aal !== "aal2"/);
-  assert.match(ownerApi, /Disconnect \$\{provider\}[\s\S]*protected approval is valid/);
+  assert.match(ownerApi, /Prepare to disconnect \$\{provider\}[\s\S]*protected approval is valid/);
   assert.match(ownerApi, /acceptIntake\([\s\S]*connection:\$\{connectionId\}:\$\{action\}/);
 });
