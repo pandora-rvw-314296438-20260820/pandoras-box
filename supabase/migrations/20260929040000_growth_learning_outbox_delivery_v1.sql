@@ -173,7 +173,7 @@ begin
     or v_binding-array['schema_version','source_scope','target_memory','candidate']<>'{}'::jsonb then
     return false;
   end if;
-  if v_binding::text ~* '(authorization[[:space:]]*[:=][[:space:]]*(bearer|basic)|github_pat_|gh[pousr]_[a-z0-9_]{16,}|sb_secret_|AIza[a-z0-9_-]{20,}|sk-[a-z0-9_-]{16,}|-----BEGIN [^-]*PRIVATE KEY)' then
+  if v_binding::text ~* '(authorization[[:space:]]*[:=][[:space:]]*(bearer|basic)|\\m(github_pat_|gh[pousr]_[a-z0-9_]{16,}|sb_secret_|AIza[a-z0-9_-]{20,}|sk-[a-z0-9_-]{16,})|-----BEGIN [^-]*PRIVATE KEY)' then
     return false;
   end if;
   v_source_scope:=v_binding->'source_scope';

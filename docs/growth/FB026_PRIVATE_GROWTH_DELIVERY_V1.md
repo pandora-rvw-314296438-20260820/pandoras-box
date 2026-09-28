@@ -113,6 +113,16 @@ exactly these twelve fields, with the stated JSON types and bindings:
 | `retrieval_status` | string `not_retrievable` |
 | `deduplicated` | boolean, either value |
 
+A replay can also return an already-reviewed terminal receipt, but only with
+HTTP 200 and exactly nine fields: `ok=true`, `status=already_reviewed`, the
+exact queued `source_event_id`, `learning_id`, and `content_hash`, UUID
+`candidate_id` and `review_item_id`, `deduplicated=true`, and one terminal
+`review_status`: `needs_clarification`, `blocked_namespace_mismatch`,
+`blocked_sensitive`, `blocked_policy`, `approved_for_append`, `rejected`,
+or `archived`. A delivered transport row may therefore refer to a review item
+that was already reviewed before replay. It still does not imply canonical
+promotion or retrieval.
+
 Missing, extra, mistyped or mismatched fields fail closed. A growth marker in any
 of `learning_kind`, `tool` or the `growth_learning` key requires a fully valid
 growth envelope. Unknown, empty or malformed kinds cannot use generic success.

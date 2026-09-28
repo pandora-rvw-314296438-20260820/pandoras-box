@@ -325,6 +325,26 @@ test('expired claims cannot acknowledge and retryable failures preserve state di
   }
 });
 
+test('legacy processing rows with NULL leases are reclaimed below the attempt bound', async () => {
+  const db = await makeDb();
+  try {
+    await seed(db);
+    await db.exec(
+      'alter table public.pandora_verified_learning_outbox drop constraint pandora_verified_learning_outbox_claim_fence_check',
+    );
+    await db.query(
+      "update public.pandora_verified_learning_outbox set state='processing',attempt_count=2,lease_until=null,claim_token=null",
+    );
+    const [row] = await claim(db);
+    assert.equal(row.state, 'processing');
+    assert.equal(row.attempt_count, 3);
+    assert.match(row.claim_token, /^[0-9a-f-]{36}$/);
+    assert.ok(row.lease_until);
+  } finally {
+    await db.close();
+  }
+});
+
 test('exhausted pending or expired work terminates without reclaiming an active fifth lease', async () => {
   const db = await makeDb();
   try {

@@ -228,8 +228,46 @@ function validateBoundGrowthPayload(payload) {
   return candidate;
 }
 
-function validateGrowthLearningIntakeAcceptance(payload, response) {
+function validateGrowthLearningIntakeAcceptance(payload, response, httpStatus = null) {
   const candidate = validateBoundGrowthPayload(payload);
+  if (response && response.status === "already_reviewed") {
+    const terminalKeys = [
+      "ok", "status", "source_event_id", "learning_id", "content_hash",
+      "candidate_id", "review_item_id", "review_status", "deduplicated",
+    ];
+    const terminalStatuses = new Set([
+      "needs_clarification",
+      "blocked_namespace_mismatch",
+      "blocked_sensitive",
+      "blocked_policy",
+      "approved_for_append",
+      "rejected",
+      "archived",
+    ]);
+    exactKeys(response, terminalKeys, "intake_response_shape_invalid");
+    if (httpStatus !== 200 ||
+        response.ok !== true ||
+        response.source_event_id !== payload.source_event_id ||
+        response.learning_id !== candidate.source_event_id ||
+        response.content_hash !== candidate.content_hash ||
+        !UUID.test(String(response.candidate_id || "")) ||
+        !UUID.test(String(response.review_item_id || "")) ||
+        !terminalStatuses.has(response.review_status) ||
+        response.deduplicated !== true) {
+      fail("intake_response_binding_invalid");
+    }
+    return deepFreeze({
+      delivered: true,
+      candidate_id: response.candidate_id.toLowerCase(),
+      review_item_id: response.review_item_id.toLowerCase(),
+      review_status: response.review_status,
+      promotion_status: "not_promoted",
+      retrieval_status: "not_retrievable",
+      canonical_memory_written: false,
+      deduplicated: true,
+    });
+  }
+
   const keys = [
     "ok", "status", "source_event_id", "learning_id", "content_hash",
     "candidate_id", "review_item_id", "review_required",

@@ -6,7 +6,10 @@ returns jsonb language plpgsql security definer
 set search_path=pg_catalog,public,private,vault,pg_temp as $$
 declare v_install public.connector_installations%rowtype; v_secret_id uuid; v_token text; v_purpose text:=lower(trim(coalesce(p_purpose,'')));
 begin
- if current_user not in ('service_role','postgres','supabase_admin') then raise exception 'pandora_meta_runtime_service_role_required' using errcode='42501'; end if;
+ if session_user not in ('postgres','service_role','supabase_admin')
+   and coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role','') <> 'service_role' then
+   raise exception 'pandora_meta_runtime_service_role_required' using errcode='42501';
+ end if;
  if v_purpose not in ('page','marketing') then raise exception 'pandora_meta_runtime_purpose_invalid' using errcode='22023'; end if;
  select * into v_install from public.connector_installations where id=p_installation_id and organization_id=p_organization_id and provider='meta' and status='active' limit 1;
  if v_install.id is null then raise exception 'pandora_meta_runtime_installation_unavailable' using errcode='42501'; end if;
