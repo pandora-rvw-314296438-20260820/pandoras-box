@@ -274,9 +274,11 @@ begin
 
   if (
     v_credential.id is null
-    or v_credential.expires_at is null
-    or v_credential.expires_at <= v_lock_now
-  ) and p_reason is distinct from 'credential_missing' then
+    or (
+      v_credential.expires_at is not null
+      and v_credential.expires_at <= v_lock_now
+    )
+  ) and p_reason is null then
     return jsonb_build_object(
       'ok', false,
       'provider', 'meta',
@@ -287,7 +289,7 @@ begin
   if (
     v_connection.token_expires_at is null
     or v_connection.token_expires_at <= v_lock_now
-  ) and p_reason is distinct from 'credential_expired' then
+  ) and p_reason is null then
     return jsonb_build_object(
       'ok', false,
       'provider', 'meta',
@@ -546,8 +548,10 @@ begin
   end if;
 
   if v_credential.id is null
-    or v_credential.expires_at is null
-    or v_credential.expires_at <= v_now then
+    or (
+      v_credential.expires_at is not null
+      and v_credential.expires_at <= v_now
+    ) then
     return private.pandora_meta_health_finalize_v1(
       p_organization_id,
       p_installation_id,
@@ -862,7 +866,7 @@ begin
       (
         'https://graph.facebook.com/v26.0/'
         || v_ad_id
-        || '?fields=id,account_id,name,account_status,currency'
+        || '?fields=id,account_id,name,currency'
       )::varchar,
       array[
         extensions.http_header('authorization', 'Bearer ' || v_user_token),

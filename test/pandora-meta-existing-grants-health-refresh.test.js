@@ -52,7 +52,7 @@ const permissionsUrl =
 const pageUrl =
   `https://graph.facebook.com/v26.0/${pageId}?fields=id,name`;
 const adUrl =
-  `https://graph.facebook.com/v26.0/${adId}?fields=id,account_id,name,account_status,currency`;
+  `https://graph.facebook.com/v26.0/${adId}?fields=id,account_id,name,currency`;
 
 async function fixture() {
   const { PGlite } = await import('@electric-sql/pglite');
@@ -208,6 +208,7 @@ async function fixture() {
       v_content text;
       v_raise boolean;
       v_drift_target text;
+      v_wait_until timestamptz;
     begin
       update private.fixture_http_responses
       set calls=calls+1
@@ -222,7 +223,17 @@ async function fixture() {
           '{}'::varchar
         )::extensions.http_response;
       end if;
-      if v_drift_target = 'installation' then
+      if v_drift_target = 'wait_for_expiry' then
+        select token_expires_at into v_wait_until
+        from private.pandora_meta_connections limit 1;
+        if v_wait_until > clock_timestamp()+interval '2 seconds' then
+          raise exception 'fixture_expiry_wait_out_of_bounds';
+        end if;
+        -- Bounded synthetic provider latency; do not mutate the health snapshot.
+        while clock_timestamp() <= v_wait_until loop
+          null;
+        end loop;
+      elsif v_drift_target = 'installation' then
         update public.connector_installations
         set display_name=display_name||' drift'
         where provider='meta';
@@ -513,9 +524,14 @@ test('inactive and revoked lifecycle states fail closed without provider I/O or 
   }
 });
 
-test('four exact read-only GETs atomically refresh existing health only', async () => {
+test('four exact read-only GETs accept legacy Page null expiry and atomically refresh health', async () => {
   const f = await fixture();
   try {
+    await f.db.query(
+      `update public.credential_refs
+       set expires_at=null where installation_id=$1`,
+      [installation],
+    );
     const before = await f.health();
     const result = await f.invoke();
     const after = await f.health();
@@ -557,6 +573,83 @@ test('four exact read-only GETs atomically refresh existing health only', async 
       JSON.stringify(result),
       /token-fixture|vault:\/\/|secret_ref/i,
     );
+  } finally {
+    await f.db.close();
+  }
+});
+
+test('same-snapshot Page and marketing expiry records credential_expired health', async () => {
+  const f = await fixture();
+  try {
+    await failureCase(
+      f,
+      async (db) => {
+        await db.query(
+          `update private.pandora_meta_connections
+           set token_expires_at=clock_timestamp()-interval '1 second'
+           where organization_id=$1`,
+          [org],
+        );
+        await db.query(
+          `update public.credential_refs
+           set expires_at=clock_timestamp()-interval '1 second'
+           where installation_id=$1`,
+          [installation],
+        );
+      },
+      'credential_expired',
+    );
+  } finally {
+    await f.db.close();
+  }
+});
+
+test('provider failure after unchanged grants expire still records degraded health', async () => {
+  const f = await fixture();
+  try {
+    await f.db.exec(`
+      create function private.fixture_expiring_provider_rejection(
+        p_org uuid,p_installation uuid
+      ) returns jsonb language plpgsql as $fn$
+      declare v_expiry timestamptz:=clock_timestamp()+interval '1 second';
+      begin
+        update private.pandora_meta_connections
+        set token_expires_at=v_expiry where organization_id=p_org;
+        update public.credential_refs
+        set expires_at=v_expiry where installation_id=p_installation;
+        update private.fixture_http_responses
+        set status=500,drift_target='wait_for_expiry';
+        return public.pandora_verify_meta_connection_20260906(
+          p_org,p_installation
+        );
+      end;
+      $fn$;
+    `);
+    const before = await f.health();
+    const result = (await f.db.query(
+      'select private.fixture_expiring_provider_rejection($1,$2) as result',
+      [org, installation],
+    )).rows[0].result;
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'provider_rejected');
+    const after = await f.health();
+    assert.equal(after.connection_status, 'problem');
+    assert.equal(after.installation_status, 'degraded');
+    assert.equal(after.last_error, 'provider_rejected');
+    assert.equal(after.configuration.health_error_code, 'provider_rejected');
+    assert.equal(after.configuration.provider_network_enabled, false);
+    assert.equal(
+      new Date(after.last_verified_at).toISOString(),
+      new Date(before.last_verified_at).toISOString(),
+    );
+    assert.equal(
+      new Date(after.last_health_check_at).toISOString(),
+      new Date(before.last_health_check_at).toISOString(),
+    );
+    const calls = await f.db.query(
+      'select sum(calls)::integer as count from private.fixture_http_responses',
+    );
+    assert.equal(calls.rows[0].count, 1);
   } finally {
     await f.db.close();
   }
@@ -696,14 +789,6 @@ test('stored identity, scope, expiry and credential drift cannot advance health'
           `update public.credential_refs
            set expires_at=clock_timestamp()-interval '1 second'
            where installation_id=$1`,
-          [installation],
-        ),
-        'credential_missing',
-      ],
-      [
-        (db) => db.query(
-          `update public.credential_refs
-           set expires_at=null where installation_id=$1`,
           [installation],
         ),
         'credential_missing',
@@ -1074,7 +1159,7 @@ test('service-only ACL, owner API compatibility and no-grant source boundary rem
   );
   assert.match(
     migration,
-    /'GET'::extensions\.http_method[\s\S]*fields=id,account_id,name,account_status,currency/,
+    /'GET'::extensions\.http_method[\s\S]*fields=id,account_id,name,currency/,
   );
   assert.match(
     migration,

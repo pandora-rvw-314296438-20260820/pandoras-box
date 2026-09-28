@@ -1342,6 +1342,10 @@ async function verifyMetaConnection(
         "credential_missing",
         "credential_unavailable",
         "credential_reference_invalid",
+        "credential_expired",
+        "required_scopes_missing",
+        "provider_scope_mismatch",
+        "provider_user_identity_mismatch",
         "provider_rejected",
       ].includes(reason)
     ) {

@@ -323,6 +323,37 @@ test("Meta OAuth state is one-time, organization-bound, and service-only", async
       key_version: 1,
       rotation_state: "current",
     }]);
+    const committedSecrets = (await db.query([
+      "select",
+      "  user_secret.decrypted_secret as user_token,",
+      "  page_secret.decrypted_secret as page_token,",
+      "  connection.token_expires_at is not null as user_expiry_present,",
+      "  credential.expires_at is not null as page_expiry_present,",
+      "  credential.secret_ref,",
+      "  page_token.token_secret_id::text as page_token_secret_id",
+      "from private.pandora_meta_connections connection",
+      "join public.connector_installations installation",
+      "  on installation.organization_id=connection.organization_id",
+      "join public.credential_refs credential",
+      "  on credential.installation_id=installation.id",
+      "join private.pandora_meta_page_tokens page_token",
+      "  on page_token.organization_id=connection.organization_id",
+      "join vault.decrypted_secrets user_secret",
+      "  on user_secret.id=connection.user_token_secret_id",
+      "join vault.decrypted_secrets page_secret",
+      "  on page_secret.id=page_token.token_secret_id",
+      "where connection.organization_id=$1",
+    ].join("\n"), [ORG_A])).rows[0];
+    assert.ok(committedSecrets);
+    assert.equal(committedSecrets.user_token, "synthetic-user-token-000000000000");
+    assert.equal(committedSecrets.page_token, "synthetic-page-token-000000000000");
+    assert.equal(committedSecrets.user_expiry_present, true);
+    assert.equal(committedSecrets.page_expiry_present, true);
+    assert.equal(
+      committedSecrets.secret_ref,
+      `vault://${committedSecrets.page_token_secret_id}`,
+    );
+
     assert.deepEqual((await db.query(
       "select organization_id::text,page_id,page_name,tasks from private.pandora_meta_page_tokens",
     )).rows, [{
