@@ -4,7 +4,7 @@
 
 create table if not exists public.pandora_growth_privacy_authorizations (
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null,
+  project_id uuid not null references private.project_canonical_registry(project_id) on delete cascade,
   policy_version text not null check (policy_version ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),
   allowed_flows text[] not null default '{}',
   approved_by uuid not null,
@@ -26,7 +26,7 @@ create table if not exists public.pandora_growth_outcome_receipts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   tracking_tenant_id uuid not null references public.pandora_tracking_tenants(id) on delete cascade,
-  project_id uuid,
+  project_id uuid references private.project_canonical_registry(project_id) on delete set null,
   event_name text not null check (event_name ~ '^[a-z][a-z0-9_]{2,63}$'),
   event_id text not null check (event_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),
   outcome_id text not null check (outcome_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),
@@ -54,9 +54,9 @@ create table if not exists private.pandora_meta_measurement_bindings (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null,
   project_id uuid not null,
-  tracking_tenant_id uuid not null,
-  tracking_campaign_id uuid not null,
-  installation_id uuid not null,
+  tracking_tenant_id uuid not null references public.pandora_tracking_tenants(id) on delete cascade,
+  tracking_campaign_id uuid not null references public.pandora_tracking_campaigns(id) on delete cascade,
+  installation_id uuid not null references public.connector_installations(id) on delete restrict,
   ad_account_id text not null check (ad_account_id ~ '^act_[1-9][0-9]{0,63}$'),
   pixel_id text not null check (pixel_id ~ '^[1-9][0-9]{0,63}$'),
   meta_campaign_id text,
@@ -402,6 +402,49 @@ grant execute on function public.pandora_meta_verify_measurement_binding_v1(
   uuid,uuid,uuid,uuid,text,text,text,text,text
 ) to service_role;
 
+create or replace function public.pandora_tracking_issue_growth_api_key_v1(
+  p_organization_id uuid,
+  p_project_id uuid,
+  p_tenant_id uuid,
+  p_policy_version text,
+  p_expires_at timestamptz default null
+) returns table(api_key text,key_prefix text)
+language plpgsql
+security definer
+set search_path='pg_catalog','public','private'
+as $function$
+begin
+  if current_user not in ('service_role','postgres','supabase_admin') then
+    raise exception 'PANDORA_GROWTH_KEY_SERVICE_ROLE_REQUIRED' using errcode='42501';
+  end if;
+  if not exists(
+    select 1 from public.pandora_tracking_tenants t
+    where t.id=p_tenant_id and t.organization_id=p_organization_id
+      and t.project_id=p_project_id and t.status='active'
+  ) then
+    raise exception 'PANDORA_GROWTH_KEY_TENANT_SCOPE_DENIED' using errcode='42501';
+  end if;
+  if not private.pandora_growth_privacy_active_v1(
+    p_organization_id,p_project_id,p_policy_version,'server_outcomes'
+  ) then
+    raise exception 'PANDORA_GROWTH_KEY_PRIVACY_HOLD' using errcode='42501';
+  end if;
+  return query
+  select *
+  from public.pandora_tracking_issue_api_key_v1(
+    p_tenant_id,
+    array['outcome:write','conversion:write','cost:write','report:read']::text[],
+    p_expires_at
+  );
+end;
+$function$;
+revoke all on function public.pandora_tracking_issue_growth_api_key_v1(
+  uuid,uuid,uuid,text,timestamptz
+) from public,anon,authenticated;
+grant execute on function public.pandora_tracking_issue_growth_api_key_v1(
+  uuid,uuid,uuid,text,timestamptz
+) to service_role;
+
 create or replace function public.pandora_ingest_growth_outcome_v1(
   p_event jsonb,
   p_claim_sha256 text,
@@ -489,9 +532,9 @@ begin
     where c.tenant_id=v_tenant and c.status='active'
       and c.provider='meta'
       and c.provider_campaign_id=p_event#>>'{attribution,campaign_id}'
-      and (not (p_event#>'{attribution}') ? 'adset_id'
+      and (not ((p_event#>'{attribution}') ? 'adset_id')
         or c.provider_adset_id=p_event#>>'{attribution,adset_id}')
-      and (not (p_event#>'{attribution}') ? 'ad_id'
+      and (not ((p_event#>'{attribution}') ? 'ad_id')
         or c.provider_ad_id=p_event#>>'{attribution,ad_id}')
     limit 1;
     if not found then
@@ -834,6 +877,7 @@ declare
   v_user_data jsonb:='{}'::jsonb;
   v_event_payload jsonb;
   v_response extensions.http_response;
+  v_http_status integer;
   v_body jsonb:='{}'::jsonb;
   v_success boolean:=false;
   v_attempt integer;
@@ -917,6 +961,7 @@ begin
       jsonb_build_object('data',jsonb_build_array(v_event_payload))::text::varchar
     )::extensions.http_request);
     v_token:=null;
+    v_http_status:=v_response.status;
     begin
       v_body:=coalesce(nullif(v_response.content,'')::jsonb,'{}'::jsonb);
     exception when others then
@@ -929,14 +974,14 @@ begin
     v_token:=null;
     v_success:=false;
     v_body:='{}'::jsonb;
-    v_response.status:=null;
+    v_http_status:=null;
   end;
 
   v_next_state:=case when v_success then 'delivered'
     when v_attempt>=5 then 'dead_letter' else 'pending' end;
   update private.pandora_meta_conversion_outbox
   set state=v_next_state,
-      last_http_status=v_response.status,
+      last_http_status=v_http_status,
       provider_receipt=case when v_success then jsonb_build_object(
         'eventsReceived',coalesce((v_body->>'events_received')::integer,0),
         'traceId',nullif(v_body->>'fbtrace_id','')
@@ -950,7 +995,7 @@ begin
 
   return jsonb_build_object(
     'ok',v_success,'state',v_next_state,'attempt',v_attempt,
-    'httpStatus',v_response.status,'eventId',v_outbox.event_id
+    'httpStatus',v_http_status,'eventId',v_outbox.event_id
   );
 end;
 $function$;
@@ -1764,7 +1809,7 @@ begin
     when v_attempt>=5 then 'dead_letter' else 'pending' end;
   update private.pandora_meta_conversion_outbox
   set state=v_next_state,
-      last_http_status=v_response.status,
+      last_http_status=v_http_status,
       provider_receipt=case when v_success then jsonb_build_object(
         'eventsReceived',coalesce((v_body->>'events_received')::integer,0),
         'traceId',nullif(v_body->>'fbtrace_id','')
@@ -1778,7 +1823,7 @@ begin
 
   return jsonb_build_object(
     'ok',v_success,'state',v_next_state,'attempt',v_attempt,
-    'httpStatus',v_response.status,'eventId',v_outbox.event_id
+    'httpStatus',v_http_status,'eventId',v_outbox.event_id
   );
 end;
 $function$;
