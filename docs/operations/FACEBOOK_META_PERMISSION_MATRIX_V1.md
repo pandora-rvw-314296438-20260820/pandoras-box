@@ -68,3 +68,26 @@ The convergence candidate contains:
 - `/data-deletion` -> public data-deletion instructions.
 
 Provider configuration is incomplete until the production URLs are deployed and Meta reads back the configured privacy URL.
+
+
+## Pandora Plugins visibility and safe verification
+
+The Pandora Plugins screen reads `pandora_plugin_runtime_registry_v4`. The Meta bridge keeps the existing provider-health rows unchanged and adds one organization-bound Meta row from `pandora_meta_connection_v1`. Meta remains visible as **Needs authorization**, **Reconnect required**, **Permissions incomplete**, **Verification required**, or **Problem** when it is not usable. It is shown as connected only when the readiness projection reports `canUseNow=true`.
+
+The bridge exposes only the normalized account identity, granted scope names, verification state, last verification time, and read-action availability. It does not expose Page or user tokens, Vault references, OAuth state, callback codes, raw credential records, or any Meta write capability. The Meta write action remains unavailable.
+
+The safe product check is to ask Pandora for `Facebook status`. This performs the owner/admin, organization-bound readiness read without preparing a new OAuth state. If authorization is needed, use a newly prepared `Connect Facebook` handoff and use it once. Do not reopen an old callback or authorization link to test replay behavior.
+
+A successful callback page proves that Pandora verified the provider identity, every required scope, at least one manageable Page, the provider Page and ad-account enumerations, and the Vault-backed commit. Its Page and ad-account counts do not prove that the owner-selected assets are currently usable. Runtime acceptance still requires those selected assets, fresh connection health, and a positive organization-bound provider readback; this source bridge does not establish that operational evidence.
+
+OAuth replay rejection and cross-organization state binding are enforced in the database contract. They require isolated synthetic behavioral tests for acceptance evidence; the live owner flow must not replay a real state or probe another organization.
+
+## Existing-grant health refresh
+
+The owner **Test connection** route keeps its current request and response contract. Its service-only database verifier uses the already stored, unexpired Vault-backed grants and makes four fixed-host Graph API v26 reads: exact user identity, the complete first page of live permissions, the selected Page, and the single selected ad account. Every required permission must appear exactly once with status `granted`; pagination, malformed data, missing or revoked permissions, identity drift, and provider errors fail closed. Tokens are sent only in `Authorization` headers and are never returned, logged, or placed in URLs.
+
+Provider I/O runs without database row or advisory locks. The verifier snapshots the organization-bound installation, private connection, current credential, Page-token binding, and server-side token digests, then performs the reads. Finalization takes only short locks in the OAuth writer's order: user and Page Vault secrets, Page-token mapping, installation, credential, then connection. It rechecks the full snapshot and both expiries under those locks. Changed state returns `health_state_changed` without marking the connection healthy or degraded from stale proof; token values and digests never leave the private functions.
+
+A fully matching readback atomically restores `active` / `connected` and advances both success timestamps. A bounded proof failure on the same current state atomically sets the installation to `degraded` and the private connection to `problem`, preserves the prior success timestamps, and records only an allowlisted error code and safe HTTP status. A later complete readback may restore health. Pending or revoked installations, revoked connections, wrong organizations, and unknown installations are not revived or mutated.
+
+This migration changes source behavior only. Operational acceptance still requires deployment in migration order, an owner-authorized invocation through the existing Test connection route, and fresh organization-bound product and provider readback. It does not create or replace OAuth grants, alter selected assets or scopes, expose credentials, enable Meta writes, or authorize spend.

@@ -48,14 +48,23 @@ test('owner Meta connection explains purpose and authorization blockers precisel
     ownerApi,
     /meta: "Facebook Page and Meta Business access"/,
   );
-  assert.match(
-    ownerApi,
-    /credential_missing[\s\S]{0,320}META_AUTHORIZATION_REQUIRED/,
+  const reconnectMapping = ownerApi.slice(
+    ownerApi.indexOf('if (result.ok !== true)'),
+    ownerApi.indexOf('if (reason === "page_identity_mismatch")'),
   );
-  assert.match(
-    ownerApi,
-    /provider_rejected[\s\S]{0,320}META_AUTHORIZATION_REQUIRED/,
-  );
+  for (const reason of [
+    'credential_missing',
+    'credential_unavailable',
+    'credential_reference_invalid',
+    'credential_expired',
+    'required_scopes_missing',
+    'provider_scope_mismatch',
+    'provider_user_identity_mismatch',
+    'provider_rejected',
+  ]) {
+    assert.match(reconnectMapping, new RegExp(`"${reason}"`), reason);
+  }
+  assert.match(reconnectMapping, /META_AUTHORIZATION_REQUIRED/);
   assert.match(
     ownerApi,
     /page_identity_mismatch[\s\S]{0,220}META_CONNECTION_IDENTITY_MISMATCH/,
