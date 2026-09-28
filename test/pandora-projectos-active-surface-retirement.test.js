@@ -38,9 +38,11 @@ test("production Supabase control exposes no ProjectOS checkpoint or event route
   ]) assert.equal(control.includes(token), false, token);
 });
 
-test("active agent guidance uses Pandora-native governance tool names", () => {
-  assert.doesNotMatch(activeGuidance, /projectos_(tool_catalog|list_plans|list_audit|verify_audit)/);
+test("active agent guidance is fully Pandora-native", () => {
+  assert.doesNotMatch(activeGuidance, /ProjectOS|projectos_/i);
   assert.match(activeGuidance, /pandora_tool_catalog/);
+  assert.match(activeGuidance, /pandora_create_plan/);
+  assert.match(activeGuidance, /pandora_execute_plan/);
 });
 
 test("historical ProjectOS provenance remains preserved", () => {
