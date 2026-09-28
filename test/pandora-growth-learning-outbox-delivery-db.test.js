@@ -185,6 +185,17 @@ test("six epistemic classes and eighteen SHA/number variants survive the real sc
   } finally { await db.close(); }
 });
 
+test("credential scan allows ordinary hyphenated growth text", async () => {
+  const db = await makeDb();
+  try {
+    const value = input("verified_fact", "synthetic-hyphenated-language");
+    value.statement = "Use the risk-assessment-framework for task-management-dashboard and desk-research-summary-2026.";
+    const payload = payloadFor(value);
+    assert.equal(await valid(db, payload), true);
+    assert.equal(await enqueue(db, payload) !== null, true);
+  } finally { await db.close(); }
+});
+
 test("exact replay preserves the entire pending, delivered and failed row; changed semantics conflict", async () => {
   const db = await makeDb();
   try {
