@@ -8,6 +8,10 @@ const ts = require('typescript');
 
 const root = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'api/operations-native-worker.ts'), 'utf8');
+const reconciliationSql = fs.readFileSync(path.join(
+  root, 'supabase', 'migrations',
+  '20260928190000_operations_merged_release_reconciliation_v1.sql',
+), 'utf8');
 const compiled = ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
 }).outputText;
@@ -198,4 +202,60 @@ test('missing workload identity cannot invoke provider or source work', async ()
   const result = await invoke({ missingIdentity: true });
   assert.equal(result.statusCode, 503);
   assert.equal(result.calls.length, 0);
+});
+
+test('SQL provider phase is lock-free and apply phase is network-free', () => {
+  const collectorStart = reconciliationSql.indexOf(
+    'create function private.pandora_ops_collect_merged_release_provider_v1(',
+  );
+  const reconcileApplyStart = reconciliationSql.indexOf(
+    'create function private.pandora_ops_apply_merged_release_reconciliation_v1(',
+  );
+  const publicReconcileStart = reconciliationSql.indexOf(
+    'create function public.pandora_ops_reconcile_merged_release_v1(',
+  );
+  const verifyApplyStart = reconciliationSql.indexOf(
+    'create function private.pandora_ops_apply_merged_release_source_verification_v1(',
+  );
+  const publicVerifyStart = reconciliationSql.indexOf(
+    'create function public.pandora_ops_verify_merged_release_source_v1(',
+  );
+  const stepStart = reconciliationSql.indexOf(
+    'create function public.pandora_ops_merged_release_source_step_v1(',
+  );
+  const collector = reconciliationSql.slice(collectorStart, reconcileApplyStart);
+  const reconcileApply = reconciliationSql.slice(reconcileApplyStart, publicReconcileStart);
+  const verifyApply = reconciliationSql.slice(verifyApplyStart, publicVerifyStart);
+  const step = reconciliationSql.slice(stepStart);
+
+  assert.ok(collectorStart >= 0 && reconcileApplyStart > collectorStart);
+  assert.doesNotMatch(collector, /\bfor\s+(update|share)\b/i);
+  assert.doesNotMatch(collector, /pg_(try_)?advisory_/i);
+  assert.doesNotMatch(
+    collector,
+    /private\.pandora_ops_(project_bindings|workspaces|tasks|merged_release_receipts)/,
+  );
+  assert.match(collector, /private\.pandora_integration_github_api_20260825/g);
+  assert.ok(collector.indexOf("'pr:first'") < collector.indexOf("'pr:last'"));
+  assert.ok(collector.indexOf("'blob:test'") < collector.indexOf("'pr:last'"));
+
+  assert.doesNotMatch(reconcileApply, /pandora_integration_github_api_20260825/);
+  assert.doesNotMatch(verifyApply, /pandora_integration_github_api_20260825/);
+  assert.match(reconcileApply, /for update/);
+  assert.match(verifyApply, /for update/);
+  assert.ok(step.indexOf('pandora_ops_collect_merged_release_provider_v1') <
+    step.indexOf('pandora_ops_apply_merged_release_reconciliation_v1'));
+  assert.match(step, /'union'/);
+
+  for (const helper of [
+    'pandora_ops_collect_merged_release_provider_v1',
+    'pandora_ops_apply_merged_release_reconciliation_v1',
+    'pandora_ops_apply_merged_release_source_verification_v1',
+  ]) {
+    assert.match(
+      reconciliationSql,
+      new RegExp('revoke all on function private\\.' + helper +
+        '[\\s\\S]*?from public,anon,authenticated,service_role;'),
+    );
+  }
 });

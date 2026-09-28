@@ -102,7 +102,7 @@ const checkRuns = [
   check(108607599999, "Supabase Preview", 15368, "github-actions", "skipped"),
 ];
 async function providerFixtures() {
-  await db.exec("delete from private.github_fixture");
+  await db.exec("delete from private.github_fixture; delete from private.github_lock_observations; delete from private.github_drift");
   await setResponse(ROOT + "/pulls/786", pr());
   await setResponse(ROOT + "/issues/786/timeline?per_page=100&page=1",
     [{ event: "merged", commit_id: MERGE, created_at: "2026-09-27T11:15:45Z" }]);
@@ -149,6 +149,22 @@ async function unchanged(f, before) {
   assert.deepEqual(await state(f), before);
   assert.equal((await db.query("select count(*)::int n from private.pandora_ops_merged_release_receipts where organization_id=$1", [f.org])).rows[0].n, 0);
 }
+async function collectReconcile(f) {
+  return (await db.query(
+    "select private.pandora_ops_collect_merged_release_provider_v1('reconcile',$1,786,$2,$3,$2) value",
+    [REPO, OLD, FB025_BASE],
+  )).rows[0].value;
+}
+async function applyReconcile(f, cache) {
+  const a = f.args;
+  return (await db.query(
+    "select private.pandora_ops_apply_merged_release_reconciliation_v1(" +
+      "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb) value",
+    [a.p_organization_id,a.p_project_id,a.p_request_id,a.p_task_key,
+      a.p_generation,a.p_revision,a.p_spec_digest,a.p_expected_head_sha,
+      a.p_reconciler_worker_key,a.p_reconciler_principal_key,JSON.stringify(cache)],
+  )).rows[0].value;
+}
 test.before(async () => {
   db = await PGlite.create();
   await db.exec(`
@@ -174,14 +190,59 @@ test.before(async () => {
   await db.exec(migration("20260926045200_operations_native_verification_v1.sql"));
   await db.exec(`
     create table private.github_fixture(path text primary key,response jsonb not null,next_response jsonb,seen integer default 0);
+    create table private.github_lock_observations(path text not null,forbidden_locks integer not null);
+    create table private.github_drift(path text primary key,trigger_seen integer not null,organization_id uuid not null,project_id uuid not null,action text not null);
     create function private.pandora_integration_github_api_20260825(p_method text,p_path text,p_body jsonb default null)
     returns jsonb language plpgsql set search_path='' as $$
-    declare result jsonb;
+    declare result jsonb; prior_seen integer; forbidden integer; drift private.github_drift%rowtype;
     begin
       if p_method<>'GET' or p_body is not null then raise exception 'PROVIDER_MUTATION_FORBIDDEN'; end if;
-      select case when seen>0 and next_response is not null then next_response else response end
-      into result from private.github_fixture where path=p_path;
+      select case when seen>0 and next_response is not null then next_response else response end,seen
+      into result,prior_seen from private.github_fixture where path=p_path;
+      select count(*) into forbidden from pg_catalog.pg_locks l
+      where l.pid=pg_backend_pid() and (
+        l.locktype='advisory' or (
+          l.relation=any(array[
+            to_regclass('private.pandora_ops_project_bindings'),
+            to_regclass('private.pandora_ops_workspaces'),
+            to_regclass('private.pandora_ops_tasks'),
+            to_regclass('private.pandora_ops_merged_release_receipts')
+          ]) and l.mode in ('RowShareLock','RowExclusiveLock','ShareUpdateExclusiveLock',
+                            'ShareLock','ShareRowExclusiveLock','ExclusiveLock','AccessExclusiveLock')
+        )
+      );
+      insert into private.github_lock_observations(path,forbidden_locks) values(p_path,forbidden);
       update private.github_fixture set seen=seen+1 where path=p_path;
+      select * into drift from private.github_drift where path=p_path and trigger_seen=prior_seen;
+      if found then
+        if drift.action='pause' then
+          update private.pandora_ops_workspaces set paused=true
+          where organization_id=drift.organization_id and project_id=drift.project_id;
+        elsif drift.action='cancel' then
+          update private.pandora_ops_tasks set cancel_requested=true
+          where organization_id=drift.organization_id and project_id=drift.project_id and task_key='FB-025';
+        elsif drift.action='generation' then
+          update private.pandora_ops_tasks set generation=generation+1
+          where organization_id=drift.organization_id and project_id=drift.project_id and task_key='FB-025';
+        elsif drift.action='revision' then
+          update private.pandora_ops_tasks set revision=revision+1
+          where organization_id=drift.organization_id and project_id=drift.project_id and task_key='FB-025';
+        elsif drift.action='spec' then
+          update private.pandora_ops_tasks set spec_digest=repeat('f',64)
+          where organization_id=drift.organization_id and project_id=drift.project_id and task_key='FB-025';
+        elsif drift.action='binding' then
+          update private.pandora_ops_project_bindings set state='revoked'
+          where organization_id=drift.organization_id and project_id=drift.project_id;
+        elsif drift.action='lease' then
+          insert into private.pandora_ops_leases(
+            organization_id,project_id,task_key,worker_key,generation,claim_request_key,
+            state,resources,reserved_micros,expires_at
+          ) values(
+            drift.organization_id,drift.project_id,'FB-025','builder',4,'fixture-drift',
+            'reconcile','[]',0,clock_timestamp()+interval '1 minute'
+          );
+        end if;
+      end if;
       return result;
     end $$;
   `);
@@ -319,6 +380,61 @@ test("timeline pagination is bounded and the final PR read detects changed ident
     [JSON.stringify({status:200,body:changed}),ROOT+"/pulls/786"]);
   await assert.rejects(adopt(other), /OPS_MERGED_RELEASE_READBACK_CHANGED/);
   await unchanged(other,before);
+});
+
+test("provider collection holds no canonical row or advisory locks", async () => {
+  const f = await fixture();
+  await adopt(f);
+  const observed = (await db.query(
+    "select path,forbidden_locks from private.github_lock_observations order by path",
+  )).rows;
+  assert.equal(observed.length, 8);
+  assert.equal(observed.filter(row => row.path === ROOT + "/pulls/786").length, 2);
+  assert.ok(observed.every(row => row.forbidden_locks === 0));
+});
+
+test("pause cancel generation revision lease binding and spec drift during fetch reject with zero writes", async () => {
+  for (const action of ["pause","cancel","generation","revision","lease","binding","spec"]) {
+    const f = await fixture();
+    const before = await state(f);
+    await db.query(
+      "insert into private.github_drift(path,trigger_seen,organization_id,project_id,action) values($1,1,$2,$3,$4)",
+      [ROOT + "/pulls/786",f.org,f.project,action],
+    );
+    await assert.rejects(adopt(f), /OPS_(MERGED_RELEASE|PROJECT|WORKSPACE)_/);
+    await unchanged(f,before);
+    assert.equal((await db.query(
+      "select count(*)::int n from private.pandora_ops_verification_receipts where organization_id=$1",
+      [f.org],
+    )).rows[0].n,0);
+  }
+});
+
+test("private apply rejects missing duplicate extra swapped malformed and oversized cached proof", async () => {
+  const variants = [
+    cache => ({ ...cache, requests: cache.requests.filter(item => item.key !== "main") }),
+    cache => ({ ...cache, requests: [...cache.requests, structuredClone(cache.requests[0])] }),
+    cache => ({ ...cache, requests: [...cache.requests, {
+      key: "unexpected", method: "GET", path: ROOT + "/pulls/786",
+      response: { status: 200, body: {} },
+    }] }),
+    cache => ({ ...cache, requests: cache.requests.map(item =>
+      item.key === "main" ? { ...item, path: ROOT + "/pulls/786" } : item) }),
+    cache => ({ ...cache, requests: cache.requests.map(item =>
+      item.key === "merge" ? { ...item, response: [] } : item) }),
+    cache => ({ ...cache, requests: cache.requests.map(item =>
+      item.key === "merge" ? { ...item, response: { status: 200, body: "x".repeat(2000001) } } : item) }),
+  ];
+  for (const mutate of variants) {
+    const f = await fixture();
+    const before = await state(f);
+    const cache = await collectReconcile(f);
+    await assert.rejects(
+      applyReconcile(f, mutate(structuredClone(cache))),
+      /OPS_MERGED_RELEASE_PROVIDER_CACHE_INVALID/,
+    );
+    await unchanged(f,before);
+  }
 });
 
 test("fixed native source step atomically reconciles, verifies, and replays FB-025", async () => {
@@ -539,6 +655,21 @@ test("public clients have no reconciliation or source-verification execution pri
       assert.equal(row.allowed,false);
     }
     assert.equal((await db.query("select has_function_privilege('service_role',$1,'EXECUTE') allowed",[signature])).rows[0].allowed,true);
+  }
+  const privateSignatures = [
+    "private.pandora_ops_merged_release_cache_response_v1(jsonb,text,text)",
+    "private.pandora_ops_assert_merged_release_cache_v1(jsonb,text[])",
+    "private.pandora_ops_collect_merged_release_provider_v1(text,text,integer,text,text,text)",
+    "private.pandora_ops_apply_merged_release_reconciliation_v1(uuid,uuid,uuid,text,bigint,bigint,text,text,text,text,jsonb)",
+    "private.pandora_ops_apply_merged_release_source_verification_v1(uuid,uuid,text,bigint,text,text,uuid,text,text,jsonb)",
+  ];
+  for (const signature of privateSignatures) {
+    for (const role of ["anon","authenticated","service_role"]) {
+      assert.equal((await db.query(
+        "select has_function_privilege($1,$2,'EXECUTE') allowed",
+        [role,signature],
+      )).rows[0].allowed,false);
+    }
   }
   assert.equal((await db.query("select has_table_privilege('service_role','private.pandora_ops_merged_release_receipts','UPDATE') allowed")).rows[0].allowed,false);
 });

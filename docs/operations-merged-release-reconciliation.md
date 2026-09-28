@@ -55,6 +55,33 @@ underlying RPCs remain service-role-only. The native-worker endpoint separately
 requires its cron secret, signed wake, or authorized manual wake. Function-specific
 workload capability would be future hardening; this repair does not claim it.
 
+## Provider collection and atomic apply
+
+Each public database entrypoint authenticates the service caller, validates the
+fixed worker identity and input shape, and performs an unlocked eligibility
+read before making any GitHub request. It then collects the bounded GET-only
+provider responses into a private typed cache. The cache records the method,
+semantic key, exact path, and raw response for every request. The first and last
+PR reads have different keys even though their paths match, and the last PR read
+occurs after every other provider request.
+
+Collection takes no row or advisory lock on the project binding, workspace,
+task, reconciliation receipt, worker, or lease tables. Once collection finishes,
+private apply functions acquire the original canonical locks and recheck the
+active binding, workspace pause, task generation/revision/status/cancellation,
+specification and head, handoff, worker freshness and independence, leases, and
+receipt identity before any write. They perform no network request. Missing,
+duplicate, extra, swapped, malformed, or oversized cache entries fail closed.
+The cache is internal only: public RPC signatures still accept no provider
+evidence, and all collector/cache/apply helpers deny execution to
+`PUBLIC`, `anon`, `authenticated`, and `service_role`.
+
+For generation 4, the fixed source step collects the union of reconciliation
+and verification responses once, then creates the reconciliation receipt and
+completes exact-head verification in one transaction. Any drift observed after
+collection rolls that transaction back. Generation 5 collects only verification
+responses and binds them to the single immutable reconciliation receipt.
+
 ## Normal native-worker execution
 
 The existing `/api/operations-native-worker` entrypoint remains authenticated by
@@ -157,8 +184,16 @@ pinned evidence with caller-selected data.
 
 ## Validation, failures, and recovery
 
-Tests use synthetic workers and a GET-only GitHub fixture inside PGlite. They
-are not live worker registration or production verification evidence. Run
+Tests use synthetic workers and a GET-only GitHub fixture inside PGlite. The
+fixture inspects same-backend `pg_locks` at every provider call and rejects
+RowShare, RowExclusive, stronger canonical-table, or advisory locks; it also
+injects pause, cancellation, generation, revision, lease, binding, and spec
+drift on the final PR read and proves zero receipt or verification writes.
+PGlite is a single backend, so this is deterministic lock-mode and drift
+evidence rather than a two-session concurrency claim. Tests also tamper with
+the private cache to prove missing, duplicate, extra, swapped, malformed, and
+oversized entries fail closed. They are not live worker registration or
+production verification evidence. Run
 `node --test test/pandora-operations-merged-release-reconciliation-db.test.js`
 `node --test test/pandora-operations-merged-release-native-worker.test.js`,
 and the surrounding Operations Room tests, then run ARTEMIS at the immutable
