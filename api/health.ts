@@ -1,9 +1,19 @@
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const nativeImport = new Function('specifier', 'return import(specifier)') as
+  (specifier: string) => Promise<any>;
+
 export default async function health(_request: unknown, response: any) {
   response.setHeader('Cache-Control', 'no-store');
   try {
-    // Literal module specifier is intentional: Vercel's Node file tracer must
-    // see the canonical runtime dependency at build time.
-    const runtime = await import('../.agents/runtime/pandora-skill-runtime.mjs');
+    const runtimePath = path.resolve(
+      process.cwd(),
+      '.agents',
+      'runtime',
+      'pandora-skill-runtime.mjs',
+    );
+    const runtime = await nativeImport(pathToFileURL(runtimePath).href);
     if (!runtime.skillsEnabled()) {
       return response.status(503).json({
         status: 'degraded',
