@@ -43,12 +43,14 @@ workspace. Reconciliation also requires:
 - GitHub confirmation of the merged PR, merge event, final-head parent of the
   merge commit, original-head and base ancestry, and merge ancestry in main.
 
-Deploy the reviewed migration, matching `mcpmaster-supabase-control` source,
-and `api/operations-native-worker.ts` through the existing release process. The gateway
-verifies production Vercel OIDC, pins organization/project scope and the native
-release worker identity, and rejects caller-selected identities. The underlying
-RPCs are service-role-only. Do not register or impersonate a worker from an
-owner/model route; use the existing authenticated native release execution path.
+Deploy the reviewed migration and matching `mcpmaster-supabase-control`
+source first, and confirm the three merged-release actions are available before
+deploying `api/operations-native-worker.ts`. If the native caller runs earlier,
+FB-025 safely returns 503 until the gateway is updated; do not add a fallback.
+The gateway verifies production Vercel OIDC, pins organization/project scope and
+the native release worker identity, and rejects caller-selected identities. The
+underlying RPCs are service-role-only. Do not register or impersonate a worker
+from an owner/model route; use the existing authenticated native release path.
 
 ## Normal native-worker execution
 
@@ -128,8 +130,9 @@ reconciliation receipt. It then fetches its own provider evidence:
   and commit parents bind the reconciliation receipt's merge identity. The broker
   omits `merge_commit_sha` from PR responses, so that missing field is not proof.
 - The exact-head check set is complete and bounded to 100 runs, has no duplicate
-  names, and contains only completed success/neutral/skipped results. The five
-  required source checks must succeed, including the pinned coordinator check.
+  names, and contains only completed success/neutral/skipped results. Six exact
+  historical check run/app identities must succeed: coordinator, node24, Windows
+  worker contract, canonical source contract, dependency review, and CodeQL.
 - Full-review comment 5854323698 and final-head carry-forward comment 5855325039
   have the pinned CodeRabbit bot/app identity, timestamps, UTF-8 byte lengths,
   body SHA-256 digests, and review/head/blob anchors.

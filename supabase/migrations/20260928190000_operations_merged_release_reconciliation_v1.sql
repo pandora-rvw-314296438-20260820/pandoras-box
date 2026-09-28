@@ -357,17 +357,15 @@ begin
   raise exception 'OPS_MERGED_RELEASE_SOURCE_CHECK_DUPLICATE';
  end if;
  select count(*) into required_count from jsonb_array_elements(checks->'check_runs') c
- where (c->>'name',c->>'conclusion') in (
-  ('Pandora coordinator / integration','success'),('node24','success'),
-  ('Windows worker contract','success'),('canonical-release-source-contract','success'),
-  ('Dependency review','success')
- );
- if required_count<>5 or not exists(
-  select 1 from jsonb_array_elements(checks->'check_runs') c
-  where c->>'id'='108608310169' and c->>'name'='Pandora coordinator / integration'
-    and c->>'head_sha'=t.head_sha and c#>>'{app,id}'='4785021'
-    and c->>'conclusion'='success'
- ) then
+ where (c->>'id',c->>'name',c#>>'{app,id}',c->>'conclusion') in (
+  ('108608310169','Pandora coordinator / integration','4785021','success'),
+  ('108607598769','node24','15368','success'),
+  ('108607620011','Windows worker contract','15368','success'),
+  ('108607598884','canonical-release-source-contract','15368','success'),
+  ('108607599143','Dependency review','15368','success'),
+  ('108607661171','CodeQL','57789','success')
+ ) and (c->>'id'<>'108607661171' or c#>>'{app,slug}'='github-advanced-security');
+ if required_count<>6 then
   raise exception 'OPS_MERGED_RELEASE_SOURCE_REQUIRED_CHECK_MISSING';
  end if;
  select jsonb_agg(jsonb_build_object('id',(c->>'id')::bigint,'name',c->>'name',

@@ -88,17 +88,18 @@ function issueComment(id, kind, created, updated) {
     performed_via_github_app: { id: 347564, slug: "coderabbitai" },
     created_at: created, updated_at: updated, body: reviewBody(kind) };
 }
-const check = (id, name, conclusion = "success") => ({
+const check = (id, name, appId, appSlug = "github-actions", conclusion = "success") => ({
   id, name, head_sha: HEAD, status: "completed", conclusion,
-  app: { id: 4785021, slug: "github-actions" },
+  app: { id: appId, slug: appSlug },
 });
 const checkRuns = [
-  check(108608310169, "Pandora coordinator / integration"),
-  check(108607598769, "node24"),
-  check(108607620011, "Windows worker contract"),
-  check(108607598884, "canonical-release-source-contract"),
-  check(108607599143, "Dependency review"),
-  check(108607599999, "Supabase Preview", "skipped"),
+  check(108608310169, "Pandora coordinator / integration", 4785021),
+  check(108607598769, "node24", 15368),
+  check(108607620011, "Windows worker contract", 15368),
+  check(108607598884, "canonical-release-source-contract", 15368),
+  check(108607599143, "Dependency review", 15368),
+  check(108607661171, "CodeQL", 57789, "github-advanced-security"),
+  check(108607599999, "Supabase Preview", 15368, "github-actions", "skipped"),
 ];
 async function providerFixtures() {
   await db.exec("delete from private.github_fixture");
@@ -419,10 +420,14 @@ test("pending failed missing duplicate or overflow check sets cannot create PASS
     runs => ({ total_count: runs.length, check_runs: runs.map((run,i) => i ? run : { ...run, status: "queued", conclusion: null }) }),
     runs => ({ total_count: runs.length, check_runs: runs.map((run,i) => i ? run : { ...run, conclusion: "failure" }) }),
     runs => ({ total_count: runs.length - 1, check_runs: runs.filter(run => run.name !== "node24") }),
+    runs => ({ total_count: runs.length - 1, check_runs: runs.filter(run => run.name !== "CodeQL") }),
     runs => ({ total_count: runs.length + 1, check_runs: [...runs, { ...runs[1], id: 999999 }] }),
     runs => ({ total_count: 101, check_runs: runs }),
     runs => ({ total_count: runs.length, check_runs: runs.map((run,i) => i ? run : { ...run, head_sha: OLD }) }),
     runs => ({ total_count: runs.length, check_runs: runs.map((run,i) => i ? run : { ...run, app: { id: 1, slug: "other" } }) }),
+    runs => ({ total_count: runs.length, check_runs: runs.map((run,i) => i !== 1 ? run : { ...run, id: 999998 }) }),
+    runs => ({ total_count: runs.length, check_runs: runs.map((run,i) => i !== 1 ? run : { ...run, app: { ...run.app, id: 1 } }) }),
+    runs => ({ total_count: runs.length, check_runs: runs.map((run,i) => i !== 5 ? run : { ...run, app: { ...run.app, slug: "other" } }) }),
   ];
   for (const mutate of variants) {
     const f = await fixture({ taskId: "FB-025" });
