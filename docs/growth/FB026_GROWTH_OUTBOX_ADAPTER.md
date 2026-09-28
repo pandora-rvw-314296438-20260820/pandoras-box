@@ -65,7 +65,7 @@ Before dispatch can be enabled:
 3. Re-read the exact active Memory project and `projectos-mcpmaster-production` grant; require production, `can_propose = true`, `can_approve = false`, active and non-revoked.
 4. Insert an immutable pending candidate and pending review item idempotently. Preserve every FB-025 field in the candidate/review evidence snapshot.
 5. Return the exact response contract verified by `validateGrowthLearningIntakeAcceptance()`.
-6. Extend `execution_learning_response_is_valid` so this new kind is fail-closed. The current function treats unknown nonempty learning kinds as delivered after any HTTP 200/202.
+6. **Satisfied in the converged source:** `20260929040000_growth_learning_outbox_delivery_v1.sql` makes `execution_learning_response_is_valid` fail closed for unknown nonempty kinds and requires the strict twelve-field growth receipt. Production activation still requires deployed function readback.
 7. Keep Box dispatch fenced until the deployed Memory parser version and response validator are both read back.
 8. At human promotion, choose only an allowed record type, bind the approved semantic digest, and resolve an opaque `supersedes_ref` to one exact same-project Memory item transactionally.
 9. Persist and enforce `expires_at`. The live canonical table has effective/review timestamps but no dedicated expiry column, so expiry must be added or enforced from a strictly typed canonical metadata field by every retrieval path.

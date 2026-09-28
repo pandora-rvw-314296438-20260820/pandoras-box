@@ -13,8 +13,8 @@ or promote Memory content. A source test pass is not production-chain evidence.
   intact.
 - Envelope contract: PR804 adapter
   `2822a8e64bc606192728816b333c0d112d22c55e`,
-  `src/pandora-growth-learning-outbox.js`. The adapter is pure and has no active
-  enqueue caller. It is a separate source dependency, absent from this base.
+  `src/pandora-growth-learning-outbox.js`. The adapter is included in this
+  converged source tree, remains pure, and has no active enqueue caller.
 - Memory intake contract: PR126
   `de1a43c709a097010515b98b018d6d5052681d2a`,
   `supabase/functions/pandora-projectos-learning/growth-learning.ts` and
