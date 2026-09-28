@@ -422,6 +422,97 @@ async function failureCase(f, mutate, expectedReason) {
     await f.db.exec('rollback');
   }
 }
+
+test('inactive and revoked lifecycle states fail closed without provider I/O or revival', async () => {
+  const f = await fixture();
+  try {
+    const cases = [
+      {
+        name: 'pending installation',
+        mutate: (db) => db.query(
+          `update public.connector_installations set status='pending'
+           where id=$1`,
+          [installation],
+        ),
+        reason: 'installation_inactive',
+        connectionStatus: 'connected',
+        installationStatus: 'pending',
+      },
+      {
+        name: 'revoked installation',
+        mutate: (db) => db.query(
+          `update public.connector_installations set status='revoked'
+           where id=$1`,
+          [installation],
+        ),
+        reason: 'installation_inactive',
+        connectionStatus: 'connected',
+        installationStatus: 'revoked',
+      },
+      {
+        name: 'revoked connection',
+        mutate: (db) => db.query(
+          `update private.pandora_meta_connections set status='revoked'
+           where organization_id=$1`,
+          [org],
+        ),
+        reason: 'connection_unavailable',
+        connectionStatus: 'revoked',
+        installationStatus: 'active',
+      },
+      {
+        name: 'revoked credential',
+        mutate: (db) => db.query(
+          `update public.credential_refs set rotation_state='revoked'
+           where installation_id=$1`,
+          [installation],
+        ),
+        reason: 'credential_missing',
+        connectionStatus: 'problem',
+        installationStatus: 'degraded',
+      },
+    ];
+
+    for (const lifecycleCase of cases) {
+      await f.db.exec('begin');
+      try {
+        await lifecycleCase.mutate(f.db);
+        const before = await f.health();
+        const result = await f.invoke();
+        const after = await f.health();
+        const calls = await f.db.query(
+          'select coalesce(sum(calls),0)::int as count from private.fixture_http_responses',
+        );
+
+        assert.equal(result.ok, false, lifecycleCase.name);
+        assert.equal(result.reason, lifecycleCase.reason, lifecycleCase.name);
+        assert.equal(after.connection_status, lifecycleCase.connectionStatus);
+        assert.equal(after.installation_status, lifecycleCase.installationStatus);
+        assert.equal(calls.rows[0].count, 0, lifecycleCase.name);
+        assert.equal(
+          new Date(after.last_verified_at).toISOString(),
+          new Date(before.last_verified_at).toISOString(),
+          lifecycleCase.name,
+        );
+        assert.equal(
+          new Date(after.last_health_check_at).toISOString(),
+          new Date(before.last_health_check_at).toISOString(),
+          lifecycleCase.name,
+        );
+        assert.doesNotMatch(
+          JSON.stringify(result),
+          /token-fixture|vault:\/\/|secret_ref/i,
+          lifecycleCase.name,
+        );
+      } finally {
+        await f.db.exec('rollback');
+      }
+    }
+  } finally {
+    await f.db.close();
+  }
+});
+
 test('four exact read-only GETs atomically refresh existing health only', async () => {
   const f = await fixture();
   try {
