@@ -1,6 +1,6 @@
 ---
 name: pandora-governed-execution
-description: "Execute provider mutations through the ProjectOS plan → approve → execute path with audit, idempotency, and fail-closed gates. Load before any action that changes state in GitHub, Supabase, Memory, or another connected provider; when a mutation failed or its outcome is ambiguous; or when deciding whether an action needs owner approval. Covers one-time claims, payload integrity, confirmed-mutation safety, and audit verification."
+description: "Execute provider mutations through the Pandora plan → approve → execute path with audit, idempotency, and fail-closed gates. Load before any action that changes state in GitHub, Supabase, Memory, or another connected provider; when a mutation failed or its outcome is ambiguous; or when deciding whether an action needs owner approval. Covers one-time claims, payload integrity, confirmed-mutation safety, and audit verification."
 ---
 
 # Pandora Governed Execution
@@ -10,9 +10,9 @@ Reads are direct. **Mutations are never direct.** Every state change goes throug
 ## Why the three steps are separate
 
 ```
-projectos_create_plan / projectos_plan_<tool>   → durable plan; nothing happens yet
-projectos_approve_plan                           → authenticated owner/admin; still nothing happens
-projectos_execute_plan                           → one-time claim, then the mutation
+pandora_create_plan / pandora_plan_<tool>   → durable plan; nothing happens yet
+pandora_approve_plan                           → authenticated owner/admin; still nothing happens
+pandora_execute_plan                           → one-time claim, then the mutation
 ```
 
 Separation is the control. The planner cannot self-execute; the approver sees an exact, hashed payload rather than a description of one; execution claims the plan once, so a duplicate invocation cannot produce a duplicate effect. A plan carries `payloadHash`, `memoryContextHash`, `intakeId`, and `claimedAt` — payload integrity, context binding, intake linkage, and single-claim, all enforced at execution time.
@@ -29,7 +29,7 @@ Never look for a shortcut around this. If a mutation seems to need a direct call
 
 ## Constructing the plan
 
-Use the specific `projectos_plan_<tool>` variant when one exists; it carries the correct schema. Fall back to `projectos_create_plan` with an exact `tool` and `args`.
+Use the specific `pandora_plan_<tool>` variant when one exists; it carries the correct schema. Fall back to `pandora_create_plan` with an exact `tool` and `args`.
 
 Make arguments exact and minimal. A plan is a commitment to a specific effect on a specific target — vague arguments produce a plan nobody can meaningfully approve. Include the project key explicitly rather than letting intake derive a fallback.
 
