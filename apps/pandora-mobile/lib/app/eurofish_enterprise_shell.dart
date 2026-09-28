@@ -67,7 +67,10 @@ class _EurofishEnterpriseShellState extends State<EurofishEnterpriseShell> {
     if (intelligence == null) return;
     setState(() => _historyLoading = true);
     try {
-      final threads = await intelligence.recentThreads();
+      final threads = await intelligence.recentThreadsForWorkspace(
+        _workspaceKey,
+        limit: 10,
+      );
       if (!mounted) return;
       setState(() => _threads = threads);
     } on PandoraIntelligenceException {
