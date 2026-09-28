@@ -295,39 +295,43 @@ test('disabling the runtime restores prior behaviour without deleting evidence',
   assert.ok(fs.existsSync(path.join(ROOT, 'docs/skills/PANDORA_SKILL_MANIFEST.sha256')));
 });
 
-test('Vercel skill-runtime entrypoints are statically traceable and recursively packaged', () => {
+test('Vercel skill-runtime entrypoints preserve native ESM loading and recursive packaging', () => {
   const health = fs.readFileSync(path.join(ROOT, 'api/health.ts'), 'utf8');
   const handler = fs.readFileSync(path.join(ROOT, 'src/pandora-mcp-handler.js'), 'utf8');
+  const mcpEntry = fs.readFileSync(path.join(ROOT, 'api/mcp.ts'), 'utf8');
   const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
 
   assert.match(
     health,
-    /import\('\.\.\/\.agents\/runtime\/pandora-skill-runtime\.mjs'\)/,
-    'health must use a literal dynamic import so Vercel can trace the runtime',
+    /new Function\('specifier', 'return import\(specifier\)'\)/,
+    'health must use native runtime import that Vercel cannot transpile to require',
   );
-  assert.doesNotMatch(health, /pathToFileURL|runtimePath|process\.cwd\(\).*pandora-skill-runtime/);
+  assert.match(
+    health,
+    /pathToFileURL\(runtimePath\)\.href/,
+    'health must import the packaged .mjs runtime by file URL',
+  );
+  assert.doesNotMatch(
+    health,
+    /await import\('\.\.\/\.agents\/runtime\/pandora-skill-runtime\.mjs'\)/,
+  );
 
-  const mcpEntry = fs.readFileSync(path.join(ROOT, 'api/mcp.ts'), 'utf8');
-  assert.match(
+  assert.doesNotMatch(
     mcpEntry,
-    /import ['"]\.\.\/\.agents\/runtime\/pandora-skill-runtime\.mjs['"]/,
-    'Vercel MCP entrypoint must statically trace the canonical runtime outside the src emit tree',
+    /pandora-skill-runtime\.mjs/,
+    'MCP entrypoint must not execute a transpiled static .mjs import',
+  );
+
+  assert.match(
+    handler,
+    /new Function\("specifier", "return import\(specifier\)"\)/,
+    'MCP handler must preserve native ESM import at runtime',
   );
   assert.match(
     handler,
-    /path\.resolve\(process\.cwd\(\), "\.agents", "runtime", "pandora-skill-runtime\.mjs"\)/,
-    'MCP must prefer the packaged cwd runtime asset',
+    /nativeDynamicImport\(pathToFileURL\(runtimePath\)\.href\)/,
   );
-  assert.match(
-    handler,
-    /runtimeCandidates\.find\(\(candidate\) => existsSync\(candidate\)\)/,
-    'MCP must fall back only to an existing runtime asset',
-  );
-  assert.match(
-    handler,
-    /require\(runtimePath\)/,
-    'compiler-safe handler keeps runtime loading outside the src emit graph',
-  );
+  assert.doesNotMatch(handler, /require\(runtimePath\)/);
 
   for (const functionName of ['api/mcp.ts', 'api/health.ts']) {
     assert.equal(
