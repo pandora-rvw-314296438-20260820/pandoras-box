@@ -22,7 +22,7 @@ Never look for a shortcut around this. If a mutation seems to need a direct call
 ## Before planning
 
 1. **Classify the risk** by effect, not by tool name. See `pandora-governance-contract/references/risk-classification.md`. Note that the runtime classifies any unknown tool as `destructive` — adopt the same default.
-2. **Confirm the tool exists** in `projectos_tool_catalog`, with its risk, scope, allowlist, and required provider scopes. Do not plan against a tool you have not seen in the catalog.
+2. **Confirm the tool exists** in `pandora_tool_catalog`, with its risk, scope, allowlist, and required provider scopes. Do not plan against a tool you have not seen in the catalog.
 3. **Check the source-authority policy.** Mutations targeting a historical-only repository (every `mbanatao/*`) are rejected fail-closed, and correctly so.
 4. **Identify the rollback artifact** — before acting, not after failing.
 5. **Decide whether this needs the owner.** `read` never does. Everything else does, and the always-escalate list overrides any local judgment.
@@ -67,7 +67,7 @@ For ambiguity you cannot resolve by reading back, escalate. Guessing on money, c
 
 ## Audit
 
-`projectos_verify_audit` verifies the hash-linked chain and returns `valid`, `eventCount`, and `lastHash`.
+`pandora_verify_audit` verifies the hash-linked chain and returns `valid`, `eventCount`, and `lastHash`.
 
 Verify after meaningful mutations and during any incident. **A chain that does not verify is an incident in itself** — escalate immediately, do not continue mutating, and do not attempt to repair the chain. Its value is that it is tamper-evident; an agent "fixing" it destroys exactly that property.
 
