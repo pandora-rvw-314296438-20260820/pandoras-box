@@ -53,9 +53,9 @@ Every mutation in this chain routes through `pandora-governed-execution`, and ev
 any state change
     └── pandora-governed-execution
             ├── pandora-governance-contract/references/risk-classification.md
-            ├── projectos_create_plan / projectos_plan_<tool>
-            ├── projectos_approve_plan        ⟵ owner/admin, if risk != read
-            ├── projectos_execute_plan        (one-time claim)
+            ├── pandora_create_plan / pandora_plan_<tool>
+            ├── pandora_approve_plan        ⟵ owner/admin, if risk != read
+            ├── pandora_execute_plan        (one-time claim)
             ├── provider readback
             └── pandora-evidence-ledger
 ```
