@@ -561,6 +561,36 @@ begin
     exception when data_exception or program_limit_exceeded then
       return false;
     end;
+    if v_body->>'status'='already_reviewed' then
+      if p_status<>200
+        or jsonb_typeof(v_body) is distinct from 'object'
+        or not (v_body ?& array[
+          'ok','status','source_event_id','learning_id','content_hash',
+          'candidate_id','review_item_id','review_status','deduplicated'
+        ])
+        or v_body-array[
+          'ok','status','source_event_id','learning_id','content_hash',
+          'candidate_id','review_item_id','review_status','deduplicated'
+        ]<>'{}'::jsonb then return false; end if;
+      foreach v_key in array array[
+        'status','source_event_id','learning_id','content_hash','candidate_id',
+        'review_item_id','review_status'
+      ] loop
+        if jsonb_typeof(v_body->v_key) is distinct from 'string' then return false; end if;
+      end loop;
+      return v_body->'ok' is not distinct from 'true'::jsonb
+        and v_body->>'source_event_id' is not distinct from p_payload->>'source_event_id'
+        and v_body->>'learning_id' is not distinct from p_payload#>>'{growth_learning,candidate,source_event_id}'
+        and v_body->>'content_hash' is not distinct from p_payload#>>'{growth_learning,candidate,content_hash}'
+        and coalesce(lower(v_body->>'candidate_id') ~ v_uuid_pattern,false)
+        and coalesce(lower(v_body->>'review_item_id') ~ v_uuid_pattern,false)
+        and v_body->>'review_status' in (
+          'needs_clarification','blocked_namespace_mismatch','blocked_sensitive',
+          'blocked_policy','approved_for_append','rejected','archived'
+        )
+        and v_body->'deduplicated' is not distinct from 'true'::jsonb;
+    end if;
+
     if jsonb_typeof(v_body) is distinct from 'object'
       or not (v_body ?& array[
         'ok','status','source_event_id','learning_id','content_hash',
