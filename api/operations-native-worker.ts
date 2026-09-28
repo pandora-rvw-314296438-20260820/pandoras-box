@@ -406,6 +406,32 @@ async function verifySupportedHandedOffTask(
   return null;
 }
 
+async function verifyMergedFacebookSource(oidc: string, snapshot: Json) {
+  const task = (Array.isArray(snapshot?.tasks) ? snapshot.tasks : []).find(
+    (entry: any) => entry?.spec?.id === "FB-025" &&
+      ["handed_off", "verifying"].includes(String(entry?.status || "")),
+  );
+  if (!task) return null;
+
+  await control(oidc, { action: "operations_heartbeat", workerRole: "release" });
+  // The database selects the task and immutable receipt; no caller verdict or proof.
+  const result = await control(
+    oidc, { action: "operations_merged_release_source_step" }, 60_000,
+  );
+  if (result?.taskId !== "FB-025" ||
+      !["idle", "held", "complete"].includes(String(result?.state || ""))) {
+    throw new Error("OPS_MERGED_SOURCE_STEP_INVALID");
+  }
+  if (result.state === "complete" &&
+      (result?.verification?.complete !== true ||
+       result?.headSha !== "3e38b571ae963cc663e622fc1a75d5578b6fb7a2" ||
+       result?.generation !== 5 ||
+       !REASONING_UUID_PATTERN.test(String(result?.reconciliationReceiptId || "")))) {
+    throw new Error("OPS_MERGED_SOURCE_COMPLETION_UNCONFIRMED");
+  }
+  return result;
+}
+
 async function connectorCanaryEvidence() {
   const pr = await githubJson(`/repos/${REPOSITORY}/pulls/${CANARY_PR}`);
   if (
@@ -791,6 +817,17 @@ export default async function operationsNativeWorker(request: any, response: any
       });
     }
 
+    const mergedFacebookSource = await verifyMergedFacebookSource(oidc, snapshot);
+    if (mergedFacebookSource?.state === "complete") {
+      return send(response, 200, {
+        ok: true,
+        state: "complete",
+        taskId: "FB-025",
+        release: mergedFacebookSource,
+        memory,
+      });
+    }
+
     const reasoningRdp = await runReasoningRdpStep(oidc);
     const passiveReasoningStates = new Set([
       "idle",
@@ -845,6 +882,7 @@ export default async function operationsNativeWorker(request: any, response: any
         ok: true, state: "idle", registered: true,
         reason: candidate?.reason || "no_dependency_ready_authorized_source_task",
         humanBlocked: candidate?.humanBlocked ?? 0,
+        mergedFacebookSource,
         preflighted: preflight?.preflighted ?? null,
         memory,
       });
