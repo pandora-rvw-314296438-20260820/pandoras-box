@@ -53,7 +53,7 @@ Only for providers this work actually touches:
 Fill this in. An unknown is a finding, not a blank to guess at.
 
 ```
-IDENTITY      project key · canonical repository · Memory namespace · ProjectOS project ID
+IDENTITY      project key · canonical repository · Memory namespace · Pandora project ID
 PURPOSE       what this project is for, in one sentence
 PHASE         current roadmap phase and what closes it
 SOURCE        default branch head SHA + tree SHA · active branches · open PRs with exact heads
