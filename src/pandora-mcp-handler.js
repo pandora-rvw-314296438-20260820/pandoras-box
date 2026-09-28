@@ -8,6 +8,7 @@ exports.handlePandoraMcp = handlePandoraMcp;
 const { randomUUID } = require("node:crypto");
 const { existsSync } = require("node:fs");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { ExecutionLedgerClient } = require("./runtime/execution-ledger-client.js");
 const {
     createProviderExecutionStateMachine,
@@ -60,6 +61,7 @@ const EXECUTOR_ROLES = new Set(["owner", "admin"]);
 const LEGACY_PLAN_TOOL_PREFIX = "pandora_plan_";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const nativeDynamicImport = new Function("specifier", "return import(specifier)");
 let skillRuntimePromise;
 
 function skillRuntime() {
@@ -74,9 +76,10 @@ function skillRuntime() {
                 code: "pandora_skill_runtime_unavailable",
             });
         }
-        // Vercel tracing is anchored in api/mcp.ts; this computed require stays
-        // outside TypeScript's src emit graph while preferring packaged cwd assets.
-        skillRuntimePromise = Promise.resolve().then(() => require(runtimePath));
+        // Use native ESM import at runtime so Vercel transpilation cannot lower
+        // the .mjs load to CommonJS require(). Recursive includeFiles packaging
+        // supplies the canonical runtime and its registry assets.
+        skillRuntimePromise = nativeDynamicImport(pathToFileURL(runtimePath).href);
     }
     return skillRuntimePromise;
 }
