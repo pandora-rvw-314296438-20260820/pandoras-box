@@ -40,9 +40,11 @@ test('private server tables are RLS hardened without client grants', () => {
     'pandora_meta_connections','pandora_meta_page_tokens',
   ];
   for (const table of tables) {
-    assert.match(migration,new RegExp('alter table if exists private\\.'+table+' enable row level security'));
+    assert.match(migration,new RegExp("'"+table+"'"));
   }
+  assert.match(migration,/to_regclass\('private\.'\|\|v_table\) is not null/);
+  assert.match(migration,/execute format\('alter table private\.%I enable row level security',v_table\)/);
+  assert.match(migration,/execute format\('revoke all on table private\.%I from public,anon,authenticated',v_table\)/);
   assert.match(migration,/revoke all on schema private from public,anon,authenticated/);
-  assert.match(migration,/from public,anon,authenticated/);
   assert.match(migration,/grant execute on function public\.pandora_ops_reconcile_external_success_v1[\s\S]*to service_role/);
 });
