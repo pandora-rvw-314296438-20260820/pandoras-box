@@ -3,6 +3,7 @@ import { createRemoteJWKSet, decodeJwt, jwtVerify } from "npm:jose@5.10.0";
 import { routeForCanonicalReleaseCapture } from "./canonical-release-capture-routes.mjs";
 import { assertProductionVercelClaims } from "./identity-policy.mjs";
 import { routeForRdpOperations } from "./rdp-routes.mjs";
+import { routeForMergedRelease } from "./merged-release-routes.mjs";
 import { routeForReasoningRdpOperations } from "./reasoning-rdp-routes.mjs";
 import { handleGeminiWorkerRequest } from "./gemini-worker-gateway.mjs";
 
@@ -67,6 +68,7 @@ type ControlRpc =
   | "pandora_ops_wake_authorize_v1"
   | "pandora_ops_reconcile_required_v1"
   | "pandora_ops_reconcile_external_success_v1"
+  | "pandora_ops_reconcile_merged_release_v1"
   | "pandora_ops_native_release_verify_v1"
   | "pandora_ops_record_verification_v1"
   | "pandora_ops_verify_v1"
@@ -113,6 +115,7 @@ type ControlAction =
   | "operations_wake_authorize"
   | "operations_reconcile"
   | "operations_external_success_reconcile"
+  | "operations_merged_release_reconcile"
   | "operations_native_release_verify"
   | "operations_verification_record"
   | "operations_verification_accept"
@@ -293,6 +296,9 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
 
   const reasoningRdpRoute = routeForReasoningRdpOperations(input, OPERATIONS_PROJECT_ID);
   if (reasoningRdpRoute) return reasoningRdpRoute as ControlRoute;
+
+  const mergedRelease = routeForMergedRelease(input, OPERATIONS_PROJECT_ID);
+  if (mergedRelease) return mergedRelease as ControlRoute;
 
   if (input.action === "catalog") {
     return {
