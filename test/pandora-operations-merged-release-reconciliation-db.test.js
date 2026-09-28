@@ -359,14 +359,43 @@ test("fixed source step returns idle or held without provider reads or receipts"
   assert.equal((await db.query("select coalesce(sum(seen),0)::int n from private.github_fixture")).rows[0].n, 0);
 });
 
-test("source-step verification failure rolls back the adopted generation and receipts", async () => {
+test("source-step proof hold rolls back adoption and returns bounded state", async () => {
   const f = await fixture(), before = await state(f);
   await setResponse(ROOT + "/commits/" + HEAD + "/check-runs?per_page=100",
     { total_count: checkRuns.length, check_runs: checkRuns.map((run,i) => i ? run : { ...run, conclusion: "failure" }) });
-  await assert.rejects(sourceStep(f), /OPS_MERGED_RELEASE_SOURCE_CHECKS_NOT_GREEN/);
+  const result = await sourceStep(f);
+  assert.deepEqual(result, {
+    state: "held", taskId: "FB-025", reason: "provider_proof_unconfirmed",
+    status: before.status, generation: Number(before.generation), headSha: before.head_sha,
+  });
   assert.deepEqual(await state(f), before);
   assert.equal((await db.query("select count(*)::int n from private.pandora_ops_merged_release_receipts where organization_id=$1", [f.org])).rows[0].n, 0);
   assert.equal((await db.query("select count(*)::int n from private.pandora_ops_verification_receipts where organization_id=$1", [f.org])).rows[0].n, 0);
+});
+
+test("source-step reconciler proof mismatch returns held without mutation", async () => {
+  const f = await fixture(), before = await state(f);
+  const changed = pr();
+  changed.head.repo.full_name = "foreign/example";
+  await setResponse(ROOT + "/pulls/786", changed);
+  const result = await sourceStep(f);
+  assert.equal(result.state, "held");
+  assert.equal(result.reason, "provider_proof_unconfirmed");
+  assert.deepEqual(await state(f), before);
+  assert.equal((await db.query("select count(*)::int n from private.pandora_ops_merged_release_receipts where organization_id=$1", [f.org])).rows[0].n, 0);
+  assert.equal((await db.query("select count(*)::int n from private.pandora_ops_verification_receipts where organization_id=$1", [f.org])).rows[0].n, 0);
+});
+
+test("source-step transport and authorization errors remain failures", async () => {
+  const transport = await fixture();
+  await setResponse(ROOT + "/pulls/786", {}, 503);
+  await assert.rejects(sourceStep(transport), /OPS_MERGED_RELEASE_PR_UNAVAILABLE/);
+  assert.equal((await db.query("select count(*)::int n from private.pandora_ops_merged_release_receipts where organization_id=$1", [transport.org])).rows[0].n, 0);
+
+  const denied = await fixture();
+  await assert.rejects(sourceStep(denied, { p_worker_key: "wrong-worker" }),
+    /OPS_MERGED_RELEASE_SOURCE_VERIFIER_DENIED/);
+  assert.equal((await db.query("select count(*)::int n from private.pandora_ops_merged_release_receipts where organization_id=$1", [denied.org])).rows[0].n, 0);
 });
 
 test("FB-025 completes only through exact provider-owned merged-release proof", async () => {

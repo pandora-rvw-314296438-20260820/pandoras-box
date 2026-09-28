@@ -47,10 +47,13 @@ Deploy the reviewed migration and matching `mcpmaster-supabase-control`
 source first, and confirm the three merged-release actions are available before
 deploying `api/operations-native-worker.ts`. If the native caller runs earlier,
 FB-025 safely returns 503 until the gateway is updated; do not add a fallback.
-The gateway verifies production Vercel OIDC, pins organization/project scope and
-the native release worker identity, and rejects caller-selected identities. The
-underlying RPCs are service-role-only. Do not register or impersonate a worker
-from an owner/model route; use the existing authenticated native release path.
+The gateway accepts a valid production workload token for the trusted mcpmaster
+Vercel project; this project-wide authentication does not prove which project
+function made the call. The fixed action pins organization/project scope and the
+database release-worker identity, accepts no caller verdict or evidence, and the
+underlying RPCs remain service-role-only. The native-worker endpoint separately
+requires its cron secret, signed wake, or authorized manual wake. Function-specific
+workload capability would be future hardening; this repair does not claim it.
 
 ## Normal native-worker execution
 
@@ -161,11 +164,15 @@ are not live worker registration or production verification evidence. Run
 and the surrounding Operations Room tests, then run ARTEMIS at the immutable
 PR head. ARTEMIS machine checks do not replace independent release review.
 
-Unknown provider outcomes, divergent ancestry, active leases, scope changes,
-stale inputs, and changed final readback retain the hold. Reconciliation
-timeline lookup is bounded to ten pages of 100 events. Verification rejects an
-incomplete or oversized check set. A failed RPC transaction must not leave a
-partial adoption or acceptance receipt; inspect current state before retrying.
+Durable task/proof mismatches roll back the nested reconciliation and
+verification subtransaction and return the bounded hold reason
+`provider_proof_unconfirmed`; the native worker then continues unrelated work.
+The response never exposes the underlying database message. Provider transport
+or malformed response failures, authorization failures, programming errors, and
+unrecognized database errors still fail the wake closed. Reconciliation timeline
+lookup is bounded to ten pages of 100 events, and verification rejects an
+incomplete or oversized check set. No held attempt may leave a partial adoption
+or acceptance receipt; inspect current state before retrying.
 
 To disable these actions, redeploy the previously approved gateway version.
 Do not erase receipts or reverse task generations as a rollback. Any subsequent

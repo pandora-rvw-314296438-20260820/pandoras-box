@@ -476,6 +476,7 @@ declare
  t private.pandora_ops_tasks%rowtype;
  reconciled jsonb; verified jsonb;
  receipt_id uuid; receipt_count bigint; did_reconcile boolean:=false;
+ failure_message text;
 begin
  if session_user not in ('postgres','service_role')
     and coalesce(auth.jwt()->>'role','')<>'service_role' then
@@ -508,8 +509,9 @@ begin
     'status',t.status,'generation',t.generation,'headSha',t.head_sha);
  end if;
 
- if t.head_sha='5448f61715b139dff7bbedf9d3056ca80cadb585'
-    and t.generation=4 and t.revision=12 and t.status in ('handed_off','verifying') then
+ begin
+  if t.head_sha='5448f61715b139dff7bbedf9d3056ca80cadb585'
+     and t.generation=4 and t.revision=12 and t.status in ('handed_off','verifying') then
   reconciled:=public.pandora_ops_reconcile_merged_release_v1(
    p_organization_id,p_project_id,gen_random_uuid(),t.task_key,t.generation,t.revision,
    t.spec_digest,t.head_sha,p_worker_key,p_principal_key);
@@ -532,9 +534,39 @@ begin
     'status',t.status,'generation',t.generation,'headSha',t.head_sha);
  end if;
 
- verified:=public.pandora_ops_verify_merged_release_source_v1(
-  p_organization_id,p_project_id,t.task_key,t.generation,t.spec_digest,t.head_sha,
-  receipt_id,p_worker_key,p_principal_key);
+  verified:=public.pandora_ops_verify_merged_release_source_v1(
+   p_organization_id,p_project_id,t.task_key,t.generation,t.spec_digest,t.head_sha,
+   receipt_id,p_worker_key,p_principal_key);
+ exception when others then
+  get stacked diagnostics failure_message=message_text;
+  if failure_message=any(array[
+   'OPS_MERGED_RELEASE_TASK_FENCED','OPS_MERGED_RELEASE_ACTIVE_LEASE',
+   'OPS_MERGED_RELEASE_HANDOFF_REQUIRED','OPS_MERGED_RELEASE_PR_IDENTITY_MISMATCH',
+   'OPS_MERGED_RELEASE_HEAD_ALREADY_CURRENT','OPS_MERGED_RELEASE_MERGE_BINDING_REQUIRED',
+   'OPS_MERGED_RELEASE_MERGE_PARENT_MISMATCH','OPS_MERGED_RELEASE_LINEAGE_UNCONFIRMED',
+   'OPS_MERGED_RELEASE_READBACK_CHANGED','OPS_MERGED_RELEASE_SOURCE_TASK_FENCED',
+   'OPS_MERGED_RELEASE_SOURCE_RECEIPT_MISMATCH','OPS_MERGED_RELEASE_SOURCE_PR_MISMATCH',
+   'OPS_MERGED_RELEASE_SOURCE_MERGE_BINDING_MISMATCH',
+   'OPS_MERGED_RELEASE_SOURCE_MERGE_PARENT_MISMATCH',
+   'OPS_MERGED_RELEASE_SOURCE_CHECK_SET_INCOMPLETE',
+   'OPS_MERGED_RELEASE_SOURCE_CHECKS_NOT_GREEN',
+   'OPS_MERGED_RELEASE_SOURCE_CHECK_DUPLICATE',
+   'OPS_MERGED_RELEASE_SOURCE_REQUIRED_CHECK_MISSING',
+   'OPS_MERGED_RELEASE_SOURCE_FULL_REVIEW_MISMATCH',
+   'OPS_MERGED_RELEASE_SOURCE_CARRIED_REVIEW_MISMATCH',
+   'OPS_MERGED_RELEASE_SOURCE_BLOB_MISMATCH',
+   'OPS_MERGED_RELEASE_SOURCE_READBACK_CHANGED',
+   'OPS_VERIFICATION_REPLAY_CONFLICT'
+  ]) then
+   select * into t from private.pandora_ops_tasks
+   where organization_id=p_organization_id and project_id=p_project_id
+     and task_key='FB-025';
+   return jsonb_build_object(
+    'state','held','taskId','FB-025','reason','provider_proof_unconfirmed',
+    'status',t.status,'generation',t.generation,'headSha',t.head_sha);
+  end if;
+  raise;
+ end;
  select * into t from private.pandora_ops_tasks
  where organization_id=p_organization_id and project_id=p_project_id and task_key='FB-025';
  return jsonb_build_object(

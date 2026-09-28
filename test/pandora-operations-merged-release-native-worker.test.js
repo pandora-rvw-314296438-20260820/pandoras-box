@@ -143,11 +143,12 @@ test('paused workspace prevents merged-source provider work', async () => {
   assert.equal(stepCalls(result).length, 0);
 });
 
-for (const step of [
-  { state: 'held', taskId: 'FB-025', reason: 'source_state_not_eligible' },
-  { state: 'idle', taskId: 'FB-025', reason: 'task_missing' },
+for (const [name, step] of [
+  ['state-held', { state: 'held', taskId: 'FB-025', reason: 'source_state_not_eligible' }],
+  ['provider-proof-held', { state: 'held', taskId: 'FB-025', reason: 'provider_proof_unconfirmed' }],
+  ['idle', { state: 'idle', taskId: 'FB-025', reason: 'task_missing' }],
 ]) {
-  test(step.state + ' source does not prevent unrelated work or claim completion', async () => {
+  test(name + ' source does not prevent unrelated work or claim completion', async () => {
     const result = await invoke({ step });
     assert.equal(result.statusCode, 200);
     assert.equal(result.body.state, 'idle');
