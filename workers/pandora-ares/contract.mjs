@@ -4,6 +4,7 @@ export const CONTRACT = 'pandora-ares-host-v1';
 export const PACKAGES = Object.freeze([
   'com.banataosystems.pandora_mobile',
   'com.banataosystems.pandora.plp',
+  'com.banataosystems.pandora.eurofish',
 ]);
 export const OPERATIONS = Object.freeze({
   'ares.health.read': { risk: 'read', app: false },
