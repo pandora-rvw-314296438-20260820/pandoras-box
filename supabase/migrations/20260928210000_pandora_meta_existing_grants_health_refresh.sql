@@ -15,7 +15,7 @@ set search_path = pg_catalog, public, private, pg_temp
 as $$
 declare
   v_http_status integer := p_http_status;
-  v_now timestamptz := timezone('utc', clock_timestamp());
+  v_now timestamptz := clock_timestamp();
 begin
   if p_reason not in (
     'credential_expired',
@@ -356,7 +356,7 @@ declare
   v_live_granted integer;
   v_snapshot jsonb;
   v_finalize jsonb;
-  v_now timestamptz := timezone('utc', clock_timestamp());
+  v_now timestamptz := clock_timestamp();
 begin
   if session_user not in ('postgres', 'service_role', 'supabase_admin')
     and coalesce(auth.jwt()->>'role', '') <> 'service_role' then

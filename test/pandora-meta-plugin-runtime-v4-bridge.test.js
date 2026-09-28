@@ -308,6 +308,57 @@ test('v4 bridge preserves legacy provider semantics and adds one closed Meta pro
   }
 });
 
+test('v4 bridge retains legacy rows with missing and null provider keys in order', async () => {
+  const f = await fixture();
+  try {
+    const missingProvider = {
+      label: 'Legacy missing provider',
+      state: 'Needs authorization',
+      fixtureMarker: { preserve: 'missing' },
+      actions: [{ name: 'legacy.read', available: false }],
+    };
+    const nullProvider = {
+      ...missingProvider,
+      provider: null,
+      label: 'Legacy null provider',
+      fixtureMarker: { preserve: 'null' },
+    };
+    const providers = [
+      baseProviders[0], missingProvider, baseProviders[2],
+      nullProvider, baseProviders[1], baseProviders[2],
+    ];
+    await f.db.query(
+      `update private.fixture_plugin_registry
+       set payload=jsonb_set(payload,'{providers}',$2::jsonb)
+       where organization_id=$1`,
+      [orgA, JSON.stringify(providers)],
+    );
+    await f.setUser(owner);
+    const rows = (await f.read()).providers;
+    assert.deepEqual(
+      rows.map((row) => row.provider),
+      ['github', undefined, null, 'supabase', 'meta'],
+    );
+    assert.equal(Object.hasOwn(rows[1], 'provider'), false);
+    assert.equal(rows[2].provider, null);
+    for (const [row, original] of [
+      [rows[1], missingProvider], [rows[2], nullProvider],
+    ]) {
+      assert.equal(row.label, original.label);
+      assert.equal(row.state, original.state);
+      assert.deepEqual(row.fixtureMarker, original.fixtureMarker);
+      assert.deepEqual(row.actions, original.actions);
+      assert.equal(row.connected, false);
+      assert.equal(row.canUseNow, false);
+    }
+    assert.equal(rows.filter((row) => row.provider === 'meta').length, 1);
+    assert.equal(rows.at(-1).label, 'Meta');
+    assert.doesNotMatch(JSON.stringify(rows), /must-not-survive/);
+  } finally {
+    await f.db.close();
+  }
+});
+
 test('absent and unready Meta states remain visible with no available action', async () => {
   const f = await fixture();
   try {
@@ -410,7 +461,7 @@ test('bridge changes only the closed projection and mobile keeps the v4 parser c
   assert.match(migration, /pandora_plugin_runtime_registry_v3\(p_organization_id\)/);
   assert.match(migration, /pandora_meta_connection_v1\(p_organization_id\)/);
   assert.match(migration, /when sqlstate '42501' then\s+raise/);
-  assert.match(migration, /filter \(where item->>'provider' <> 'meta'\)/);
+  assert.match(migration, /filter \(where item->>'provider' is distinct from 'meta'\)/);
   assert.match(migration, /'name', 'ads\.manage'[\s\S]*'available', false/);
   assert.doesNotMatch(
     migration,

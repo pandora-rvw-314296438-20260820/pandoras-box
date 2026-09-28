@@ -578,6 +578,109 @@ test('four exact read-only GETs accept legacy Page null expiry and atomically re
   }
 });
 
+for (const timeZone of ['America/Los_Angeles', 'Asia/Manila']) {
+  test(`health refresh preserves expiry and timestamps in ${timeZone}`, async () => {
+    const f = await fixture();
+    try {
+      await f.db.query("select set_config('TimeZone',$1,false)", [timeZone]);
+      const clock = async () => new Date((
+        await f.db.query('select clock_timestamp() as observed_at')
+      ).rows[0].observed_at).getTime();
+      const assertWithinCall = (value, startedAt, endedAt, label) => {
+        const timestamp = new Date(value).getTime();
+        assert.ok(
+          timestamp >= startedAt && timestamp <= endedAt,
+          `${label} must record the current instant in ${timeZone}`,
+        );
+      };
+      await f.db.query(
+        `update private.pandora_meta_connections
+         set token_expires_at=clock_timestamp()+interval '1 hour'
+         where organization_id=$1`,
+        [org],
+      );
+      await f.db.query(
+        `update public.credential_refs
+         set expires_at=clock_timestamp()+interval '1 hour'
+         where installation_id=$1`,
+        [installation],
+      );
+      const startedAt = await clock();
+      const result = await f.invoke();
+      const endedAt = await clock();
+      const healthy = await f.health();
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 'ACTIVE_HEALTHY');
+      assert.equal(healthy.connection_status, 'connected');
+      assert.equal(healthy.installation_status, 'active');
+      assert.equal(healthy.last_error, null);
+      for (const [label, value] of Object.entries({
+        checkedAt: result.checkedAt,
+        lastVerifiedAt: healthy.last_verified_at,
+        lastHealthCheckAt: healthy.last_health_check_at,
+        connectionUpdatedAt: healthy.updated_at,
+        installationUpdatedAt: healthy.installation_updated_at,
+      })) {
+        assertWithinCall(value, startedAt, endedAt, label);
+        assert.equal(
+          new Date(value).getTime(),
+          new Date(result.checkedAt).getTime(),
+          label,
+        );
+      }
+      const calls = await f.db.query(
+        'select calls from private.fixture_http_responses',
+      );
+      assert.equal(calls.rows.length, 4);
+      assert.ok(calls.rows.every((row) => row.calls === 1));
+
+      await f.db.query(
+        `update private.pandora_meta_connections
+         set token_expires_at=clock_timestamp()-interval '1 hour'
+         where organization_id=$1`,
+        [org],
+      );
+      await f.db.query(
+        `update public.credential_refs
+         set expires_at=clock_timestamp()-interval '1 hour'
+         where installation_id=$1`,
+        [installation],
+      );
+      await f.db.exec('update private.fixture_http_responses set calls=0');
+      const failureStartedAt = await clock();
+      const denied = await f.invoke();
+      const failureEndedAt = await clock();
+      const failed = await f.health();
+      assert.equal(denied.ok, false);
+      assert.equal(denied.reason, 'credential_expired');
+      assert.equal(failed.connection_status, 'problem');
+      assert.equal(failed.installation_status, 'degraded');
+      assert.equal(failed.last_error, 'credential_expired');
+      assert.equal(failed.configuration.provider_network_enabled, false);
+      for (const [label, value] of Object.entries({
+        connectionUpdatedAt: failed.updated_at,
+        installationUpdatedAt: failed.installation_updated_at,
+      })) {
+        assertWithinCall(value, failureStartedAt, failureEndedAt, label);
+      }
+      assert.equal(
+        new Date(failed.last_verified_at).getTime(),
+        new Date(healthy.last_verified_at).getTime(),
+      );
+      assert.equal(
+        new Date(failed.last_health_check_at).getTime(),
+        new Date(healthy.last_health_check_at).getTime(),
+      );
+      const deniedCalls = await f.db.query(
+        'select sum(calls)::integer as count from private.fixture_http_responses',
+      );
+      assert.equal(deniedCalls.rows[0].count, 0);
+    } finally {
+      await f.db.close();
+    }
+  });
+}
+
 test('same-snapshot Page and marketing expiry records credential_expired health', async () => {
   const f = await fixture();
   try {

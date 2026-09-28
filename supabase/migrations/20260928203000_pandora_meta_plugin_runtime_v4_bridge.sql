@@ -111,7 +111,7 @@ begin
   -- row before append keeps the projection unique and this replacement idempotent.
   select coalesce(
     jsonb_agg(item order by ord)
-      filter (where item->>'provider' <> 'meta'),
+      filter (where item->>'provider' is distinct from 'meta'),
     '[]'::jsonb
   )
   into v_base_rows
