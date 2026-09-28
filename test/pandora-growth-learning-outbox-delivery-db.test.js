@@ -96,6 +96,18 @@ function receipt(payload, overrides = {}) {
   };
 }
 
+function reviewedReceipt(payload, reviewStatus = "approved_for_append", overrides = {}) {
+  return {
+    ok: true, status: "already_reviewed", source_event_id: payload.source_event_id,
+    learning_id: payload.growth_learning.candidate.source_event_id,
+    content_hash: payload.growth_learning.candidate.content_hash,
+    candidate_id: "11111111-1111-4111-8111-111111111111",
+    review_item_id: "22222222-2222-4222-8222-222222222222",
+    review_status: reviewStatus, deduplicated: true,
+    ...overrides,
+  };
+}
+
 function definition(source, name) {
   const start = source.indexOf(`create or replace function ${name}(`);
   assert.notEqual(start, -1, name);
@@ -270,6 +282,23 @@ test("strict twelve-field receipts bind source event, learning identity, content
     for (const status of [null, 201, 400, 500]) assert.equal(await accepted(db, p, good, status), false);
     assert.equal(await accepted(db, p, good, 202, "network failure"), false);
     assert.equal(await accepted(db, p, good, 202, null, true), false);
+  } finally { await db.close(); }
+});
+
+test("already-reviewed replay is an exact terminal receipt and never impersonates pending review", async () => {
+  const db = await makeDb();
+  try {
+    const p = payloadFor();
+    for (const status of [
+      "needs_clarification","blocked_namespace_mismatch","blocked_sensitive",
+      "blocked_policy","approved_for_append","rejected","archived",
+    ]) {
+      assert.equal(await accepted(db, p, reviewedReceipt(p, status), 200), true, status);
+    }
+    assert.equal(await accepted(db, p, reviewedReceipt(p), 202), false);
+    assert.equal(await accepted(db, p, reviewedReceipt(p, "pending_review"), 200), false);
+    assert.equal(await accepted(db, p, reviewedReceipt(p, "approved_for_append", { extra: true }), 200), false);
+    assert.equal(await accepted(db, p, reviewedReceipt(p, "approved_for_append", { deduplicated: false }), 200), false);
   } finally { await db.close(); }
 });
 
