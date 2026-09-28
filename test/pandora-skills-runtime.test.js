@@ -296,12 +296,17 @@ test('Vercel skill-runtime entrypoints are statically traceable and recursively 
   );
   assert.doesNotMatch(health, /pathToFileURL|runtimePath|process\.cwd\(\).*pandora-skill-runtime/);
 
+  const mcpEntry = fs.readFileSync(path.join(ROOT, 'api/mcp.ts'), 'utf8');
+  assert.match(
+    mcpEntry,
+    /import ['"]\.\.\/\.agents\/runtime\/pandora-skill-runtime\.mjs['"]/,
+    'Vercel MCP entrypoint must statically trace the canonical runtime outside the src emit tree',
+  );
   assert.match(
     handler,
-    /require\("\.\.\/\.agents\/runtime\/pandora-skill-runtime\.mjs"\)/,
-    'MCP must use a literal require so Vercel can trace the runtime',
+    /require\(runtimePath\)/,
+    'compiler-safe handler keeps its runtime path indirection while Vercel tracing lives in api/mcp.ts',
   );
-  assert.doesNotMatch(handler, /require\(runtimePath\)|path\.resolve\(__dirname[^\n]*pandora-skill-runtime/);
 
   for (const functionName of ['api/mcp.ts', 'api/health.ts']) {
     assert.equal(
