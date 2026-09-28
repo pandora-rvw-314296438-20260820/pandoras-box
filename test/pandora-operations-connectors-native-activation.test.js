@@ -52,14 +52,17 @@ test("wake credential stays in Supabase Vault and is compared by digest", () => 
   assert.doesNotMatch(worker, /pandora_ops_wake_token_v1/);
 });
 
-test("generic source work claims before execution and reconciles ambiguous post-claim failures", () => {
+test("generic source fanout claims sequentially, then executes in parallel under existing fences", () => {
   const releaseAt = worker.indexOf('action: "operations_generic_source_release_step"');
   const candidateAt = worker.indexOf('action: "operations_generic_source_candidate"');
   const claimAt = worker.indexOf('action: "operations_claim"');
   const executeAt = worker.indexOf('action: "operations_generic_source_execute"');
   const reconcileAt = worker.indexOf('action: "operations_reconcile"');
-  assert.ok(releaseAt >= 0 && candidateAt > releaseAt);
-  assert.ok(claimAt > candidateAt && executeAt > claimAt);
-  assert.ok(reconcileAt > executeAt);
+  assert.ok(releaseAt >= 0);
+  assert.ok(candidateAt >= 0 && claimAt > candidateAt);
+  assert.ok(executeAt > claimAt && reconcileAt > executeAt);
+  assert.match(worker, /const GENERIC_SOURCE_FANOUT = 4/);
+  assert.match(worker, /while \(claims\.length < GENERIC_SOURCE_FANOUT/);
+  assert.match(worker, /Promise\.all\([\s\S]*executeClaimedGenericSourceTask/);
   assert.match(worker, /GENERIC_SOURCE_EXECUTION_UNCONFIRMED/);
 });

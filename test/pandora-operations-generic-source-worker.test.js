@@ -31,6 +31,12 @@ test('native Vercel worker claims generic source tasks rather than one hard-code
   assert.match(worker,/operations_generic_source_candidate/);
   assert.match(worker,/operations_generic_source_execute/);
   assert.match(worker,/GENERIC_SOURCE_EXECUTION_UNCONFIRMED/);
+  assert.match(worker,/const GENERIC_SOURCE_FANOUT = 4/);
+  assert.match(worker,/async function claimGenericSourceBatch/);
+  assert.match(worker,/while \(claims\.length < GENERIC_SOURCE_FANOUT/);
+  assert.match(worker,/async function executeClaimedGenericSourceTask/);
+  assert.match(worker,/Promise\.all\([\s\S]*batch\.claims\.map/);
+  assert.match(worker,/sourceFanout:[\s\S]*limit: GENERIC_SOURCE_FANOUT/);
   assert.doesNotMatch(worker,/entry\?\.status === "queued" && entry\?\.spec\?\.id === CANARY_TASK/);
 });
 
