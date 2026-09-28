@@ -6,6 +6,7 @@ exports.createPandoraMcpHandler = createPandoraMcpHandler;
 exports.handlePandoraMcp = handlePandoraMcp;
 
 const { randomUUID } = require("node:crypto");
+const { existsSync } = require("node:fs");
 const path = require("node:path");
 const { ExecutionLedgerClient } = require("./runtime/execution-ledger-client.js");
 const {
@@ -63,11 +64,18 @@ let skillRuntimePromise;
 
 function skillRuntime() {
     if (!skillRuntimePromise) {
-        const runtimePath = path.resolve(__dirname, "..", ".agents", "runtime", "pandora-skill-runtime.mjs");
-        // Node 24 can synchronously require ESM without top-level await. Wrapping
-        // it in a promise keeps the existing async caller contract while also
-        // surviving CommonJS compilation, which otherwise lowers import() to
-        // require() and cannot resolve a file:// URL.
+        const runtimeCandidates = [
+            path.resolve(process.cwd(), ".agents", "runtime", "pandora-skill-runtime.mjs"),
+            path.resolve(__dirname, "..", ".agents", "runtime", "pandora-skill-runtime.mjs"),
+        ];
+        const runtimePath = runtimeCandidates.find((candidate) => existsSync(candidate));
+        if (!runtimePath) {
+            throw Object.assign(new Error("Pandora skill runtime asset is unavailable"), {
+                code: "pandora_skill_runtime_unavailable",
+            });
+        }
+        // Vercel tracing is anchored in api/mcp.ts; this computed require stays
+        // outside TypeScript's src emit graph while preferring packaged cwd assets.
         skillRuntimePromise = Promise.resolve().then(() => require(runtimePath));
     }
     return skillRuntimePromise;
