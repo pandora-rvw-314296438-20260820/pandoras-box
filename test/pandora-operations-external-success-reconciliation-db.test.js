@@ -15,6 +15,10 @@ const reconciliationMigration = fs.readFileSync(
 	path.join(__dirname, "../supabase/migrations/20260928031824_operations_external_success_reconciliation_v1.sql"),
 	"utf8",
 );
+const staleBaseMigration = fs.readFileSync(
+	path.join(__dirname, "../supabase/migrations/20260928080500_operations_external_success_stale_base_v1.sql"),
+	"utf8",
+);
 const controlSource = fs.readFileSync(
 	path.join(__dirname, "../supabase/functions/mcpmaster-supabase-control/index.ts"),
 	"utf8",
@@ -67,8 +71,9 @@ async function rpc(name, args) {
 	return result.rows[0].value;
 }
 
-async function setGithubReadback({ head = OBSERVED_HEAD, branch = BRANCH, base = OBSERVED_BASE } = {}) {
+async function setGithubReadback({ head = OBSERVED_HEAD, branch = BRANCH, base = OBSERVED_BASE, main = null } = {}) {
 	await db.query("delete from private.github_readback_fixture");
+	const mainSha = main || base;
 	const fixtures = [
 		[
 			`/repos/${REPOSITORY}/pulls/${PULL_REQUEST}`,
@@ -81,7 +86,7 @@ async function setGithubReadback({ head = OBSERVED_HEAD, branch = BRANCH, base =
 				},
 			},
 		],
-		[`/repos/${REPOSITORY}/git/ref/heads/main`, { status: 200, body: { object: { sha: base } } }],
+		[`/repos/${REPOSITORY}/git/ref/heads/main`, { status: 200, body: { object: { sha: mainSha } } }],
 		[
 			`/repos/${REPOSITORY}/compare/${base}%2E%2E%2E${head}`,
 			{ status: 200, body: { status: "ahead", behind_by: 0 } },
@@ -91,6 +96,12 @@ async function setGithubReadback({ head = OBSERVED_HEAD, branch = BRANCH, base =
 			{ status: 200, body: { status: "ahead", behind_by: 0 } },
 		],
 	];
+	if (mainSha !== base) {
+		fixtures.push([
+			`/repos/${REPOSITORY}/compare/${base}%2E%2E%2E${mainSha}`,
+			{ status: 200, body: { status: "ahead", behind_by: 0 } },
+		]);
+	}
 	for (const [fixturePath, response] of fixtures) {
 		await db.query(
 			"insert into private.github_readback_fixture(path,response) values($1,$2)",
@@ -263,6 +274,7 @@ test.before(async () => {
 		$$;
 	`);
 	await db.exec(reconciliationMigration);
+	await db.exec(staleBaseMigration);
 });
 
 test.after(async () => {
@@ -300,6 +312,26 @@ test("external branch success is adopted only for independent verification", asy
 	assert.match(current.receipts[0].provider_receipt_sha256, /^[a-f0-9]{64}$/);
 	assert.equal(current.receipts[0].observed_base_sha, OBSERVED_BASE);
 	assert.equal(current.events[0].event_type, "external_success_reconciled");
+});
+
+test("verified provider success is preserved and requeued when canonical main advanced linearly", async () => {
+	const fixture = await setup();
+	const currentMain = "f".repeat(40);
+	await setGithubReadback({ main: currentMain });
+	const result = await reconcile(fixture);
+	assert.equal(result.state, "queued");
+	assert.equal(result.staleBase, true);
+	assert.equal(result.currentMainSha, currentMain);
+	assert.equal(result.leaseReleased, true);
+	assert.equal(result.complete, false);
+	const current = await state(fixture);
+	assert.equal(current.task.status, "queued");
+	assert.equal(current.task.head_sha, OBSERVED_HEAD);
+	assert.equal(current.lease.state, "released");
+	assert.equal(current.receipts.length, 1);
+	assert.equal(current.receipts[0].provider_readback.staleBase, true);
+	assert.equal(current.receipts[0].provider_readback.currentMainSha, currentMain);
+	assert.equal(current.events[0].event_type, "external_success_reconciled_stale_base");
 });
 
 test("exact replay is idempotent and conflicting replay is rejected", async () => {
