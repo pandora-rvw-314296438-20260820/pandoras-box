@@ -27,11 +27,11 @@
       "maxDuration": 10
     },
     "api/mcp.ts": {
-      "includeFiles": "{.agents/**,config/pandora-capability-fabric-v1.json}",
+      "includeFiles": "{.agents/**/*,config/pandora-capability-fabric-v1.json}",
       "maxDuration": 60
     },
     "api/health.ts": {
-      "includeFiles": "{.agents/**,config/pandora-capability-fabric-v1.json}",
+      "includeFiles": "{.agents/**/*,config/pandora-capability-fabric-v1.json}",
       "maxDuration": 10
     }
   },

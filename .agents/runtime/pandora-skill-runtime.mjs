@@ -11,12 +11,31 @@
  * fork the catalog or the governance policy.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-export const REPO_ROOT = path.resolve(HERE, '..', '..');
+const MODULE_REPO_ROOT = path.resolve(HERE, '..', '..');
+
+function hasCanonicalSkillAssets(candidate) {
+  return existsSync(path.join(candidate, '.agents', 'skills', 'registry'))
+    && existsSync(path.join(candidate, '.agents', 'runtime', 'GOVERNANCE_BLOCK.md'))
+    && existsSync(path.join(candidate, 'config', 'pandora-capability-fabric-v1.json'));
+}
+
+export function resolveRepoRoot(candidates = [process.cwd(), MODULE_REPO_ROOT]) {
+  const roots = candidates.map((candidate) => path.resolve(candidate));
+  const resolved = roots.find(hasCanonicalSkillAssets);
+  if (!resolved) {
+    throw Object.assign(new Error('Pandora canonical skill asset root is unavailable'), {
+      code: 'pandora_skill_asset_root_unavailable',
+    });
+  }
+  return resolved;
+}
+
+export const REPO_ROOT = resolveRepoRoot();
 const REGISTRY_DIR = path.join(REPO_ROOT, '.agents', 'skills', 'registry');
 const GOVERNANCE_BLOCK_PATH = path.join(REPO_ROOT, '.agents', 'runtime', 'GOVERNANCE_BLOCK.md');
 const CAPABILITY_FABRIC_PATH = path.join(REPO_ROOT, 'config', 'pandora-capability-fabric-v1.json');
