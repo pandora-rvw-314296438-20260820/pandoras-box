@@ -18,7 +18,7 @@ Do not paper over this by asking the user to re-explain the project. They should
 ## Sequence
 
 **1. Establish identity.**
-Which project, which namespace, which canonical repository, which ProjectOS project key. If the request is ambiguous, resolve it from Memory before going further — recovering the wrong project wastes the whole effort.
+Which project, which namespace, which canonical repository, which Pandora project key. If the request is ambiguous, resolve it from Memory before going further — recovering the wrong project wastes the whole effort.
 
 Watch for **project-key drift**: the same project appearing under several keys partitions its history, so a query returns a confident but partial picture. If you see drift, treat it as a finding, not a nuisance.
 
@@ -26,8 +26,8 @@ Watch for **project-key drift**: the same project appearing under several keys p
 `memory_canonicalContext`, checking `degraded`, `conflicts`, and `freshestRecordAt` before the payload. See `pandora-memory-context`.
 
 **3. Recover work in flight.**
-`projectos_list_plans` — completed, in-flight, and failed. Failed plans are exactly the open loops a lost chat leaves behind, and they are invisible to anyone who only reads the roadmap.
-`projectos_list_audit` and `projectos_verify_audit` — what actually executed, and whether the record is intact.
+`pandora_list_plans` — completed, in-flight, and failed. Failed plans are exactly the open loops a lost chat leaves behind, and they are invisible to anyone who only reads the roadmap.
+`pandora_list_audit` and `pandora_verify_audit` — what actually executed, and whether the record is intact.
 
 **4. Recover provider truth.**
 For each provider in scope, read current state: repository heads and open PRs · database migrations and advisors · deployments and their source bindings. Then compare against Memory. Divergence tells you what changed while nobody was recording.

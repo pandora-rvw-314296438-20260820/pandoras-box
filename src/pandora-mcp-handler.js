@@ -6,7 +6,9 @@ exports.createPandoraMcpHandler = createPandoraMcpHandler;
 exports.handlePandoraMcp = handlePandoraMcp;
 
 const { randomUUID } = require("node:crypto");
+const { existsSync } = require("node:fs");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { ExecutionLedgerClient } = require("./runtime/execution-ledger-client.js");
 const {
     createProviderExecutionStateMachine,
@@ -57,28 +59,27 @@ const METADATA_PATHS = new Set([
 const ACTIVE_ROLES = new Set(["owner", "admin", "operator", "member", "viewer"]);
 const EXECUTOR_ROLES = new Set(["owner", "admin"]);
 const LEGACY_PLAN_TOOL_PREFIX = "pandora_plan_";
-const PROJECTOS_PLAN_TOOL_PREFIX = "projectos_plan_";
-const PROJECTOS_TOOL_ALIASES = Object.freeze({
-    projectos_tool_catalog: "pandora_tool_catalog",
-    projectos_list_plans: "pandora_list_plans",
-    projectos_list_audit: "pandora_list_audit",
-    projectos_verify_audit: "pandora_verify_audit",
-    projectos_create_plan: "pandora_create_plan",
-    projectos_approve_plan: "pandora_approve_plan",
-    projectos_execute_plan: "pandora_execute_plan",
-});
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const nativeDynamicImport = new Function("specifier", "return import(specifier)");
 let skillRuntimePromise;
 
 function skillRuntime() {
     if (!skillRuntimePromise) {
-        const runtimePath = path.resolve(__dirname, "..", ".agents", "runtime", "pandora-skill-runtime.mjs");
-        // Node 24 can synchronously require ESM without top-level await. Wrapping
-        // it in a promise keeps the existing async caller contract while also
-        // surviving CommonJS compilation, which otherwise lowers import() to
-        // require() and cannot resolve a file:// URL.
-        skillRuntimePromise = Promise.resolve().then(() => require(runtimePath));
+        const runtimeCandidates = [
+            path.resolve(process.cwd(), ".agents", "runtime", "pandora-skill-runtime.mjs"),
+            path.resolve(__dirname, "..", ".agents", "runtime", "pandora-skill-runtime.mjs"),
+        ];
+        const runtimePath = runtimeCandidates.find((candidate) => existsSync(candidate));
+        if (!runtimePath) {
+            throw Object.assign(new Error("Pandora skill runtime asset is unavailable"), {
+                code: "pandora_skill_runtime_unavailable",
+            });
+        }
+        // Use native ESM import at runtime so Vercel transpilation cannot lower
+        // the .mjs load to CommonJS require(). Recursive includeFiles packaging
+        // supplies the canonical runtime and its registry assets.
+        skillRuntimePromise = nativeDynamicImport(pathToFileURL(runtimePath).href);
     }
     return skillRuntimePromise;
 }
@@ -421,15 +422,6 @@ function legacyPlannedTool(name, dependencies) {
     ));
 }
 
-function canonicalToolName(name) {
-    const alias = PROJECTOS_TOOL_ALIASES[name];
-    if (alias) return alias;
-    if (name.startsWith(PROJECTOS_PLAN_TOOL_PREFIX)) {
-        return `${LEGACY_PLAN_TOOL_PREFIX}${name.slice(PROJECTOS_PLAN_TOOL_PREFIX.length)}`;
-    }
-    return name;
-}
-
 function requiredString(value, name) {
     if (typeof value !== "string" || value.trim().length === 0) {
         throw Object.assign(new Error(`${name} is required`), { status: 400 });
@@ -610,9 +602,12 @@ function safeMcpErrorMessage(error, status) {
 }
 
 async function callTool(name, args, actor, dependencies) {
-    // Backward-compatible projectos_* connector aliases resolve to the canonical
-    // pandora_* names before scope checks and dispatch; tools/list keeps pandora_* only.
-    name = canonicalToolName(name);
+    if (name.startsWith("projectos_")) {
+        throw Object.assign(
+            new Error("ProjectOS tool aliases are retired; use canonical Pandora tool names"),
+            { status: 410 },
+        );
+    }
     assertToolScope(name, actor, dependencies);
     const plannedTool = legacyPlannedTool(name, dependencies);
     if (plannedTool) {

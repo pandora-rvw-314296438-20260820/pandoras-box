@@ -1,11 +1,19 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+const nativeImport = new Function('specifier', 'return import(specifier)') as
+  (specifier: string) => Promise<any>;
+
 export default async function health(_request: unknown, response: any) {
   response.setHeader('Cache-Control', 'no-store');
   try {
-    const runtimePath = path.resolve(process.cwd(), '.agents', 'runtime', 'pandora-skill-runtime.mjs');
-    const runtime = await import(pathToFileURL(runtimePath).href);
+    const runtimePath = path.resolve(
+      process.cwd(),
+      '.agents',
+      'runtime',
+      'pandora-skill-runtime.mjs',
+    );
+    const runtime = await nativeImport(pathToFileURL(runtimePath).href);
     if (!runtime.skillsEnabled()) {
       return response.status(503).json({
         status: 'degraded',
@@ -43,11 +51,15 @@ export default async function health(_request: unknown, response: any) {
         routeSelectedCount: routed.selected.length,
         generatedLoadVerified: generatedProbe.governanceEmbedded === true,
         mutationAuthority: routed.mutationAuthority,
-        grantsMutation: routed.grantsMutation === true,
+        grantsMutation: routed.grantsMutation,
       },
       timestamp: new Date().toISOString(),
     });
-  } catch {
+  } catch (error) {
+    const detail = error instanceof Error
+      ? { name: error.name, code: (error as any).code ?? null, message: error.message.slice(0, 240) }
+      : { name: 'UnknownError', code: null, message: 'non-error runtime failure' };
+    console.error('pandora_skill_runtime_health_failure', detail);
     return response.status(503).json({
       status: 'degraded',
       service: 'pandora-runtime',

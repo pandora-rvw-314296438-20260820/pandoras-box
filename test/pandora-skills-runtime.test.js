@@ -37,6 +37,17 @@ test('registry discovery is deterministic and structurally valid', async () => {
   }
 });
 
+test('runtime root resolution prefers packaged cwd assets and fails closed without canonical assets', async () => {
+  const m = await load();
+  const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'pandora-root-'));
+  assert.equal(m.resolveRepoRoot([ROOT]), ROOT);
+  assert.equal(m.resolveRepoRoot([tmp, ROOT]), ROOT);
+  assert.throws(
+    () => m.resolveRepoRoot([tmp]),
+    (error) => error?.code === 'pandora_skill_asset_root_unavailable',
+  );
+});
+
 test('every registered capability is covered by at least one skill', async () => {
   const m = await load();
   const registry = m.loadRegistry();
@@ -282,4 +293,51 @@ test('disabling the runtime restores prior behaviour without deleting evidence',
   const registry = m.loadRegistry();
   assert.equal(registry.ids.length, 195, 'core plus generated capability skill evidence must remain intact while disabled');
   assert.ok(fs.existsSync(path.join(ROOT, 'docs/skills/PANDORA_SKILL_MANIFEST.sha256')));
+});
+
+test('Vercel skill-runtime entrypoints preserve native ESM loading and recursive packaging', () => {
+  const health = fs.readFileSync(path.join(ROOT, 'api/health.ts'), 'utf8');
+  const handler = fs.readFileSync(path.join(ROOT, 'src/pandora-mcp-handler.js'), 'utf8');
+  const mcpEntry = fs.readFileSync(path.join(ROOT, 'api/mcp.ts'), 'utf8');
+  const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
+
+  assert.match(
+    health,
+    /new Function\('specifier', 'return import\(specifier\)'\)/,
+    'health must use native runtime import that Vercel cannot transpile to require',
+  );
+  assert.match(
+    health,
+    /pathToFileURL\(runtimePath\)\.href/,
+    'health must import the packaged .mjs runtime by file URL',
+  );
+  assert.doesNotMatch(
+    health,
+    /await import\('\.\.\/\.agents\/runtime\/pandora-skill-runtime\.mjs'\)/,
+  );
+
+  assert.doesNotMatch(
+    mcpEntry,
+    /pandora-skill-runtime\.mjs/,
+    'MCP entrypoint must not execute a transpiled static .mjs import',
+  );
+
+  assert.match(
+    handler,
+    /new Function\("specifier", "return import\(specifier\)"\)/,
+    'MCP handler must preserve native ESM import at runtime',
+  );
+  assert.match(
+    handler,
+    /nativeDynamicImport\(pathToFileURL\(runtimePath\)\.href\)/,
+  );
+  assert.doesNotMatch(handler, /require\(runtimePath\)/);
+
+  for (const functionName of ['api/mcp.ts', 'api/health.ts']) {
+    assert.equal(
+      vercel.functions[functionName].includeFiles,
+      '{.agents/**/*,config/pandora-capability-fabric-v1.json}',
+      functionName + ' must recursively package the canonical skill registry and governance files',
+    );
+  }
 });
