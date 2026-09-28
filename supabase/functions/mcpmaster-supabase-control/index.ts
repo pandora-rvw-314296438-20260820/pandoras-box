@@ -70,6 +70,7 @@ type ControlRpc =
   | "pandora_ops_activation_readback_v1"
   | "pandora_ops_wake_authorize_v1"
   | "pandora_ops_reconcile_required_v1"
+  | "pandora_ops_reconcile_external_success_v1"
   | "pandora_ops_native_release_verify_v1"
   | "pandora_ops_record_verification_v1"
   | "pandora_ops_verify_v1"
@@ -119,6 +120,7 @@ type ControlAction =
   | "operations_activation_readback"
   | "operations_wake_authorize"
   | "operations_reconcile"
+  | "operations_external_success_reconcile"
   | "operations_native_release_verify"
   | "operations_verification_record"
   | "operations_verification_accept"
@@ -759,6 +761,51 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
         p_lease_id: leaseId,
         p_generation: generation,
         p_reason: reason,
+      },
+    };
+  }
+
+  if (input.action === "operations_external_success_reconcile") {
+    const leaseId = requiredUuid(input, "leaseId");
+    const generation = requiredInteger(input, "generation", 1, Number.MAX_SAFE_INTEGER);
+    const receipt = isRecord(input.receipt) ? input.receipt : undefined;
+    const taskId = receipt ? requiredString(receipt, "taskId") : undefined;
+    const taskSpecDigest = receipt ? requiredString(receipt, "taskSpecDigest") : undefined;
+    const repository = receipt ? requiredString(receipt, "repository") : undefined;
+    const pullRequest = receipt ? requiredInteger(receipt, "pullRequest", 1, 2147483647) : undefined;
+    const branch = receipt ? requiredString(receipt, "branch") : undefined;
+    const observedHeadSha = receipt ? requiredString(receipt, "observedHeadSha") : undefined;
+    const receiptRef = receipt ? requiredString(receipt, "ref") : undefined;
+    if (!leaseId || generation === undefined || !taskId
+      || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/.test(taskId)
+      || !taskSpecDigest || !/^[a-f0-9]{64}$/.test(taskSpecDigest)
+      || !repository || ![
+        "pandora-rvw-314296438-20260820/pandoras-box",
+        "pandora-rvw-314296438-20260820/pandoras-box-memory",
+      ].includes(repository)
+      || pullRequest === undefined || !branch || branch.length > 240
+      || !observedHeadSha || !/^[a-f0-9]{40}$/.test(observedHeadSha)
+      || !receiptRef || receiptRef.length > 1000) return undefined;
+    const release = OPERATIONS_NATIVE_WORKERS.release;
+    return {
+      action: "operations_external_success_reconcile",
+      rpc: "pandora_ops_reconcile_external_success_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_lease_id: leaseId,
+        p_generation: generation,
+        p_reconciler_worker_key: release.workerKey,
+        p_reconciler_principal_key: release.principalKey,
+        p_receipt: {
+          taskId,
+          taskSpecDigest,
+          repository,
+          pullRequest,
+          branch,
+          observedHeadSha,
+          ref: receiptRef,
+        },
       },
     };
   }
