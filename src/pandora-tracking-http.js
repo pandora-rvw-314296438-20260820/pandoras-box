@@ -2,6 +2,7 @@
 
 const crypto = require("node:crypto");
 const express = require("express");
+const { OutcomeContractError, validateOutcomeEvent } = require("./pandora-growth-outcomes.js");
 
 const CLICK_ID_RE = /^pdc_[0-9a-f]{32}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -244,6 +245,42 @@ function createPandoraTrackingRouter(options = {}) {
     return { tenantId: record.tenant_id };
   }
 
+  async function growthScopeForTenant(tenantId) {
+    const row = firstRow(await storage().request("pandora_tracking_tenants?" + queryString({
+      select: "id,organization_id,project_id,status",
+      id: "eq." + tenantId,
+      limit: 1,
+    })));
+    if (!row || row.status !== "active" || !UUID_RE.test(String(row.organization_id || ""))
+        || !UUID_RE.test(String(row.project_id || ""))) {
+      throw new TrackingError(403, "outcome_scope_unavailable");
+    }
+    return {
+      organization_id: String(row.organization_id).toLowerCase(),
+      tracking_tenant_id: String(row.id).toLowerCase(),
+      project_id: String(row.project_id).toLowerCase(),
+    };
+  }
+
+  async function requireGrowthPrivacy(scope, policyVersion, flow) {
+    if (!policyVersion || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(policyVersion)) {
+      throw new TrackingError(403, "privacy_policy_required");
+    }
+    const row = firstRow(await storage().request("pandora_growth_privacy_authorizations?" + queryString({
+      select: "policy_version,allowed_flows,expires_at",
+      organization_id: "eq." + scope.organization_id,
+      project_id: "eq." + scope.project_id,
+      policy_version: "eq." + policyVersion,
+      active: "eq.true",
+      limit: 1,
+    })));
+    const flows = Array.isArray(row?.allowed_flows) ? row.allowed_flows : [];
+    if (!row || !flows.includes(flow)
+        || (row.expires_at && new Date(row.expires_at).getTime() <= Date.now())) {
+      throw new TrackingError(403, "privacy_authorization_required");
+    }
+  }
+
   async function campaignForTenant(tenantId, campaignId) {
     if (!campaignId) return null;
     if (!UUID_RE.test(campaignId)) throw new TrackingError(400, "campaign_id_invalid");
@@ -448,6 +485,56 @@ function createPandoraTrackingRouter(options = {}) {
         })));
         return sendJson(res, 200, { ok: true, duplicate: true, id: existing?.id || null });
       }
+    } catch (error) {
+      return trackingFailure(res, error);
+    }
+  });
+
+  router.post("/api/tracking/outcome", async (req, res) => {
+    try {
+      const principal = await authenticate(req, "outcome:write");
+      const scope = await growthScopeForTenant(principal.tenantId);
+      const policyVersion = stringValue(req.get("x-pandora-privacy-policy"), 128);
+      await requireGrowthPrivacy(scope, policyVersion, "server_outcomes");
+
+      let normalized;
+      try {
+        normalized = validateOutcomeEvent(req.body, scope);
+      } catch (error) {
+        if (error instanceof OutcomeContractError) {
+          throw new TrackingError(400, error.code);
+        }
+        throw error;
+      }
+      const claimSha256 = sha256(JSON.stringify(normalized));
+      let result;
+      try {
+        result = firstRow(await storage().request("rpc/pandora_ingest_growth_outcome_v1", {
+          method: "POST",
+          body: {
+            p_event: normalized,
+            p_claim_sha256: claimSha256,
+            p_policy_version: policyVersion,
+          },
+          prefer: "return=representation",
+        }));
+      } catch (error) {
+        if (error instanceof TrackingError && error.code === "tracking_storage_error") {
+          const providerCode = error.details?.providerCode;
+          if (providerCode === "42501") throw new TrackingError(403, "outcome_authorization_denied");
+          if (providerCode === "23505") throw new TrackingError(409, "outcome_idempotency_conflict");
+          if (providerCode === "22023") throw new TrackingError(400, "outcome_invalid");
+        }
+        throw error;
+      }
+      if (!result || result.ok !== true) throw new TrackingError(502, "outcome_receipt_invalid");
+      return sendJson(res, result.duplicate === true ? 200 : 201, {
+        ok: true,
+        duplicate: result.duplicate === true,
+        receipt_id: result.receiptId || null,
+        tracking_event_id: result.trackingEventId || null,
+        money_projection: result.moneyProjection || null,
+      });
     } catch (error) {
       return trackingFailure(res, error);
     }
