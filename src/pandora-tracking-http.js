@@ -8,25 +8,19 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const EVENT_NAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const PROVIDER_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const ALLOWED_QUERY_KEYS = new Set([
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_content",
-  "utm_term",
-  "fbclid",
-  "gclid",
-  "ttclid",
-  "msclkid",
-  "sub1",
-  "sub2",
-  "sub3",
-  "sub4",
-  "sub5",
-]);
-const PLATFORM_CLICK_KEYS = ["fbclid", "gclid", "ttclid", "msclkid"];
 const CONVERSION_TYPES = new Set(["lead", "qualified_lead", "booking", "sale", "refund"]);
 const TRACKING_EVENT_SCHEMA_VERSION = 1;
+const EVENT_BODY_KEYS = new Set([
+  "click_id", "event_name", "event_type", "schema_version", "consent", "is_test", "metadata",
+]);
+const CONVERSION_BODY_KEYS = new Set([
+  "event_type", "event_name", "external_event_id", "click_id", "campaign_id",
+  "value", "currency", "occurred_at", "schema_version", "consent", "is_test", "metadata",
+]);
+const COST_BODY_KEYS = new Set([
+  "provider", "external_record_id", "bucket_date", "campaign_id", "currency",
+  "spend", "impressions", "provider_clicks", "metadata",
+]);
 
 class TrackingError extends Error {
   constructor(status, code, details = null) {
@@ -53,47 +47,38 @@ function stringValue(value, maxLength = 512) {
 }
 
 function sanitizeMetadata(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const output = {};
-  for (const [rawKey, rawValue] of Object.entries(value).slice(0, 40)) {
-    const key = String(rawKey).slice(0, 80);
-    if (typeof rawValue === "string") output[key] = rawValue.slice(0, 1000);
-    else if (typeof rawValue === "number" && Number.isFinite(rawValue)) output[key] = rawValue;
-    else if (typeof rawValue === "boolean" || rawValue === null) output[key] = rawValue;
+  if (value === undefined) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== 0) {
+    throw new TrackingError(400, "metadata_not_allowed");
   }
-  return output;
+  return {};
 }
 
-function sanitizeIncomingQuery(query) {
-  const output = {};
-  if (!query || typeof query !== "object") return output;
-  for (const [key, rawValue] of Object.entries(query)) {
-    if (!ALLOWED_QUERY_KEYS.has(key)) continue;
-    const candidate = Array.isArray(rawValue) ? rawValue[0] : rawValue;
-    if (candidate === undefined || candidate === null) continue;
-    output[key] = String(candidate).slice(0, 1000);
+function assertBodyKeys(value, allowedKeys) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TrackingError(400, "body_invalid");
   }
-  return output;
+  if (Object.keys(value).some((key) => !allowedKeys.has(key))) {
+    throw new TrackingError(400, "unsupported_field");
+  }
 }
 
-function buildDestinationUrl(destinationUrl, queryParams, campaign, clickId) {
+function sanitizeIncomingQuery(_query) {
+  return {};
+}
+
+function buildDestinationUrl(destinationUrl, _queryParams, _campaign, clickId) {
   const target = new URL(destinationUrl);
-  if (target.protocol !== "https:") throw new TrackingError(500, "campaign_destination_invalid");
-  for (const [key, value] of Object.entries(queryParams || {})) {
-    if (!target.searchParams.has(key)) target.searchParams.set(key, value);
-  }
-  const defaults = {
-    utm_source: campaign.source,
-    utm_medium: campaign.medium,
-    utm_campaign: campaign.campaign,
-    utm_content: campaign.content,
-    utm_term: campaign.term,
-  };
-  for (const [key, value] of Object.entries(defaults)) {
-    if (value && !target.searchParams.has(key)) target.searchParams.set(key, value);
+  if (target.protocol !== "https:" || target.username || target.password) {
+    throw new TrackingError(500, "campaign_destination_invalid");
   }
   target.searchParams.set("pcid", clickId);
   return target.toString();
+}
+
+function storageLandingUrl(destinationUrl) {
+  const target = new URL(destinationUrl);
+  return target.origin + target.pathname;
 }
 
 function parseBearerKey(headerValue) {
@@ -231,10 +216,6 @@ function createPandoraTrackingRouter(options = {}) {
     if (!rest) rest = createRestClient(environment, fetchFn);
     return rest;
   }
-  function hashPepper() {
-    const active = storage();
-    return String(environment.PANDORA_TRACKING_HASH_PEPPER || active.serviceKey);
-  }
 
   async function authenticate(req, requiredScope) {
     const rawKey = parseBearerKey(req.get("authorization"));
@@ -318,13 +299,7 @@ function createPandoraTrackingRouter(options = {}) {
 
       const clickId = createClickId();
       const incoming = sanitizeIncomingQuery(req.query);
-      const platformClickIds = {};
-      for (const key of PLATFORM_CLICK_KEYS) {
-        if (incoming[key]) platformClickIds[key] = incoming[key];
-      }
-      const ip = String(req.ip || "");
-      const userAgent = stringValue(req.get("user-agent"), 1000);
-      const referrer = stringValue(req.get("referer"), 1500);
+      const destination = buildDestinationUrl(campaign.destination_url, incoming, campaign, clickId);
 
       await storage().request("pandora_tracking_clicks", {
         method: "POST",
@@ -332,19 +307,18 @@ function createPandoraTrackingRouter(options = {}) {
           tenant_id: campaign.tenant_id,
           campaign_id: campaign.id,
           click_id: clickId,
-          landing_url: campaign.destination_url,
-          referrer,
-          user_agent: userAgent,
-          ip_hash: ip ? sha256(hashPepper() + "|ip|" + ip) : null,
-          visitor_hash: sha256(hashPepper() + "|visitor|" + (ip || "-") + "|" + (userAgent || "-")),
-          platform_click_ids: platformClickIds,
-          query_params: incoming,
+          landing_url: storageLandingUrl(campaign.destination_url),
+          referrer: null,
+          user_agent: null,
+          ip_hash: null,
+          visitor_hash: null,
+          platform_click_ids: {},
+          query_params: {},
           metadata: { collector: "vercel" },
         },
         prefer: "return=minimal",
       });
 
-      const destination = buildDestinationUrl(campaign.destination_url, incoming, campaign, clickId);
       res.set("Cache-Control", "no-store, max-age=0");
       res.set("Referrer-Policy", "strict-origin-when-cross-origin");
       return res.redirect(302, destination);
@@ -366,8 +340,10 @@ function createPandoraTrackingRouter(options = {}) {
 
   router.post("/api/tracking/event", async (req, res) => {
     try {
-      const clickId = stringValue(req.body?.click_id, 40);
-      const eventName = stringValue(req.body?.event_name, 64);
+      assertBodyKeys(req.body, EVENT_BODY_KEYS);
+      const metadata = sanitizeMetadata(req.body.metadata);
+      const clickId = stringValue(req.body.click_id, 40);
+      const eventName = stringValue(req.body.event_name, 64);
       const eventType = stringValue(req.body?.event_type, 32) || "event";
       const schemaVersion = parseSchemaVersion(req.body?.schema_version);
       const consent = parseConsentFlags(req.body?.consent);
@@ -395,7 +371,7 @@ function createPandoraTrackingRouter(options = {}) {
           schema_version: schemaVersion,
           consent,
           is_test: isTest,
-          metadata: sanitizeMetadata(req.body?.metadata),
+          metadata,
         },
         prefer: "return=minimal",
       });
@@ -408,7 +384,9 @@ function createPandoraTrackingRouter(options = {}) {
   router.post("/api/tracking/conversion", async (req, res) => {
     try {
       const principal = await authenticate(req, "conversion:write");
-      const eventType = stringValue(req.body?.event_type, 32);
+      assertBodyKeys(req.body, CONVERSION_BODY_KEYS);
+      const metadata = sanitizeMetadata(req.body.metadata);
+      const eventType = stringValue(req.body.event_type, 32);
       const eventName = stringValue(req.body?.event_name, 64);
       const externalEventId = stringValue(req.body?.external_event_id, 200);
       const clickId = stringValue(req.body?.click_id, 40);
@@ -451,7 +429,7 @@ function createPandoraTrackingRouter(options = {}) {
             schema_version: schemaVersion,
             consent,
             is_test: isTest,
-            metadata: sanitizeMetadata(req.body?.metadata),
+            metadata,
           },
           prefer: "return=representation",
         });
@@ -478,7 +456,9 @@ function createPandoraTrackingRouter(options = {}) {
   router.post("/api/tracking/cost", async (req, res) => {
     try {
       const principal = await authenticate(req, "cost:write");
-      const provider = stringValue(req.body?.provider, 64);
+      assertBodyKeys(req.body, COST_BODY_KEYS);
+      const metadata = sanitizeMetadata(req.body.metadata);
+      const provider = stringValue(req.body.provider, 64);
       const externalRecordId = stringValue(req.body?.external_record_id, 200);
       const bucketDate = stringValue(req.body?.bucket_date, 10);
       if (!provider || !PROVIDER_RE.test(provider)) throw new TrackingError(400, "provider_invalid");
@@ -499,7 +479,7 @@ function createPandoraTrackingRouter(options = {}) {
           impressions: parseNumber(req.body?.impressions, "impressions", { integer: true }) ?? 0,
           provider_clicks: parseNumber(req.body?.provider_clicks, "provider_clicks", { integer: true }) ?? 0,
           currency,
-          metadata: sanitizeMetadata(req.body?.metadata),
+          metadata,
         },
         prefer: "resolution=merge-duplicates,return=minimal",
       });
