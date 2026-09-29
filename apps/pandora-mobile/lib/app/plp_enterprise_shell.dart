@@ -11,6 +11,7 @@ import '../features/diagnostics/developer_diagnostics_screen.dart';
 import '../features/enterprise/plp_activity_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
+import '../features/enterprise/plp_resort_workspace.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_team_access_screen.dart';
 import '../features/enterprise/plp_team_management_screen.dart';
@@ -37,6 +38,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   static const _surfaceByDestination = <String, int>{
     'home': 0,
+    'mfr': 1,
     'operations': 2,
     'vision': 3,
     'local-ai': 4,
@@ -54,7 +56,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<NavigatorState> _contentNavigatorKey =
       GlobalKey<NavigatorState>();
-  final _alfredKey = GlobalKey<AskPandoraScreenState>();
+  final _mfrKey = GlobalKey<AskPandoraScreenState>();
   final _commandController = TextEditingController();
   final _commandFocus = FocusNode();
   final _drawerScrollController = ScrollController();
@@ -112,7 +114,16 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       final value = await Supabase.instance.client.rpc(
         'plp_enterprise_mobile_bootstrap_v1',
       );
-      final normalized = _normalizeBootstrap(value);
+      final normalized =
+          Map<String, Object?>.from(_normalizeBootstrap(value));
+      try {
+        final manifest = await Supabase.instance.client.rpc(
+          'plp_resort_operating_manifest_v1',
+        );
+        normalized['resortOperatingSystem'] = manifest;
+      } catch (_) {
+        // Additive metadata only. The verified bootstrap remains authoritative.
+      }
       _ensureRealtime(normalized);
       if (cache != null) {
         try {
@@ -336,7 +347,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     await WidgetsBinding.instance.endOfFrame;
     String? reply;
     try {
-      reply = await _alfredKey.currentState?.submitExternalPrompt(
+      reply = await _mfrKey.currentState?.submitExternalPrompt(
         command,
         requestFocus: false,
       );
@@ -353,16 +364,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Future<void> _submitPersistentCommand() => _submitCommand();
 
-  Map<String, Object?> _alfredContext(Map<String, Object?> bootstrap) => {
+  Map<String, Object?> _mfrContext(Map<String, Object?> bootstrap) => {
         ...bootstrap,
         'assistantIdentity': const <String, Object?>{
-          'name': 'Alfred',
+          'name': 'MFR',
           'role': 'PLP executive intelligence',
           'routing': 'local-first governed execution',
         },
       };
 
   String? get _drawerSelection {
+    final routedToolKey = _routedToolKey;
+    if (routedToolKey != null && routedToolKey.startsWith('resort:')) {
+      return routedToolKey.substring('resort:'.length);
+    }
     for (final entry in _surfaceByDestination.entries) {
       if (entry.value == _index) return entry.key;
     }
@@ -371,12 +386,24 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   void _selectDrawerDestination(String destination) {
     final target = _surfaceByDestination[destination];
-    if (target == null) return;
+    final resortModule = plpResortModuleById(destination);
+    if (target == null && resortModule == null) return;
     _closeDrawer();
+    if (resortModule != null) {
+      _openTool(
+        'resort:${resortModule.id}',
+        PlpResortWorkspaceScreen(
+          module: resortModule,
+          bootstrap: _lastBootstrap ?? const <String, Object?>{},
+          onAskMfr: () => _open(1),
+        ),
+      );
+      return;
+    }
     if (target == 0) {
       _openHome();
     } else {
-      _open(target);
+      _open(target!);
     }
   }
 
@@ -384,7 +411,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     _closeDrawer();
     _open(1);
     await WidgetsBinding.instance.endOfFrame;
-    await _alfredKey.currentState?.loadThread(item.id);
+    await _mfrKey.currentState?.loadThread(item.id);
   }
 
   Future<void> _startNewChat() async {
@@ -393,7 +420,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
     _open(1);
     await WidgetsBinding.instance.endOfFrame;
-    _alfredKey.currentState?.newChat();
+    _mfrKey.currentState?.newChat();
     if (!mounted) return;
     setState(() {
       _recentChatsLoaded = false;
@@ -510,21 +537,21 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             );
           }
 
-          final alfredContext = _alfredContext(bootstrap);
+          final mfrContext = _mfrContext(bootstrap);
           final screens = <Widget>[
             PlpEnterpriseHome(
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
               onRefresh: _refresh,
-              onAskAlfred: () => _open(1),
+              onAskMfr: () => _open(1),
               onOperations: () => _open(2),
               onVision: () => _open(3),
             ),
             AskPandoraScreen(
-              key: _alfredKey,
+              key: _mfrKey,
               onHome: _openHome,
               onMore: () => _open(4),
-              enterpriseContext: alfredContext,
+              enterpriseContext: mfrContext,
               allowCharacterContext: false,
               allowProjectContext: false,
             ),
@@ -840,7 +867,7 @@ class PlpCommandDock extends StatelessWidget {
                                 height: 1.35,
                               ),
                               decoration: const InputDecoration(
-                                hintText: 'Message Pandora',
+                                hintText: 'Message MFR',
                                 hintStyle: TextStyle(
                                   color: Color(0xFFB6B0A7),
                                   fontSize: 15.5,
