@@ -68,6 +68,7 @@ async function invoke(options = {}) {
       case 'operations_reasoning_rdp_heartbeat':
         operations = { ok: true };
         break;
+      case 'growth_learning_claim':
       case 'operations_reasoning_rdp_status':
       case 'operations_reasoning_rdp_candidate':
       case 'operations_generic_source_release_step':
