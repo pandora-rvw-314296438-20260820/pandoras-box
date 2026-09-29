@@ -130,7 +130,7 @@ function storageFixture(calls) {
       id: CAMPAIGN_ID, tenant_id: TENANT_ID,
       destination_url: "https://example.com/offer?reviewed=keep",
       source: "campaign-source", medium: "paid-social", campaign: "owners",
-      content: "video-a", term: null, status: "active",
+      content: "video-a", term: null, status: "active", metadata: {},
     }]);
     if (resource === "pandora_tracking_tenants") return response([{ status: "active" }]);
     if (resource === "pandora_tracking_clicks") {
@@ -193,6 +193,7 @@ test("redirect route neither stores nor forwards incoming tracking and identity 
   assert.deepEqual(click.body.platform_click_ids, {});
   assert.deepEqual(click.body.query_params, {});
   assert.deepEqual(click.body.metadata, { collector: "vercel" });
+  assert.equal(click.body.is_test, false);
   for (const key of ["referrer", "user_agent", "ip_hash", "visitor_hash"]) {
     assert.equal(click.body[key], null);
   }
@@ -347,4 +348,29 @@ test("authenticated conversion and cost routes preserve typed measurements with 
     external_record_id: "registered-cost", spend: 50, impressions: 1000,
     provider_clicks: 40, currency: "USD", metadata: {},
   });
+});
+
+test("controlled-test campaign marks redirect clicks as test traffic", async () => {
+  const calls = [];
+  const fixture = async (url, options = {}) => {
+    const resource = new URL(url).pathname.replace(/^\/rest\/v1\//, "");
+    const body = options.body ? JSON.parse(options.body) : null;
+    calls.push({ resource, method: options.method || "GET", body });
+    if (resource === "pandora_tracking_clicks" && options.method === "POST") return response(null, 201);
+    if (resource === "pandora_tracking_campaigns") return response([{
+      id: CAMPAIGN_ID, tenant_id: TENANT_ID,
+      destination_url: "https://example.com/test", source: "meta", medium: "paid-social",
+      campaign: "controlled", content: null, term: null, status: "active",
+      metadata: { purpose: "controlled-test", business_kpi: false },
+    }]);
+    if (resource === "pandora_tracking_tenants") return response([{ status: "active" }]);
+    return response(null, 404);
+  };
+  await withTrackingApp(fixture, async (baseUrl) => {
+    const result = await fetch(baseUrl + "/t/controlled-test", { redirect: "manual" });
+    assert.equal(result.status, 302);
+  });
+  const click = calls.find((call) => call.resource === "pandora_tracking_clicks" && call.method === "POST");
+  assert.equal(click.body.is_test, true);
+  assert.deepEqual(click.body.metadata, { collector: "vercel" });
 });
