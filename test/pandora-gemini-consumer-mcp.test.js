@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { test } = require("node:test");
+const { test } = require("node:test");\nconst fs = require("node:fs");
 
 const { createPandoraMcpHandler } = require("../dist/pandora-mcp-handler.js");
 
@@ -217,4 +217,33 @@ test("consumer Gemini rejects non-owner Pandora memberships", async () => {
   });
   assert.equal(response.statusCode, 403);
   assert.match(response.body.error.message, /membership role is not authorized/);
+});
+
+
+test("consumer Gemini shares the existing MCP Serverless Function budget", () => {
+  const vercel = JSON.parse(fs.readFileSync("vercel.json", "utf8"));
+  const apiMcp = fs.readFileSync("api/mcp.ts", "utf8");
+  const shared = fs.readFileSync("src/gemini-consumer-mcp-handler.js", "utf8");
+  const rewrites = new Map(
+    vercel.rewrites.map(({ source, destination }) => [source, destination]),
+  );
+
+  assert.equal(vercel.functions["api/gemini-consumer-mcp.ts"], undefined);
+  assert.equal(fs.existsSync("api/gemini-consumer-mcp.ts"), false);
+  assert.match(apiMcp, /handleGeminiConsumerMcp/);
+  assert.match(apiMcp, /surface.*gemini-consumer/);
+  assert.match(shared, /allowedMembershipRoles: new Set\(\["owner"\]\)/);
+  assert.doesNotMatch(shared, /pandora_approve_plan/);
+  assert.equal(
+    rewrites.get("/gemini-consumer-mcp"),
+    "/api/mcp?surface=gemini-consumer",
+  );
+  assert.equal(
+    rewrites.get("/api/gemini-consumer-mcp"),
+    "/api/mcp?surface=gemini-consumer",
+  );
+  assert.equal(
+    rewrites.get("/.well-known/oauth-protected-resource/gemini-consumer-mcp"),
+    "/api/mcp?surface=gemini-consumer&metadata=gemini-consumer-mcp",
+  );
 });
