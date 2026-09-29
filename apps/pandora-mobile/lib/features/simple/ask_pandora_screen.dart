@@ -605,10 +605,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (!_isPlpEnterpriseContext) return widget.enterpriseContext;
     return <String, Object?>{
       'surface': 'enterprise_overview',
-      'route': '/enterprise/plp-boracay/alfred',
+      'route': '/enterprise/plp-boracay/mfr',
       'selectedObject': const <String, Object?>{
         'workspaceSlug': 'plp-boracay',
-        'assistant': 'alfred',
+        'assistant': 'mfr',
       },
       'capabilities': const <String>['intelligence.chat'],
       'identityScope': 'enterprise_workspace',
@@ -2594,8 +2594,13 @@ class _Composer extends StatelessWidget {
                           textInputAction: TextInputAction.newline,
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
-                            hintText:
-                                submitting ? 'Follow up' : 'Message Pandora',
+                            hintText: _isPlpEnterpriseContext
+                                ? (submitting
+                                    ? 'Follow up with MFR'
+                                    : 'Message MFR')
+                                : (submitting
+                                    ? 'Follow up'
+                                    : 'Message Pandora'),
                             counterText: '',
                             filled: false,
                             border: InputBorder.none,
