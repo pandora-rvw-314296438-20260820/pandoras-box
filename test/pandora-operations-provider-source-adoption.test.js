@@ -8,6 +8,8 @@ test("provider source adoption requires exact merged GitHub proof",()=>{
   assert.match(sql,/pulls\/.*p_pull_request/);
   assert.match(sql,/pr->'merged' is distinct from 'true'::jsonb/);
   assert.match(sql,/merge_commit->'parents'/);
+  assert.match(sql,/issues\/.*timeline\?per_page=100/);
+  assert.match(sql,/event'='merged'/);
   assert.match(sql,/check-runs\?per_page=100/);
   assert.match(sql,/Pandora coordinator \/ integration/);
   assert.match(sql,/compare\/.*p_merge_sha/);
