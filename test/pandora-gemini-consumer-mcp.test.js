@@ -218,3 +218,30 @@ test("consumer Gemini rejects non-owner Pandora memberships", async () => {
   assert.equal(response.statusCode, 403);
   assert.match(response.body.error.message, /membership role is not authorized/);
 });
+
+
+test("consumer Gemini shares the existing MCP serverless function instead of adding a 13th function", () => {
+  const fs = require("node:fs");
+  const vercel = JSON.parse(fs.readFileSync("vercel.json", "utf8"));
+  const entry = fs.readFileSync("api/mcp.ts", "utf8");
+  const consumerRuntime = fs.readFileSync(
+    "src/gemini-consumer-mcp-handler.js",
+    "utf8",
+  );
+
+  assert.equal(vercel.functions["api/gemini-consumer-mcp.ts"], undefined);
+  assert.equal(fs.existsSync("api/gemini-consumer-mcp.ts"), false);
+  assert.match(entry, /handleGeminiConsumerMcp/);
+  assert.match(entry, /surface.*gemini-consumer/);
+  assert.match(consumerRuntime, /allowedMembershipRoles: new Set\(\["owner"\]\)/);
+  assert.doesNotMatch(consumerRuntime, /pandora_approve_plan.*,/);
+  assert.doesNotMatch(consumerRuntime, /supabase\.delete-project-api/);
+
+  const consumerRewrite = vercel.rewrites.find(
+    (rewrite) => rewrite.source === "/gemini-consumer-mcp",
+  );
+  assert.equal(
+    consumerRewrite?.destination,
+    "/api/mcp?surface=gemini-consumer",
+  );
+});
