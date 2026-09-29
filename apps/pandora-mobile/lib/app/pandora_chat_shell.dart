@@ -14,6 +14,7 @@ import '../features/approvals/approvals_screen.dart';
 import '../features/enterprise/batalla_workspace_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/enterprise_workspace_home.dart';
+import '../features/enterprise/marketing_growth_workspace_screen.dart';
 import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
@@ -505,6 +506,16 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                   onHome: () => _select(9),
                 )
               : _activeWorkspaceSelection?.workspace.key ==
+                      'pandora-marketing-growth'
+                  ? MarketingGrowthWorkspaceScreen(
+                      initialRouteSlug:
+                          _activeWorkspaceSelection!.section.routeSlug,
+                      enterpriseContext:
+                          _activeEnterpriseContext ?? _activeWorkspaceSelection!.enterpriseContext,
+                      onHome: () => _select(9),
+                      onApprovals: () => _select(2),
+                    )
+                  : _activeWorkspaceSelection?.workspace.key ==
                       'batalla-associates'
                   ? BatallaWorkspaceScreen(
                       initialRouteSlug:
