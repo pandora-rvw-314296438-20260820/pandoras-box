@@ -35,7 +35,7 @@ void main() {
           body: PlpEnterpriseHome(
             bootstrap: bootstrap,
             onRefresh: () {},
-            onAskAlfred: () {},
+            onAskMfr: () {},
             onOperations: () {},
             onVision: () {},
           ),
@@ -75,12 +75,13 @@ void main() {
     expect(find.text('2 open staff tasks'), findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('plp-open-alfred')),
+      find.byKey(const ValueKey('plp-open-mfr')),
       320,
       scrollable: find.byType(Scrollable),
     );
     expect(find.text('COMMAND PLP'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-open-alfred')), findsOneWidget);
+    expect(find.text('MFR'), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-open-mfr')), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-open-vision')),
