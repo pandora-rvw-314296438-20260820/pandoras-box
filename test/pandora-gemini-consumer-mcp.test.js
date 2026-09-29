@@ -1,7 +1,8 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { test } = require("node:test");\nconst fs = require("node:fs");
+const { test } = require("node:test");
+const fs = require("node:fs");
 
 const { createPandoraMcpHandler } = require("../dist/pandora-mcp-handler.js");
 
