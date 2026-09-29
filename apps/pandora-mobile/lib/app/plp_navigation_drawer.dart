@@ -132,7 +132,9 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   @override
   Widget build(BuildContext context) {
     final viewportWidth = MediaQuery.sizeOf(context).width;
-    final drawerWidth = math.min(360.0, viewportWidth * .76);
+    final drawerWidth = viewportWidth < 600
+        ? viewportWidth
+        : math.min(420.0, viewportWidth * .82);
     final visibleBusiness =
         _businessItems.where((item) => _matches(item.label)).toList();
     final visibleModules = plpResortModules
