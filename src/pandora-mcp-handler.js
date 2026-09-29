@@ -195,17 +195,77 @@ function applyMcpCors(request, response, allowedOrigins) {
     response.setHeader("Access-Control-Expose-Headers", MCP_EXPOSED_HEADERS);
 }
 
-function oauthChallenge() {
-    return `Bearer resource_metadata="${resourceOrigin()}/.well-known/oauth-protected-resource/mcp", scope="${MCP_OAUTH_SCOPES.join(" ")}"`;
+function effectiveResourceOrigin(dependencies) {
+    const configured = typeof dependencies?.resourceOrigin === "string"
+        ? dependencies.resourceOrigin.trim()
+        : "";
+    return (configured || resourceOrigin()).replace(/\\/+$/, "");
 }
 
-function protectedResourceMetadata() {
-    const origin = resourceOrigin();
+function effectiveResourcePath(dependencies) {
+    const configured = dependencies?.resourcePath;
+    if (configured === undefined) return "/mcp";
+    if (
+        typeof configured !== "string"
+        || !configured.startsWith("/")
+        || configured.includes("..")
+        || configured.includes("?")
+        || configured.includes("#")
+    ) {
+        throw Object.assign(new Error("Pandora MCP resource path is invalid"), { status: 500 });
+    }
+    return configured.length > 1 ? configured.replace(/\\/+$/, "") : configured;
+}
+
+function effectiveOauthScopes(dependencies) {
+    const configured = dependencies?.oauthScopes;
+    if (configured === undefined) return [...MCP_OAUTH_SCOPES];
+    if (
+        !Array.isArray(configured)
+        || configured.length === 0
+        || !configured.every((scope) => typeof scope === "string" && /^[a-z0-9:*._-]{1,128}$/i.test(scope))
+    ) {
+        throw Object.assign(new Error("Pandora MCP OAuth scopes are invalid"), { status: 500 });
+    }
+    return [...new Set(configured)];
+}
+
+function effectiveResourceMetadataUrl(dependencies) {
+    if (dependencies?.resourceMetadataUrl === undefined) {
+        return `${effectiveResourceOrigin(dependencies)}/.well-known/oauth-protected-resource/mcp`;
+    }
+    let url;
+    try {
+        url = new URL(dependencies.resourceMetadataUrl);
+    } catch {
+        throw Object.assign(new Error("Pandora MCP resource metadata URL is invalid"), { status: 500 });
+    }
+    if (
+        url.protocol !== "https:"
+        || url.origin !== effectiveResourceOrigin(dependencies)
+        || url.username
+        || url.password
+        || url.hash
+    ) {
+        throw Object.assign(new Error("Pandora MCP resource metadata URL is not trusted"), { status: 500 });
+    }
+    return url.toString();
+}
+
+function oauthChallenge(dependencies) {
+    return `Bearer resource_metadata="${effectiveResourceMetadataUrl(dependencies)}", scope="${effectiveOauthScopes(dependencies).join(" ")}"`;
+}
+
+function protectedResourceMetadata(dependencies) {
+    const origin = effectiveResourceOrigin(dependencies);
+    const resourceName = typeof dependencies?.resourceName === "string" && dependencies.resourceName.trim()
+        ? dependencies.resourceName.trim()
+        : "Pandora";
     return {
-        resource: `${origin}/mcp`,
-        resource_name: "Pandora",
+        resource: `${origin}${effectiveResourcePath(dependencies)}`,
+        resource_name: resourceName,
         authorization_servers: [AUTHORIZATION_SERVER],
-        scopes_supported: [...MCP_OAUTH_SCOPES],
+        scopes_supported: effectiveOauthScopes(dependencies),
         bearer_methods_supported: ["header"],
         resource_documentation: `${origin}/control-tower`,
     };
@@ -797,7 +857,7 @@ function createPandoraMcpHandler(overrides = {}) {
                 return;
             }
             if (isMetadataRequest(request)) {
-                response.status(200).json(protectedResourceMetadata());
+                response.status(200).json(protectedResourceMetadata(dependencies));
                 return;
             }
             const authorization = authorizationHeader(request);
@@ -843,7 +903,7 @@ function createPandoraMcpHandler(overrides = {}) {
             rpcResult(response, id, await callTool(name, args, current, dependencies));
         } catch (error) {
             const status = Number.isInteger(error?.status) ? error.status : 500;
-            if (status === 401) response.setHeader("WWW-Authenticate", oauthChallenge());
+            if (status === 401) response.setHeader("WWW-Authenticate", oauthChallenge(dependencies));
             if (status === 403 && typeof error?.requiredScope === "string") {
                 response.setHeader("WWW-Authenticate", `Bearer error="insufficient_scope", scope="${error.requiredScope}"`);
             }
