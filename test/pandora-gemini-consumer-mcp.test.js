@@ -199,3 +199,22 @@ test("consumer Gemini mutation request creates a durable plan without provider e
     "supabase.write-project-api",
   );
 });
+
+test("consumer Gemini rejects non-owner Pandora memberships", async () => {
+  const handler = createPandoraMcpHandler(dependencies({
+    allowedMembershipRoles: new Set(["owner"]),
+    membershipResolver: {
+      async resolve() {
+        return { organizationId: ORGANIZATION_ID, userId: USER_ID, role: "admin" };
+      },
+    },
+  }));
+  const response = await invoke(handler, {
+    method: "POST",
+    url: "/gemini-consumer-mcp",
+    headers: { authorization: `Bearer ${TOKEN}` },
+    body: { jsonrpc: "2.0", id: 5, method: "tools/list", params: {} },
+  });
+  assert.equal(response.statusCode, 403);
+  assert.match(response.body.error.message, /membership role is not authorized/);
+});
