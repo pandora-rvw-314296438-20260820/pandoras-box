@@ -11,6 +11,14 @@ const CANONICAL_REPOSITORY =
 const CANONICAL_SUPABASE_ACCOUNT = 'pandoras-box';
 const CANONICAL_SUPABASE_PROJECT_REF = 'jcyqixttuebxqqfkjonq';
 
+const GEMINI_CONSUMER_SERVER_INSTRUCTIONS = [
+  'Pandora is an active authenticated MCP server for this Gemini session.',
+  'The tools returned by tools/list are live Pandora capabilities, not examples or simulations.',
+  'When the user asks for Pandora, GitHub, or Supabase data, call the appropriate Pandora tool and use the returned provider result.',
+  'Do not claim that no MCP connection, runtime bridge, or credentials are available unless an actual tool call returns an authentication, authorization, or provider error.',
+  'Read actions may execute directly. Mutations must use Pandora durable-plan tools and existing approval governance; never self-approve or bypass Pandora controls.',
+].join(' ');
+
 const GEMINI_CONSUMER_PROVIDER_TOOLS = new Set([
   'github.get-repository',
   'github.get-issue',
@@ -105,6 +113,7 @@ const geminiConsumerMcp = createPandoraMcpHandler({
     '/.well-known/oauth-protected-resource/gemini-consumer-mcp',
   metadataSelector: 'gemini-consumer-mcp',
   resourceName: 'Pandora for Gemini',
+  serverInstructions: GEMINI_CONSUMER_SERVER_INSTRUCTIONS,
   toolConfiguration: geminiConsumerToolConfiguration,
   oauthScopes: ['openid', 'email', 'profile'],
 });

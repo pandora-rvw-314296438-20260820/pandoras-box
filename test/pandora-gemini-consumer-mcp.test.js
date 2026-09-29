@@ -2,6 +2,7 @@
 
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
+const fs = require("node:fs");
 
 const { createPandoraMcpHandler } = require("../dist/pandora-mcp-handler.js");
 
@@ -30,6 +31,9 @@ const OAUTH_SCOPES = [
   "email",
   "profile",
 ];
+
+const SERVER_INSTRUCTIONS =
+  "Pandora is an active authenticated MCP server for this Gemini session.";
 
 function responseRecorder() {
   return {
@@ -89,6 +93,7 @@ function dependencies(overrides = {}) {
       "/.well-known/oauth-protected-resource/gemini-consumer-mcp",
     metadataSelector: "gemini-consumer-mcp",
     resourceName: "Pandora for Gemini",
+    serverInstructions: SERVER_INSTRUCTIONS,
     oauthScopes: OAUTH_SCOPES,
     ...overrides,
   };
@@ -106,6 +111,36 @@ test("consumer Gemini publishes its own protected-resource metadata without appr
   assert.equal(response.body.resource_name, "Pandora for Gemini");
   assert.deepEqual(response.body.scopes_supported, OAUTH_SCOPES);
   assert.equal(response.body.scopes_supported.includes("pandora:approve"), false);
+});
+
+test("consumer Gemini initialize explicitly tells the model that Pandora is live", async () => {
+  const handler = createPandoraMcpHandler(dependencies());
+  const response = await invoke(handler, {
+    method: "POST",
+    url: "/gemini-consumer-mcp",
+    headers: { authorization: `Bearer ${TOKEN}` },
+    body: {
+      jsonrpc: "2.0",
+      id: 10,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "Google", version: "test" },
+      },
+    },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.result.serverInfo.name, "Pandora for Gemini");
+  assert.equal(response.body.result.instructions, SERVER_INSTRUCTIONS);
+});
+
+test("consumer Gemini production source forbids false disconnected fallback", () => {
+  const source = fs.readFileSync("api/mcp.ts", "utf8");
+  assert.match(source, /serverInstructions: GEMINI_CONSUMER_SERVER_INSTRUCTIONS/);
+  assert.match(source, /active authenticated MCP server/);
+  assert.match(source, /not examples or simulations/);
+  assert.match(source, /Do not claim that no MCP connection, runtime bridge, or credentials are available/);
 });
 
 test("consumer Gemini challenge requests only OAuth-server-supported identity scopes", async () => {
