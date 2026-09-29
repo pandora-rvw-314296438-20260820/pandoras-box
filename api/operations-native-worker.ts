@@ -1015,7 +1015,6 @@ export default async function operationsNativeWorker(request: any, response: any
         registered: true,
         queuedTasks: activation?.queuedTasks ?? null,
         growthLearning,
-        growthLearning,
       memory,
       });
     }
@@ -1028,7 +1027,6 @@ export default async function operationsNativeWorker(request: any, response: any
         taskId: verification.taskId,
         verification,
         growthLearning,
-        growthLearning,
       memory,
       });
     }
@@ -1040,7 +1038,6 @@ export default async function operationsNativeWorker(request: any, response: any
         state: "complete",
         taskId: "FB-025",
         release: mergedFacebookSource,
-        growthLearning,
         growthLearning,
       memory,
       });
@@ -1061,7 +1058,6 @@ export default async function operationsNativeWorker(request: any, response: any
         taskId: reasoningRdp?.taskId ?? null,
         reasoningRdp,
         growthLearning,
-        growthLearning,
       memory,
       });
     }
@@ -1077,7 +1073,6 @@ export default async function operationsNativeWorker(request: any, response: any
         state: sourceRelease.state,
         taskId: sourceRelease.taskId ?? null,
         release: sourceRelease,
-        growthLearning,
         growthLearning,
       memory,
       });
@@ -1099,7 +1094,6 @@ export default async function operationsNativeWorker(request: any, response: any
           executionClass: preflight.executionClass ?? null,
           preflight,
           growthLearning,
-        growthLearning,
       memory,
         });
       }
@@ -1112,7 +1106,6 @@ export default async function operationsNativeWorker(request: any, response: any
         mergedFacebookSource,
         preflighted: preflight?.preflighted ?? null,
         sourceFanout: { limit: GENERIC_SOURCE_FANOUT, claimed: 0, results: [] },
-        growthLearning,
         growthLearning,
       memory,
       });
