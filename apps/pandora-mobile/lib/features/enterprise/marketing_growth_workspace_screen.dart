@@ -74,7 +74,7 @@ class _MarketingGrowthWorkspaceScreenState
     }
     try {
       final raw = await Supabase.instance.client.rpc(
-        'pandora_marketing_growth_command_center_v1',
+        'pandora_marketing_growth_command_center_v2',
         params: const <String, Object?>{
           'p_organization_id': PandoraConfig.organizationId,
         },
@@ -333,61 +333,102 @@ class _MarketingGrowthWorkspaceScreenState
 
   List<Widget> _outcomes(Map<String, Object?> data) {
     final outcomes = _rows(data['outcomes']);
-    if (outcomes.isEmpty) {
-      return [_empty('No verified business outcomes yet. Test outcomes are excluded.')];
-    }
-    return outcomes.map((row) => Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _card(_text(row['eventName']), [
-        _lineRow('Count', _text(row['count'])),
-        _lineRow('Latest', _text(row['latestOccurredAt'])),
-        _lineRow('Currency', _text(row['currency'])),
-        _lineRow('Known amount (minor units)', _text(row['knownAmountMinor'])),
-      ]),
-    )).toList();
-  }
-
-  List<Widget> _experiments(Map<String, Object?> data) {
-    final daily = _rows(data['businessDaily']);
+    final leadStages = _rows(data['leadStages']);
     return [
-      _card('Evidence before winners', const [
-        Text(
-          'Pandora does not name a winner from attribution alone or from a small sample. Experiment results require an explicit hypothesis, sample size, uncertainty and reviewed outcome evidence.',
-          style: TextStyle(color: _muted, height: 1.45),
-        ),
-      ]),
-      const SizedBox(height: 14),
-      if (daily.isEmpty)
-        _empty('No verified business experiment data yet.')
+      if (outcomes.isEmpty)
+        _empty('No verified business outcomes yet. Test outcomes are excluded.')
       else
         _card(
-          'Recent verified business measurements',
-          daily.take(8).map((row) => _lineRow(
-            _text(row['day']),
-            'Clicks ' + _text(row['clicks']) +
-                ' · Leads ' + _text(row['leads']) +
-                ' · Sales ' + _text(row['sales']),
+          'Verified business outcomes',
+          outcomes.map((row) => Column(
+            children: [
+              _lineRow(_text(row['eventName']), _text(row['count'])),
+              _lineRow('Latest', _text(row['latestOccurredAt'])),
+              _lineRow('Currency', _text(row['currency'])),
+              _lineRow('Known amount (minor units)', _text(row['knownAmountMinor'])),
+              const SizedBox(height: 8),
+            ],
+          )).toList(),
+        ),
+      const SizedBox(height: 14),
+      if (leadStages.isEmpty)
+        _empty('No reviewed lead stages yet. Raw identifiers remain hidden.')
+      else
+        _card(
+          'Operational lead records',
+          leadStages.take(40).map((row) => Column(
+            children: [
+              _lineRow(_text(row['eventName']), _text(row['stage'])),
+              _lineRow('Outcome receipt', _text(row['outcomeReceiptId'])),
+              _lineRow('Occurred', _text(row['occurredAt'])),
+              _lineRow('Amount', _bool(row['amountKnown']) ? 'Known' : 'Unknown'),
+              _lineRow('Evidence', _text(row['evidenceRef'])),
+              const SizedBox(height: 8),
+            ],
           )).toList(),
         ),
     ];
   }
 
-  List<Widget> _learning(Map<String, Object?> data) {
-    final tasks = _rows(data['tasks']).where((row) {
-      final id = _text(row['taskId'], fallback: '');
-      return ['FB-027','FB-028','FB-029','FB-030','FB-031','FB-032'].contains(id);
-    }).toList();
+  List<Widget> _experiments(Map<String, Object?> data) {
+    final runs = _rows(data['experimentRuns']);
     return [
-      _card('Review-gated learning', const [
+      _card('Evidence before winners', const [
         Text(
-          'Accepted delivery, human review, promotion and retrieval are separate states. Pending or rejected learning is never called canonical Memory.',
+          'Pandora does not name a winner from attribution alone or from a small sample. Experiment runs preserve sample size, uncertainty, spend state and inconclusive outcomes.',
           style: TextStyle(color: _muted, height: 1.45),
         ),
       ]),
       const SizedBox(height: 14),
-      _card('G3 task state', tasks.map((row) =>
-        _lineRow(_text(row['taskId']), _text(row['status']))
-      ).toList()),
+      if (runs.isEmpty)
+        _empty('No verified business experiment data yet.')
+      else
+        ...runs.take(40).map((row) {
+          final result = _map(row['result']);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _card(_text(row['experimentKey']), [
+              _lineRow('Status', _text(row['status'])),
+              _lineRow('Window', _text(row['windowStart']) + ' → ' + _text(row['windowEnd'])),
+              _lineRow('Denominator', _text(row['denominator'])),
+              _lineRow('Conversions', _text(row['conversions'])),
+              _lineRow('Spend state', _text(row['spendState'])),
+              _lineRow('Conversion delay', _text(row['conversionDelayState'])),
+              _lineRow('Winner', _text(result['winner'], fallback: 'None claimed')),
+              _lineRow('Causal claim', _bool(result['causalClaim']) ? 'Yes' : 'No'),
+              _lineRow('Result hash', _text(row['resultSha256'])),
+            ]),
+          );
+        }),
+    ];
+  }
+
+  List<Widget> _learning(Map<String, Object?> data) {
+    final approved = _rows(data['approvedMemory']);
+    return [
+      _card('Review-gated learning', const [
+        Text(
+          'Only approved-current Memory retrieval receipts are exposed to this workspace. Pending, rejected or superseded learning is never treated as current evidence.',
+          style: TextStyle(color: _muted, height: 1.45),
+        ),
+      ]),
+      const SizedBox(height: 14),
+      if (approved.isEmpty)
+        _empty('No approved-current Memory lesson has been retrieved for this workspace yet.')
+      else
+        _card(
+          'Approved Memory evidence',
+          approved.take(30).map((row) => Column(
+            children: [
+              _lineRow('Record', _text(row['memoryRecordId'])),
+              _lineRow('Version', _text(row['memoryVersionId'])),
+              _lineRow('Review item', _text(row['reviewItemId'])),
+              _lineRow('Observed', _text(row['observedAt'])),
+              _lineRow('Evidence', _text(row['evidenceRef'])),
+              const SizedBox(height: 8),
+            ],
+          )).toList(),
+        ),
     ];
   }
 
@@ -417,12 +458,12 @@ class _MarketingGrowthWorkspaceScreenState
   List<Widget> _activity(Map<String, Object?> data) {
     final rows = _rows(data['activity']);
     if (rows.isEmpty) {
-      return [_empty('No admitted Facebook Operations events yet.')];
+      return [_empty('No direct growth evidence events yet.')];
     }
     return [
-      _card('Real Operations events', rows.take(40).map((row) =>
+      _card('Direct growth evidence', rows.take(40).map((row) =>
         _lineRow(
-          _text(row['taskId']) + ' · ' + _text(row['eventType']),
+          _text(row['subject']) + ' · ' + _text(row['eventType']),
           _text(row['occurredAt']),
         )
       ).toList()),
@@ -450,9 +491,15 @@ class _MarketingGrowthWorkspaceScreenState
     final authority = _map(data['authority']);
     return [
       _lineRow('Dashboard', _bool(authority['readOnly']) ? 'Read-only' : 'Unknown'),
+      _lineRow('Owner/admin only', _bool(authority['ownerAdminOnly']) ? 'Yes' : 'Unknown'),
+      _lineRow('Staff access', _bool(authority['staffAccess']) ? 'Granted' : 'Not granted'),
       _lineRow('Campaign mutation', _bool(authority['campaignMutationGranted']) ? 'Granted' : 'Not granted'),
       _lineRow('Spend', _bool(authority['spendAuthorized']) ? 'Authorized' : 'Not authorized'),
       _lineRow('Publishing', _bool(authority['publishingAuthorized']) ? 'Authorized' : 'Not authorized'),
+      _lineRow('Exports', _bool(authority['exportsAllowed']) ? 'Allowed' : 'Disabled'),
+      _lineRow('Raw PII', _bool(authority['rawPiiVisible']) ? 'Visible' : 'Hidden'),
+      _lineRow('Memory can grant spend', _bool(authority['memoryCanGrantSpend']) ? 'Yes' : 'No'),
+      _lineRow('Operations Room', _bool(authority['operationsRoomRequired']) ? 'Required' : 'Not required'),
       _lineRow('Test traffic in business KPIs',
           _bool(authority['testTrafficIncludedInBusinessKpis']) ? 'Included' : 'Excluded'),
     ];
