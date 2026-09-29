@@ -33,7 +33,7 @@ begin
     raise exception 'PANDORA_G2_AUDIT_SERVICE_ROLE_REQUIRED' using errcode='42501';
   end if;
 
-  select c.*,t.id into v_campaign,v_tenant_id
+  select c.* into v_campaign
   from public.pandora_tracking_campaigns c
   join public.pandora_tracking_tenants t on t.id=c.tenant_id
   where c.id=p_tracking_campaign_id
@@ -43,6 +43,7 @@ begin
   if not found then
     raise exception 'PANDORA_G2_AUDIT_SCOPE_DENIED' using errcode='42501';
   end if;
+  v_tenant_id:=v_campaign.tenant_id;
 
   select * into v_binding
   from private.pandora_meta_measurement_bindings b
