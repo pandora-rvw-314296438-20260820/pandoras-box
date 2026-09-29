@@ -295,7 +295,7 @@ function createPandoraTrackingRouter(options = {}) {
     return record.id;
   }
 
-  router.get("/api/tracking/health", async (_req, res) => {
+  router.get(["/api/tracking/health", "/tracking/health"], async (_req, res) => {
     try {
       const payload = await storage().request("pandora_tracking_releases?" + queryString({
         select: "version,source_base_sha,provider_state,source_state,deployed_at",
@@ -369,7 +369,7 @@ function createPandoraTrackingRouter(options = {}) {
     }
   });
 
-  router.options("/api/tracking/event", (_req, res) => {
+  router.options(["/api/tracking/event", "/tracking/event"], (_req, res) => {
     res.status(204);
     res.set("Cache-Control", "no-store");
     res.set("Access-Control-Allow-Origin", "*");
@@ -378,9 +378,9 @@ function createPandoraTrackingRouter(options = {}) {
     return res.end();
   });
 
-  router.use("/api/tracking", express.json({ limit: "64kb", type: ["application/json", "application/*+json"] }));
+  router.use(["/api/tracking", "/tracking"], express.json({ limit: "64kb", type: ["application/json", "application/*+json"] }));
 
-  router.post("/api/tracking/event", async (req, res) => {
+  router.post(["/api/tracking/event", "/tracking/event"], async (req, res) => {
     try {
       assertBodyKeys(req.body, EVENT_BODY_KEYS);
       const metadata = sanitizeMetadata(req.body.metadata);
@@ -423,7 +423,7 @@ function createPandoraTrackingRouter(options = {}) {
     }
   });
 
-  router.post("/api/tracking/conversion", async (req, res) => {
+  router.post(["/api/tracking/conversion", "/tracking/conversion"], async (req, res) => {
     try {
       const principal = await authenticate(req, "conversion:write");
       assertBodyKeys(req.body, CONVERSION_BODY_KEYS);
@@ -495,7 +495,7 @@ function createPandoraTrackingRouter(options = {}) {
     }
   });
 
-  router.post("/api/tracking/outcome", async (req, res) => {
+  router.post(["/api/tracking/outcome", "/tracking/outcome"], async (req, res) => {
     try {
       const principal = await authenticate(req, "outcome:write");
       const scope = await growthScopeForTenant(principal.tenantId);
@@ -545,7 +545,7 @@ function createPandoraTrackingRouter(options = {}) {
     }
   });
 
-  router.post("/api/tracking/cost", async (req, res) => {
+  router.post(["/api/tracking/cost", "/tracking/cost"], async (req, res) => {
     try {
       const principal = await authenticate(req, "cost:write");
       assertBodyKeys(req.body, COST_BODY_KEYS);
@@ -581,7 +581,7 @@ function createPandoraTrackingRouter(options = {}) {
     }
   });
 
-  router.get("/api/tracking/report", async (req, res) => {
+  router.get(["/api/tracking/report", "/tracking/report"], async (req, res) => {
     try {
       const principal = await authenticate(req, "report:read");
       const from = stringValue(req.query?.from, 10);
@@ -607,7 +607,7 @@ function createPandoraTrackingRouter(options = {}) {
     }
   });
 
-  router.use("/api/tracking", (error, _req, res, next) => {
+  router.use(["/api/tracking", "/tracking"], (error, _req, res, next) => {
     if (!error) return next();
     if (error.type === "entity.too.large") return trackingFailure(res, new TrackingError(413, "body_too_large"));
     if (error instanceof SyntaxError) return trackingFailure(res, new TrackingError(400, "json_invalid"));
