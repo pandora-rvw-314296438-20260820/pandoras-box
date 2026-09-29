@@ -104,6 +104,7 @@ export const config = pandoraMcpVercelConfig;
 export default createPandoraMcpHandler({
   allowedToolNames: GEMINI_CONSUMER_PROVIDER_TOOLS,
   allowedControlToolNames: GEMINI_CONSUMER_CONTROL_TOOLS,
+  allowedMembershipRoles: new Set(['owner']),
   resourcePath: '/gemini-consumer-mcp',
   resourceMetadataPath:
     '/.well-known/oauth-protected-resource/gemini-consumer-mcp',
