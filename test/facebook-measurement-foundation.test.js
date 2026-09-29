@@ -78,3 +78,17 @@ test("tracking HTTP outcome route uses trusted scope and explicit privacy header
   assert.match(http, /requireGrowthPrivacy\(scope, policyVersion, "server_outcomes"\)/);
   assert.match(http, /rpc\/pandora_ingest_growth_outcome_v1/);
 });
+
+test("controlled CAPI follow-up fences test traffic to exact non-business campaign", () => {
+  const controlled = fs.readFileSync(
+    path.join(root, "supabase/migrations/20260929121500_facebook_controlled_capi_acceptance_v1.sql"),
+    "utf8",
+  );
+  assert.match(controlled, /c\.metadata->>'purpose'='controlled-test'/);
+  assert.match(controlled, /c\.metadata->'business_kpi' is not distinct from 'false'::jsonb/);
+  assert.match(controlled, /c\.metadata->'delivery_authorized' is not distinct from 'false'::jsonb/);
+  assert.match(controlled, /b\.tracking_campaign_id=v_event\.campaign_id/);
+  assert.match(controlled, /where c\.metadata->'business_kpi' is distinct from 'false'::jsonb/);
+  assert.match(controlled, /PANDORA_META_CONVERSION_PRIVACY_HOLD/);
+  assert.doesNotMatch(controlled, /daily_budget|lifetime_budget|campaigns.*POST/i);
+});
