@@ -165,9 +165,9 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            if (_filter == 'requests')
-              if (attention.isEmpty) _AttentionPanel(items: attention)
-            else ...[
+            if (_filter == 'requests') ...[
+              if (attention.isEmpty) _AttentionPanel(items: attention),
+            ] else ...[
               _SectionLead(
                 title: switch (_filter) {
                   'arriving' => 'Today’s arrivals',
