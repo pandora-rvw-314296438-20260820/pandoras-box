@@ -66,6 +66,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(focus.hasFocus, isFalse);
     expect(find.byKey(const ValueKey<String>('plp-drawer-home')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('plp-drawer-mfr')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -84,7 +85,7 @@ void main() {
     });
   }
 
-  testWidgets('PLP command dock is the universal Pandora composer', (tester) async {
+  testWidgets('PLP command dock is the universal MFR composer', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
     var submitted = false;
@@ -118,7 +119,7 @@ void main() {
       find.byKey(const ValueKey<String>('plp-command-submit')),
       findsOneWidget,
     );
-    expect(find.text('Message Pandora'), findsOneWidget);
+    expect(find.text('Message MFR'), findsOneWidget);
     expect(find.byIcon(Icons.view_in_ar_outlined), findsOneWidget);
     expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
