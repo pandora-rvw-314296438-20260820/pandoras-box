@@ -154,7 +154,7 @@ test("projection is deterministic, immutable, and binds semantic changes", () =>
   assert.notEqual(first.outbox.event_key, second.outbox.event_key);
 });
 
-test("source preparation remains held until Memory supports the kind", () => {
+test("source preparation exposes the Pandora-native Memory route without promotion authority", () => {
   const projected = projectGrowthLearningOutbox(learning("verified_fact"), scope);
   assert.deepEqual(projected.lifecycle, {
     delivery: "pending",
@@ -163,7 +163,7 @@ test("source preparation remains held until Memory supports the kind", () => {
     retrieval: "not_retrievable",
     canonical_memory_written: false,
   });
-  assert.equal(projected.runtime_gate.state, "held");
+  assert.equal(projected.runtime_gate.state, "ready");
   assert.equal(projected.runtime_gate.reason, RUNTIME_HOLD_REASON);
   assert.equal(projected.outbox.delivery_status, "pending");
 });
