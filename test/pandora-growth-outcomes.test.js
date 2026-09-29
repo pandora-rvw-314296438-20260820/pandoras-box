@@ -17,7 +17,7 @@ function sample(name = "landing_view") {
   const event = {
     schema_version: 1, event_name: name, event_id: "event:1", outcome_id: "outcome:1",
     acquisition_path: definition.paths[0], ...SCOPE, journey_id: "journey:1",
-    occurred_at: "2026-09-25T08:00:00.000Z", delivery_source: "server",
+    occurred_at: "2026-09-25T08:00:00.000Z", delivery_source: "server", is_test: true,
     evidence: Object.fromEntries(definition.required_evidence.map((key) => [key, key + ":1"])),
     attribution: { kind: "unattributed" },
   };
@@ -210,3 +210,18 @@ test("cross-tenant batch rejects rather than returns a partial success", () => {
 });
 test("empty batch still needs trusted scope", () => assert.throws(() => deduplicateOutcomeBatch([], null), (error) => error.code === "trusted_scope_required"));
 test("batch is bounded", () => assert.throws(() => deduplicateOutcomeBatch(Array(1001).fill(sample()), SCOPE), (error) => error.code === "batch_invalid"));
+
+test("outcomes require an explicit test/business marker", () => {
+  const missing = sample(); delete missing.is_test;
+  rejects(missing, "event_shape_invalid");
+  rejects({ ...sample(), is_test: "true" }, "is_test_required");
+  assert.equal(validateOutcomeEvent({ ...sample(), is_test: false }, SCOPE).is_test, false);
+});
+test("test/business disagreement is an idempotency conflict", () => {
+  const a = sample("lead_submitted");
+  const b = structuredClone(a); b.is_test = false;
+  assert.throws(
+    () => deduplicateOutcomeBatch([a, b], SCOPE),
+    (error) => error.code === "duplicate_outcome_conflict",
+  );
+});
