@@ -29,9 +29,6 @@ const OAUTH_SCOPES = [
   "openid",
   "email",
   "profile",
-  "pandora:read",
-  "pandora:plan",
-  "pandora:execute",
 ];
 
 function responseRecorder() {
@@ -111,7 +108,7 @@ test("consumer Gemini publishes its own protected-resource metadata without appr
   assert.equal(response.body.scopes_supported.includes("pandora:approve"), false);
 });
 
-test("consumer Gemini challenge points to its own metadata and never requests approval", async () => {
+test("consumer Gemini challenge requests only OAuth-server-supported identity scopes", async () => {
   const handler = createPandoraMcpHandler(dependencies());
   const response = await invoke(handler, {
     method: "POST",
@@ -124,7 +121,7 @@ test("consumer Gemini challenge points to its own metadata and never requests ap
     response.headers["www-authenticate"],
     /\.well-known\/oauth-protected-resource\/gemini-consumer-mcp/,
   );
-  assert.doesNotMatch(response.headers["www-authenticate"], /pandora:approve/);
+  assert.doesNotMatch(response.headers["www-authenticate"], /pandora:/);
 });
 
 test("consumer Gemini exposes bounded reads and plan-only provider mutations", async () => {
