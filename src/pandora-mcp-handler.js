@@ -541,6 +541,11 @@ async function actorFor(request, dependencies) {
     if (!membership || !ACTIVE_ROLES.has(membership.role)) {
         throw Object.assign(new Error("An active Pandora organization membership is required"), { status: 403 });
     }
+    if (dependencies.allowedMembershipRoles !== undefined
+        && (!(dependencies.allowedMembershipRoles instanceof Set)
+            || !dependencies.allowedMembershipRoles.has(membership.role))) {
+        throw Object.assign(new Error("Pandora membership role is not authorized for this MCP resource"), { status: 403 });
+    }
     if (membership.organizationId !== dependencies.organizationId || membership.userId !== identity.userId) {
         throw Object.assign(new Error("Pandora membership does not match the authenticated user and organization"), { status: 403 });
     }
