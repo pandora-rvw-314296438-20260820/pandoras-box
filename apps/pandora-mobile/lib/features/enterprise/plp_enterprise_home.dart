@@ -10,16 +10,12 @@ class PlpEnterpriseHome extends StatelessWidget {
     this.onOpenNavigation,
     required this.onRefresh,
     required this.onAskAlfred,
-    required this.onOperations,
-    required this.onVision,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback? onOpenNavigation;
   final VoidCallback onRefresh;
   final VoidCallback onAskAlfred;
-  final VoidCallback onOperations;
-  final VoidCallback onVision;
 
   static const _canvas = Color(0xFFFAF7F1);
   static const _paper = Color(0xFFFFFDFC);
@@ -68,21 +64,10 @@ class PlpEnterpriseHome extends StatelessWidget {
     final today = _map(bootstrap['today']);
     final source = _map(bootstrap['sourceHealth']);
 
-    final displayName = _text(
-      user['displayName'],
-      fallback: 'PLP administrator',
-    );
-    final propertyName = _text(
-      organization['propertyName'],
-      fallback: 'PLP Boracay',
-    );
-    final businessIdentity = _text(
-      organization['businessIdentity'],
-      fallback: 'Luxury Resort',
-    );
+    final displayName = _text(user['displayName'], fallback: 'PLP administrator');
+    final propertyName = _text(organization['propertyName'], fallback: 'PLP Boracay');
+    final businessIdentity = _text(organization['businessIdentity'], fallback: 'Luxury Resort');
     final occupancy = _text(today['occupancy_percent'], fallback: '0');
-    final occupied = _integer(today['occupied_rooms']);
-    final rooms = _integer(today['rooms_total']);
     final available = _integer(today['rooms_available']);
     final arrivals = _integer(today['arrivals_today']);
     final departures = _integer(today['departures_today']);
@@ -90,10 +75,30 @@ class PlpEnterpriseHome extends StatelessWidget {
     final tasks = _integer(today['open_staff_tasks']);
     final conflicts = _integer(today['open_ota_conflicts']);
     final sourceState = _text(source['state'], fallback: 'unknown');
-    final sourceMessage = _text(
-      source['message'],
-      fallback: 'No provider status message',
-    );
+    final sourceMessage = _text(source['message'], fallback: 'No provider status message');
+
+    final attentionParts = <String>[];
+    if (conflicts != '0') {
+      attentionParts.add('$conflicts OTA conflict${conflicts == '1' ? '' : 's'}');
+    }
+    if (tasks != '0') {
+      attentionParts.add('$tasks open staff task${tasks == '1' ? '' : 's'}');
+    }
+    final hasAttention = attentionParts.isNotEmpty;
+    final hasMovement = arrivals != '0' || departures != '0';
+    final briefingTitle = hasAttention
+        ? 'A few things need you.'
+        : hasMovement
+            ? 'The resort is moving today.'
+            : 'The resort is quiet today.';
+    final briefingDetail = hasAttention
+        ? attentionParts.join(' · ')
+        : hasMovement
+            ? '$arrivals arrival${arrivals == '1' ? '' : 's'} · '
+                '$departures departure${departures == '1' ? '' : 's'}'
+            : 'No arrivals or departures are scheduled.';
+    final contextLine =
+        '$occupancy% occupancy · $available ${available == '1' ? 'room' : 'rooms'} available · $sales today';
 
     return Material(
       color: _canvas,
@@ -112,7 +117,6 @@ class PlpEnterpriseHome extends StatelessWidget {
                 propertyName: propertyName,
                 businessIdentity: businessIdentity,
                 onOpenNavigation: onOpenNavigation,
-                onRefresh: onRefresh,
               ),
               const SizedBox(height: 38),
               const _Eyebrow('OWNER’S HOME'),
@@ -141,118 +145,57 @@ class PlpEnterpriseHome extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               const Text(
-                'Your private operating view of the resort — performance, movement, attention, and the next action.',
-                style: TextStyle(
-                  color: _muted,
-                  fontSize: 14.5,
-                  height: 1.55,
-                ),
+                'Your private briefing for what matters now.',
+                style: TextStyle(color: _muted, fontSize: 14.5, height: 1.55),
               ),
               const SizedBox(height: 30),
               const Divider(height: 1, color: _line),
               const SizedBox(height: 24),
-              const _Eyebrow('TODAY AT PUEBLO LA PERLA'),
-              const SizedBox(height: 18),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _Metric(
-                        label: 'Occupancy',
-                        value: '$occupancy%',
-                        detail: '$occupied of $rooms rooms occupied',
-                        valueKey: const ValueKey('plp-metric-occupancy'),
-                      ),
-                    ),
-                    const VerticalDivider(
-                      width: 24,
-                      thickness: 1,
-                      color: _line,
-                    ),
-                    Expanded(
-                      child: _Metric(
-                        label: 'Revenue',
-                        value: sales,
-                        detail: 'today',
-                        valueKey: const ValueKey('plp-metric-sales'),
-                      ),
-                    ),
-                    const VerticalDivider(
-                      width: 24,
-                      thickness: 1,
-                      color: _line,
-                    ),
-                    Expanded(
-                      child: _Metric(
-                        label: 'Available',
-                        value: available,
-                        detail: 'rooms',
-                        valueKey: const ValueKey('plp-metric-available'),
-                      ),
-                    ),
-                  ],
+              const _Eyebrow('TODAY'),
+              const SizedBox(height: 12),
+              Text(
+                briefingTitle,
+                key: const ValueKey('plp-owner-briefing'),
+                style: const TextStyle(
+                  color: _ink,
+                  fontFamily: 'serif',
+                  fontSize: 36,
+                  height: 1,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -0.9,
                 ),
               ),
-              const SizedBox(height: 28),
-              const Divider(height: 1, color: _line),
-              const SizedBox(height: 25),
-              const _Eyebrow('MOVEMENT TODAY'),
-              const SizedBox(height: 8),
-              _Movement(
-                label: 'Arrivals',
-                value: arrivals,
-                detail: 'Guests expected today',
-              ),
-              const Divider(height: 1, color: _line),
-              _Movement(
-                label: 'Departures',
-                value: departures,
-                detail: 'Guests leaving today',
-              ),
-              const Divider(height: 1, color: _line),
-              const SizedBox(height: 31),
-              _Attention(
-                conflicts: conflicts,
-                tasks: tasks,
-                onTap: onAskAlfred,
-              ),
-              const SizedBox(height: 34),
-              const _Eyebrow('COMMAND PLP'),
-              const SizedBox(height: 7),
-              const Text(
-                'Move from insight to action without leaving the owner workspace.',
-                style: TextStyle(
-                  color: _muted,
-                  fontSize: 13,
-                  height: 1.5,
+              const SizedBox(height: 10),
+              Text(briefingDetail, style: const TextStyle(color: _muted, fontSize: 13, height: 1.45)),
+              const SizedBox(height: 9),
+              Text(
+                contextLine,
+                key: const ValueKey('plp-owner-context-line'),
+                style: const TextStyle(
+                  color: _accent,
+                  fontSize: 10.5,
+                  height: 1.4,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: .35,
                 ),
               ),
-              const SizedBox(height: 15),
-              _Command(
-                key: const ValueKey('plp-open-alfred'),
-                title: 'Pandora',
-                detail: 'Ask, decide, or act across the resort',
-                onTap: onAskAlfred,
-                primary: true,
-              ),
-              _Command(
-                key: const ValueKey('plp-open-operations-room'),
-                title: 'Operations',
-                detail: 'See live execution and operating work',
-                onTap: onOperations,
-              ),
-              _Command(
-                key: const ValueKey('plp-open-vision'),
-                title: 'Vision',
-                detail: 'Observe the property and visual intelligence',
-                onTap: onVision,
-              ),
-              const SizedBox(height: 28),
-              _SourceHealth(
-                state: sourceState,
-                message: sourceMessage,
-              ),
+              if (hasAttention) ...[
+                const SizedBox(height: 28),
+                _Attention(conflicts: conflicts, tasks: tasks, onTap: onAskAlfred),
+              ],
+              if (hasMovement) ...[
+                const SizedBox(height: 30),
+                const _Eyebrow('MOVEMENT TODAY'),
+                const SizedBox(height: 7),
+                if (arrivals != '0')
+                  _Movement(label: 'Arrivals', value: arrivals, detail: 'Guests expected today'),
+                if (arrivals != '0' && departures != '0')
+                  const Divider(height: 1, color: _line),
+                if (departures != '0')
+                  _Movement(label: 'Departures', value: departures, detail: 'Guests leaving today'),
+              ],
+              const SizedBox(height: 30),
+              _SourceHealth(state: sourceState, message: sourceMessage),
             ],
           ),
         ),
@@ -266,13 +209,11 @@ class _HomeHeader extends StatelessWidget {
     required this.propertyName,
     required this.businessIdentity,
     required this.onOpenNavigation,
-    required this.onRefresh,
   });
 
   final String propertyName;
   final String businessIdentity;
   final VoidCallback? onOpenNavigation;
-  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -316,23 +257,6 @@ class _HomeHeader extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          SizedBox.square(
-            dimension: 42,
-            child: IconButton(
-              tooltip: 'Refresh PLP data',
-              onPressed: onRefresh,
-              style: IconButton.styleFrom(
-                foregroundColor: PlpEnterpriseHome._ink,
-                backgroundColor: PlpEnterpriseHome._paper,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero,
-                  side: BorderSide(color: PlpEnterpriseHome._line),
-                ),
-              ),
-              icon: const Icon(Icons.refresh_rounded, size: 20),
-            ),
-          ),
         ],
       );
 }
@@ -351,63 +275,6 @@ class _Eyebrow extends StatelessWidget {
           fontWeight: FontWeight.w700,
           letterSpacing: 2,
         ),
-      );
-}
-
-class _Metric extends StatelessWidget {
-  const _Metric({
-    required this.label,
-    required this.value,
-    required this.detail,
-    required this.valueKey,
-  });
-
-  final String label;
-  final String value;
-  final String detail;
-  final Key valueKey;
-
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: PlpEnterpriseHome._muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 7),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              key: valueKey,
-              style: const TextStyle(
-                color: PlpEnterpriseHome._ink,
-                fontFamily: 'serif',
-                fontSize: 31,
-                height: 1,
-                fontWeight: FontWeight.w400,
-                letterSpacing: -0.8,
-              ),
-            ),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            detail,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PlpEnterpriseHome._muted,
-              fontSize: 10.5,
-              height: 1.35,
-            ),
-          ),
-        ],
       );
 }
 
@@ -614,81 +481,6 @@ class _Status extends StatelessWidget {
       );
 }
 
-class _Command extends StatelessWidget {
-  const _Command({
-    super.key,
-    required this.title,
-    required this.detail,
-    required this.onTap,
-    this.primary = false,
-  });
-
-  final String title;
-  final String detail;
-  final VoidCallback onTap;
-  final bool primary;
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: primary ? PlpEnterpriseHome._ink : Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              border: primary
-                  ? null
-                  : const Border(
-                      top: BorderSide(color: PlpEnterpriseHome._line),
-                    ),
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 15,
-              vertical: 16,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: primary
-                              ? Colors.white
-                              : PlpEnterpriseHome._ink,
-                          fontFamily: 'serif',
-                          fontSize: 20,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        detail,
-                        style: TextStyle(
-                          color: primary
-                              ? const Color(0xFFBEB8AE)
-                              : PlpEnterpriseHome._muted,
-                          fontSize: 11.5,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  color: primary ? Colors.white : PlpEnterpriseHome._ink,
-                  size: 20,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
 class _SourceHealth extends StatelessWidget {
   const _SourceHealth({
     required this.state,
@@ -699,50 +491,54 @@ class _SourceHealth extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) => Container(
-        key: const ValueKey('plp-source-health'),
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: PlpEnterpriseHome._line),
-            bottom: BorderSide(color: PlpEnterpriseHome._line),
-          ),
+  Widget build(BuildContext context) {
+    final normalized = state.toLowerCase();
+    final label = switch (normalized) {
+      'healthy' => 'LIVE DATA',
+      'cached_offline' => 'OFFLINE SNAPSHOT',
+      'stale' => 'DATA NEEDS REFRESH',
+      _ => 'DATA STATUS',
+    };
+    final healthy = normalized == 'healthy';
+    return Container(
+      key: const ValueKey('plp-source-health'),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: PlpEnterpriseHome._line),
+          bottom: BorderSide(color: PlpEnterpriseHome._line),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 7,
-              height: 7,
-              margin: const EdgeInsets.only(top: 4),
-              color: state.toLowerCase() == 'healthy'
-                  ? PlpEnterpriseHome._good
-                  : PlpEnterpriseHome._warn,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text.rich(
-                TextSpan(
-                  style: const TextStyle(
-                    color: PlpEnterpriseHome._muted,
-                    fontSize: 10.5,
-                    height: 1.4,
-                  ),
-                  children: [
-                    TextSpan(
-                      text: state.toUpperCase(),
-                      style: const TextStyle(
-                        color: PlpEnterpriseHome._ink,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                      ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            margin: const EdgeInsets.only(top: 4),
+            color: healthy ? PlpEnterpriseHome._good : PlpEnterpriseHome._warn,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: const TextStyle(color: PlpEnterpriseHome._muted, fontSize: 10.5, height: 1.4),
+                children: [
+                  TextSpan(
+                    text: label,
+                    style: const TextStyle(
+                      color: PlpEnterpriseHome._ink,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
                     ),
-                    TextSpan(text: ' · $message'),
-                  ],
-                ),
+                  ),
+                  TextSpan(text: ' · $message'),
+                ],
               ),
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 }

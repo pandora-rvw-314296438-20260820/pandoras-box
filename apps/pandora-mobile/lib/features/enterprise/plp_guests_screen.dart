@@ -113,12 +113,8 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final organization = _map(widget.bootstrap['organization']);
     final guestExperience = _map(widget.bootstrap['guestExperience']);
-    final propertyName =
-        _text(organization['propertyName'], fallback: 'PLP Boracay');
-    final businessDate =
-        _text(guestExperience['businessDate'], fallback: '');
+    final businessDate = _text(guestExperience['businessDate'], fallback: '');
     final inHouse = _maps(guestExperience['inHouse']);
     final arrivals = _maps(guestExperience['arrivals']);
     final attention = _maps(guestExperience['attention']);
@@ -133,15 +129,14 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
           padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
           children: [
             _GuestHeader(onOpenNavigation: widget.onOpenNavigation),
-            const SizedBox(height: 18),
-            _PropertyIdentity(propertyName: propertyName),
-            const SizedBox(height: 15),
+            const SizedBox(height: 34),
             const _GuestExperienceHero(),
-            const SizedBox(height: 16),
-            _GuestFilters(
-              selected: _filter,
-              onSelect: (filter) => setState(() => _filter = filter),
-            ),
+            if (attention.isNotEmpty) ...[
+              const SizedBox(height: 26),
+              _AttentionPanel(items: attention),
+            ],
+            const SizedBox(height: 26),
+            _GuestFilters(selected: _filter, onSelect: (filter) => setState(() => _filter = filter)),
             if (_filter == 'search') ...[
               const SizedBox(height: 10),
               TextField(
@@ -153,13 +148,11 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search guest or accommodation',
                   hintStyle: const TextStyle(color: _muted),
-                  prefixIcon:
-                      const Icon(Icons.search_rounded, color: _gold),
+                  prefixIcon: const Icon(Icons.search_rounded, color: _gold),
                   filled: true,
                   fillColor: _paper,
                   isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.zero,
                     borderSide: const BorderSide(color: _line),
@@ -171,9 +164,9 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             if (_filter == 'requests')
-              _AttentionPanel(items: attention)
+              if (attention.isEmpty) _AttentionPanel(items: attention)
             else ...[
               _SectionLead(
                 title: switch (_filter) {
@@ -183,27 +176,21 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
                   _ => 'In-house guests',
                 },
                 detail: switch (_filter) {
-                  'in-house' =>
-                    '${inHouse.length} active stay${inHouse.length == 1 ? '' : 's'}',
+                  'in-house' => '${inHouse.length} active stay${inHouse.length == 1 ? '' : 's'}',
                   'search' => 'Synchronized roster',
                   _ => businessDate,
                 },
               ),
               const SizedBox(height: 4),
               if (guests.isEmpty)
-                _EmptyRoster(
-                  filter: _filter,
-                  businessDate: businessDate,
-                )
+                _EmptyRoster(filter: _filter, businessDate: businessDate)
               else
                 Column(
                   children: [
                     for (var index = 0; index < guests.length; index++) ...[
                       _GuestRow(
                         guest: guests[index],
-                        initials: _initials(
-                          _text(guests[index]['fullName'], fallback: 'Guest'),
-                        ),
+                        initials: _initials(_text(guests[index]['fullName'], fallback: 'Guest')),
                       ),
                       if (index != guests.length - 1)
                         const Divider(height: 1, color: _line),
@@ -211,13 +198,8 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
                   ],
                 ),
               if (_filter == 'in-house') ...[
-                const SizedBox(height: 18),
-                _AttentionPanel(items: attention),
-                const SizedBox(height: 17),
-                _ArrivalPanel(
-                  items: arrivals,
-                  businessDate: businessDate,
-                ),
+                const SizedBox(height: 24),
+                _ArrivalPanel(items: arrivals, businessDate: businessDate),
               ],
             ],
           ],
@@ -229,7 +211,6 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
 
 class _GuestHeader extends StatelessWidget {
   const _GuestHeader({required this.onOpenNavigation});
-
   final VoidCallback onOpenNavigation;
 
   @override
@@ -242,75 +223,32 @@ class _GuestHeader extends StatelessWidget {
             )
           else
             const SizedBox.square(dimension: 44),
-          const SizedBox(width: 6),
-          const Icon(
-            Icons.people_alt_rounded,
-            color: _PlpGuestsScreenState._gold,
-            size: 30,
-          ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 12),
           const Expanded(
-            child: Text(
-              'Guests',
-              maxLines: 1,
-              overflow: TextOverflow.fade,
-              style: TextStyle(
-                color: _PlpGuestsScreenState._ink,
-                fontSize: 30,
-                height: 1,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.7,
-              ),
-            ),
-          ),
-        ],
-      );
-}
-
-class _PropertyIdentity extends StatelessWidget {
-  const _PropertyIdentity({required this.propertyName});
-
-  final String propertyName;
-
-  @override
-  Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  propertyName,
-                  style: const TextStyle(
+                  'PUEBLO LA PERLA',
+                  style: TextStyle(
                     color: _PlpGuestsScreenState._ink,
-                    fontSize: 24,
-                    height: 1.05,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.4,
+                    fontFamily: 'serif',
+                    fontSize: 16,
+                    letterSpacing: 2.6,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Luxury Resort · guest experience workspace',
+                SizedBox(height: 2),
+                Text(
+                  'GUEST EXPERIENCE',
                   style: TextStyle(
-                    color: _PlpGuestsScreenState._muted,
-                    fontSize: 12.8,
-                    fontWeight: FontWeight.w500,
+                    color: _PlpGuestsScreenState._gold,
+                    fontSize: 8.5,
+                    letterSpacing: 2.2,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Text(
-            'Extraordinary stays.\nA more human tomorrow.',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: Color(0xFF7A593E),
-              fontSize: 9.5,
-              height: 1.2,
-              fontStyle: FontStyle.italic,
             ),
           ),
         ],
@@ -321,55 +259,27 @@ class _GuestExperienceHero extends StatelessWidget {
   const _GuestExperienceHero();
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => Padding(
         key: const ValueKey<String>('plp-guests-editorial-hero'),
-        decoration: const BoxDecoration(
-          color: _PlpGuestsScreenState._paper,
-          border: Border(
-            top: BorderSide(color: _PlpGuestsScreenState._line),
-            bottom: BorderSide(color: _PlpGuestsScreenState._line),
-          ),
-        ),
-        padding: const EdgeInsets.fromLTRB(4, 25, 4, 24),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'GUEST EXPERIENCE',
-                    style: TextStyle(
-                      color: _PlpGuestsScreenState._gold,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2.1,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Personal stays.\nThoughtful service.',
-                    style: TextStyle(
-                      color: _PlpGuestsScreenState._ink,
-                      fontFamily: 'serif',
-                      fontSize: 34,
-                      height: .98,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: -.8,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Arrivals, in-house guests, requests and departures — organized around the guest journey.',
-                    style: TextStyle(
-                      color: _PlpGuestsScreenState._muted,
-                      fontSize: 12.5,
-                      height: 1.45,
-                    ),
-                  ),
-                ],
+            Text(
+              'Personal stays.\nThoughtful service.',
+              style: TextStyle(
+                color: _PlpGuestsScreenState._ink,
+                fontFamily: 'serif',
+                fontSize: 38,
+                height: .98,
+                fontWeight: FontWeight.w400,
+                letterSpacing: -.9,
               ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Arrivals, stays, requests, and departures — one guest journey.',
+              style: TextStyle(color: _PlpGuestsScreenState._muted, fontSize: 12.5, height: 1.45),
             ),
           ],
         ),
@@ -720,7 +630,6 @@ class _GuestRow extends StatelessWidget {
 
 class _AttentionPanel extends StatelessWidget {
   const _AttentionPanel({required this.items});
-
   final List<Map<String, Object?>> items;
 
   String _text(Object? value, {String fallback = '—'}) {
@@ -731,39 +640,49 @@ class _AttentionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visible = items.take(3).toList(growable: false);
-    return _LuxuryPanel(
+    return Column(
       key: const ValueKey<String>('plp-guests-attention'),
-      title: 'Needs personal attention',
-      icon: Icons.notifications_active_outlined,
-      child: visible.isEmpty
-          ? const _PanelEmpty(
-              icon: Icons.check_circle_outline_rounded,
-              label: 'No open guest-attention tasks.',
-            )
-          : Column(
-              children: [
-                for (var index = 0; index < visible.length; index++) ...[
-                  _AttentionItem(
-                    title: _text(
-                      visible[index]['title'],
-                      fallback: 'Guest attention item',
-                    ),
-                    note: _text(visible[index]['note'], fallback: '')
-                        .replaceFirst(RegExp(r'^\[MOCK QA\]\s*'), ''),
-                    priority:
-                        _text(visible[index]['priority'], fallback: 'open'),
-                    category:
-                        _text(visible[index]['category'], fallback: 'service'),
-                  ),
-                  if (index != visible.length - 1)
-                    const Divider(
-                      height: 1,
-                      indent: 54,
-                      color: _PlpGuestsScreenState._line,
-                    ),
-                ],
-              ],
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Expanded(
+              child: Text(
+                'Needs personal attention',
+                style: TextStyle(
+                  color: _PlpGuestsScreenState._ink,
+                  fontFamily: 'serif',
+                  fontSize: 27,
+                  height: 1.02,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -.45,
+                ),
+              ),
             ),
+            Text(
+              '${items.length} open',
+              style: const TextStyle(color: _PlpGuestsScreenState._muted, fontSize: 10.5),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (visible.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 15),
+            child: Text(
+              'No open guest-attention tasks.',
+              style: TextStyle(color: _PlpGuestsScreenState._muted, fontSize: 11.5),
+            ),
+          )
+        else
+          for (final item in visible)
+            _AttentionItem(
+              title: _text(item['title'], fallback: 'Guest attention item'),
+              note: _text(item['note'], fallback: '').replaceFirst(RegExp(r'^\[MOCK QA\]\s*'), ''),
+              priority: _text(item['priority'], fallback: 'open'),
+            ),
+      ],
     );
   }
 }
@@ -838,93 +757,68 @@ class _AttentionItem extends StatelessWidget {
     required this.title,
     required this.note,
     required this.priority,
-    required this.category,
   });
 
   final String title;
   final String note;
   final String priority;
-  final String category;
 
   @override
   Widget build(BuildContext context) {
     final high = priority.toLowerCase() == 'high';
-    final housekeeping = category.toLowerCase().contains('house');
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(13, 10, 9, 10),
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: _PlpGuestsScreenState._line)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 15),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 33,
-            height: 33,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFF7EEE2),
-              border: Border.all(color: const Color(0xFFF0E1D0)),
-            ),
-            child: Icon(
-              housekeeping
-                  ? Icons.ac_unit_rounded
-                  : Icons.card_giftcard_rounded,
-              color: _PlpGuestsScreenState._gold,
-              size: 17,
-            ),
+            width: 7,
+            height: 7,
+            margin: const EdgeInsets.only(top: 6),
+            color: high ? const Color(0xFFA56B2C) : _PlpGuestsScreenState._gold,
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _PlpGuestsScreenState._ink,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontFamily: 'serif',
+                    fontSize: 18,
+                    height: 1.05,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 if (note.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 5),
                   Text(
                     note,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _PlpGuestsScreenState._muted,
-                      fontSize: 10,
-                    ),
+                    style: const TextStyle(color: _PlpGuestsScreenState._muted, fontSize: 11.5, height: 1.35),
                   ),
                 ],
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-            decoration: BoxDecoration(
-              color: high
-                  ? const Color(0xFFF8E2D5)
-                  : const Color(0xFFFFEDC3),
-              borderRadius: BorderRadius.zero,
-            ),
-            child: Text(
-              high ? 'Pending' : 'Due today',
-              style: TextStyle(
-                color: high
-                    ? const Color(0xFFAF6A3E)
-                    : const Color(0xFF996A1B),
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-              ),
+          const SizedBox(width: 10),
+          Text(
+            high ? 'PENDING' : 'DUE TODAY',
+            style: const TextStyle(
+              color: _PlpGuestsScreenState._gold,
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
             ),
           ),
-          const SizedBox(width: 3),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: _PlpGuestsScreenState._gold,
-            size: 20,
-          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right_rounded, color: _PlpGuestsScreenState._gold, size: 19),
         ],
       ),
     );
@@ -1096,11 +990,7 @@ class _PanelEmpty extends StatelessWidget {
 }
 
 class _EmptyRoster extends StatelessWidget {
-  const _EmptyRoster({
-    required this.filter,
-    required this.businessDate,
-  });
-
+  const _EmptyRoster({required this.filter, required this.businessDate});
   final String filter;
   final String businessDate;
 
@@ -1114,29 +1004,13 @@ class _EmptyRoster extends StatelessWidget {
     };
     return Container(
       margin: const EdgeInsets.only(top: 5),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _PlpGuestsScreenState._paper,
-        borderRadius: BorderRadius.zero,
-        border: Border.all(color: _PlpGuestsScreenState._line),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: _PlpGuestsScreenState._line)),
       ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.hotel_class_outlined,
-            color: _PlpGuestsScreenState._gold,
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Text(
-              businessDate.isEmpty ? label : '$label for $businessDate.',
-              style: const TextStyle(
-                color: _PlpGuestsScreenState._muted,
-                fontSize: 11.5,
-              ),
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Text(
+        businessDate.isEmpty ? label : '$label for $businessDate.',
+        style: const TextStyle(color: _PlpGuestsScreenState._muted, fontSize: 11.5),
       ),
     );
   }

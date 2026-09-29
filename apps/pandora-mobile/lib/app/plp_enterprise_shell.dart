@@ -353,6 +353,23 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Future<void> _submitPersistentCommand() => _submitCommand();
 
+  String get _commandHint => switch (_index) {
+        0 => 'Ask what matters today…',
+        2 => 'Ask about operations…',
+        3 => 'Ask about what you see…',
+        4 => 'Ask about local AI…',
+        5 => 'Ask about today’s overview…',
+        6 => 'Ask about a guest or stay…',
+        7 => 'Ask about team or access…',
+        8 => 'Ask about revenue…',
+        9 => 'Ask what needs your attention…',
+        10 => 'Ask about recent activity…',
+        11 => 'Ask about settings…',
+        12 => 'Ask about diagnostics…',
+        13 => 'Ask about tax readiness…',
+        _ => 'Message Pandora',
+      };
+
   Map<String, Object?> _alfredContext(Map<String, Object?> bootstrap) => {
         ...bootstrap,
         'assistantIdentity': const <String, Object?>{
@@ -517,8 +534,6 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenNavigation: _openDrawer,
               onRefresh: _refresh,
               onAskAlfred: () => _open(1),
-              onOperations: () => _open(2),
-              onVision: () => _open(3),
             ),
             AskPandoraScreen(
               key: _alfredKey,
@@ -532,7 +547,6 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: const ValueKey('plp-operations-room'),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
-              onAskPandora: () => _open(1),
               onOpenRoom: () {
                 _openTool(
                   'operations-room',
@@ -543,7 +557,6 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             PlpVisionScreen(
               key: const ValueKey('plp-vision-intelligence'),
               onOpenNavigation: _openDrawer,
-              onAskPandora: () => _open(1),
             ),
             const LocalAiSettingsScreen(
               key: ValueKey('plp-local-ai-settings'),
@@ -552,7 +565,6 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: const ValueKey('plp-overview'),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
-              onAskPandora: () => _open(1),
             ),
             PlpGuestsScreen(
               key: const ValueKey('plp-guests'),
@@ -591,13 +603,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: const ValueKey('plp-revenue'),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
-              onAskPandora: () => _open(1),
             ),
             PlpNeedsYouScreen(
               key: const ValueKey('plp-needs-you'),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
-              onAskPandora: () => _open(1),
               onOpenApprovals: () {
                 _openTool('approvals', const ApprovalsScreen());
               },
@@ -682,8 +692,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                   },
                 ),
                 body: PandoraNavigationScope(
-                  openDrawer:
-                      _index == 1 || _index == 13 ? _openDrawer : null,
+                  openDrawer: _openDrawer,
                   child: Stack(
                     children: [
                       Navigator(
@@ -714,7 +723,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                           _closeTool();
                         },
                       ),
-                      if (_index != 1 && _index != 13)
+                      if (_index == 4 || _index == 12)
                         Positioned(
                           top: 0,
                           left: 0,
@@ -740,6 +749,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                         controller: _commandController,
                         focusNode: _commandFocus,
                         onSubmit: _submitPersistentCommand,
+                        hintText: _commandHint,
                         busy: _commandBusy,
                         reply: _commandReply,
                         onDismissReply: () {
@@ -762,6 +772,7 @@ class PlpCommandDock extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onSubmit,
+    this.hintText = 'Message Pandora',
     this.busy = false,
     this.reply,
     this.onDismissReply,
@@ -771,6 +782,7 @@ class PlpCommandDock extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final Future<void> Function() onSubmit;
+  final String hintText;
   final bool busy;
   final String? reply;
   final VoidCallback? onDismissReply;
@@ -839,9 +851,9 @@ class PlpCommandDock extends StatelessWidget {
                                 fontSize: 15.5,
                                 height: 1.35,
                               ),
-                              decoration: const InputDecoration(
-                                hintText: 'Message Pandora',
-                                hintStyle: TextStyle(
+                              decoration: InputDecoration(
+                                hintText: hintText,
+                                hintStyle: const TextStyle(
                                   color: Color(0xFFB6B0A7),
                                   fontSize: 15.5,
                                 ),
@@ -850,7 +862,7 @@ class PlpCommandDock extends StatelessWidget {
                                 focusedBorder: InputBorder.none,
                                 isDense: true,
                                 contentPadding:
-                                    EdgeInsets.fromLTRB(2, 15, 6, 14),
+                                    const EdgeInsets.fromLTRB(2, 15, 6, 14),
                               ),
                             ),
                           ),

@@ -162,5 +162,8 @@ test("PLP primary drawer exposes Tax & Compliance and routes it to the live tax 
   assert.match(plpShell, /'tax-compliance': 13/);
   assert.match(plpShell, /TaxComplianceScreen\(/);
   assert.match(plpShell, /'surface': 'enterprise_tax'/);
-  assert.match(plpShell, /_index == 1 \|\| _index == 13/);
+  assert.match(plpShell, /openDrawer: _openDrawer/);
+  assert.match(plpShell, /_index == 4 \|\| _index == 12/);
+  assert.match(tax, /bottomNavigationBar: _isPlp \? null : SafeArea/);
+  assert.match(tax, /plp-tax-owner-status/);
 });
