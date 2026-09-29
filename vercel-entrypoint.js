@@ -5,6 +5,7 @@ const { createPandoraContainerApp } = require("./src/pandora-container-server.js
 const { handlePandoraMcp } = require("./src/pandora-mcp-handler.js");
 const { createPandoraTrackingRouter } = require("./src/pandora-tracking-http.js");
 const { createPandoraMetaOauthRouter } = require("./src/pandora-meta-oauth-http.js");
+const { createPandoraGrowthMemoryRouter } = require("./src/pandora-growth-memory-http.js");
 
 function createVercelEntrypoint() {
   const app = express();
@@ -14,6 +15,10 @@ function createVercelEntrypoint() {
   // Public Meta OAuth callback. It accepts only one-time state/code material
   // and commits verified tokens through service-role RPCs into Supabase Vault.
   app.use(createPandoraMetaOauthRouter());
+
+  // Authenticated owner/admin growth Memory context. Workload OIDC stays on Vercel;
+  // neither the mobile client nor the Supabase chat runtime receives it.
+  app.use(createPandoraGrowthMemoryRouter());
 
   // Public first-party attribution collector. Conversion, cost, and report
   // routes enforce tenant API-key scopes inside the tracking router.
