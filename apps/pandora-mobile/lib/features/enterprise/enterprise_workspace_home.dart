@@ -107,7 +107,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
     subtitle: 'Luxury Resort',
     initials: 'PLP',
     icon: Icons.hotel_rounded,
-    logoAsset: 'assets/workspaces/plp.webp',
+    logoAsset: 'assets/workspaces/plp-logo.webp',
     accent: Color(0xFFD5A16E),
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
