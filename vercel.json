@@ -33,6 +33,10 @@
     "api/health.ts": {
       "includeFiles": "{.agents/**/*,config/pandora-capability-fabric-v1.json}",
       "maxDuration": 10
+    },
+    "api/gemini-consumer-mcp.ts": {
+      "includeFiles": "{.agents/**/*,config/pandora-capability-fabric-v1.json}",
+      "maxDuration": 60
     }
   },
   "headers": [
