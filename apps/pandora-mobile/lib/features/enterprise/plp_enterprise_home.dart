@@ -9,7 +9,7 @@ class PlpEnterpriseHome extends StatelessWidget {
     required this.bootstrap,
     this.onOpenNavigation,
     required this.onRefresh,
-    required this.onAskAlfred,
+    required this.onAskMfr,
     required this.onOperations,
     required this.onVision,
   });
@@ -17,7 +17,7 @@ class PlpEnterpriseHome extends StatelessWidget {
   final Map<String, Object?> bootstrap;
   final VoidCallback? onOpenNavigation;
   final VoidCallback onRefresh;
-  final VoidCallback onAskAlfred;
+  final VoidCallback onAskMfr;
   final VoidCallback onOperations;
   final VoidCallback onVision;
 
@@ -215,7 +215,7 @@ class PlpEnterpriseHome extends StatelessWidget {
               _Attention(
                 conflicts: conflicts,
                 tasks: tasks,
-                onTap: onAskAlfred,
+                onTap: onAskMfr,
               ),
               const SizedBox(height: 34),
               const _Eyebrow('COMMAND PLP'),
@@ -230,10 +230,10 @@ class PlpEnterpriseHome extends StatelessWidget {
               ),
               const SizedBox(height: 15),
               _Command(
-                key: const ValueKey('plp-open-alfred'),
-                title: 'Pandora',
+                key: const ValueKey('plp-open-mfr'),
+                title: 'MFR',
                 detail: 'Ask, decide, or act across the resort',
-                onTap: onAskAlfred,
+                onTap: onAskMfr,
                 primary: true,
               ),
               _Command(
