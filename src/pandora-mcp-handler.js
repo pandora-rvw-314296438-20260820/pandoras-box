@@ -60,6 +60,21 @@ const ACTIVE_ROLES = new Set(["owner", "admin", "operator", "member", "viewer"])
 const EXECUTOR_ROLES = new Set(["owner", "admin"]);
 const LEGACY_PLAN_TOOL_PREFIX = "pandora_plan_";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PANDORA_CONTROL_TOOL_NAMES = new Set([
+    "pandora_tool_catalog",
+    "pandora_capability_catalog",
+    "pandora_capability_search",
+    "pandora_capability_readiness",
+    "pandora_skill_catalog",
+    "pandora_skill_route",
+    "pandora_skill_load",
+    "pandora_list_plans",
+    "pandora_list_audit",
+    "pandora_verify_audit",
+    "pandora_create_plan",
+    "pandora_approve_plan",
+    "pandora_execute_plan",
+]);
 
 const nativeDynamicImport = new Function("specifier", "return import(specifier)");
 let skillRuntimePromise;
@@ -118,8 +133,49 @@ exports.pandoraMcpVercelConfig = Object.freeze({
     maxDuration: 60,
 });
 
-function resourceOrigin() {
-    return (process.env.PANDORA_MCP_RESOURCE_ORIGIN?.trim() || DEFAULT_RESOURCE_ORIGIN).replace(/\/+$/, "");
+function resourceOrigin(dependencies = {}) {
+    return (dependencies.resourceOrigin?.trim()
+        || process.env.PANDORA_MCP_RESOURCE_ORIGIN?.trim()
+        || DEFAULT_RESOURCE_ORIGIN).replace(/\/+$/, "");
+}
+
+function resourcePath(dependencies = {}) {
+    const value = dependencies.resourcePath?.trim() || "/mcp";
+    if (!/^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$/.test(value) || value.includes("..")) {
+        throw Object.assign(new Error("Invalid Pandora MCP resource path"), { status: 500 });
+    }
+    return value;
+}
+
+function resourceMetadataPath(dependencies = {}) {
+    const value = dependencies.resourceMetadataPath?.trim()
+        || "/.well-known/oauth-protected-resource/mcp";
+    if (!/^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$/.test(value) || value.includes("..")) {
+        throw Object.assign(new Error("Invalid Pandora MCP resource metadata path"), { status: 500 });
+    }
+    return value;
+}
+
+function oauthScopes(dependencies = {}) {
+    if (dependencies.oauthScopes === undefined) return [...MCP_OAUTH_SCOPES];
+    if (!Array.isArray(dependencies.oauthScopes)
+        || dependencies.oauthScopes.length === 0
+        || !dependencies.oauthScopes.every((scope) => typeof scope === "string" && /^[A-Za-z0-9:_-]{1,80}$/.test(scope))) {
+        throw Object.assign(new Error("Invalid Pandora MCP OAuth scope configuration"), { status: 500 });
+    }
+    return [...new Set(dependencies.oauthScopes)];
+}
+
+function mcpServerInstructions(dependencies = {}) {
+    if (dependencies.serverInstructions === undefined) return undefined;
+    if (typeof dependencies.serverInstructions !== "string") {
+        throw Object.assign(new Error("Invalid Pandora MCP server instructions"), { status: 500 });
+    }
+    const value = dependencies.serverInstructions.trim();
+    if (value.length === 0 || value.length > 4000) {
+        throw Object.assign(new Error("Invalid Pandora MCP server instructions"), { status: 500 });
+    }
+    return value;
 }
 
 function requestHeader(request, name) {
@@ -162,9 +218,12 @@ function metadataSelector(request) {
     return values.length === 1 ? values[0] : undefined;
 }
 
-function isMetadataRequest(request) {
+function isMetadataRequest(request, dependencies = {}) {
     if (request.method !== "GET") return false;
     const selector = metadataSelector(request);
+    if (dependencies.metadataSelector
+        && selector === dependencies.metadataSelector) return true;
+    if (requestPath(request) === resourceMetadataPath(dependencies)) return true;
     return selector === "root" || selector === "mcp" || METADATA_PATHS.has(requestPath(request));
 }
 
@@ -195,19 +254,20 @@ function applyMcpCors(request, response, allowedOrigins) {
     response.setHeader("Access-Control-Expose-Headers", MCP_EXPOSED_HEADERS);
 }
 
-function oauthChallenge() {
-    return `Bearer resource_metadata="${resourceOrigin()}/.well-known/oauth-protected-resource/mcp", scope="${MCP_OAUTH_SCOPES.join(" ")}"`;
+function oauthChallenge(dependencies = {}) {
+    return `Bearer resource_metadata="${resourceOrigin(dependencies)}${resourceMetadataPath(dependencies)}", scope="${oauthScopes(dependencies).join(" ")}"`;
 }
 
-function protectedResourceMetadata() {
-    const origin = resourceOrigin();
+function protectedResourceMetadata(dependencies = {}) {
+    const origin = resourceOrigin(dependencies);
     return {
-        resource: `${origin}/mcp`,
-        resource_name: "Pandora",
+        resource: `${origin}${resourcePath(dependencies)}`,
+        resource_name: dependencies.resourceName?.trim() || "Pandora",
         authorization_servers: [AUTHORIZATION_SERVER],
-        scopes_supported: [...MCP_OAUTH_SCOPES],
+        scopes_supported: oauthScopes(dependencies),
         bearer_methods_supported: ["header"],
-        resource_documentation: `${origin}/control-tower`,
+        resource_documentation: dependencies.resourceDocumentation?.trim()
+            || `${origin}/control-tower`,
     };
 }
 
@@ -262,6 +322,13 @@ function rpcError(response, id, code, message, status = 400) {
 function providerToolAllowed(name, dependencies) {
     if (dependencies?.allowedToolNames === undefined) return true;
     return dependencies.allowedToolNames instanceof Set && dependencies.allowedToolNames.has(name);
+}
+
+function controlToolAllowed(name, dependencies) {
+    if (!PANDORA_CONTROL_TOOL_NAMES.has(name)) return true;
+    if (dependencies?.allowedControlToolNames === undefined) return true;
+    return dependencies.allowedControlToolNames instanceof Set
+        && dependencies.allowedControlToolNames.has(name);
 }
 
 function publicTools(dependencies) {
@@ -406,7 +473,10 @@ function publicTools(dependencies) {
             inputSchema: definition.inputSchema,
         }];
     });
-    return [...controls, ...providerTools];
+    return [
+        ...controls.filter((tool) => controlToolAllowed(tool.name, dependencies)),
+        ...providerTools,
+    ];
 }
 
 function legacyPlanToolName(toolName) {
@@ -482,6 +552,11 @@ async function actorFor(request, dependencies) {
     );
     if (!membership || !ACTIVE_ROLES.has(membership.role)) {
         throw Object.assign(new Error("An active Pandora organization membership is required"), { status: 403 });
+    }
+    if (dependencies.allowedMembershipRoles !== undefined
+        && (!(dependencies.allowedMembershipRoles instanceof Set)
+            || !dependencies.allowedMembershipRoles.has(membership.role))) {
+        throw Object.assign(new Error("Pandora membership role is not authorized for this MCP resource"), { status: 403 });
     }
     if (membership.organizationId !== dependencies.organizationId || membership.userId !== identity.userId) {
         throw Object.assign(new Error("Pandora membership does not match the authenticated user and organization"), { status: 403 });
@@ -607,6 +682,9 @@ async function callTool(name, args, actor, dependencies) {
             new Error("ProjectOS tool aliases are retired; use canonical Pandora tool names"),
             { status: 410 },
         );
+    }
+    if (PANDORA_CONTROL_TOOL_NAMES.has(name) && !controlToolAllowed(name, dependencies)) {
+        throw Object.assign(new Error(`Unknown Pandora MCP tool: ${name}`), { status: 400 });
     }
     assertToolScope(name, actor, dependencies);
     const plannedTool = legacyPlannedTool(name, dependencies);
@@ -796,8 +874,8 @@ function createPandoraMcpHandler(overrides = {}) {
                 response.status(204).end();
                 return;
             }
-            if (isMetadataRequest(request)) {
-                response.status(200).json(protectedResourceMetadata());
+            if (isMetadataRequest(request, dependencies)) {
+                response.status(200).json(protectedResourceMetadata(dependencies));
                 return;
             }
             const authorization = authorizationHeader(request);
@@ -818,10 +896,15 @@ function createPandoraMcpHandler(overrides = {}) {
                 return;
             }
             if (body.method === "initialize") {
+                const instructions = mcpServerInstructions(dependencies);
                 rpcResult(response, id, {
                     protocolVersion: "2025-06-18",
                     capabilities: { tools: { listChanged: false } },
-                    serverInfo: { name: "Pandora MCP", version: "1.5.0-capability-skills" },
+                    serverInfo: {
+                        name: dependencies.resourceName?.trim() || "Pandora MCP",
+                        version: "1.5.0-capability-skills",
+                    },
+                    ...(instructions ? { instructions } : {}),
                 });
                 return;
             }
@@ -843,7 +926,7 @@ function createPandoraMcpHandler(overrides = {}) {
             rpcResult(response, id, await callTool(name, args, current, dependencies));
         } catch (error) {
             const status = Number.isInteger(error?.status) ? error.status : 500;
-            if (status === 401) response.setHeader("WWW-Authenticate", oauthChallenge());
+            if (status === 401) response.setHeader("WWW-Authenticate", oauthChallenge(dependencies));
             if (status === 403 && typeof error?.requiredScope === "string") {
                 response.setHeader("WWW-Authenticate", `Bearer error="insufficient_scope", scope="${error.requiredScope}"`);
             }
