@@ -199,7 +199,7 @@ function effectiveResourceOrigin(dependencies) {
     const configured = typeof dependencies?.resourceOrigin === "string"
         ? dependencies.resourceOrigin.trim()
         : "";
-    return (configured || resourceOrigin()).replace(/\\/+$/, "");
+    return (configured || resourceOrigin()).replace(/\/+$/, "");
 }
 
 function effectiveResourcePath(dependencies) {
@@ -214,7 +214,7 @@ function effectiveResourcePath(dependencies) {
     ) {
         throw Object.assign(new Error("Pandora MCP resource path is invalid"), { status: 500 });
     }
-    return configured.length > 1 ? configured.replace(/\\/+$/, "") : configured;
+    return configured.length > 1 ? configured.replace(/\/+$/, "") : configured;
 }
 
 function effectiveOauthScopes(dependencies) {
