@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation_layout.dart';
+import '../features/enterprise/plp_resort_workspace.dart';
 
 
 class PlpRecentChatItem {
@@ -47,6 +48,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   static const _businessItems = <_PlpDrawerDestination>[
     _PlpDrawerDestination('home', 'Home', Icons.home_outlined),
     _PlpDrawerDestination('overview', 'Overview', Icons.dashboard_outlined),
+    _PlpDrawerDestination('mfr', 'MFR', Icons.auto_awesome_outlined),
     _PlpDrawerDestination(
       'tax-compliance',
       'Tax & Compliance',
@@ -105,6 +107,19 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   bool _matches(String value) =>
       _query.isEmpty || value.toLowerCase().contains(_query.toLowerCase());
 
+  Widget _sectionLabel(String label) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 16, 8, 6),
+        child: Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: Color(0xFF746E66),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+          ),
+        ),
+      );
+
   Widget _divider() => const Padding(
         padding: EdgeInsets.symmetric(horizontal: 10),
         child: Divider(
@@ -118,8 +133,13 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   Widget build(BuildContext context) {
     final viewportWidth = MediaQuery.sizeOf(context).width;
     final drawerWidth = math.min(360.0, viewportWidth * .76);
-    final visibleBusiness = _businessItems.where((item) => _matches(item.label)).toList();
-    final visibleSystem = _systemItems.where((item) => _matches(item.label)).toList();
+    final visibleBusiness =
+        _businessItems.where((item) => _matches(item.label)).toList();
+    final visibleModules = plpResortModules
+        .where((item) => _matches(item.label) || _matches(item.group))
+        .toList(growable: false);
+    final visibleSystem =
+        _systemItems.where((item) => _matches(item.label)).toList();
     final visibleChats = widget.recentChats.where((item) => _matches(item.title)).toList();
     final searching = _query.isNotEmpty;
     return Drawer(
@@ -175,8 +195,23 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                   const Padding(padding: EdgeInsets.fromLTRB(12, 4, 8, 8), child: Text('PLP Boracay owner workspace',
                       style: TextStyle(color: Color(0xFFAAA39A), fontSize: 12))),
               ],
-              if (_workspaceExpanded || searching)
+              if (_workspaceExpanded || searching) ...[
                 for (final item in visibleBusiness) _navigationRow(item),
+                for (final group in plpResortGroupOrder)
+                  if (visibleModules.any((item) => item.group == group)) ...[
+                    _sectionLabel(group),
+                    for (final module
+                        in visibleModules.where((item) => item.group == group))
+                      _navigationRow(
+                        _PlpDrawerDestination(
+                          module.id,
+                          module.label,
+                          module.icon,
+                        ),
+                        nested: true,
+                      ),
+                  ],
+              ],
               const SizedBox(height: 8),
               if (!searching)
                 _expandableRow(semanticTitle: 'Recent chats', title: 'Recent chats', expanded: _recentExpanded,
@@ -197,7 +232,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                   const Padding(padding: EdgeInsets.all(10), child: Text('No recent chats', style: TextStyle(color: Color(0xFFAAA39A), fontSize: 13)))
                 else
                   for (final chat in visibleChats) _chatRow(chat),
-              if (searching && visibleBusiness.isEmpty && visibleSystem.isEmpty && visibleChats.isEmpty &&
+              if (searching && visibleBusiness.isEmpty && visibleModules.isEmpty && visibleSystem.isEmpty && visibleChats.isEmpty &&
                   !widget.recentChatsLoading && widget.recentChatsError == null)
                 const Padding(padding: EdgeInsets.all(10), child: Text('No matching navigation or chats', style: TextStyle(color: Color(0xFFAAA39A)))),
               if (!searching || visibleSystem.isNotEmpty) ...[
@@ -228,23 +263,21 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     );
   }
 
-  Widget _plpLogo() => ClipRRect(
-        borderRadius: BorderRadius.circular(9),
-        child: SizedBox.square(
-          dimension: 34,
-          child: Image.asset(
-            'assets/workspaces/plp.webp',
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const DecoratedBox(
-              decoration: BoxDecoration(color: Color(0xFF1B2734)),
-              child: Center(
-                child: Text(
-                  'PLP',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                  ),
+  Widget _plpLogo() => SizedBox(
+        width: 34,
+        height: 42,
+        child: Image.asset(
+          'assets/workspaces/plp.webp',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const DecoratedBox(
+            decoration: BoxDecoration(color: Color(0xFF1B1713)),
+            child: Center(
+              child: Text(
+                'PLP',
+                style: TextStyle(
+                  color: Color(0xFFF2EEE7),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
