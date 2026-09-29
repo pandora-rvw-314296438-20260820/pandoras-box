@@ -59,11 +59,8 @@ test("owner/admin projection is redacted and consequential actions remain denied
   assert.match(sql, /'spendAuthorized',false/);
 });
 
-test("Pandora chat receives only bounded read-only growth evidence", () => {
-  assert.match(screen, /'mode': 'read_only_analysis'/);
-  assert.match(screen, /'evidenceCitationRequired': true/);
-  assert.match(screen, /'approvedMemory'/);
-  assert.match(screen, /'experimentRuns'/);
-  assert.match(screen, /'leadStages'/);
-  assert.match(screen, /enterpriseContext: chatContext/);
+test("Pandora chat does not trust client-supplied growth evidence", () => {
+  assert.match(screen, /enterpriseContext: widget\.enterpriseContext/);
+  assert.doesNotMatch(screen, /enterpriseContext: chatContext/);
+  assert.doesNotMatch(screen, /'mode': 'read_only_analysis'/);
 });
