@@ -33,6 +33,10 @@
     "api/health.ts": {
       "includeFiles": "{.agents/**/*,config/pandora-capability-fabric-v1.json}",
       "maxDuration": 10
+    },
+    "api/gemini-consumer-mcp.ts": {
+      "includeFiles": "{.agents/**/*,config/pandora-capability-fabric-v1.json}",
+      "maxDuration": 60
     }
   },
   "headers": [
@@ -143,6 +147,14 @@
     {
       "source": "/api/operator/:path*",
       "destination": "/api/operator"
+    },
+    {
+      "source": "/gemini-consumer-mcp",
+      "destination": "/api/gemini-consumer-mcp"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource/gemini-consumer-mcp",
+      "destination": "/api/gemini-consumer-mcp?metadata=gemini-consumer-mcp"
     }
   ],
   "crons": [
