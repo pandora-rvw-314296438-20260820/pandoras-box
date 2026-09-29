@@ -100,22 +100,9 @@ class _MarketingGrowthWorkspaceScreenState
   }
 
   void _openPandora() {
-    final data = _data ?? const <String, Object?>{};
-    final chatContext = <String, Object?>{
-      ...widget.enterpriseContext,
-      'marketingGrowth': <String, Object?>{
-        'mode': 'read_only_analysis',
-        'sourceMode': _text(data['sourceMode'], fallback: 'direct_github'),
-        'authority': _map(data['authority']),
-        'approvedMemory': _rows(data['approvedMemory']).take(12).toList(),
-        'experimentRuns': _rows(data['experimentRuns']).take(12).toList(),
-        'leadStages': _rows(data['leadStages']).take(20).toList(),
-        'evidenceCitationRequired': true,
-      },
-    };
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (routeContext) => AskPandoraScreen(
-        enterpriseContext: chatContext,
+        enterpriseContext: widget.enterpriseContext,
         onHome: () => Navigator.of(routeContext).pop(),
       ),
     ));
