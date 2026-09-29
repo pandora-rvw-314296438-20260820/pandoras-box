@@ -413,72 +413,58 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
       );
     }
 
-    final today =
-        items.where((item) => _isToday(item, 'occurredAt')).toList();
-    final earlier =
-        items.where((item) => !_isToday(item, 'occurredAt')).toList();
+    final today = items.where((item) => _isToday(item, 'occurredAt')).toList();
+    final earlier = items.where((item) => !_isToday(item, 'occurredAt')).toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 20, 14, 6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _paper.withValues(alpha: .82),
-          border: Border.all(color: const Color(0xFFD8CFC3)),
-        ),
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (today.isNotEmpty) ...[
-              const _SectionTitle('Today'),
-              const SizedBox(height: 7),
-              for (var i = 0; i < today.length; i++) ...[
-                _BusinessActivityRow(
-                  item: today[i],
-                  dateFor: _date,
-                  textFor: _text,
-                  boolFor: _bool,
-                ),
-                if (i != today.length - 1)
-                  const Divider(height: 1, color: _line),
-              ],
-            ],
-            if (today.isNotEmpty && earlier.isNotEmpty)
-              const SizedBox(height: 24),
-            if (earlier.isNotEmpty) ...[
-              const _SectionTitle('Earlier'),
-              const SizedBox(height: 7),
-              for (var i = 0; i < earlier.length; i++) ...[
-                _BusinessActivityRow(
-                  item: earlier[i],
-                  dateFor: _date,
-                  textFor: _text,
-                  boolFor: _bool,
-                ),
-                if (i != earlier.length - 1)
-                  const Divider(height: 1, color: _line),
-              ],
-            ],
-            const SizedBox(height: 13),
-            const Divider(height: 1, color: _line),
-            TextButton.icon(
-              key: const ValueKey<String>('plp-activity-open-logs'),
-              onPressed: () {
-                _selectTab(3);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF75501F),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 2,
-                  vertical: 10,
-                ),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (today.isNotEmpty) ...[
+            const _SectionTitle('Today'),
+            const SizedBox(height: 7),
+            for (var i = 0; i < today.length; i++) ...[
+              _BusinessActivityRow(
+                item: today[i],
+                dateFor: _date,
+                textFor: _text,
+                boolFor: _bool,
               ),
-              label: const Text('View Pandora activity logs'),
-              iconAlignment: IconAlignment.end,
-              icon: const Icon(Icons.chevron_right_rounded),
-            ),
+              if (i != today.length - 1)
+                const Divider(height: 1, color: _line),
+            ],
           ],
-        ),
+          if (today.isNotEmpty && earlier.isNotEmpty)
+            const SizedBox(height: 24),
+          if (earlier.isNotEmpty) ...[
+            const _SectionTitle('Earlier'),
+            const SizedBox(height: 7),
+            for (var i = 0; i < earlier.length; i++) ...[
+              _BusinessActivityRow(
+                item: earlier[i],
+                dateFor: _date,
+                textFor: _text,
+                boolFor: _bool,
+              ),
+              if (i != earlier.length - 1)
+                const Divider(height: 1, color: _line),
+            ],
+          ],
+          const SizedBox(height: 13),
+          const Divider(height: 1, color: _line),
+          TextButton.icon(
+            key: const ValueKey<String>('plp-activity-open-logs'),
+            onPressed: () => _selectTab(3),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF75501F),
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
+            ),
+            label: const Text('View Pandora activity logs'),
+            iconAlignment: IconAlignment.end,
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
       ),
     );
   }
@@ -507,86 +493,57 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
       );
     }
 
-    final today =
-        _logs.where((item) => _isToday(item, 'occurredAt')).toList();
-    final earlier =
-        _logs.where((item) => !_isToday(item, 'occurredAt')).toList();
+    final today = _logs.where((item) => _isToday(item, 'occurredAt')).toList();
+    final earlier = _logs.where((item) => !_isToday(item, 'occurredAt')).toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 20, 14, 6),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(6, 0, 6, 11),
-            child: Text(
-              'Provider-backed audit trail of actions recorded inside Pandora.',
-              style: TextStyle(
-                color: _muted,
-                fontSize: 11.5,
-                height: 1.35,
+          const Text(
+            'Provider-backed audit trail of actions recorded inside Pandora.',
+            style: TextStyle(color: _muted, fontSize: 11.5, height: 1.35),
+          ),
+          const SizedBox(height: 18),
+          if (today.isNotEmpty) ...[
+            const _SectionTitle('Today'),
+            const SizedBox(height: 7),
+            for (var i = 0; i < today.length; i++) ...[
+              _PandoraLogRow(item: today[i], dateFor: _date, textFor: _text),
+              if (i != today.length - 1)
+                const Divider(height: 1, color: _line),
+            ],
+          ],
+          if (today.isNotEmpty && earlier.isNotEmpty)
+            const SizedBox(height: 24),
+          if (earlier.isNotEmpty) ...[
+            const _SectionTitle('Earlier'),
+            const SizedBox(height: 7),
+            for (var i = 0; i < earlier.length; i++) ...[
+              _PandoraLogRow(item: earlier[i], dateFor: _date, textFor: _text),
+              if (i != earlier.length - 1)
+                const Divider(height: 1, color: _line),
+            ],
+          ],
+          if (_logsHasMore) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: _line),
+            Center(
+              child: TextButton.icon(
+                key: const ValueKey<String>('plp-activity-load-more-logs'),
+                onPressed: _logsLoading ? null : () => _loadLogs(append: true),
+                icon: _logsLoading
+                    ? const SizedBox.square(
+                        dimension: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.expand_more_rounded),
+                label: const Text('Load more activity logs'),
+                style: TextButton.styleFrom(foregroundColor: _gold),
               ),
             ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: _paper.withValues(alpha: .82),
-              border: Border.all(color: const Color(0xFFD8CFC3)),
-            ),
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (today.isNotEmpty) ...[
-                  const _SectionTitle('Today'),
-                  const SizedBox(height: 7),
-                  for (var i = 0; i < today.length; i++) ...[
-                    _PandoraLogRow(
-                      item: today[i],
-                      dateFor: _date,
-                      textFor: _text,
-                    ),
-                    if (i != today.length - 1)
-                      const Divider(height: 1, color: _line),
-                  ],
-                ],
-                if (today.isNotEmpty && earlier.isNotEmpty)
-                  const SizedBox(height: 24),
-                if (earlier.isNotEmpty) ...[
-                  const _SectionTitle('Earlier'),
-                  const SizedBox(height: 7),
-                  for (var i = 0; i < earlier.length; i++) ...[
-                    _PandoraLogRow(
-                      item: earlier[i],
-                      dateFor: _date,
-                      textFor: _text,
-                    ),
-                    if (i != earlier.length - 1)
-                      const Divider(height: 1, color: _line),
-                  ],
-                ],
-                if (_logsHasMore) ...[
-                  const SizedBox(height: 14),
-                  const Divider(height: 1, color: _line),
-                  Center(
-                    child: TextButton.icon(
-                      key: const ValueKey<String>('plp-activity-load-more-logs'),
-                      onPressed:
-                          _logsLoading ? null : () => _loadLogs(append: true),
-                      icon: _logsLoading
-                          ? const SizedBox.square(
-                              dimension: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.expand_more_rounded),
-                      label: const Text('Load more activity logs'),
-                      style: TextButton.styleFrom(foregroundColor: _gold),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -614,17 +571,30 @@ class _ActivityHeader extends StatelessWidget {
             const SizedBox.square(dimension: 44),
           const SizedBox(width: 12),
           const Expanded(
-            child: Text(
-              'PUEBLO\nLA PERLA\nBORACAY',
-              maxLines: 3,
-              overflow: TextOverflow.fade,
-              style: TextStyle(
-                color: Color(0xFF4C3020),
-                fontSize: 8.5,
-                height: 1.06,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PUEBLO LA PERLA',
+                  style: TextStyle(
+                    color: _PlpActivityScreenState._ink,
+                    fontFamily: 'serif',
+                    fontSize: 16,
+                    letterSpacing: 2.6,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'ACTIVITY',
+                  style: TextStyle(
+                    color: _PlpActivityScreenState._gold,
+                    fontSize: 8.5,
+                    letterSpacing: 2.2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
           IconButton(
@@ -633,12 +603,10 @@ class _ActivityHeader extends StatelessWidget {
             onPressed: onSearch,
             style: IconButton.styleFrom(
               foregroundColor: _PlpActivityScreenState._ink,
-              backgroundColor: Colors.white.withValues(alpha: .74),
-              side: const BorderSide(color: Color(0xFFF0EBE3)),
+              backgroundColor: Colors.transparent,
             ),
-            icon: const Icon(Icons.search_rounded, size: 26),
+            icon: const Icon(Icons.search_rounded, size: 23),
           ),
-
         ],
       );
 }
@@ -647,54 +615,30 @@ class _ActivityHero extends StatelessWidget {
   const _ActivityHero();
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => Padding(
         key: const ValueKey<String>('plp-activity-editorial-hero'),
-        decoration: const BoxDecoration(
-          color: _PlpActivityScreenState._paper,
-          border: Border(
-            top: BorderSide(color: _PlpActivityScreenState._line),
-            bottom: BorderSide(color: _PlpActivityScreenState._line),
-          ),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 28, 20, 26),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 18),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ACTIVITY',
-                    style: TextStyle(
-                      color: _PlpActivityScreenState._gold,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2.2,
-                    ),
-                  ),
-                  SizedBox(height: 13),
-                  Text(
-                    'Recent activity',
-                    style: TextStyle(
-                      color: _PlpActivityScreenState._ink,
-                      fontFamily: 'serif',
-                      fontSize: 42,
-                      height: .96,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: -1.1,
-                    ),
-                  ),
-                  SizedBox(height: 13),
-                  Text(
-                    'A quiet, verified chronology of what has been happening across the resort and inside Pandora.',
-                    style: TextStyle(
-                      color: _PlpActivityScreenState._muted,
-                      fontSize: 13,
-                      height: 1.45,
-                    ),
-                  ),
-                ],
+            Text(
+              'Recent activity',
+              style: TextStyle(
+                color: _PlpActivityScreenState._ink,
+                fontFamily: 'serif',
+                fontSize: 42,
+                height: .96,
+                fontWeight: FontWeight.w400,
+                letterSpacing: -1.1,
+              ),
+            ),
+            SizedBox(height: 13),
+            Text(
+              'A verified chronology of what changed across the resort.',
+              style: TextStyle(
+                color: _PlpActivityScreenState._muted,
+                fontSize: 13,
+                height: 1.45,
               ),
             ),
           ],

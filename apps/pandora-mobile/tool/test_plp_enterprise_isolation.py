@@ -41,7 +41,9 @@ class PlpEnterpriseIsolationTest(unittest.TestCase):
         self.assertIn("plp_enterprise_mobile_bootstrap_v1", combined)
         self.assertIn("allowCharacterContext: false", combined)
         self.assertIn("allowProjectContext: false", combined)
-        self.assertIn("hintText: 'Message Pandora'", combined)
+        # Context-aware command dock keeps the generic fallback as default and switch arm.
+        self.assertIn("'Message Pandora'", combined)
+        self.assertIn("hintText:", combined)
         self.assertIn("Icons.view_in_ar_outlined", combined)
         self.assertIn("Icons.mic_none_rounded", combined)
         self.assertIn("Icons.arrow_upward_rounded", combined)
