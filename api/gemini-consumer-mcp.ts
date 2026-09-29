@@ -8,7 +8,7 @@ import { toolRegistry } from '../src/tools/index.js';
 import { loadOperatorPublicConfig } from '../src/operator-public-config.js';
 import {
   SupabaseOrganizationMembershipResolver,
-} from '../apps/meta-business-mcp/dist/auth/membership.js';
+} from '../apps/meta-business-mcp/src/auth/membership.js';
 
 const CONNECTOR_UID = 'github/pandora';
 const INSTALLATION_ID = '158056492';
