@@ -79,6 +79,9 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
           icon: Icons.home_rounded),
       EnterpriseWorkspaceSection('Overview', 'enterprise_marketing', 'overview',
           icon: Icons.dashboard_rounded),
+      EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
       EnterpriseWorkspaceSection('Campaigns', 'enterprise_marketing', 'campaigns',
           icon: Icons.campaign_rounded),
       EnterpriseWorkspaceSection('Leads', 'enterprise_data', 'leads',
@@ -89,8 +92,13 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
           icon: Icons.psychology_rounded),
       EnterpriseWorkspaceSection('Approvals', 'enterprise_workflows', 'approvals',
           icon: Icons.fact_check_rounded),
+      EnterpriseWorkspaceSection('Activity', 'enterprise_logs', 'activity',
+          icon: Icons.history_rounded),
       EnterpriseWorkspaceSection('Settings', 'enterprise_settings', 'settings',
           icon: Icons.settings_rounded),
+      EnterpriseWorkspaceSection(
+          'System / Developer', 'enterprise_code', 'system-developer',
+          icon: Icons.code_rounded),
     ],
   ),
   EnterpriseWorkspaceProfile(
