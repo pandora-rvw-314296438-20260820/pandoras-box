@@ -2,6 +2,13 @@ import {
   createPandoraMcpHandler,
   pandoraMcpVercelConfig,
 } from '../src/pandora-mcp-handler.js';
+import { buildToolConfiguration } from '../src/runtime/service-config.js';
+import { toolRegistry } from '../src/tools/index.js';
+
+const CANONICAL_REPOSITORY =
+  'pandora-rvw-314296438-20260820/pandoras-box';
+const CANONICAL_SUPABASE_ACCOUNT = 'pandoras-box';
+const CANONICAL_SUPABASE_PROJECT_REF = 'jcyqixttuebxqqfkjonq';
 
 const GEMINI_CONSUMER_PROVIDER_TOOLS = new Set([
   // GitHub: same bounded repository capabilities as Pandora's existing Gemini worker surface.
@@ -21,7 +28,6 @@ const GEMINI_CONSUMER_PROVIDER_TOOLS = new Set([
 
   // Supabase: reads plus governed mutations. Delete operations stay unexposed initially.
   'supabase.list-accounts',
-  'supabase.list-organizations',
   'supabase.list-projects',
   'supabase.get-project',
   'supabase.get-auth-security-config',
@@ -30,8 +36,6 @@ const GEMINI_CONSUMER_PROVIDER_TOOLS = new Set([
   'supabase.restore-project',
   'supabase.read-project-api',
   'supabase.write-project-api',
-  'supabase.read-organization-api',
-  'supabase.write-organization-api',
   'supabase.read-branch-api',
   'supabase.write-branch-api',
 ]);
@@ -52,6 +56,49 @@ const GEMINI_CONSUMER_CONTROL_TOOLS = new Set([
   'pandora_execute_plan',
 ]);
 
+async function geminiConsumerToolConfiguration(
+  toolName: string,
+  context: { vercelOidcToken?: string } = {},
+) {
+  const configuration = await buildToolConfiguration(toolName, context);
+  const definition = toolRegistry[toolName];
+
+  if (definition?.handler === 'github') {
+    const github = configuration.github;
+    if (!github?.allowedRepositories?.includes(CANONICAL_REPOSITORY)) {
+      throw new Error('Canonical Pandora GitHub repository is unavailable');
+    }
+    return {
+      github: {
+        ...github,
+        allowedRepositories: [CANONICAL_REPOSITORY],
+      },
+    };
+  }
+
+  if (toolName.startsWith('supabase.')) {
+    const supabase = configuration.supabase;
+    const account = supabase?.accounts?.find(
+      (candidate: any) => candidate.id === CANONICAL_SUPABASE_ACCOUNT,
+    );
+    if (!account?.allowedProjectRefs?.includes(CANONICAL_SUPABASE_PROJECT_REF)) {
+      throw new Error('Canonical Pandora Supabase project is unavailable');
+    }
+    return {
+      supabase: {
+        ...supabase,
+        accounts: [{
+          ...account,
+          allowedOrganizationSlugs: [],
+          allowedProjectRefs: [CANONICAL_SUPABASE_PROJECT_REF],
+        }],
+      },
+    };
+  }
+
+  return configuration;
+}
+
 export const config = pandoraMcpVercelConfig;
 
 export default createPandoraMcpHandler({
@@ -62,6 +109,7 @@ export default createPandoraMcpHandler({
     '/.well-known/oauth-protected-resource/gemini-consumer-mcp',
   metadataSelector: 'gemini-consumer-mcp',
   resourceName: 'Pandora for Gemini',
+  toolConfiguration: geminiConsumerToolConfiguration,
   // Supabase OAuth discovery currently advertises standard OIDC scopes only.
   // Pandora authorization remains enforced by this route's control/provider
   // allowlists, membership checks, durable-plan gates, and provider scoping.
