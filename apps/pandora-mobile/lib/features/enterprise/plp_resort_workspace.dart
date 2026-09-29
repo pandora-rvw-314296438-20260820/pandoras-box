@@ -629,6 +629,7 @@ class _PlpResortWorkspaceScreenState
                         module.label,
                         style: const TextStyle(
                           color: _ink,
+                          fontFamily: 'serif',
                           fontSize: 27,
                           height: 1,
                           fontWeight: FontWeight.w700,
@@ -667,6 +668,7 @@ class _PlpResortWorkspaceScreenState
                     module.headline,
                     style: const TextStyle(
                       color: _ink,
+                      fontFamily: 'serif',
                       fontSize: 31,
                       height: 1.05,
                       fontWeight: FontWeight.w400,
@@ -998,6 +1000,7 @@ class _Lead extends StatelessWidget {
             title,
             style: const TextStyle(
               color: _PlpResortWorkspaceScreenState._ink,
+              fontFamily: 'serif',
               fontSize: 23,
               height: 1.05,
               fontWeight: FontWeight.w500,
