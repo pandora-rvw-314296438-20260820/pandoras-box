@@ -89,7 +89,9 @@ type ControlRpc =
   | "pandora_ops_reasoning_rdp_parent_handoff_v1"
   | "pandora_ops_reasoning_rdp_verify_parent_v1"
   | "pandora_ops_register_rdp_artemis_verifier_v1"
-  | "pandora_ops_reasoning_rdp_queue_memory_v1";
+  | "pandora_ops_reasoning_rdp_queue_memory_v1"
+  | "pandora_claim_growth_learning_delivery_v1"
+  | "pandora_ack_growth_learning_delivery_v1";
 
 type ControlAction =
   | "catalog"
@@ -141,7 +143,9 @@ type ControlAction =
   | "operations_reasoning_rdp_parent_handoff"
   | "operations_reasoning_rdp_verify_parent"
   | "operations_rdp_artemis_register"
-  | "operations_reasoning_rdp_queue_memory";
+  | "operations_reasoning_rdp_queue_memory"
+  | "growth_learning_claim"
+  | "growth_learning_ack";
 
 interface ControlRoute {
   action: ControlAction;
@@ -529,6 +533,50 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
         p_project_id: OPERATIONS_PROJECT_ID,
         p_nonce: nonce,
         p_issued_at: issuedAt,
+      },
+    };
+  }
+
+  if (input.action === "growth_learning_claim") {
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "growth_learning_claim",
+      rpc: "pandora_claim_growth_learning_delivery_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
+      },
+    };
+  }
+
+  if (input.action === "growth_learning_ack") {
+    const outboxId = requiredUuid(input, "outboxId");
+    const claimToken = requiredUuid(input, "claimToken");
+    const httpStatus = requiredInteger(input, "httpStatus", 100, 599);
+    const content = typeof input.content === "string" ? input.content : undefined;
+    const error = input.error === null || input.error === undefined
+      ? null
+      : typeof input.error === "string" ? input.error : undefined;
+    if (!outboxId || !claimToken || httpStatus === undefined || content === undefined
+      || new TextEncoder().encode(content).byteLength > 65536 || (error !== null && (error === undefined || error.length > 2000))) {
+      return undefined;
+    }
+    const worker = OPERATIONS_NATIVE_WORKERS.builder;
+    return {
+      action: "growth_learning_ack",
+      rpc: "pandora_ack_growth_learning_delivery_v1",
+      responseKey: "operations",
+      params: {
+        p_project_id: OPERATIONS_PROJECT_ID,
+        p_worker_key: worker.workerKey,
+        p_principal_key: worker.principalKey,
+        p_outbox_id: outboxId,
+        p_claim_token: claimToken,
+        p_http_status: httpStatus,
+        p_content: content,
+        p_error: error,
       },
     };
   }
