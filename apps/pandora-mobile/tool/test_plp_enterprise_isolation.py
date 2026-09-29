@@ -11,6 +11,7 @@ _FILES = [
     _APP / "lib" / "main_plp.dart",
     _APP / "lib" / "app" / "plp_enterprise_app.dart",
     _APP / "lib" / "app" / "plp_enterprise_shell.dart",
+    _APP / "lib" / "features" / "enterprise" / "plp_resort_workspace.dart",
     _APP / "lib" / "features" / "auth" / "plp_auth_gate.dart",
 ]
 
@@ -41,7 +42,9 @@ class PlpEnterpriseIsolationTest(unittest.TestCase):
         self.assertIn("plp_enterprise_mobile_bootstrap_v1", combined)
         self.assertIn("allowCharacterContext: false", combined)
         self.assertIn("allowProjectContext: false", combined)
-        self.assertIn("hintText: 'Message Pandora'", combined)
+        self.assertIn("PlpResortWorkspaceScreen", combined)
+        self.assertIn("\'name\': \'MFR\'", combined)
+        self.assertIn("hintText: 'Message MFR'", combined)
         self.assertIn("Icons.view_in_ar_outlined", combined)
         self.assertIn("Icons.mic_none_rounded", combined)
         self.assertIn("Icons.arrow_upward_rounded", combined)
