@@ -64,6 +64,12 @@ void main() {
     );
     expect(find.text('1 OTA conflict'), findsOneWidget);
     expect(find.text('2 open staff tasks'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('MOVEMENT TODAY'),
+      220,
+      scrollable: find.byType(Scrollable),
+    );
     expect(find.text('MOVEMENT TODAY'), findsOneWidget);
 
     expect(find.text('TODAY AT PUEBLO LA PERLA'), findsNothing);

@@ -76,10 +76,9 @@ void main() {
     expect(find.text('Confirm airport transfer'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.scrollUntilVisible(
-      find.text('QA Maria Santos'),
-      220,
-      scrollable: find.byType(Scrollable).first,
+    await tester.drag(
+      find.byType(Scrollable).first,
+      const Offset(0, -420),
     );
     await tester.pumpAndSettle();
 
