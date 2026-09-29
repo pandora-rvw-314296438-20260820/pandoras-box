@@ -15,6 +15,7 @@ import '../features/enterprise/batalla_workspace_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/enterprise_workspace_home.dart';
 import '../features/enterprise/tax_compliance_screen.dart';
+import '../features/growth/marketing_growth_workspace_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
@@ -54,6 +55,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       'Vision Intelligence',
       Icons.videocam_outlined,
       Icons.videocam_rounded,
+    ),
+    _ChatDestination(
+      'Marketing & Growth',
+      Icons.campaign_outlined,
+      Icons.campaign_rounded,
     ),
   ];
 
@@ -157,6 +163,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       8 => 'operations_room',
       9 => 'enterprise_home',
       10 => 'vision_intelligence',
+      11 => 'marketing_growth',
       _ => 'pandora_chat',
     };
     unawaited(
@@ -534,6 +541,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               onMore: () => _select(3),
             ),
           10 => EnterpriseVisionScreen(onAskPandora: _openVisionChat),
+          11 => MarketingGrowthWorkspaceScreen(
+              onHome: () => _select(9),
+              onSearchChats: _searchChats,
+              onMore: () => _select(3),
+            ),
           _ => AskPandoraScreen(key: _chatKey),
         },
       );
@@ -738,7 +750,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 onTap: () => onOpenThread(thread),
               ),
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: PandoraV2Colors.line)),
-          for (final index in const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])
+          for (final index in const <int>[9, 11, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: ListTile(
