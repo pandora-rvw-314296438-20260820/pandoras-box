@@ -267,7 +267,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
         width: 34,
         height: 42,
         child: Image.asset(
-          'assets/workspaces/plp.webp',
+          'assets/workspaces/plp-logo.webp',
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) => const DecoratedBox(
             decoration: BoxDecoration(color: Color(0xFF1B1713)),
