@@ -33,6 +33,7 @@ function outcome() {
     subject_id: "subject:1",
     occurred_at: "2026-09-29T01:00:00.000Z",
     delivery_source: "server",
+    is_test: false,
     evidence: {
       payment_ref: "payment:1",
       settlement_ref: "settlement:1",
@@ -148,6 +149,7 @@ test("authorized outcome is normalized and persisted through the atomic RPC", as
   assert.equal(rpc.body.p_policy_version, POLICY);
   assert.equal(rpc.body.p_event.organization_id, ORG);
   assert.equal(rpc.body.p_event.tracking_tenant_id, TENANT);
+  assert.equal(rpc.body.p_event.is_test, false);
   assert.deepEqual(rpc.body.p_event.money, { amount_minor: 14900000, currency: "PHP" });
   assert.match(rpc.body.p_claim_sha256, /^[0-9a-f]{64}$/);
 });
