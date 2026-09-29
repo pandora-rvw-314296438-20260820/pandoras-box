@@ -67,6 +67,41 @@ class EnterpriseWorkspaceSelection {
 
 const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
   EnterpriseWorkspaceProfile(
+    key: 'pandora-marketing-growth',
+    name: 'Marketing & Growth',
+    subtitle: 'Measured acquisition and learning',
+    initials: 'M&G',
+    icon: Icons.campaign_rounded,
+    logoAsset: 'assets/workspaces/pandora-marketing.webp',
+    accent: Color(0xFF8CB4FF),
+    sections: <EnterpriseWorkspaceSection>[
+      EnterpriseWorkspaceSection('Home', 'enterprise_marketing', 'home',
+          icon: Icons.home_rounded),
+      EnterpriseWorkspaceSection('Overview', 'enterprise_marketing', 'overview',
+          icon: Icons.dashboard_rounded),
+      EnterpriseWorkspaceSection(
+          'Tax & Compliance', 'enterprise_tax', 'tax-compliance',
+          icon: Icons.account_balance_rounded),
+      EnterpriseWorkspaceSection('Campaigns', 'enterprise_marketing', 'campaigns',
+          icon: Icons.campaign_rounded),
+      EnterpriseWorkspaceSection('Leads', 'enterprise_data', 'leads',
+          icon: Icons.people_alt_rounded),
+      EnterpriseWorkspaceSection('Experiments', 'enterprise_analytics', 'experiments',
+          icon: Icons.science_rounded),
+      EnterpriseWorkspaceSection('Learning', 'enterprise_analytics', 'learning',
+          icon: Icons.psychology_rounded),
+      EnterpriseWorkspaceSection('Approvals', 'enterprise_workflows', 'approvals',
+          icon: Icons.fact_check_rounded),
+      EnterpriseWorkspaceSection('Activity', 'enterprise_logs', 'activity',
+          icon: Icons.history_rounded),
+      EnterpriseWorkspaceSection('Settings', 'enterprise_settings', 'settings',
+          icon: Icons.settings_rounded),
+      EnterpriseWorkspaceSection(
+          'System / Developer', 'enterprise_code', 'system-developer',
+          icon: Icons.code_rounded),
+    ],
+  ),
+  EnterpriseWorkspaceProfile(
     key: 'plp-boracay',
     name: 'PLP Boracay',
     subtitle: 'Luxury Resort',
