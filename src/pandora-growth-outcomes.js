@@ -115,7 +115,7 @@ function normalizeAttribution(value) {
  */
 function validateOutcomeEvent(input, trustedScope) {
   const scope = normalizeScope(trustedScope);
-  const required = ["schema_version", "event_name", "event_id", "outcome_id", "acquisition_path", "organization_id", "tracking_tenant_id", "project_id", "journey_id", "occurred_at", "delivery_source", "evidence", "attribution"];
+  const required = ["schema_version", "event_name", "event_id", "outcome_id", "acquisition_path", "organization_id", "tracking_tenant_id", "project_id", "journey_id", "occurred_at", "delivery_source", "is_test", "evidence", "attribution"];
   keys(input, [...required, "subject_id", "money", "retention"], required, "event_shape_invalid");
   if (input.schema_version !== SCHEMA_VERSION) fail("schema_version_invalid");
   if (typeof input.event_name !== "string" || !Object.hasOwn(DEFINITIONS, input.event_name)) fail("event_name_invalid");
@@ -123,6 +123,7 @@ function validateOutcomeEvent(input, trustedScope) {
   if (!definition.paths.includes(input.acquisition_path)) fail("acquisition_path_invalid");
   if (!["browser", "server"].includes(input.delivery_source)) fail("delivery_source_invalid");
   if (definition.authority === "server" && input.delivery_source !== "server") fail("server_evidence_required");
+  if (typeof input.is_test !== "boolean") fail("is_test_required");
   const suppliedScope = normalizeScope({ organization_id: input.organization_id, tracking_tenant_id: input.tracking_tenant_id, project_id: input.project_id });
   if (Object.keys(scope).some((key) => scope[key] !== suppliedScope[key])) fail("scope_mismatch");
   const result = {
@@ -132,6 +133,7 @@ function validateOutcomeEvent(input, trustedScope) {
     journey_id: id(input.journey_id),
     occurred_at: timestamp(input.occurred_at, "occurred_at_invalid"),
     delivery_source: input.delivery_source,
+    is_test: input.is_test,
   };
   if (definition.subject_required || Object.hasOwn(input, "subject_id")) result.subject_id = id(input.subject_id, "subject_id_required");
   keys(input.evidence, definition.required_evidence, definition.required_evidence, "evidence_shape_invalid");
