@@ -13,7 +13,7 @@ const PROVIDERS = new Set([
   "github.get-repository",
   "github.create-issue",
   "supabase.list-projects",
-  "supabase.write-organization-api",
+  "supabase.write-project-api",
 ]);
 
 const CONTROLS = new Set([
@@ -138,7 +138,7 @@ test("consumer Gemini exposes bounded reads and plan-only provider mutations", a
   assert.ok(names.has("github.get-repository"));
   assert.ok(names.has("supabase.list-projects"));
   assert.ok(names.has("pandora_plan_github_create-issue"));
-  assert.ok(names.has("pandora_plan_supabase_write-organization-api"));
+  assert.ok(names.has("pandora_plan_supabase_write-project-api"));
   assert.ok(names.has("pandora_execute_plan"));
   assert.equal(names.has("pandora_approve_plan"), false);
   assert.equal(names.has("supabase.delete-organization-api"), false);
@@ -181,12 +181,13 @@ test("consumer Gemini mutation request creates a durable plan without provider e
       id: 4,
       method: "tools/call",
       params: {
-        name: "pandora_plan_supabase_write-organization-api",
+        name: "pandora_plan_supabase_write-project-api",
         arguments: {
-          accountId: "supabase-primary",
-          organizationSlug: "example",
+          accountId: "pandoras-box",
+          projectRef: "jcyqixttuebxqqfkjonq",
+          pathSegments: ["config", "auth"],
           method: "PATCH",
-          confirmation: "PATCH ORGANIZATION example/",
+          confirmation: "PATCH PROJECT jcyqixttuebxqqfkjonq/config/auth",
         },
       },
     },
@@ -195,6 +196,6 @@ test("consumer Gemini mutation request creates a durable plan without provider e
   assert.equal(executed, false);
   assert.equal(
     response.body.result.structuredContent.plan.tool,
-    "supabase.write-organization-api",
+    "supabase.write-project-api",
   );
 });
