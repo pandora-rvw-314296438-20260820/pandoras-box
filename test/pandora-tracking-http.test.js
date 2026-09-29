@@ -374,3 +374,11 @@ test("controlled-test campaign marks redirect clicks as test traffic", async () 
   assert.equal(click.body.is_test, true);
   assert.deepEqual(click.body.metadata, { collector: "vercel" });
 });
+
+test("public tracking aliases mirror the reserved /api routes", async () => {
+  const source = require("node:fs").readFileSync("src/pandora-tracking-http.js", "utf8");
+  for (const route of ["health","event","conversion","outcome","cost","report"]) {
+    assert.ok(source.includes('"/tracking/' + route + '"'), "missing /tracking/" + route);
+  }
+  assert.match(source, /router\.use\(\["\/api\/tracking", "\/tracking"\], express\.json/);
+});
