@@ -30,3 +30,16 @@ test("ack relies on strict existing Memory response validator",()=>{
   assert.match(migration,/native_claim_token is distinct from p_claim_token/);
   assert.match(migration,/attempt_count>=5/);
 });
+
+test("growth payload identity is Pandora-native end to end",()=>{
+  const producer=fs.readFileSync("src/pandora-growth-learning-outbox.js","utf8");
+  const identity=fs.readFileSync("supabase/migrations/20260929122600_growth_learning_pandora_identity_v2.sql","utf8");
+  assert.match(producer,/MEMORY_PRINCIPAL_KEY = "pandora-mcpmaster-production"/);
+  assert.match(producer,/product_key: "pandora"/);
+  assert.match(producer,/required_endpoint: "pandora-memory-bridge"/);
+  assert.match(producer,/state: "ready"/);
+  assert.doesNotMatch(producer,/projectos-mcpmaster-production|pandora-projectos-learning|product_key: "projectos"/);
+  assert.match(identity,/product_key' is distinct from 'pandora'/);
+  assert.match(identity,/principal_key' is distinct from 'pandora-mcpmaster-production'/);
+  assert.doesNotMatch(identity,/projectos-mcpmaster-production|distinct from 'projectos'/);
+});
