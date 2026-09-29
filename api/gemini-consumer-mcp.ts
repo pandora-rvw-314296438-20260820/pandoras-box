@@ -62,12 +62,12 @@ export default createPandoraMcpHandler({
     '/.well-known/oauth-protected-resource/gemini-consumer-mcp',
   metadataSelector: 'gemini-consumer-mcp',
   resourceName: 'Pandora for Gemini',
+  // Supabase OAuth discovery currently advertises standard OIDC scopes only.
+  // Pandora authorization remains enforced by this route's control/provider
+  // allowlists, membership checks, durable-plan gates, and provider scoping.
   oauthScopes: [
     'openid',
     'email',
     'profile',
-    'pandora:read',
-    'pandora:plan',
-    'pandora:execute',
   ],
 });
