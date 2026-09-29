@@ -166,6 +166,18 @@ function oauthScopes(dependencies = {}) {
     return [...new Set(dependencies.oauthScopes)];
 }
 
+function mcpServerInstructions(dependencies = {}) {
+    if (dependencies.serverInstructions === undefined) return undefined;
+    if (typeof dependencies.serverInstructions !== "string") {
+        throw Object.assign(new Error("Invalid Pandora MCP server instructions"), { status: 500 });
+    }
+    const value = dependencies.serverInstructions.trim();
+    if (value.length === 0 || value.length > 4000) {
+        throw Object.assign(new Error("Invalid Pandora MCP server instructions"), { status: 500 });
+    }
+    return value;
+}
+
 function requestHeader(request, name) {
     const value = request.headers?.[name];
     return Array.isArray(value) ? value[0] : value;
@@ -884,10 +896,15 @@ function createPandoraMcpHandler(overrides = {}) {
                 return;
             }
             if (body.method === "initialize") {
+                const instructions = mcpServerInstructions(dependencies);
                 rpcResult(response, id, {
                     protocolVersion: "2025-06-18",
                     capabilities: { tools: { listChanged: false } },
-                    serverInfo: { name: "Pandora MCP", version: "1.5.0-capability-skills" },
+                    serverInfo: {
+                        name: dependencies.resourceName?.trim() || "Pandora MCP",
+                        version: "1.5.0-capability-skills",
+                    },
+                    ...(instructions ? { instructions } : {}),
                 });
                 return;
             }
