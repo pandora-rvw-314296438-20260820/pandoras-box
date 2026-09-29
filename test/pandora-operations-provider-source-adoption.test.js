@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 
-const sql=fs.readFileSync("supabase/migrations/20260929121000_operations_provider_verified_source_adoption_v1.sql","utf8");
+const sql=[
+  "supabase/migrations/20260929121000_operations_provider_verified_source_adoption_v1.sql",
+  "supabase/migrations/20260929121500_operations_provider_source_adoption_merge_binding_fix_v1.sql",
+].map((path)=>fs.readFileSync(path,"utf8")).join("\n");
 
 test("provider source adoption requires exact merged GitHub proof",()=>{
   assert.match(sql,/pulls\/.*p_pull_request/);
