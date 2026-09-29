@@ -319,7 +319,7 @@ function createPandoraTrackingRouter(options = {}) {
         throw new TrackingError(404, "campaign_not_found");
       }
       const campaignResource = "pandora_tracking_campaigns?" + queryString({
-        select: "id,tenant_id,destination_url,source,medium,campaign,content,term,status",
+        select: "id,tenant_id,destination_url,source,medium,campaign,content,term,status,metadata",
         slug: "eq." + slug,
         status: "eq.active",
         limit: 1,
@@ -337,6 +337,10 @@ function createPandoraTrackingRouter(options = {}) {
       const clickId = createClickId();
       const incoming = sanitizeIncomingQuery(req.query);
       const destination = buildDestinationUrl(campaign.destination_url, incoming, campaign, clickId);
+      const controlledTest =
+        campaign.metadata && typeof campaign.metadata === "object" &&
+        !Array.isArray(campaign.metadata) &&
+        campaign.metadata.purpose === "controlled-test";
 
       await storage().request("pandora_tracking_clicks", {
         method: "POST",
@@ -352,6 +356,7 @@ function createPandoraTrackingRouter(options = {}) {
           platform_click_ids: {},
           query_params: {},
           metadata: { collector: "vercel" },
+          is_test: controlledTest,
         },
         prefer: "return=minimal",
       });
