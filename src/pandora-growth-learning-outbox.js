@@ -9,11 +9,11 @@ const LEARNING_KIND = "growth_learning_v1";
 const MEMORY_PROJECT_ID = "7c686cbd-d968-49d5-86cc-918f5e777bd2";
 const MEMORY_PROJECT_KEY = "mcpmaster-pandoras-box";
 const MEMORY_NAMESPACE = "real_life";
-const MEMORY_PRINCIPAL_KEY = "projectos-mcpmaster-production";
+const MEMORY_PRINCIPAL_KEY = "pandora-mcpmaster-production";
 const MEMORY_ENVIRONMENT = "production";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256 = /^[0-9a-f]{64}$/;
-const RUNTIME_HOLD_REASON = "memory_growth_learning_intake_unsupported";
+const RUNTIME_HOLD_REASON = "pandora_native_memory_delivery_active";
 
 class GrowthLearningOutboxError extends Error {
   constructor(code) {
@@ -87,7 +87,7 @@ function projectGrowthLearningOutbox(input, trustedScope) {
 
   const payload = {
     schema_version: 1,
-    product_key: "projectos",
+    product_key: "pandora",
     source_event_id: requestId,
     source_request_id: requestId,
     organization_id: candidate.organization_id,
@@ -128,9 +128,9 @@ function projectGrowthLearningOutbox(input, trustedScope) {
       canonical_memory_written: false,
     },
     runtime_gate: {
-      state: "held",
+      state: "ready",
       reason: RUNTIME_HOLD_REASON,
-      required_endpoint: "pandora-projectos-learning",
+      required_endpoint: "pandora-memory-bridge",
       required_learning_kind: LEARNING_KIND,
     },
   });
@@ -208,7 +208,7 @@ function validateBoundGrowthPayload(payload) {
       binding.target_memory.namespace !== MEMORY_NAMESPACE ||
       binding.target_memory.principal_key !== MEMORY_PRINCIPAL_KEY ||
       binding.target_memory.environment !== MEMORY_ENVIRONMENT ||
-      payload.schema_version !== 1 || payload.product_key !== "projectos" ||
+      payload.schema_version !== 1 || payload.product_key !== "pandora" ||
       payload.source_event_id !== expectedRequestId ||
       payload.source_request_id !== expectedRequestId ||
       payload.organization_id !== candidate.organization_id ||
