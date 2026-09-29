@@ -287,9 +287,11 @@ class PandoraOperationsRoomScreen extends StatefulWidget {
   const PandoraOperationsRoomScreen({
     super.key,
     this.onHome,
+    this.enterpriseBusinessContext = const <String, Object?>{},
   });
 
   final VoidCallback? onHome;
+  final Map<String, Object?> enterpriseBusinessContext;
 
   @override
   State<PandoraOperationsRoomScreen> createState() =>
@@ -506,6 +508,7 @@ class _PandoraOperationsRoomScreenState
               'Qwen3-4B-Instruct-2507-Q4_K_M.gguf@'
               '1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6',
           'localRuntimeEvidence': _localRuntimeEvidence,
+          'resortBusinessContext': widget.enterpriseBusinessContext,
         },
       },
     );
