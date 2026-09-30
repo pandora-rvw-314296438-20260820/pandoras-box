@@ -15,7 +15,6 @@ class PlpConnectivityInfrastructureScreen extends StatelessWidget {
   final ValueChanged<String> onAskPandora;
 
   static const _canvas = Color(0xFFFAF7F1);
-  static const _paper = Color(0xFFFFFDFC);
   static const _ink = Color(0xFF171512);
   static const _muted = Color(0xFF706B64);
   static const _line = Color(0xFFE6DED2);
@@ -308,9 +307,9 @@ class _CapabilityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final evidenceRef = service['evidenceRef']?.toString().trim() ?? '';
     final providerVerified =
-        service['providerVerified'] == true &&
-        (service['evidenceRef']?.toString().trim().isNotEmpty ?? false);
+        service['providerVerified'] == true && evidenceRef.isNotEmpty;
     final detail = providerVerified &&
             (service['message']?.toString().trim().isNotEmpty ?? false)
         ? service['message'].toString().trim()
