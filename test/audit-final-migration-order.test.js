@@ -16,9 +16,27 @@ test('authorization finalizer follows every authoritative protected function def
     const source = fs.readFileSync(path.join(dir, name), 'utf8');
     if (!protectedDefinition.test(source)) continue;
     if (name < finalizer) continue;
-    assert.equal(name, guardedMetaFollowup, `Protected definition ${name} would override final authorization guards`);
-    assert.match(source, /if not private\.pandora_is_active_org_admin_v1\(p_organization_id\) then/i,
-      'Later Meta OAuth definition must retain the active organization-admin guard');
+    assert.ok(
+      guardedProtectedFollowups.has(name),
+      `Protected definition ${name} would override final authorization guards`,
+    );
+    assert.match(
+      source,
+      /if not private\.pandora_is_active_org_admin_v1\(p_organization_id\) then/i,
+      'Later protected definition must retain the active organization-admin guard',
+    );
+    if (name === guardedGrowthFollowup) {
+      assert.match(
+        source,
+        /private\.pandora_growth_chat_dispatch_v1/,
+        'Growth follow-up must route through the bounded native growth dispatcher',
+      );
+      assert.match(
+        source,
+        /revoke all on function public\.pandora_chat_universal_dispatch_v9\(uuid,text,uuid,uuid\)[\s\S]*from public,anon/i,
+        'Growth follow-up must preserve the public/anon deny boundary',
+      );
+    }
   }
 });
 
