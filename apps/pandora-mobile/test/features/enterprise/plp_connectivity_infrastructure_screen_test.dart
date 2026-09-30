@@ -3,6 +3,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/features/enterprise/plp_connectivity_infrastructure_screen.dart';
 
 void main() {
+  Future<void> expectCapabilityState(
+    WidgetTester tester, {
+    required String capabilityKey,
+    required String state,
+  }) async {
+    final capability = find.byKey(
+      ValueKey<String>('plp-connectivity-$capabilityKey'),
+    );
+    await tester.scrollUntilVisible(
+      capability,
+      320,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
+    expect(
+      find.descendant(of: capability, matching: find.text(state)),
+      findsOneWidget,
+    );
+  }
+
   testWidgets(
     'PLP connectivity surface defaults to truthful available states',
     (tester) async {
@@ -23,12 +43,28 @@ void main() {
         find.byKey(const ValueKey('plp-connectivity-truth-contract')),
         findsOneWidget,
       );
-      expect(find.text('AVAILABLE TO ACTIVATE'), findsNWidgets(8));
-      expect(find.text('PROVIDER VERIFIED'), findsNothing);
+
+      for (final capabilityKey in <String>[
+        'dedicated-internet',
+        'smart-mobility',
+        'fiveg-backup',
+        'sd-wan',
+        'security',
+        'messaging',
+        'cloud-connectivity',
+        'iot',
+      ]) {
+        await expectCapabilityState(
+          tester,
+          capabilityKey: capabilityKey,
+          state: 'AVAILABLE TO ACTIVATE',
+        );
+      }
 
       await tester.ensureVisible(
         find.byKey(const ValueKey('plp-connectivity-review-action')),
       );
+      await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(const ValueKey('plp-connectivity-review-action')),
       );
@@ -54,7 +90,8 @@ void main() {
                     'state': 'healthy',
                     'providerVerified': true,
                     'evidenceRef': 'provider-readback:test',
-                    'message': 'Primary connectivity provider readback is healthy.',
+                    'message':
+                        'Primary connectivity provider readback is healthy.',
                   },
                 },
               },
@@ -65,11 +102,20 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('PROVIDER VERIFIED'), findsOneWidget);
-      expect(find.text('AVAILABLE TO ACTIVATE'), findsNWidgets(7));
+      await expectCapabilityState(
+        tester,
+        capabilityKey: 'dedicated-internet',
+        state: 'PROVIDER VERIFIED',
+      );
       expect(
         find.text('Primary connectivity provider readback is healthy.'),
         findsOneWidget,
+      );
+
+      await expectCapabilityState(
+        tester,
+        capabilityKey: 'smart-mobility',
+        state: 'AVAILABLE TO ACTIVATE',
       );
       expect(tester.takeException(), isNull);
     },
