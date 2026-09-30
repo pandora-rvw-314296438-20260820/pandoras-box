@@ -175,8 +175,9 @@ test("PLP keeps resort work primary and Tax & Compliance available under System"
   assert.match(plpShell, /'tax-compliance': 13/);
   assert.match(plpShell, /TaxComplianceScreen\(/);
   assert.match(plpShell, /'surface': 'enterprise_tax'/);
-  assert.match(plpShell, /openDrawer: _openDrawer/);
-  assert.match(plpShell, /_index == 4 \|\| _index == 12/);
+  assert.match(plpShell, /PandoraNavigationScope\(\s*openDrawer: null/);
+  assert.match(plpShell, /'plp-floating-navigation'/);
+  assert.doesNotMatch(plpShell, /_index == 4 \|\| _index == 12/);
   assert.match(tax, /bottomNavigationBar: _isPlp \? null : SafeArea/);
   assert.match(tax, /plp-tax-owner-status/);
 });
