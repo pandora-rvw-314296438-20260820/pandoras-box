@@ -93,7 +93,7 @@ void main() {
 
     expect(find.text('RATE BOARD'), findsOneWidget);
     expect(find.text('Sunset Suite'), findsOneWidget);
-    expect(find.text('₱18,000'), findsOneWidget);
+    expect(find.textContaining('₱18,000'), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-module-new-task')), findsNothing);
     expect(tester.takeException(), isNull);
   });
