@@ -24,10 +24,16 @@ test('Ask Pandora wires Gemini Kimi and OpenAI only through trusted service RPCs
   must(routing,"('kimi','stream_mode','buffered_v1'");
 });
 
-test('provider choice is server-owned and Kimi defaults fail closed',()=>{
+test('provider choice is server-owned and provider eligibility fails closed',()=>{
   mustNot(edge,'b.provider');
   mustNot(edge,'b.model');
   must(edge,'preferred_tasks');
+  must(edge,'async function geminiConfig(c:any)');
+  must(edge,'.eq("provider","gemini")');
+  must(edge,'gcfg.enabled&&gcfg.routingEligible');
+  must(edge,'nextGeminiModels(geminiModel).filter((m:string)=>gcfg.allowedModels.includes(m))');
+  must(edge,'rp==="gemini"&&geminiOk&&gcfg.allowedModels.includes(rm)');
+  must(edge,'candidates(route,gcfg,cfg,ocfg,rcfg,task,geminiModel)');
   must(edge,'cfg.enabled&&cfg.routingEligible');
   must(config,"('kimi','enabled','false',true,now())");
   must(config,"('kimi','default_model','kimi-k3',true,now())");
