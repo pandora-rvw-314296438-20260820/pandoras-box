@@ -3,29 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/features/enterprise/plp_connectivity_infrastructure_screen.dart';
 
 void main() {
-  Future<void> expectCapabilityState(
-    WidgetTester tester, {
-    required String capabilityKey,
-    required String state,
-  }) async {
-    final capability = find.byKey(
-      ValueKey<String>('plp-connectivity-$capabilityKey'),
-    );
-    await tester.scrollUntilVisible(
-      capability,
-      320,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pump();
-    expect(
-      find.descendant(of: capability, matching: find.text(state)),
-      findsOneWidget,
-    );
-  }
-
   testWidgets(
-    'PLP connectivity surface defaults to truthful available states',
+    'PLP infrastructure is outcome-first instead of a provider catalogue',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       String? prompt;
       await tester.pumpWidget(
         MaterialApp(
@@ -37,61 +22,61 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('PLDT ENTERPRISE READY'), findsOneWidget);
-      expect(find.text('The resort’s digital foundation.'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('plp-connectivity-truth-contract')),
-        findsOneWidget,
-      );
+      expect(find.text('RESORT RESILIENCE'), findsOneWidget);
+      expect(find.text('Set the resort’s baseline.'), findsOneWidget);
+      expect(find.text('NOT VERIFIED'), findsNWidgets(4));
 
-      for (final capabilityKey in <String>[
-        'dedicated-internet',
-        'smart-mobility',
-        'fiveg-backup',
-        'sd-wan',
-        'security',
-        'messaging',
-        'cloud-connectivity',
-        'iot',
-      ]) {
-        await expectCapabilityState(
-          tester,
-          capabilityKey: capabilityKey,
-          state: 'AVAILABLE TO ACTIVATE',
+      for (final key in <String>['internet', 'resilience', 'team', 'property']) {
+        expect(
+          find.byKey(ValueKey<String>('plp-infra-signal-$key')),
+          findsOneWidget,
         );
       }
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('plp-connectivity-review-action')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey('plp-connectivity-review-action')),
-      );
+      for (final oldCopy in <String>[
+        'PLDT ENTERPRISE READY',
+        'Commercial integration not connected',
+        'ENTERPRISE CAPABILITIES',
+        'AVAILABLE TO ACTIVATE',
+        'WHEN PANDORA FINDS AN OPPORTUNITY',
+      ]) {
+        expect(find.text(oldCopy), findsNothing);
+      }
+
+      final baseline =
+          find.byKey(const ValueKey('plp-infrastructure-baseline-action'));
+      await tester.ensureVisible(baseline);
+      await tester.tap(baseline);
       await tester.pump();
 
-      expect(prompt, contains('Use only verified PLP data'));
+      expect(prompt, contains('verified infrastructure baseline'));
+      expect(prompt, contains('Do not turn this into a service catalogue'));
       expect(tester.takeException(), isNull);
     },
   );
 
   testWidgets(
-    'PLP connectivity surface shows verified state only with evidence',
+    'PLP infrastructure promotes only provider-backed evidence',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(
         MaterialApp(
           home: PlpConnectivityInfrastructureScreen(
             bootstrap: const <String, Object?>{
               'enterpriseConnectivity': <String, Object?>{
-                'channelStatus': 'PLDT Enterprise provider link available',
-                'verifiedAt': '2026-10-01T00:00:00+08:00',
                 'services': <String, Object?>{
                   'dedicated-internet': <String, Object?>{
                     'state': 'healthy',
                     'providerVerified': true,
                     'evidenceRef': 'provider-readback:test',
-                    'message':
-                        'Primary connectivity provider readback is healthy.',
+                  },
+                  'fiveg-backup': <String, Object?>{
+                    'state': 'pending_verification',
+                    'providerVerified': false,
                   },
                 },
               },
@@ -102,21 +87,26 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await expectCapabilityState(
-        tester,
-        capabilityKey: 'dedicated-internet',
-        state: 'PROVIDER VERIFIED',
-      );
       expect(
-        find.text('Primary connectivity provider readback is healthy.'),
+        find.text('2 of 4 areas have provider evidence.'),
         findsOneWidget,
       );
 
-      await expectCapabilityState(
-        tester,
-        capabilityKey: 'smart-mobility',
-        state: 'AVAILABLE TO ACTIVATE',
+      final internet =
+          find.byKey(const ValueKey('plp-infra-signal-internet'));
+      expect(
+        find.descendant(of: internet, matching: find.text('VERIFIED')),
+        findsOneWidget,
       );
+
+      final resilience =
+          find.byKey(const ValueKey('plp-infra-signal-resilience'));
+      expect(
+        find.descendant(of: resilience, matching: find.text('CHECKING')),
+        findsOneWidget,
+      );
+
+      expect(find.text('AVAILABLE TO ACTIVATE'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
