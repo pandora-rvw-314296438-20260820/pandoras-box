@@ -45,7 +45,12 @@ void main() {
 
       final baseline =
           find.byKey(const ValueKey('plp-infrastructure-baseline-action'));
-      await tester.ensureVisible(baseline);
+      await tester.scrollUntilVisible(
+        baseline,
+        280,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(baseline);
       await tester.pump();
 
