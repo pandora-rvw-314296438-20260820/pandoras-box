@@ -65,6 +65,15 @@ class _MarketingGrowthWorkspaceScreenState
 
   bool _bool(Object? value) => value == true || value?.toString() == 'true';
 
+  String _moneyMinor(Object? value, {String currency = 'PHP'}) {
+    final minor = int.tryParse(value?.toString() ?? '');
+    if (minor == null) return 'Unknown';
+    final major = minor / 100;
+    final decimals = major == major.roundToDouble() ? 0 : 2;
+    final amount = major.toStringAsFixed(decimals);
+    return currency == 'PHP' ? '₱$amount' : '$currency $amount';
+  }
+
   Future<void> _load() async {
     if (mounted) {
       setState(() {
@@ -279,10 +288,64 @@ class _MarketingGrowthWorkspaceScreenState
     final daily = _rows(data['businessDaily']);
     final gates = _rows(data['approvalGates']);
     final test = _map(data['testAcceptance']);
+    final connection = _map(data['metaConnection']);
+    final pilot = _map(data['paidPilot']);
     final businessCampaigns =
         campaigns.where((row) => _bool(row['businessKpi'])).toList();
     final latest = daily.isEmpty ? null : daily.first;
+    final pilotCurrency = _text(pilot['currency'], fallback: 'PHP');
+    final pilotState = _text(pilot['state'], fallback: 'Not configured');
+    final deliveryObserved = _bool(pilot['deliveryObserved']);
+    final monitorHealthy = _bool(pilot['monitorHealthy']);
+    final connected = _bool(connection['connected']);
+    final accounts = _rows(connection['adAccounts']);
+    final accountId =
+        accounts.isEmpty ? 'No verified ad account' : _text(accounts.first['id']);
     return [
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          _metric(
+            'Meta',
+            connected ? 'Connected' : 'Not connected',
+            accountId,
+          ),
+          _metric(
+            'Paid pilot',
+            pilotState,
+            deliveryObserved ? 'Delivery observed' : 'Awaiting first delivery',
+          ),
+          _metric(
+            'Pilot spend',
+            _moneyMinor(pilot['spendMinor'], currency: pilotCurrency),
+            _moneyMinor(pilot['maxSpendMinor'], currency: pilotCurrency) +
+                ' ceiling',
+          ),
+          _metric(
+            'Safety monitor',
+            monitorHealthy ? 'Healthy' : 'Check needed',
+            _text(pilot['lastMonitorAt'], fallback: 'No monitor receipt'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+      _card('Live pilot controls', [
+        _lineRow(
+          'Daily budget',
+          _moneyMinor(pilot['dailyBudgetMinor'], currency: pilotCurrency),
+        ),
+        _lineRow('Ends', _text(pilot['endAt'])),
+        _lineRow('Campaign', _text(pilot['campaignId'])),
+        _lineRow('Ad set', _text(pilot['adsetId'])),
+        _lineRow('Ad', _text(pilot['adId'])),
+        _lineRow(
+          'Impressions',
+          _text(pilot['impressions'], fallback: 'Not observed'),
+        ),
+        _lineRow('Clicks', _text(pilot['clicks'], fallback: 'Not observed')),
+      ]),
+      const SizedBox(height: 14),
       Wrap(
         spacing: 10,
         runSpacing: 10,
@@ -293,9 +356,15 @@ class _MarketingGrowthWorkspaceScreenState
               latest == null ? 'No verified business row yet' : _text(latest['day'])),
           _metric('Latest sales', latest == null ? 'Unknown' : _text(latest['sales']),
               latest == null ? 'No verified outcome row yet' : 'Business traffic only'),
-          _metric('Needs approval',
-              gates.where((row) => row['state'] != 'approved').length.toString(),
-              'Spend and client gates stay explicit'),
+          _metric(
+            'Needs approval',
+            gates
+                .where((row) =>
+                    row['state'] != 'approved' && row['state'] != 'granted')
+                .length
+                .toString(),
+            'Only unresolved gates',
+          ),
         ],
       ),
       const SizedBox(height: 16),
@@ -492,9 +561,11 @@ class _MarketingGrowthWorkspaceScreenState
     return [
       _lineRow('Dashboard', _bool(authority['readOnly']) ? 'Read-only' : 'Unknown'),
       _lineRow('Owner/admin only', _bool(authority['ownerAdminOnly']) ? 'Yes' : 'Unknown'),
+      _lineRow('Meta connection', _bool(authority['metaConnected']) ? 'Connected' : 'Not connected'),
       _lineRow('Staff access', _bool(authority['staffAccess']) ? 'Granted' : 'Not granted'),
-      _lineRow('Campaign mutation', _bool(authority['campaignMutationGranted']) ? 'Granted' : 'Not granted'),
-      _lineRow('Spend', _bool(authority['spendAuthorized']) ? 'Authorized' : 'Not authorized'),
+      _lineRow('General campaign mutation', _bool(authority['campaignMutationGranted']) ? 'Granted' : 'Not granted'),
+      _lineRow('Bounded pilot mutation', _bool(authority['boundedCampaignMutationGranted']) ? 'Granted' : 'Not granted'),
+      _lineRow('Pilot spend', _bool(authority['spendAuthorized']) ? 'Authorized' : 'Not authorized'),
       _lineRow('Publishing', _bool(authority['publishingAuthorized']) ? 'Authorized' : 'Not authorized'),
       _lineRow('Exports', _bool(authority['exportsAllowed']) ? 'Allowed' : 'Disabled'),
       _lineRow('Raw PII', _bool(authority['rawPiiVisible']) ? 'Visible' : 'Hidden'),
