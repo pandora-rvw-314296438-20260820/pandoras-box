@@ -9,6 +9,7 @@ import '../core/widgets/pandora_navigation.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/diagnostics/developer_diagnostics_screen.dart';
 import '../features/enterprise/plp_activity_screen.dart';
+import '../features/enterprise/plp_connectivity_infrastructure_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
@@ -41,6 +42,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     'vision': 3,
     'local-ai': 4,
     'overview': 5,
+    'connectivity': 14,
     'tax-compliance': 13,
     'guests': 6,
     'team-access': 7,
@@ -367,6 +369,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         11 => 'Ask about settings…',
         12 => 'Ask about diagnostics…',
         13 => 'Ask about tax readiness…',
+        14 => 'Ask about connectivity & infrastructure…',
         _ => 'Message Pandora',
       };
 
@@ -376,6 +379,24 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           'name': 'Alfred',
           'role': 'PLP executive intelligence',
           'routing': 'local-first governed execution',
+        },
+        'enterpriseConnectivity': const <String, Object?>{
+          'channelPositioning': 'PLDT Enterprise-ready',
+          'commercialStatus': 'not_connected',
+          'truthContract':
+              'Never claim a PLDT or Smart service is active without external provider evidence.',
+          'capabilities': <String>[
+            'Dedicated Internet & Fiber',
+            'Smart Enterprise Mobility',
+            '5G Backup & Failover',
+            'SD-WAN & Private Networking',
+            'Managed Cybersecurity',
+            'Business Messaging',
+            'Cloud Connectivity',
+            'IoT & Camera Connectivity',
+          ],
+          'opportunityFlow':
+              'verified need -> owner approval -> assigned PLDT Enterprise RM when partner routing is connected',
         },
       };
 
@@ -645,6 +666,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 },
               },
               onHome: _openHome,
+            ),
+            PlpConnectivityInfrastructureScreen(
+              key: const ValueKey('plp-connectivity-infrastructure-screen'),
+              bootstrap: bootstrap,
+              onOpenNavigation: _openDrawer,
+              onAskPandora: (prompt) {
+                unawaited(_submitCommand(prompt));
+              },
             ),
           ];
 
