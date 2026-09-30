@@ -52,6 +52,28 @@ String _plpPeso(Object? value) {
   return (amount < 0 ? '-\u20B1' : '\u20B1') + out.toString();
 }
 
+int _plpInfrastructureEvidenceCount(Map<String, Object?> bootstrap) {
+  final infrastructure = _plpMap(bootstrap['enterpriseConnectivity']);
+  final services = _plpMap(infrastructure['services']);
+  var verified = 0;
+  for (final value in services.values) {
+    final service = _plpMap(value);
+    final evidence = _plpText(service['evidenceRef'], fallback: '');
+    if (service['providerVerified'] == true && evidence.isNotEmpty) {
+      verified += 1;
+    }
+  }
+  return verified;
+}
+
+String _plpInfrastructureSummary(Map<String, Object?> bootstrap) {
+  final verified = _plpInfrastructureEvidenceCount(bootstrap);
+  if (verified == 0) {
+    return 'Pandora has not verified the resort’s network resilience yet.';
+  }
+  return '$verified provider-backed infrastructure signal${verified == 1 ? '' : 's'} are current.';
+}
+
 class PlpEditorialHeader extends StatelessWidget {
   const PlpEditorialHeader({
     super.key,
@@ -562,11 +584,13 @@ class PlpOperationsScreen extends StatelessWidget {
     super.key,
     required this.bootstrap,
     required this.onOpenNavigation,
+    required this.onOpenInfrastructure,
     required this.onOpenRoom,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback onOpenNavigation;
+  final VoidCallback onOpenInfrastructure;
   final VoidCallback onOpenRoom;
 
   @override
@@ -633,6 +657,18 @@ class PlpOperationsScreen extends StatelessWidget {
           value: conflicts,
           tone: conflicts == '0' ? plpGood : plpWarn,
         ),
+        const PlpSectionTitle(
+          'Continuity',
+          detail: 'Infrastructure stays quiet until it affects resort operations.',
+        ),
+        PlpEditorialRow(
+          title: 'Resort infrastructure',
+          detail: _plpInfrastructureSummary(bootstrap),
+          tone: _plpInfrastructureEvidenceCount(bootstrap) == 0
+              ? plpAccent
+              : plpGood,
+          onTap: onOpenInfrastructure,
+        ),
         const SizedBox(height: 28),
         PlpBlackPanel(
           eyebrow: 'Operations Room',
@@ -650,9 +686,11 @@ class PlpVisionScreen extends StatelessWidget {
   const PlpVisionScreen({
     super.key,
     required this.onOpenNavigation,
+    this.onOpenInfrastructure,
   });
 
   final VoidCallback onOpenNavigation;
+  final VoidCallback? onOpenInfrastructure;
 
   @override
   Widget build(BuildContext context) => PlpEditorialPage(
@@ -694,6 +732,13 @@ class PlpVisionScreen extends StatelessWidget {
             value: 'None',
             tone: plpGood,
           ),
+          if (onOpenInfrastructure != null)
+            PlpEditorialRow(
+              title: 'Camera connectivity',
+              detail:
+                  'Inspect the network and device path behind the property view.',
+              onTap: onOpenInfrastructure,
+            ),
         ],
       );
 }
