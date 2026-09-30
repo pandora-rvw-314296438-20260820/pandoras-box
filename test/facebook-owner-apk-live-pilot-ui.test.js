@@ -9,6 +9,8 @@ const home = readFileSync('apps/pandora-mobile/lib/features/enterprise/enterpris
 const growth = readFileSync('apps/pandora-mobile/lib/features/enterprise/marketing_growth_workspace_screen.dart','utf8');
 const plpShell = readFileSync('apps/pandora-mobile/lib/app/plp_enterprise_shell.dart','utf8');
 const projection = readFileSync('supabase/migrations/20260930233508_pandora_growth_live_pilot_projection_v1.sql','utf8');
+const businessAttribution = readFileSync('supabase/migrations/20260930235134_pandora_meta_paid_pilot_business_attribution_v1.sql','utf8');
+const tracking = readFileSync('src/pandora-tracking-http.js','utf8');
 
 test('owner Android entrypoint reaches the live Marketing & Growth workspace', () => {
   assert.match(main,/PandoraApp\\(/);
@@ -41,6 +43,24 @@ test('growth command center projects current bounded pilot instead of stale stat
   assert.match(projection,/boundedCampaignMutationGranted/);
   assert.match(projection,/metaConnected/);
   assert.match(projection,/then 'granted' else 'not_granted'/);
+});
+
+test('web landing carries the opaque click into server-owned attribution', () => {
+  assert.match(main,/queryParameters\['pcid'\]/);
+  assert.match(main,/\/api\/tracking\/event/);
+  assert.match(main,/landing\.viewed/);
+  assert.match(tracking,/select: "tenant_id,campaign_id,is_test"/);
+  assert.match(tracking,/test_marker_mismatch/);
+  assert.match(tracking,/is_test: clickIsTest/);
+});
+
+test('live Meta IDs belong to the business campaign, not the historical test campaign', () => {
+  assert.match(businessAttribution,/pandora-meta-main/);
+  assert.match(businessAttribution,/'business_kpi',true/);
+  assert.match(businessAttribution,/tracked_redirect','https:\/\/mcpmaster\.vercel\.app\/t\/pandora-meta-main'/);
+  assert.match(businessAttribution,/historical_acceptance',true/);
+  assert.match(businessAttribution,/provider_campaign_id=null/);
+  assert.match(businessAttribution,/pandora_meta_paid_pilot_target_is_allowed_v1/);
 });
 
 test('PLP client APK remains isolated from Pandora owner Facebook marketing', () => {
