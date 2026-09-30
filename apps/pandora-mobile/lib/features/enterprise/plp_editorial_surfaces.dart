@@ -662,6 +662,7 @@ class PlpOperationsScreen extends StatelessWidget {
           detail: 'Infrastructure stays quiet until it affects resort operations.',
         ),
         PlpEditorialRow(
+          key: const ValueKey('plp-operations-infrastructure'),
           title: 'Resort infrastructure',
           detail: _plpInfrastructureSummary(bootstrap),
           tone: _plpInfrastructureEvidenceCount(bootstrap) == 0
