@@ -53,6 +53,11 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
       Icons.account_balance_outlined,
     ),
     _PlpDrawerDestination('operations', 'Operations', Icons.hub_outlined),
+    _PlpDrawerDestination(
+      'connectivity',
+      'Connectivity & Infrastructure',
+      Icons.router_outlined,
+    ),
     _PlpDrawerDestination('vision', 'Vision', Icons.visibility_outlined),
     _PlpDrawerDestination('guests', 'Guest Experience', Icons.room_service_outlined),
     _PlpDrawerDestination('team-access', 'Team & Access', Icons.group_outlined),
