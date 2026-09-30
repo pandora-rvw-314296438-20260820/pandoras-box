@@ -42,8 +42,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     required this.bootstrap,
     required this.onOpenNavigation,
     required this.onRefresh,
-    required this.onAskPandora,
     this.onOpenSection,
+    this.onOpenModule,
+    this.onOpenRecord,
     this.onOpenOperationsRoom,
     this.onOpenGuestExperience,
     this.onOpenTeam,
@@ -54,8 +55,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   final Map<String, Object?> bootstrap;
   final VoidCallback onOpenNavigation;
   final VoidCallback onRefresh;
-  final ValueChanged<String> onAskPandora;
   final ValueChanged<String>? onOpenSection;
+  final ValueChanged<String>? onOpenModule;
+  final void Function(String kind, Map<String, Object?> record)? onOpenRecord;
   final VoidCallback? onOpenOperationsRoom;
   final VoidCallback? onOpenGuestExperience;
   final VoidCallback? onOpenTeam;
@@ -109,7 +111,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
                   _map(bootstrap['sourceHealth'])['state'],
                   fallback: 'unknown',
                 ),
-                onOpenNavigation: onOpenNavigation,
               ),
               const SizedBox(height: 26),
               ...children,
@@ -208,7 +209,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         _AttentionList(
           items: attention,
           conflicts: conflicts,
-          onAskPandora: onAskPandora,
+          onOpenRecord: onOpenRecord,
         ),
       if (inHouse.isNotEmpty) ...[
         const SizedBox(height: 32),
@@ -252,7 +253,10 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       if (stays.isEmpty)
         const _EmptyState('No connected stay records are available.')
       else
-        _StayList(items: stays, onAskPandora: onAskPandora),
+        _StayList(
+          items: stays,
+          onOpen: (stay) => onOpenRecord?.call('stay', stay),
+        ),
     ];
   }
 
@@ -297,30 +301,27 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           'Room-level status will appear when accommodation records are connected.',
         )
       else
-        _RoomGrid(rooms: rooms, onAskPandora: onAskPandora),
+        _RoomGrid(
+          rooms: rooms,
+          onOpen: (room) => onOpenRecord?.call('room', room),
+        ),
       const SizedBox(height: 30),
       _CapabilityGrid(
         items: [
           _Capability(
             'Housekeeping',
             Icons.cleaning_services_outlined,
-            () => onAskPandora(
-              'Show housekeeping priorities and room turnover readiness.',
-            ),
+            () => onOpenModule?.call('housekeeping'),
           ),
           _Capability(
             'Maintenance',
             Icons.build_outlined,
-            () => onAskPandora(
-              'Show room maintenance issues that can affect a guest stay.',
-            ),
+            () => onOpenModule?.call('maintenance'),
           ),
           _Capability(
             'Linen',
             Icons.local_laundry_service_outlined,
-            () => onAskPandora(
-              'Show linen or laundry issues that need action.',
-            ),
+            () => onOpenModule?.call('linen'),
           ),
         ],
       ),
@@ -364,30 +365,27 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       if (requests.isEmpty)
         const _ClearState('No connected special request is waiting.')
       else
-        _RequestList(items: requests, onAskPandora: onAskPandora),
+        _RequestList(
+          items: requests,
+          onOpen: (request) => onOpenRecord?.call('request', request),
+        ),
       const SizedBox(height: 30),
       _CapabilityGrid(
         items: [
           _Capability(
             'Concierge',
             Icons.support_agent_outlined,
-            () => onAskPandora(
-              'Open the concierge view for current and arriving guests.',
-            ),
+            () => onOpenModule?.call('concierge'),
           ),
           _Capability(
             'VIP',
             Icons.workspace_premium_outlined,
-            () => onAskPandora(
-              'Show VIP arrivals and preference-sensitive guest moments.',
-            ),
+            () => onOpenModule?.call('vip'),
           ),
           _Capability(
             'Transfers',
             Icons.airport_shuttle_outlined,
-            () => onAskPandora(
-              'Show guest transfer needs around arrivals and departures.',
-            ),
+            () => onOpenModule?.call('transfers'),
           ),
         ],
       ),
@@ -436,7 +434,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         _AttentionList(
           items: attention,
           conflicts: _number(operations['channelExceptions']),
-          onAskPandora: onAskPandora,
+          onOpenRecord: onOpenRecord,
         ),
       const SizedBox(height: 30),
       _CapabilityGrid(
@@ -444,23 +442,17 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           _Capability(
             'Property',
             Icons.domain_outlined,
-            () => onAskPandora(
-              'Show property operations and maintenance priorities.',
-            ),
+            () => onOpenModule?.call('property'),
           ),
           _Capability(
             'Security',
             Icons.shield_outlined,
-            () => onAskPandora(
-              'Show verified safety or security items that need attention.',
-            ),
+            () => onOpenModule?.call('security'),
           ),
           _Capability(
             'Transport',
             Icons.directions_car_outlined,
-            () => onAskPandora(
-              'Show transport and transfer operations for today.',
-            ),
+            () => onOpenModule?.call('transport'),
           ),
         ],
       ),
@@ -524,23 +516,17 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           _Capability(
             'Rates',
             Icons.sell_outlined,
-            () => onAskPandora(
-              'Review rates and availability for the next 30 days.',
-            ),
+            () => onOpenModule?.call('rates'),
           ),
           _Capability(
             'Channels',
             Icons.travel_explore_outlined,
-            () => onAskPandora(
-              'Show OTA channel exceptions and inventory risks.',
-            ),
+            () => onOpenModule?.call('channels'),
           ),
           _Capability(
             'Forecast',
             Icons.query_stats_outlined,
-            () => onAskPandora(
-              'Summarize the forward occupancy and revenue picture from connected data.',
-            ),
+            () => onOpenModule?.call('forecast'),
           ),
         ],
       ),
@@ -562,44 +548,32 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           _Capability(
             'Concierge',
             Icons.support_agent_outlined,
-            () => onAskPandora(
-              'Coordinate concierge requests for current and arriving guests.',
-            ),
+            () => onOpenModule?.call('concierge'),
           ),
           _Capability(
             'Transfers',
             Icons.airport_shuttle_outlined,
-            () => onAskPandora(
-              'Coordinate airport and island transfers around guest movement.',
-            ),
+            () => onOpenModule?.call('transfers'),
           ),
           _Capability(
             'Dining',
             Icons.restaurant_outlined,
-            () => onAskPandora(
-              'Show dining-related guest requests and connected hospitality context.',
-            ),
+            () => onOpenModule?.call('dining'),
           ),
           _Capability(
             'Wellness',
             Icons.spa_outlined,
-            () => onAskPandora(
-              'Show spa or wellness requests from connected guest context.',
-            ),
+            () => onOpenModule?.call('wellness'),
           ),
           _Capability(
             'Activities',
             Icons.explore_outlined,
-            () => onAskPandora(
-              'Show experience and activity requests from connected guest context.',
-            ),
+            () => onOpenModule?.call('activities'),
           ),
           _Capability(
             'Events',
             Icons.celebration_outlined,
-            () => onAskPandora(
-              'Show event or celebration needs from connected guest context.',
-            ),
+            () => onOpenModule?.call('events'),
           ),
         ],
       ),
@@ -708,24 +682,18 @@ class _ResortHeader extends StatelessWidget {
     required this.section,
     required this.propertyName,
     required this.sourceState,
-    required this.onOpenNavigation,
   });
 
   final PlpResortSection section;
   final String propertyName;
   final String sourceState;
-  final VoidCallback onOpenNavigation;
 
   @override
   Widget build(BuildContext context) {
     final healthy = sourceState.toLowerCase() == 'healthy';
     return Row(
       children: [
-        PandoraMenuButton(
-          key: const ValueKey('plp-open-navigation'),
-          onPressed: onOpenNavigation,
-        ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 56),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1113,12 +1081,12 @@ class _AttentionList extends StatelessWidget {
   const _AttentionList({
     required this.items,
     required this.conflicts,
-    required this.onAskPandora,
+    this.onOpenRecord,
   });
 
   final List<Map<String, Object?>> items;
   final num conflicts;
-  final ValueChanged<String> onAskPandora;
+  final void Function(String kind, Map<String, Object?> record)? onOpenRecord;
 
   @override
   Widget build(BuildContext context) {
@@ -1134,11 +1102,7 @@ class _AttentionList extends StatelessWidget {
           tone: _text(item['priority']).toLowerCase() == 'high'
               ? PlpResortWorkspaceScreen.warn
               : PlpResortWorkspaceScreen.accent,
-          onTap: () => onAskPandora(
-            'Open this resort task and tell me the safest next action: ' +
-                _text(item['title']) +
-                '.',
-          ),
+          onTap: () => onOpenRecord?.call('work', item),
         ),
       );
     }
@@ -1150,8 +1114,13 @@ class _AttentionList extends StatelessWidget {
               (conflicts == 1 ? 'exception' : 'exceptions'),
           meta: 'Booking inventory needs reconciliation',
           tone: PlpResortWorkspaceScreen.warn,
-          onTap: () => onAskPandora(
-            'Show the open OTA conflicts and what needs action first.',
+          onTap: () => onOpenRecord?.call(
+            'conflict-summary',
+            <String, Object?>{
+              'title': 'OTA channel exceptions',
+              'count': conflicts,
+              'status': 'open',
+            },
           ),
         ),
       );
@@ -1308,9 +1277,9 @@ class _GuestStrip extends StatelessWidget {
 }
 
 class _StayList extends StatelessWidget {
-  const _StayList({required this.items, required this.onAskPandora});
+  const _StayList({required this.items, required this.onOpen});
   final List<Map<String, Object?>> items;
-  final ValueChanged<String> onAskPandora;
+  final ValueChanged<Map<String, Object?>> onOpen;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -1328,22 +1297,16 @@ class _StayList extends StatelessWidget {
               tone: _text(item['status']).toLowerCase().contains('cancel')
                   ? PlpResortWorkspaceScreen.warn
                   : PlpResortWorkspaceScreen.good,
-              onTap: () => onAskPandora(
-                'Open stay ' +
-                    _text(item['bookingReference']) +
-                    ' for ' +
-                    _text(item['fullName']) +
-                    ' and summarize what matters.',
-              ),
+              onTap: () => onOpen(item),
             ),
         ],
       );
 }
 
 class _RoomGrid extends StatelessWidget {
-  const _RoomGrid({required this.rooms, required this.onAskPandora});
+  const _RoomGrid({required this.rooms, required this.onOpen});
   final List<Map<String, Object?>> rooms;
-  final ValueChanged<String> onAskPandora;
+  final ValueChanged<Map<String, Object?>> onOpen;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -1359,11 +1322,7 @@ class _RoomGrid extends StatelessWidget {
                   child: Material(
                     color: PlpResortWorkspaceScreen.paper,
                     child: InkWell(
-                      onTap: () => onAskPandora(
-                        'Open ' +
-                            _text(room['name'], fallback: 'this room') +
-                            ' and show the current operational context.',
-                      ),
+                      onTap: () => onOpen(room),
                       child: Container(
                         height: 106,
                         decoration: const BoxDecoration(
@@ -1456,9 +1415,9 @@ class _StateDot extends StatelessWidget {
 }
 
 class _RequestList extends StatelessWidget {
-  const _RequestList({required this.items, required this.onAskPandora});
+  const _RequestList({required this.items, required this.onOpen});
   final List<Map<String, Object?>> items;
-  final ValueChanged<String> onAskPandora;
+  final ValueChanged<Map<String, Object?>> onOpen;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -1470,12 +1429,7 @@ class _RequestList extends StatelessWidget {
                 item['request'],
                 fallback: 'Connected guest request',
               ),
-              onTap: () => onAskPandora(
-                'Help coordinate this guest request for ' +
-                    _text(item['fullName']) +
-                    ': ' +
-                    _text(item['request']),
-              ),
+              onTap: () => onOpen(item),
             ),
         ],
       );
