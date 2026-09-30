@@ -297,6 +297,9 @@ class _MarketingGrowthWorkspaceScreenState
     final pilotState = _text(pilot['state'], fallback: 'Not configured');
     final deliveryObserved = _bool(pilot['deliveryObserved']);
     final monitorHealthy = _bool(pilot['monitorHealthy']);
+    final providerCreativeReady = _bool(pilot['providerCreativeReady']);
+    final providerCreativeBlocker =
+        _text(pilot['providerCreativeBlocker'], fallback: 'None');
     final connected = _bool(connection['connected']);
     final accounts = _rows(connection['adAccounts']);
     final accountId =
@@ -327,6 +330,11 @@ class _MarketingGrowthWorkspaceScreenState
             monitorHealthy ? 'Healthy' : 'Check needed',
             _text(pilot['lastMonitorAt'], fallback: 'No monitor receipt'),
           ),
+          _metric(
+            'Tracked creative',
+            providerCreativeReady ? 'Ready' : 'Blocked',
+            providerCreativeReady ? 'Provider verified' : providerCreativeBlocker,
+          ),
         ],
       ),
       const SizedBox(height: 16),
@@ -339,6 +347,8 @@ class _MarketingGrowthWorkspaceScreenState
         _lineRow('Campaign', _text(pilot['campaignId'])),
         _lineRow('Ad set', _text(pilot['adsetId'])),
         _lineRow('Ad', _text(pilot['adId'])),
+        _lineRow('Tracking campaign', _text(pilot['trackingCampaignSlug'])),
+        _lineRow('Tracked redirect', _text(pilot['trackedRedirect'])),
         _lineRow(
           'Impressions',
           _text(pilot['impressions'], fallback: 'Not observed'),
