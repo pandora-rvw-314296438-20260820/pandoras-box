@@ -14,7 +14,6 @@ import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_resort_workspace.dart';
 import '../features/enterprise/plp_guests_screen.dart';
-import '../features/enterprise/plp_team_access_screen.dart';
 import '../features/enterprise/plp_team_management_screen.dart';
 import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
@@ -451,8 +450,25 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           );
         },
         onOpenGuestExperience: () => _open(6),
-        onOpenTeam: () => _open(7),
+        onOpenTeam: () => _openTeamManagement(bootstrap),
         onOpenActivity: () => _open(10),
+      ),
+    );
+  }
+
+  void _openTeamManagement(
+    Map<String, Object?> bootstrap, {
+    bool invite = false,
+  }) {
+    final organizationId = _organizationId(bootstrap);
+    if (organizationId == null || organizationId.isEmpty) return;
+    _openTool(
+      'team-management',
+      PlpTeamManagementScreen(
+        organizationId: organizationId,
+        openInviteOnLoad: invite,
+        onBack: _closeTool,
+        onChanged: _refresh,
       ),
     );
   }
@@ -650,33 +666,25 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
             ),
-            PlpTeamAccessScreen(
+            PlpResortWorkspaceScreen(
               key: ValueKey<String>(
-                'plp-team-access-${bootstrap['generatedAt'] ?? ''}',
+                'plp-team-unified-${bootstrap['generatedAt'] ?? ''}',
               ),
+              section: plpResortSectionById('team')!,
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
-              onAddPeople: () {
+              onRefresh: _refresh,
+              onAskPandora: (prompt) => unawaited(_submitCommand(prompt)),
+              onOpenSection: _openResortSection,
+              onOpenOperationsRoom: () {
                 _openTool(
-                  'team-management',
-                  PlpTeamManagementScreen(
-                    organizationId: _organizationId(bootstrap) ?? '',
-                    openInviteOnLoad: true,
-                    onBack: _closeTool,
-                    onChanged: _refresh,
-                  ),
+                  'operations-room',
+                  PandoraOperationsRoomScreen(onHome: _closeTool),
                 );
               },
-              onManageTeam: () {
-                _openTool(
-                  'team-management',
-                  PlpTeamManagementScreen(
-                    organizationId: _organizationId(bootstrap) ?? '',
-                    onBack: _closeTool,
-                    onChanged: _refresh,
-                  ),
-                );
-              },
+              onOpenGuestExperience: () => _open(6),
+              onOpenTeam: () => _openTeamManagement(bootstrap),
+              onOpenActivity: () => _open(10),
             ),
             PlpRevenueScreen(
               key: const ValueKey('plp-revenue'),
