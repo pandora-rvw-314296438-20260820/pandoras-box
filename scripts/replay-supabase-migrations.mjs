@@ -90,6 +90,21 @@ function portableSql(filename, source) {
       'into v_org_id, v_project_ref, v_expected_name, v_token',
     );
   }
+  if (
+    filename ===
+    '20260930204758_pandora_growth_fb060_lifecycle_acceptance_v1.sql'
+  ) {
+    const acceptanceBlocks = transformed.match(/do \$block\$[\s\S]*?\$block\$;/gi) || [];
+    assert.equal(
+      acceptanceBlocks.length,
+      1,
+      `${filename}: production-only lifecycle acceptance block substitution drift`,
+    );
+    transformed = transformed.replace(
+      acceptanceBlocks[0],
+      '-- PGLITE PROVIDER STUB: production-only synthetic lifecycle acceptance omitted during replay',
+    );
+  }
   // PGlite does not fully emulate PostgreSQL pg_get_functiondef() rewrites.
   // Normalize authority literals only inside replayed function definitions so
   // active behavior matches production while historical rows and source bytes
