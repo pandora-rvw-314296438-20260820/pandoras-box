@@ -20,49 +20,7 @@ class PlpConnectivityInfrastructureScreen extends StatelessWidget {
   static const _line = Color(0xFFE6DED2);
   static const _accent = Color(0xFF70643F);
   static const _good = Color(0xFF5E765F);
-
-  static const _capabilities = <_CapabilitySpec>[
-    _CapabilitySpec(
-      'dedicated-internet',
-      'Dedicated Internet & Fiber',
-      'Primary resort connectivity with enterprise-grade capacity and service assurance.',
-    ),
-    _CapabilitySpec(
-      'smart-mobility',
-      'Smart Enterprise Mobility',
-      'Business phones, SIMs and managed mobile connectivity for resort teams.',
-    ),
-    _CapabilitySpec(
-      'fiveg-backup',
-      '5G Backup & Failover',
-      'A secondary mobile path for continuity when the primary connection is unavailable.',
-    ),
-    _CapabilitySpec(
-      'sd-wan',
-      'SD-WAN & Private Networking',
-      'Securely connect resort locations, offices and future properties as one managed network.',
-    ),
-    _CapabilitySpec(
-      'security',
-      'Managed Cybersecurity',
-      'Network, endpoint and access protection around Pandora and resort operations.',
-    ),
-    _CapabilitySpec(
-      'messaging',
-      'Business Messaging',
-      'Operational messaging, alerts and guest communications through governed enterprise channels.',
-    ),
-    _CapabilitySpec(
-      'cloud-connectivity',
-      'Cloud Connectivity',
-      'Reliable paths from the resort to Pandora, Supabase and other approved cloud services.',
-    ),
-    _CapabilitySpec(
-      'iot',
-      'IoT & Camera Connectivity',
-      'Connectivity for cameras, sensors, scanners and future property devices.',
-    ),
-  ];
+  static const _warn = Color(0xFFA56B2C);
 
   Map<String, Object?> _map(Object? value) {
     if (value is Map<String, Object?>) return value;
@@ -72,7 +30,7 @@ class PlpConnectivityInfrastructureScreen extends StatelessWidget {
     return const <String, Object?>{};
   }
 
-  String _text(Object? value, {String fallback = '—'}) {
+  String _text(Object? value, {String fallback = ''}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -83,32 +41,86 @@ class PlpConnectivityInfrastructureScreen extends StatelessWidget {
     return _map(services[key]);
   }
 
-  bool _providerVerified(Map<String, Object?> service) {
-    final evidenceRef = _text(service['evidenceRef'], fallback: '');
+  bool _verified(String key) {
+    final service = _service(key);
+    final evidenceRef = _text(service['evidenceRef']);
     return service['providerVerified'] == true && evidenceRef.isNotEmpty;
   }
 
-  String _stateLabel(Map<String, Object?> service) {
-    if (_providerVerified(service)) return 'Provider verified';
-    final raw = _text(service['state'], fallback: '').toLowerCase();
-    if (raw == 'configured' || raw == 'pending_verification') {
-      return 'Awaiting verification';
-    }
-    return 'Available to activate';
+  bool _pending(String key) {
+    final raw = _text(_service(key)['state']).toLowerCase();
+    return raw == 'configured' || raw == 'pending_verification';
   }
 
-  Color _stateColor(Map<String, Object?> service) =>
-      _providerVerified(service) ? _good : _accent;
+  _InfrastructureSignal _signal(
+    String key,
+    String title,
+    IconData icon,
+    List<String> serviceKeys,
+  ) {
+    final verified = serviceKeys.where(_verified).length;
+    final pending = serviceKeys.where(_pending).length;
+    final state = switch ((verified, pending)) {
+      (final count, _) when count == serviceKeys.length =>
+        _InfrastructureState.verified,
+      (final count, _) when count > 0 => _InfrastructureState.partial,
+      (_, final count) when count > 0 => _InfrastructureState.pending,
+      _ => _InfrastructureState.unknown,
+    };
+    return _InfrastructureSignal(
+      key: key,
+      title: title,
+      icon: icon,
+      state: state,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final enterprise = _map(bootstrap['enterpriseConnectivity']);
-    final channelStatus = _text(
-      enterprise['channelStatus'],
-      fallback: 'Commercial integration not connected',
-    );
-    final assignedRm = _text(enterprise['assignedRelationshipManager'], fallback: '');
-    final verifiedAt = _text(enterprise['verifiedAt'], fallback: '');
+    final signals = <_InfrastructureSignal>[
+      _signal(
+        'internet',
+        'Internet',
+        Icons.language_rounded,
+        const ['dedicated-internet'],
+      ),
+      _signal(
+        'resilience',
+        'Resilience',
+        Icons.swap_horiz_rounded,
+        const ['fiveg-backup', 'sd-wan'],
+      ),
+      _signal(
+        'team',
+        'Team',
+        Icons.smartphone_rounded,
+        const ['smart-mobility', 'messaging'],
+      ),
+      _signal(
+        'property',
+        'Property',
+        Icons.sensors_rounded,
+        const ['cloud-connectivity', 'iot', 'security'],
+      ),
+    ];
+
+    final verified =
+        signals.where((signal) => signal.state == _InfrastructureState.verified).length;
+    final evidenced = signals
+        .where((signal) => signal.state != _InfrastructureState.unknown)
+        .length;
+
+    final headline = evidenced == 0
+        ? 'Set the resort’s baseline.'
+        : verified == signals.length
+            ? 'The resort is connected.'
+            : '$evidenced of ' +
+                signals.length.toString() +
+                ' areas have provider evidence.';
+
+    final intro = evidenced == 0
+        ? 'Pandora has not verified the network, backup path, team connectivity, or property devices yet.'
+        : 'Pandora is showing only provider-backed infrastructure state. Anything unverified stays visibly unknown.';
 
     return Material(
       color: _canvas,
@@ -121,11 +133,12 @@ class PlpConnectivityInfrastructureScreen extends StatelessWidget {
           children: [
             _Header(onOpenNavigation: onOpenNavigation),
             const SizedBox(height: 38),
-            const _Eyebrow('PLDT ENTERPRISE READY'),
+            const _Eyebrow('RESORT RESILIENCE'),
             const SizedBox(height: 12),
-            const Text(
-              'The resort’s digital foundation.',
-              style: TextStyle(
+            Text(
+              headline,
+              key: const ValueKey('plp-infrastructure-headline'),
+              style: const TextStyle(
                 color: _ink,
                 fontFamily: 'serif',
                 fontSize: 43,
@@ -134,91 +147,54 @@ class PlpConnectivityInfrastructureScreen extends StatelessWidget {
                 letterSpacing: -1.35,
               ),
             ),
-            const SizedBox(height: 14),
-            const Text(
-              'Pandora can coordinate connectivity, mobility, security, cloud and physical devices around PLP without changing how the resort operates.',
-              style: TextStyle(color: _muted, fontSize: 14, height: 1.55),
-            ),
             const SizedBox(height: 13),
-            const Text(
-              'Nothing on this page is shown as active until provider evidence is available.',
-              key: ValueKey('plp-connectivity-truth-contract'),
-              style: TextStyle(
-                color: _accent,
-                fontSize: 10.5,
-                height: 1.45,
-                fontWeight: FontWeight.w700,
-                letterSpacing: .45,
-              ),
-            ),
-            const SizedBox(height: 30),
-            const Divider(height: 1, color: _line),
-            const SizedBox(height: 24),
-            const _Eyebrow('CHANNEL STATE'),
-            const SizedBox(height: 12),
             Text(
-              channelStatus,
-              key: const ValueKey('plp-connectivity-channel-status'),
+              intro,
+              key: const ValueKey('plp-infrastructure-summary'),
               style: const TextStyle(
-                color: _ink,
-                fontFamily: 'serif',
-                fontSize: 27,
-                height: 1.08,
-                fontWeight: FontWeight.w400,
+                color: _muted,
+                fontSize: 13.5,
+                height: 1.5,
               ),
             ),
-            const SizedBox(height: 7),
-            Text(
-              assignedRm.isEmpty
-                  ? 'No PLDT Enterprise relationship manager routing is connected yet.'
-                  : 'Assigned relationship manager: ' + assignedRm,
-              style: const TextStyle(color: _muted, fontSize: 12.5, height: 1.45),
+            const SizedBox(height: 28),
+            _SignalGrid(signals: signals),
+            const SizedBox(height: 28),
+            _DecisionPanel(
+              evidenced: evidenced,
+              verified: verified,
+              total: signals.length,
+              onAskPandora: onAskPandora,
             ),
-            if (verifiedAt.isNotEmpty) ...[
-              const SizedBox(height: 5),
-              Text(
-                'Last provider verification: ' + verifiedAt,
-                style: const TextStyle(color: _accent, fontSize: 10.5),
-              ),
-            ],
-            const SizedBox(height: 30),
-            const _Eyebrow('ENTERPRISE CAPABILITIES'),
+            const SizedBox(height: 32),
+            const _Eyebrow('WHAT PANDORA CAN DO'),
             const SizedBox(height: 8),
-            for (var index = 0; index < _capabilities.length; index++) ...[
-              _CapabilityRow(
-                spec: _capabilities[index],
-                service: _service(_capabilities[index].key),
-                stateLabel: _stateLabel(_service(_capabilities[index].key)),
-                stateColor: _stateColor(_service(_capabilities[index].key)),
+            _ActionRow(
+              key: const ValueKey('plp-infrastructure-continuity-action'),
+              title: 'Keep the resort online',
+              detail: 'Check the primary path and design a backup before an outage matters.',
+              onTap: () => onAskPandora(
+                'Assess PLP’s primary internet and failover resilience using only verified resort and provider evidence. Identify gaps, then propose the smallest practical continuity plan. If an external service is needed, compare eligible providers including PLDT Enterprise without assuming any provider is already connected.',
               ),
-              if (index != _capabilities.length - 1)
-                const Divider(height: 1, color: _line),
-            ],
-            const SizedBox(height: 30),
+            ),
             const Divider(height: 1, color: _line),
-            const SizedBox(height: 24),
-            const _Eyebrow('WHEN PANDORA FINDS AN OPPORTUNITY'),
-            const SizedBox(height: 14),
-            const _OpportunityStep(
-              number: '01',
-              title: 'Verify the need',
-              detail:
-                  'Pandora uses resort evidence first — new locations, devices, workloads, continuity gaps or sustained demand.',
+            _ActionRow(
+              key: const ValueKey('plp-infrastructure-team-action'),
+              title: 'Keep the team reachable',
+              detail: 'Review staff devices, mobile lines and operational messaging.',
+              onTap: () => onAskPandora(
+                'Review PLP staff mobility and operational messaging needs. Use verified team and provider evidence, identify only meaningful gaps, and recommend an owner-approved next action. Consider Smart or other eligible enterprise mobility providers only where the need supports it.',
+              ),
             ),
-            const _OpportunityStep(
-              number: '02',
-              title: 'Ask the owner',
-              detail:
-                  'A commercial conversation is not triggered silently. PLP keeps control of whether the opportunity should move forward.',
+            const Divider(height: 1, color: _line),
+            _ActionRow(
+              key: const ValueKey('plp-infrastructure-property-action'),
+              title: 'Connect the property',
+              detail: 'Check cameras, sensors, security and cloud paths as one system.',
+              onTap: () => onAskPandora(
+                'Review PLP property connectivity for cameras, sensors, security and cloud services. Separate verified state from unknowns, then recommend the next operational action. Provider choice must remain capability-led and owner-approved.',
+              ),
             ),
-            const _OpportunityStep(
-              number: '03',
-              title: 'Route it to the RM',
-              detail:
-                  'When partner routing is connected, the approved opportunity can go to the assigned PLDT Enterprise relationship manager.',
-            ),
-            const SizedBox(height: 30),
-            _AskPandoraPanel(onAskPandora: onAskPandora),
           ],
         ),
       ),
@@ -260,12 +236,12 @@ class _Header extends StatelessWidget {
                 ),
                 SizedBox(height: 5),
                 Text(
-                  'CONNECTIVITY & INFRASTRUCTURE',
+                  'INFRASTRUCTURE',
                   style: TextStyle(
                     color: PlpConnectivityInfrastructureScreen._accent,
                     fontSize: 9.5,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.6,
+                    letterSpacing: 1.7,
                   ),
                 ),
               ],
@@ -292,74 +268,93 @@ class _Eyebrow extends StatelessWidget {
       );
 }
 
-class _CapabilityRow extends StatelessWidget {
-  const _CapabilityRow({
-    required this.spec,
-    required this.service,
-    required this.stateLabel,
-    required this.stateColor,
-  });
+class _SignalGrid extends StatelessWidget {
+  const _SignalGrid({required this.signals});
 
-  final _CapabilitySpec spec;
-  final Map<String, Object?> service;
-  final String stateLabel;
-  final Color stateColor;
+  final List<_InfrastructureSignal> signals;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          const gap = 10.0;
+          final width = (constraints.maxWidth - gap) / 2;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final signal in signals)
+                SizedBox(
+                  width: width,
+                  child: _SignalTile(signal: signal),
+                ),
+            ],
+          );
+        },
+      );
+}
+
+class _SignalTile extends StatelessWidget {
+  const _SignalTile({required this.signal});
+
+  final _InfrastructureSignal signal;
 
   @override
   Widget build(BuildContext context) {
-    final evidenceRef = service['evidenceRef']?.toString().trim() ?? '';
-    final providerVerified =
-        service['providerVerified'] == true && evidenceRef.isNotEmpty;
-    final detail = providerVerified &&
-            (service['message']?.toString().trim().isNotEmpty ?? false)
-        ? service['message'].toString().trim()
-        : spec.detail;
+    final (label, tone) = switch (signal.state) {
+      _InfrastructureState.verified => (
+          'Verified',
+          PlpConnectivityInfrastructureScreen._good,
+        ),
+      _InfrastructureState.partial => (
+          'Partial',
+          PlpConnectivityInfrastructureScreen._warn,
+        ),
+      _InfrastructureState.pending => (
+          'Checking',
+          PlpConnectivityInfrastructureScreen._accent,
+        ),
+      _InfrastructureState.unknown => (
+          'Not verified',
+          PlpConnectivityInfrastructureScreen._muted,
+        ),
+    };
 
-    return Padding(
-      key: ValueKey<String>('plp-connectivity-' + spec.key),
-      padding: const EdgeInsets.symmetric(vertical: 17),
-      child: Row(
+    return Container(
+      key: ValueKey<String>('plp-infra-signal-' + signal.key),
+      constraints: const BoxConstraints(minHeight: 118),
+      decoration: const BoxDecoration(
+        border: Border.fromBorderSide(
+          BorderSide(color: PlpConnectivityInfrastructureScreen._line),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(15, 15, 15, 14),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  spec.title,
-                  style: const TextStyle(
-                    color: PlpConnectivityInfrastructureScreen._ink,
-                    fontFamily: 'serif',
-                    fontSize: 20,
-                    height: 1.12,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  detail,
-                  style: const TextStyle(
-                    color: PlpConnectivityInfrastructureScreen._muted,
-                    fontSize: 11.5,
-                    height: 1.45,
-                  ),
-                ),
-              ],
+          Icon(
+            signal.icon,
+            size: 20,
+            color: PlpConnectivityInfrastructureScreen._accent,
+          ),
+          const SizedBox(height: 22),
+          Text(
+            signal.title,
+            style: const TextStyle(
+              color: PlpConnectivityInfrastructureScreen._ink,
+              fontFamily: 'serif',
+              fontSize: 19,
+              height: 1,
+              fontWeight: FontWeight.w400,
             ),
           ),
-          const SizedBox(width: 16),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 105),
-            child: Text(
-              stateLabel.toUpperCase(),
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: stateColor,
-                fontSize: 9.5,
-                height: 1.3,
-                fontWeight: FontWeight.w800,
-                letterSpacing: .75,
-              ),
+          const SizedBox(height: 7),
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              color: tone,
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.25,
             ),
           ),
         ],
@@ -368,169 +363,176 @@ class _CapabilityRow extends StatelessWidget {
   }
 }
 
-class _OpportunityStep extends StatelessWidget {
-  const _OpportunityStep({
-    required this.number,
-    required this.title,
-    required this.detail,
+class _DecisionPanel extends StatelessWidget {
+  const _DecisionPanel({
+    required this.evidenced,
+    required this.verified,
+    required this.total,
+    required this.onAskPandora,
   });
 
-  final String number;
-  final String title;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 19),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 34,
-              child: Text(
-                number,
-                style: const TextStyle(
-                  color: PlpConnectivityInfrastructureScreen._accent,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: PlpConnectivityInfrastructureScreen._ink,
-                      fontFamily: 'serif',
-                      fontSize: 20,
-                      height: 1.05,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    detail,
-                    style: const TextStyle(
-                      color: PlpConnectivityInfrastructureScreen._muted,
-                      fontSize: 11.5,
-                      height: 1.45,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
-class _AskPandoraPanel extends StatelessWidget {
-  const _AskPandoraPanel({required this.onAskPandora});
-
+  final int evidenced;
+  final int verified;
+  final int total;
   final ValueChanged<String> onAskPandora;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-        color: PlpConnectivityInfrastructureScreen._ink,
+  Widget build(BuildContext context) {
+    final allVerified = verified == total;
+    final title = allVerified
+        ? 'Keep the evidence current.'
+        : evidenced == 0
+            ? 'First move: verify the basics.'
+            : 'Close only the gaps that matter.';
+    final body = allVerified
+        ? 'Pandora has provider evidence across the four infrastructure areas. Recheck when the resort changes.'
+        : evidenced == 0
+            ? 'A short baseline check is more useful than a catalogue of services.'
+            : 'Pandora can work from the evidence already available and focus only on what remains uncertain.';
+    final action = allVerified ? 'Recheck infrastructure' : 'Check infrastructure';
+
+    return Material(
+      color: PlpConnectivityInfrastructureScreen._ink,
+      child: InkWell(
+        key: const ValueKey('plp-infrastructure-baseline-action'),
+        onTap: () => onAskPandora(
+          'Establish a verified infrastructure baseline for PLP. Check primary internet, backup/failover, staff mobility and messaging, and property connectivity. Use provider evidence where available, mark unknowns clearly, and return only the risks or next actions that matter operationally. Do not turn this into a service catalogue.',
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 22, 20, 21),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'ASK PANDORA',
+                'PANDORA',
                 style: TextStyle(
                   color: Color(0xFFD5CCB7),
-                  fontSize: 10,
+                  fontSize: 9.5,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2,
                 ),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Turn infrastructure into an operating decision.',
-                style: TextStyle(
+              const SizedBox(height: 11),
+              Text(
+                title,
+                style: const TextStyle(
                   color: Colors.white,
                   fontFamily: 'serif',
-                  fontSize: 27,
-                  height: 1.05,
+                  fontSize: 29,
+                  height: 1.03,
                   fontWeight: FontWeight.w400,
                 ),
               ),
-              const SizedBox(height: 17),
-              _ActionButton(
-                key: const ValueKey('plp-connectivity-review-action'),
-                label: 'Review my connectivity setup',
-                onTap: () => onAskPandora(
-                  'Review PLP’s current connectivity, mobility, security, cloud and IoT needs. Use only verified PLP data. Clearly separate active provider-verified services from recommendations and unknowns.',
+              const SizedBox(height: 10),
+              Text(
+                body,
+                style: const TextStyle(
+                  color: Color(0xFFBDB7AE),
+                  fontSize: 12,
+                  height: 1.45,
                 ),
               ),
-              const SizedBox(height: 8),
-              _ActionButton(
-                key: const ValueKey('plp-connectivity-expansion-action'),
-                label: 'Prepare a PLDT expansion plan',
-                onTap: () => onAskPandora(
-                  'Prepare a PLDT Enterprise-compatible expansion plan for PLP covering dedicated internet, Smart mobility, 5G failover, SD-WAN, cybersecurity, business messaging, cloud connectivity and IoT. Do not claim any service is active unless provider-verified. Route any commercial opportunity only after owner approval.',
-                ),
+              const SizedBox(height: 17),
+              Row(
+                children: [
+                  Text(
+                    action.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 17,
+                  ),
+                ],
               ),
             ],
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
     super.key,
-    required this.label,
+    required this.title,
+    required this.detail,
     required this.onTap,
   });
 
-  final String label;
+  final String title;
+  final String detail;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Material(
-        color: const Color(0xFF26231E),
+        color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: PlpConnectivityInfrastructureScreen._ink,
+                          fontFamily: 'serif',
+                          fontSize: 21,
+                          height: 1.08,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 5),
+                      Text(
+                        detail,
+                        style: const TextStyle(
+                          color: PlpConnectivityInfrastructureScreen._muted,
+                          fontSize: 11.5,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
                   ),
-                  const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: Color(0xFFD5CCB7),
-                    size: 18,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 14),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 18,
+                  color: PlpConnectivityInfrastructureScreen._ink,
+                ),
+              ],
             ),
           ),
         ),
       );
 }
 
-class _CapabilitySpec {
-  const _CapabilitySpec(this.key, this.title, this.detail);
+enum _InfrastructureState { verified, partial, pending, unknown }
+
+class _InfrastructureSignal {
+  const _InfrastructureSignal({
+    required this.key,
+    required this.title,
+    required this.icon,
+    required this.state,
+  });
 
   final String key;
   final String title;
-  final String detail;
+  final IconData icon;
+  final _InfrastructureState state;
 }

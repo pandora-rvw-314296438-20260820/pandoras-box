@@ -369,7 +369,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         11 => 'Ask about settings…',
         12 => 'Ask about diagnostics…',
         13 => 'Ask about tax readiness…',
-        14 => 'Ask about connectivity & infrastructure…',
+        14 => 'Ask about resort infrastructure…',
         _ => 'Message Pandora',
       };
 
@@ -380,23 +380,16 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           'role': 'PLP executive intelligence',
           'routing': 'local-first governed execution',
         },
-        'enterpriseConnectivity': const <String, Object?>{
-          'channelPositioning': 'PLDT Enterprise-ready',
-          'commercialStatus': 'not_connected',
+        'enterpriseInfrastructure': const <String, Object?>{
+          'presentation': 'outcome-first',
+          'providerStrategy': 'provider-neutral',
+          'pldtEnterpriseEligible': true,
+          'providerMentionPolicy':
+              'Mention PLDT Enterprise only when a verified business need makes the provider relevant or the owner asks about it.',
           'truthContract':
-              'Never claim a PLDT or Smart service is active without external provider evidence.',
-          'capabilities': <String>[
-            'Dedicated Internet & Fiber',
-            'Smart Enterprise Mobility',
-            '5G Backup & Failover',
-            'SD-WAN & Private Networking',
-            'Managed Cybersecurity',
-            'Business Messaging',
-            'Cloud Connectivity',
-            'IoT & Camera Connectivity',
-          ],
+              'Never claim a PLDT, Smart, or other provider service is active without external provider evidence.',
           'opportunityFlow':
-              'verified need -> owner approval -> assigned PLDT Enterprise RM when partner routing is connected',
+              'verified need -> owner approval -> assigned provider relationship manager when partner routing is connected',
         },
       };
 
@@ -568,6 +561,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: const ValueKey('plp-operations-room'),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
+              onOpenInfrastructure: () => _open(14),
               onOpenRoom: () {
                 _openTool(
                   'operations-room',
@@ -578,6 +572,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             PlpVisionScreen(
               key: const ValueKey('plp-vision-intelligence'),
               onOpenNavigation: _openDrawer,
+              onOpenInfrastructure: () => _open(14),
             ),
             const LocalAiSettingsScreen(
               key: ValueKey('plp-local-ai-settings'),

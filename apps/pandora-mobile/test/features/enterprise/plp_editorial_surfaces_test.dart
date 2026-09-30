@@ -61,6 +61,7 @@ void main() {
         home: PlpOperationsScreen(
           bootstrap: fixture(),
           onOpenNavigation: () {},
+          onOpenInfrastructure: () {},
           onOpenRoom: () {},
         ),
       ),
@@ -70,6 +71,21 @@ void main() {
     expect(find.text('No guest movement today.'), findsOneWidget);
     expect(find.text('Arrival readiness'), findsNothing);
     expect(find.text('Departure readiness'), findsNothing);
+
+    final infrastructure =
+        find.byKey(const ValueKey('plp-operations-infrastructure'));
+    await tester.scrollUntilVisible(
+      infrastructure,
+      280,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(infrastructure, findsOneWidget);
+    expect(find.text('Resort infrastructure'), findsOneWidget);
+    expect(
+      find.text('Pandora has not verified the resort’s network resilience yet.'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }
