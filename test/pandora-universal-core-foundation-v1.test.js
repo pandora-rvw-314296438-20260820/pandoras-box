@@ -40,6 +40,7 @@ async function makeDb(t) {
     "status text not null," +
     "primary key(organization_id,user_id)" +
     ");" +
+    "grant select on table public.memberships to authenticated,service_role;" +
     "insert into public.organizations values ('" + org + "'),('" + otherOrg + "');" +
     "insert into public.memberships values " +
     "('" + org + "','" + owner + "','owner','active')," +
