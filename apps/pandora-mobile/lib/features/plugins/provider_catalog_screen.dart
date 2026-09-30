@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
-import '../../core/data/owner_projection.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
@@ -179,7 +178,7 @@ class _ProviderCatalogScreenState extends State<ProviderCatalogScreen> {
               children: [
                 CircleAvatar(
                   backgroundColor: PandoraV2Colors.soft,
-                  child: Icon(providerIconFor(entry.displayName)),
+                  child: const Icon(Icons.hub_outlined),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -306,7 +305,7 @@ class _ProviderCatalogRow extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         leading: CircleAvatar(
           backgroundColor: PandoraV2Colors.soft,
-          child: Icon(providerIconFor(entry.displayName), size: 21),
+          child: const Icon(Icons.hub_outlined, size: 21),
         ),
         title: Text(
           entry.displayName,
