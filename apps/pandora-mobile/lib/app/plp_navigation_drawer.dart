@@ -111,7 +111,9 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   @override
   Widget build(BuildContext context) {
     final viewportWidth = MediaQuery.sizeOf(context).width;
-    final drawerWidth = viewportWidth < 600\n        ? viewportWidth\n        : math.min(420.0, viewportWidth * .82);
+    final drawerWidth = viewportWidth < 600
+        ? viewportWidth
+        : math.min(420.0, viewportWidth * .82);
     final visibleBusiness = _businessItems.where((item) => _matches(item.label)).toList();
     final visibleSystem = _systemItems.where((item) => _matches(item.label)).toList();
     final visibleChats = widget.recentChats.where((item) => _matches(item.title)).toList();
