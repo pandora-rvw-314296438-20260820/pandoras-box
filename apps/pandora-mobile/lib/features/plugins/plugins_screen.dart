@@ -11,6 +11,7 @@ import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
+import 'provider_catalog_screen.dart';
 
 class PluginsScreen extends StatefulWidget {
   const PluginsScreen({super.key});
@@ -171,6 +172,19 @@ class _PluginsScreenState extends State<PluginsScreen> {
                                 },
                                 icon: const Icon(Icons.close_rounded),
                               ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ProviderCatalogScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.grid_view_rounded, size: 18),
+                        label: const Text('Browse provider catalog'),
                       ),
                     ),
                     if (_runtimeError != null) ...[
