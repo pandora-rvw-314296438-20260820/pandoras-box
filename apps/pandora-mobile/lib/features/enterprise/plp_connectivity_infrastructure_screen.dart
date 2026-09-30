@@ -195,10 +195,6 @@ class PlpConnectivityInfrastructureScreen extends StatelessWidget {
                 'Review PLP property connectivity for cameras, sensors, security and cloud services. Separate verified state from unknowns, then recommend the next operational action. Provider choice must remain capability-led and owner-approved.',
               ),
             ),
-            const SizedBox(height: 30),
-            const Divider(height: 1, color: _line),
-            const SizedBox(height: 18),
-            const _ProviderNote(),
           ],
         ),
       ),
@@ -340,7 +336,7 @@ class _SignalTile extends StatelessWidget {
             size: 20,
             color: PlpConnectivityInfrastructureScreen._accent,
           ),
-          const Spacer(),
+          const SizedBox(height: 22),
           Text(
             signal.title,
             style: const TextStyle(
@@ -521,21 +517,6 @@ class _ActionRow extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      );
-}
-
-class _ProviderNote extends StatelessWidget {
-  const _ProviderNote();
-
-  @override
-  Widget build(BuildContext context) => const Text(
-        'Provider routing stays behind Pandora. PLDT Enterprise can be considered when its services fit an owner-approved need; it is not treated as connected until provider evidence confirms it.',
-        key: ValueKey('plp-infrastructure-provider-note'),
-        style: TextStyle(
-          color: PlpConnectivityInfrastructureScreen._muted,
-          fontSize: 10.5,
-          height: 1.5,
         ),
       );
 }
