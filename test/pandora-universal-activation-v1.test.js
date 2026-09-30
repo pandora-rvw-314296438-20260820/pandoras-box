@@ -28,7 +28,7 @@ test("activation migrations preserve architecture boundaries",()=>{
   assert.doesNotMatch(capability,/\bProjectOS\b/i);
 
   for(const pack of ["hospitality","restaurant","legal","trade","retail","custom"]){
-    assert.match(industry,new RegExp("\\\\('"+pack+"','1\\\\.0\\\\.0'"));
+    assert.ok(industry.includes("('"+pack+"','1.0.0'"),"missing "+pack+" pack seed");
   }
   assert.match(industry,/custom fields|custom extensions|pandora_custom_entity_types/i);
   assert.match(industry,/customs_entry[\s\S]*source_of_record[\s\S]*customs_authority/i);
