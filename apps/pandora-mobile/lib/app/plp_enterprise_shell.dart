@@ -12,6 +12,7 @@ import '../features/enterprise/plp_activity_screen.dart';
 import '../features/enterprise/plp_connectivity_infrastructure_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
+import '../features/enterprise/plp_resort_workspace.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_team_access_screen.dart';
 import '../features/enterprise/plp_team_management_screen.dart';
@@ -114,7 +115,17 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       final value = await Supabase.instance.client.rpc(
         'plp_enterprise_mobile_bootstrap_v1',
       );
-      final normalized = _normalizeBootstrap(value);
+      final normalized =
+          Map<String, Object?>.from(_normalizeBootstrap(value));
+      try {
+        final resort = await Supabase.instance.client.rpc(
+          'plp_resort_command_center_v1',
+        );
+        normalized['resortCommandCenter'] = _normalizeBootstrap(resort);
+      } catch (_) {
+        // The verified PLP core remains authoritative if the additive resort
+        // command-center projection is rolling out or temporarily unavailable.
+      }
       _ensureRealtime(normalized);
       if (cache != null) {
         try {
@@ -355,23 +366,31 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Future<void> _submitPersistentCommand() => _submitCommand();
 
-  String get _commandHint => switch (_index) {
-        0 => 'Ask what matters today…',
-        2 => 'Ask about operations…',
-        3 => 'Ask about what you see…',
-        4 => 'Ask about local AI…',
-        5 => 'Ask about today’s overview…',
-        6 => 'Ask about a guest or stay…',
-        7 => 'Ask about team or access…',
-        8 => 'Ask about revenue…',
-        9 => 'Ask what needs your attention…',
-        10 => 'Ask about recent activity…',
-        11 => 'Ask about settings…',
-        12 => 'Ask about diagnostics…',
-        13 => 'Ask about tax readiness…',
-        14 => 'Ask about resort infrastructure…',
-        _ => 'Message Pandora',
-      };
+  String get _commandHint {
+    final toolKey = _routedToolKey;
+    if (toolKey != null && toolKey.startsWith('resort:')) {
+      final section =
+          plpResortSectionById(toolKey.substring('resort:'.length));
+      if (section != null) return section.commandHint;
+    }
+    return switch (_index) {
+      0 => 'Ask what matters today…',
+      2 => 'Ask about operations…',
+      3 => 'Ask about what you see…',
+      4 => 'Ask about local AI…',
+      5 => 'Ask about today’s overview…',
+      6 => 'Ask about a guest or stay…',
+      7 => 'Ask about team or access…',
+      8 => 'Ask about revenue…',
+      9 => 'Ask what needs your attention…',
+      10 => 'Ask about recent activity…',
+      11 => 'Ask about settings…',
+      12 => 'Ask about diagnostics…',
+      13 => 'Ask about tax readiness…',
+      14 => 'Ask about resort infrastructure…',
+      _ => 'Message Pandora',
+    };
+  }
 
   Map<String, Object?> _alfredContext(Map<String, Object?> bootstrap) => {
         ...bootstrap,
@@ -379,6 +398,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           'name': 'Alfred',
           'role': 'PLP executive intelligence',
           'routing': 'local-first governed execution',
+        },
+        'uiContext': <String, Object?>{
+          'surface': _drawerSelection ?? 'home',
+          'interaction': 'contextual luxury resort workspace',
         },
         'enterpriseInfrastructure': const <String, Object?>{
           'presentation': 'outcome-first',
@@ -394,13 +417,52 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       };
 
   String? get _drawerSelection {
+    final toolKey = _routedToolKey;
+    if (toolKey != null && toolKey.startsWith('resort:')) {
+      return toolKey.substring('resort:'.length);
+    }
     for (final entry in _surfaceByDestination.entries) {
       if (entry.value == _index) return entry.key;
     }
     return null;
   }
 
+  void _openResortSection(String destination) {
+    if (destination == 'today' || destination == 'home') {
+      _openHome();
+      return;
+    }
+    final section = plpResortSectionById(destination);
+    if (section == null) return;
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    _openTool(
+      'resort:' + destination,
+      PlpResortWorkspaceScreen(
+        section: section,
+        bootstrap: bootstrap,
+        onOpenNavigation: _openDrawer,
+        onRefresh: _refresh,
+        onAskPandora: (prompt) => unawaited(_submitCommand(prompt)),
+        onOpenSection: _openResortSection,
+        onOpenOperationsRoom: () {
+          _openTool(
+            'operations-room',
+            PandoraOperationsRoomScreen(onHome: _closeTool),
+          );
+        },
+        onOpenGuestExperience: () => _open(6),
+        onOpenTeam: () => _open(7),
+        onOpenActivity: () => _open(10),
+      ),
+    );
+  }
+
   void _selectDrawerDestination(String destination) {
+    if (plpResortSectionById(destination) != null) {
+      _closeDrawer();
+      _openResortSection(destination);
+      return;
+    }
     final target = _surfaceByDestination[destination];
     if (target == null) return;
     _closeDrawer();
@@ -548,6 +610,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenNavigation: _openDrawer,
               onRefresh: _refresh,
               onAskAlfred: () => _open(1),
+              onOpenSection: _openResortSection,
             ),
             AskPandoraScreen(
               key: _alfredKey,

@@ -4,51 +4,51 @@ import test from "node:test";
 
 const read = (path) => fs.readFileSync(path, "utf8");
 const home = read("apps/pandora-mobile/lib/features/enterprise/plp_enterprise_home.dart");
-const editorial = read("apps/pandora-mobile/lib/features/enterprise/plp_editorial_surfaces.dart");
-const guests = read("apps/pandora-mobile/lib/features/enterprise/plp_guests_screen.dart");
-const team = read("apps/pandora-mobile/lib/features/enterprise/plp_team_access_screen.dart");
-const activity = read("apps/pandora-mobile/lib/features/enterprise/plp_activity_screen.dart");
-const tax = read("apps/pandora-mobile/lib/features/enterprise/tax_compliance_screen.dart");
+const resort = read("apps/pandora-mobile/lib/features/enterprise/plp_resort_workspace.dart");
+const drawer = read("apps/pandora-mobile/lib/app/plp_navigation_drawer.dart");
 const shell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
+const migration = read("supabase/migrations/20261001044500_plp_resort_command_center_v1.sql");
 
-test("PLP Home is an adaptive briefing rather than a duplicate Overview", () => {
-  assert.match(home, /plp-owner-briefing/);
-  assert.match(home, /The resort is quiet today\./);
-  assert.match(home, /A few things need you\./);
-  assert.doesNotMatch(home, /TODAY AT PUEBLO LA PERLA|COMMAND PLP|plp-metric-occupancy/);
+test("PLP Home is one shared resort workspace, not a second editorial design", () => {
+  assert.match(home, /PlpResortWorkspaceScreen/);
+  assert.match(home, /plpResortSectionById\('today'\)/);
+  assert.doesNotMatch(home, /OWNER’S HOME|Your private briefing/);
 });
 
-test("PLP deeper surfaces keep the quiet editorial grammar", () => {
-  assert.doesNotMatch(editorial, /Turn the overview into action\./);
-  assert.match(editorial, /No guest movement today\./);
-  assert.doesNotMatch(editorial, /Ask about what matters\.|Interrogate the number\./);
-  assert.doesNotMatch(editorial, /Customer-owned PLP cameras can replace/);
+test("PLP exposes nine coherent resort workspaces instead of a feature catalog", () => {
+  for (const id of ["today", "stays", "rooms", "guests", "operations", "revenue", "experiences", "team", "activity"]) {
+    assert.match(resort, new RegExp("id: '" + id + "'"));
+  }
+  assert.match(resort, /ROOM PULSE/);
+  assert.match(resort, /Concierge/);
+  assert.match(resort, /Housekeeping/);
+  assert.match(resort, /Rates/);
+  assert.doesNotMatch(resort, /MFR/);
 });
 
-test("Guest, Team, and Activity headers converge without generic stacked branding", () => {
-  assert.match(guests, /PUEBLO LA PERLA/);
-  assert.match(guests, /GUEST EXPERIENCE/);
-  assert.doesNotMatch(guests, /class _PropertyIdentity/);
-  assert.match(guests, /Needs personal attention/);
-  assert.doesNotMatch(team, /PUEBLO\\nLA PERLA\\nBORACAY/);
-  assert.match(team, /TEAM & ACCESS/);
-  assert.doesNotMatch(activity, /PUEBLO\\nLA PERLA\\nBORACAY/);
-  assert.match(activity, /Provider-backed audit trail/);
+test("PLP navigation keeps resort work primary and technical machinery under System", () => {
+  for (const label of ["Today", "Stays", "Rooms", "Guests", "Operations", "Revenue", "Experiences", "Team", "Activity"]) {
+    assert.match(drawer, new RegExp("'" + label + "'"));
+  }
+  assert.doesNotMatch(drawer, /_PlpDrawerDestination\('overview'/);
+  assert.doesNotMatch(drawer, /_PlpDrawerDestination\('needs-you'/);
+  assert.match(drawer, /_systemItems[\s\S]*Tax & Compliance[\s\S]*Local AI[\s\S]*Developer diagnostics/);
 });
 
-test("PLP tax is owner-first and does not duplicate the global Pandora composer", () => {
-  assert.match(tax, /bottomNavigationBar: _isPlp \? null : SafeArea/);
-  assert.match(tax, /plp-tax-owner-status/);
-  assert.match(tax, /Professional review required\./);
-  assert.match(tax, /Approved rule authority/);
-  assert.match(tax, /The Philippines rule pack is still under professional review\./);
-});
-
-test("PLP shell uses integrated headers and one context-aware Pandora command dock", () => {
-  assert.match(shell, /openDrawer: _openDrawer/);
-  assert.match(shell, /if \(_index == 4 \|\| _index == 12\)/);
-  assert.match(shell, /Ask what matters today…/);
-  assert.match(shell, /Ask about a guest or stay…/);
-  assert.match(shell, /Ask about tax readiness…/);
+test("PLP shell loads one additive resort projection and preserves contextual Pandora", () => {
+  assert.match(shell, /plp_resort_command_center_v1/);
+  assert.match(shell, /resortCommandCenter/);
+  assert.match(shell, /'resort:' \+ destination/);
+  assert.match(shell, /onOpenSection: _openResortSection/);
+  assert.match(shell, /'name': 'Alfred'/);
   assert.match(shell, /hintText: _commandHint/);
+});
+
+test("PLP resort projection is bounded to existing truth and excludes direct contact data", () => {
+  assert.match(migration, /active PLP membership required/);
+  assert.match(migration, /plp_runtime\.plp_bookings/);
+  assert.match(migration, /enterprise_hospitality_housekeeping_jobs/);
+  assert.match(migration, /contactDetailsExcluded/);
+  assert.doesNotMatch(migration, /g\.email|g\.phone/);
+  assert.match(migration, /revoke execute on function public\.plp_resort_command_center_v1\(\)\s+from public, anon/);
 });
