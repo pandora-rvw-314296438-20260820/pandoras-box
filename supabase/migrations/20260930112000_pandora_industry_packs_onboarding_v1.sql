@@ -54,7 +54,7 @@ create table if not exists public.pandora_industry_authority_defaults (
   pack_key text not null,
   pack_version text not null,
   entity_key text not null,
-  field_path text,
+  field_path text not null default '*',
   authority_kind text not null
     check (authority_kind in ('source_of_record','pandora_derived','advisory','fallback_source')),
   source_role text not null,
@@ -770,12 +770,12 @@ on conflict(pack_key,pack_version,entity_key) do nothing;
 insert into public.pandora_industry_authority_defaults(
   pack_key,pack_version,entity_key,field_path,authority_kind,source_role,rationale
 ) values
-  ('hospitality','1.0.0','reservation',null,'source_of_record','pms','Existing PMS may remain reservation authority.'),
-  ('restaurant','1.0.0','order',null,'source_of_record','pos','Existing POS may remain order authority.'),
-  ('restaurant','1.0.0','check',null,'source_of_record','pos','Existing POS may remain check authority.'),
-  ('legal','1.0.0','evidence_item',null,'source_of_record','document_system','Evidence originals and versions remain source authoritative.'),
+  ('hospitality','1.0.0','reservation','*','source_of_record','pms','Existing PMS may remain reservation authority.'),
+  ('restaurant','1.0.0','order','*','source_of_record','pos','Existing POS may remain order authority.'),
+  ('restaurant','1.0.0','check','*','source_of_record','pos','Existing POS may remain check authority.'),
+  ('legal','1.0.0','evidence_item','*','source_of_record','document_system','Evidence originals and versions remain source authoritative.'),
   ('trade','1.0.0','customs_entry','official_status','source_of_record','customs_authority','Official customs status remains external authoritative.'),
-  ('retail','1.0.0','sale',null,'source_of_record','pos_or_commerce','POS or commerce system remains transaction authority.')
+  ('retail','1.0.0','sale','*','source_of_record','pos_or_commerce','POS or commerce system remains transaction authority.')
 on conflict(pack_key,pack_version,entity_key,field_path,source_role) do nothing;
 
 insert into public.pandora_industry_pack_mappings(
