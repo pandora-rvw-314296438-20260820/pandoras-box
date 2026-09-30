@@ -1,0 +1,16 @@
+
+title = "Pandora repository Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Non-secret synthetic FB060 acceptance fixture identifiers"
+regexTarget = "match"
+regexes = [
+  '''acceptance-fb060-self-test''',
+  '''acceptance-fb060-wrong-tenant''',
+  '''fb060-synthetic-valid''',
+  '''fb060-synthetic-wrong''',
+  '''fb060-lifecycle-erasure-20261001'''
+]
