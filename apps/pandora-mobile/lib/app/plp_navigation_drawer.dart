@@ -55,7 +55,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     _PlpDrawerDestination('operations', 'Operations', Icons.hub_outlined),
     _PlpDrawerDestination(
       'connectivity',
-      'Connectivity & Infrastructure',
+      'Infrastructure',
       Icons.router_outlined,
     ),
     _PlpDrawerDestination('vision', 'Vision', Icons.visibility_outlined),
