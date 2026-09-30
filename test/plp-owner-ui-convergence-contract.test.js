@@ -38,7 +38,7 @@ test("PLP navigation keeps resort work primary and technical machinery under Sys
 test("PLP shell loads one additive resort projection and preserves contextual Pandora", () => {
   assert.match(shell, /plp_resort_command_center_v1/);
   assert.match(shell, /resortCommandCenter/);
-  assert.match(shell, /resort:\$destination/);
+  assert.match(shell, /'resort:' \+ destination/);
   assert.match(shell, /onOpenSection: _openResortSection/);
   assert.match(shell, /'name': 'Alfred'/);
   assert.match(shell, /hintText: _commandHint/);
