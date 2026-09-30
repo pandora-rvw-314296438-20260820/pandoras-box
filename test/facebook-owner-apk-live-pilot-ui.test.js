@@ -31,8 +31,12 @@ test('owner Growth UI surfaces Meta connection and live paid-pilot evidence', ()
     'dailyBudgetMinor',
     'spendMinor',
     'boundedCampaignMutationGranted',
+    'providerCreativeReady',
+    'providerCreativeBlocker',
+    'trackedRedirect',
     'Meta connection',
     'Pilot spend',
+    'Tracked creative',
   ]) assert.ok(growth.includes(token), token);
 });
 
@@ -61,6 +65,10 @@ test('live Meta IDs belong to the business campaign, not the historical test cam
   assert.match(businessAttribution,/historical_acceptance',true/);
   assert.match(businessAttribution,/provider_campaign_id=null/);
   assert.match(businessAttribution,/pandora_meta_paid_pilot_target_is_allowed_v1/);
+  const readiness = readFileSync('supabase/migrations/20260930235454_pandora_growth_provider_creative_readiness_projection_v1.sql','utf8');
+  assert.match(readiness,/providerCreativeReady/);
+  assert.match(readiness,/providerCreativeBlocker/);
+  assert.match(readiness,/meta_app_development_mode/);
 });
 
 test('PLP client APK remains isolated from Pandora owner Facebook marketing', () => {
