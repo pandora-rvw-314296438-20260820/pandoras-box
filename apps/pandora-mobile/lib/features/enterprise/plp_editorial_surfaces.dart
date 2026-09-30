@@ -460,13 +460,17 @@ class PlpBlackPanel extends StatelessWidget {
                   const SizedBox(height: 18),
                   Row(
                     children: [
-                      Text(
-                        action!.toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.7,
+                      Flexible(
+                        child: Text(
+                          action!.toUpperCase(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.7,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 7),
