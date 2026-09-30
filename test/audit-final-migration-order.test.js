@@ -6,6 +6,8 @@ const path = require('node:path');
 const dir = 'supabase/migrations';
 const finalizer = '20260925090001_pandora_authorization_replay_finalizer.sql';
 const guardedMetaFollowup = '20260926121500_pandora_meta_business_login_config_id_v1.sql';
+const guardedGrowthFollowup = '20260930202747_pandora_growth_native_chat_fallback_v1.sql';
+const guardedProtectedFollowups = new Set([guardedMetaFollowup, guardedGrowthFollowup]);
 test('authorization finalizer follows every authoritative protected function definition', () => {
   assert.ok(fs.existsSync(path.join(dir, finalizer)));
   const protectedDefinition = /create\s+(?:or\s+replace\s+)?function\s+public\.(?:pandora_chat_capability_dispatch_native_v1|pandora_chat_universal_dispatch_v9|pandora_meta_oauth_prepare_v1|pandora_tax_guard_rule_support_mutation_v1)\s*\(/i;
