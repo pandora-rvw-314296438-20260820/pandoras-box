@@ -50,5 +50,5 @@ test("PLP resort projection is bounded to existing truth and excludes direct con
   assert.match(migration, /enterprise_hospitality_housekeeping_jobs/);
   assert.match(migration, /contactDetailsExcluded/);
   assert.doesNotMatch(migration, /g\.email|g\.phone/);
-  assert.match(migration, /revoke execute on function public\.plp_resort_command_center_v1\(\) from public, anon/);
+  assert.match(migration, /revoke execute on function public\.plp_resort_command_center_v1\(\)\s+from public, anon/);
 });

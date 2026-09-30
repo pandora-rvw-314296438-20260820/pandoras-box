@@ -116,7 +116,7 @@ void main() {
         find.byKey(const ValueKey('plp-metric-rail')),
         findsOneWidget,
       );
-      expect(find.text('ARRIVALS'), findsOneWidget);
+      expect(find.text('ARRIVALS'), findsNWidgets(2));
       expect(find.text('DEPARTURES'), findsOneWidget);
       expect(find.text('ROOM PULSE'), findsOneWidget);
       expect(find.text('OWNER’S HOME'), findsNothing);
