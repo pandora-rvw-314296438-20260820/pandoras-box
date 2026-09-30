@@ -586,7 +586,10 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       if (requests.isEmpty)
         const _ClearState('No connected experience request is waiting.')
       else
-        _RequestList(items: requests, onAskPandora: onAskPandora),
+        _RequestList(
+          items: requests,
+          onOpen: (request) => onOpenRecord?.call('request', request),
+        ),
     ];
   }
 
