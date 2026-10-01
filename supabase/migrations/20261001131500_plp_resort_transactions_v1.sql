@@ -24,11 +24,11 @@ returns trigger
 language plpgsql
 security definer
 set search_path to ''
-as $
+as $receipt$
 begin
   raise exception 'PLP operation receipts are immutable' using errcode='42501';
 end;
-$;
+$receipt$;
 
 drop trigger if exists plp_operation_receipts_immutable_v1
   on plp_runtime.plp_operation_receipts;
@@ -624,7 +624,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path to ''
-as $
+as $voidpay$
 declare
   ctx jsonb := private.plp_membership_context_v1(array['owner','admin']);
   uid uuid := (ctx->>'userId')::uuid;
@@ -711,14 +711,14 @@ begin
     org,uid,p_request_id,'payment.void_manual','payment',payment.id,response
   );
 end;
-$;
+$voidpay$;
 
 create or replace function public.plp_resort_access_v1()
 returns jsonb
 language plpgsql
 security definer
 set search_path to ''
-as $
+as $access$
 declare
   ctx jsonb := private.plp_membership_context_v1(null);
   role_name text := ctx->>'role';
@@ -733,14 +733,14 @@ begin
     'canView',true
   );
 end;
-$;
+$access$;
 
 create or replace function public.plp_room_board_v1()
 returns jsonb
 language plpgsql
 security definer
 set search_path to ''
-as $
+as $board$
 declare
   ctx jsonb := private.plp_membership_context_v1(null);
   prop public.enterprise_properties%rowtype;
@@ -842,7 +842,7 @@ begin
     )
   );
 end;
-$;
+$board$;
 
 create or replace function public.plp_update_room_v1(
   p_request_id text,
