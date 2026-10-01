@@ -878,8 +878,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                         pages: <Page<void>>[
                           MaterialPage<void>(
                             key: const ValueKey<String>('plp-shell-base-route'),
-                            child: IndexedStack(
+                            child: _PlpLazyIndexedStack(
                               index: _index,
+                              cacheEpoch: bootstrap['generatedAt']?.toString(),
                               children: screens,
                             ),
                           ),
@@ -941,6 +942,57 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           );
         },
       );
+}
+
+class _PlpLazyIndexedStack extends StatefulWidget {
+  const _PlpLazyIndexedStack({
+    required this.index,
+    required this.children,
+    this.cacheEpoch,
+  });
+
+  final int index;
+  final List<Widget> children;
+  final String? cacheEpoch;
+
+  @override
+  State<_PlpLazyIndexedStack> createState() => _PlpLazyIndexedStackState();
+}
+
+class _PlpLazyIndexedStackState extends State<_PlpLazyIndexedStack> {
+  final Map<int, Widget> _cache = <int, Widget>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _cache[widget.index] = widget.children[widget.index];
+  }
+
+  @override
+  void didUpdateWidget(covariant _PlpLazyIndexedStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cacheEpoch != widget.cacheEpoch ||
+        oldWidget.children.length != widget.children.length) {
+      _cache.clear();
+    }
+    _cache[widget.index] = widget.children[widget.index];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _cache[widget.index] ??= widget.children[widget.index];
+    return IndexedStack(
+      index: widget.index,
+      children: List<Widget>.generate(
+        widget.children.length,
+        (index) => _cache[index] ??
+            KeyedSubtree(
+              key: ValueKey<String>('plp-lazy-placeholder-$index'),
+              child: const SizedBox.shrink(),
+            ),
+      ),
+    );
+  }
 }
 
 class PlpCommandDock extends StatelessWidget {

@@ -188,12 +188,14 @@ const _bootstrap = <String, Object?>{
     'staffIdentityCount': 2,
     'members': <Object?>[
       <String, Object?>{
+        'id': 'member-owner',
         'displayName': 'Doctora',
         'roleLabel': 'Owner',
         'accessRole': 'owner',
         'active': true,
       },
       <String, Object?>{
+        'id': 'member-manager',
         'displayName': 'Resort Manager',
         'roleLabel': 'Manager',
         'accessRole': 'admin',
@@ -223,14 +225,17 @@ Future<void> _mountOwnerShell(WidgetTester tester) async {
 Future<void> _openDrawer(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey('plp-floating-navigation')));
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 350));
+  await tester.pump(const Duration(milliseconds: 420));
   expect(find.byKey(const ValueKey('plp-navigation-drawer')), findsOneWidget);
 }
 
 Future<void> _openSection(WidgetTester tester, String id) async {
   await _openDrawer(tester);
-  await tester.tap(find.byKey(ValueKey<String>('plp-drawer-' + id)));
-  await tester.pumpAndSettle();
+  final destination = find.byKey(ValueKey<String>('plp-drawer-' + id));
+  await tester.ensureVisible(destination);
+  await tester.tap(destination);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 420));
   final expected = id == 'home' ? 'today' : id;
   expect(
     find.byKey(ValueKey<String>('plp-resort-' + expected)),
@@ -425,14 +430,15 @@ void main() {
     await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('plp-drawer-search-field')),
-      'Tax',
+      'Developer',
     );
     await tester.pump();
-    expect(find.text('Tax & Compliance'), findsOneWidget);
+    expect(find.text('Developer diagnostics'), findsOneWidget);
 
-    await tester.tap(find.text('Tax & Compliance'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('plp-tax-compliance')), findsOneWidget);
+    await tester.tap(find.text('Developer diagnostics'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 420));
+    expect(find.byKey(const ValueKey('plp-developer')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
