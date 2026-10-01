@@ -35,7 +35,11 @@ void main() {
     ]) {
       await tester.enterText(search, capability);
       await tester.pump();
-      expect(find.text(capability), findsOneWidget);
+      final capabilityTileLabel = find.descendant(
+        of: find.byType(InkWell),
+        matching: find.text(capability),
+      );
+      expect(capabilityTileLabel, findsOneWidget);
     }
   });
 
