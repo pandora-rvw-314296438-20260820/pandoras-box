@@ -378,6 +378,12 @@ void main() {
         final capability = find.byKey(
           ValueKey<String>('plp-capability-' + module.value),
         );
+        expect(
+          capability,
+          findsOneWidget,
+          reason: section.key + ' must expose ' + module.key +
+              ' as a real tappable capability.',
+        );
         await tester.ensureVisible(capability);
         await tester.tap(capability);
         await tester.pumpAndSettle();
