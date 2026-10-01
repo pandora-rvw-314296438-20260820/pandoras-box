@@ -257,6 +257,18 @@ class _PlpResortOperationalScreenState
                   child: const Text('Create task'),
                 ),
               ),
+              const SizedBox(height: 4),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  key: const ValueKey('plp-module-cancel-task'),
+                  onPressed: () {
+                    FocusScope.of(sheetContext).unfocus();
+                    Navigator.of(sheetContext, rootNavigator: true).pop(false);
+                  },
+                  child: const Text('Cancel'),
+                ),
+              ),
               ],
             ),
           ),
