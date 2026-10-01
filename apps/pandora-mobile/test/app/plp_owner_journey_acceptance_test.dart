@@ -416,10 +416,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('plp-module-new-task')));
     await tester.pumpAndSettle();
     expect(find.text('New housekeeping task'), findsOneWidget);
-    final taskTitle = find.descendant(
-      of: find.byKey(const ValueKey('plp-module-task-title')).first,
-      matching: find.byType(TextField),
-    );
+    final taskTitle =
+        find.byKey(const ValueKey('plp-module-task-title'));
     expect(taskTitle, findsOneWidget);
     expect(find.text('Create task'), findsOneWidget);
 
