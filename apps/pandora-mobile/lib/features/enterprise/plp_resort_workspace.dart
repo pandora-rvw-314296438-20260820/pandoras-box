@@ -217,6 +217,33 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final guest = _map(bootstrap['guestExperience']);
     final command = _map(bootstrap['resortCommandCenter']);
     final pulse = _map(command['roomPulse']);
+    final source = _map(bootstrap['sourceHealth']);
+    final directSourceEmpty =
+        _text(source['sourceProvider'], fallback: '').toLowerCase() ==
+            'pandora_direct' &&
+        _number(pulse['total'], fallback: _number(today['rooms_total'])) == 0;
+    if (directSourceEmpty) {
+      return [
+        const _HeroLine(eyebrow: 'RESORT STATUS', title: 'Today'),
+        const SizedBox(height: 18),
+        _SourceBand(
+          state: _text(source['state'], fallback: 'healthy'),
+          message: _clientSourceMessage(
+            _text(source['state'], fallback: 'healthy'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const _EmptyState(
+          'Pandora Direct is connected and isolated to this resort. '
+          'No customer room or reservation records have been entered yet, '
+          'so Pandora will not invent occupancy, availability, or sales.',
+        ),
+        const SizedBox(height: 28),
+        const _SectionHeader('RESORT WORKSPACES'),
+        const SizedBox(height: 10),
+        _SectionLaunchRail(onOpen: onOpenSection),
+      ];
+    }
     final operations = _map(command['operations']);
     final inHouse = _clientRecords(_maps(guest['inHouse']));
     final arrivals = _clientRecords(_maps(guest['arrivals']));

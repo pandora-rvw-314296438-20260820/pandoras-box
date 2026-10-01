@@ -27,8 +27,8 @@ jobs:
       EXPECTED_PACKAGE: 'com.banataosystems.pandora.plp'
       EXPECTED_LABEL: 'PLP Pandora Enterprise'
       LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
-      LOCAL_MODEL_SHA256: '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d'
-      LOCAL_MODEL_NAME: 'qwen2.5-3b-instruct-q4_k_m.gguf'
+      LOCAL_MODEL_SHA256: '1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6'
+      LOCAL_MODEL_NAME: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf'
       APK_FILENAME: 'PLP-Pandora-Enterprise.apk'
     steps:
       - name: Check out exact candidate
@@ -425,6 +425,8 @@ jobs:
             echo "llama_cpp_sha=$LLAMA_CPP_SHA"
             echo "recommended_local_model=$LOCAL_MODEL_NAME"
             echo "recommended_local_model_sha256=$LOCAL_MODEL_SHA256"
+            echo "accepted_local_model_name=$LOCAL_MODEL_NAME"
+            echo "accepted_local_model_sha256=$LOCAL_MODEL_SHA256"
             echo "local_ai_model_bundled=false"
             echo "android_platform=android-36"
             echo "android_build_tools=36.0.0"
@@ -432,6 +434,9 @@ jobs:
             echo "cmake_version=3.31.6"
             echo "target_abi=arm64-v8a"
             echo "build_mode=release"
+            echo "artifact_class=validation-candidate"
+            echo "production_release=false"
+            echo "production_signer_verified=false"
             echo "apk_filename=$APK_FILENAME"
             echo "apk_sha256=$(sha256sum "$final_apk" | cut -d ' ' -f1)"
             echo "apk_size_bytes=$(stat -c '%s' "$final_apk")"

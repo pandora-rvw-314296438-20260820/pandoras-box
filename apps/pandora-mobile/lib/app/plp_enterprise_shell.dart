@@ -22,6 +22,7 @@ import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
+import '../pandora_config.dart';
 import 'pandora_dependencies.dart';
 import 'plp_navigation_drawer.dart';
 
@@ -883,6 +884,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             ),
             const LocalAiSettingsScreen(
               key: ValueKey('plp-local-ai-settings'),
+              organizationId: PandoraConfig.plpOrganizationId,
             ),
             PlpOverviewScreen(
               key: const ValueKey('plp-overview'),

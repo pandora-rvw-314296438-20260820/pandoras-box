@@ -29,10 +29,16 @@ def require_manifest_binding(manifest: Mapping[str,str], *, source_sha:str, sour
     checks=(("source_sha",source_sha,"source SHA"),("source_tree",source_tree,"source tree"),("apk_sha256",apk_sha256,"APK SHA-256"),("android_package",package_name,"Android package"),("app_version",app_version,"app version"))
     for key,expected,label in checks:
         if manifest.get(key)!=expected: raise VerificationError(f"manifest {label} does not match candidate")
-    if manifest.get("artifact_class")!="validation-candidate": raise VerificationError("candidate is not an exact-source validation artifact")
+    if manifest.get("artifact_class") not in ("validation-candidate","production-candidate"): raise VerificationError("candidate artifact class is not accepted")
     if manifest.get("production_release")!="false": raise VerificationError("validation manifest must not self-assert production release")
     for key in FALSE_GATES:
         if manifest.get(key)!="false": raise VerificationError(f"CI manifest must leave {key}=false until external proof")
+def require_production_manifest(manifest: Mapping[str,str], expected_signer_sha256:str|None)->None:
+    normalized=(expected_signer_sha256 or "").replace(":","").lower()
+    if manifest.get("artifact_class")!="production-candidate": raise VerificationError("production signer acceptance requires a production-candidate manifest")
+    if manifest.get("production_signer_verified")!="true": raise VerificationError("manifest does not attest production signer verification")
+    manifest_signer=manifest.get("signer_sha256","").replace(":","").lower()
+    if manifest_signer!=normalized: raise VerificationError("manifest signer digest does not match required production signer")
 def run_checked(command: Sequence[str])->str:
     try:
         completed=subprocess.run(list(command),check=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
@@ -96,13 +102,13 @@ def smoke_device(adb:str,serial:str|None,apk:Path,package_name:str,expected_vers
     if not run_checked([*prefix,"shell","pidof",package_name]).strip(): raise VerificationError("package did not relaunch after force-stop")
     return {"adb_device_online":True,"install_verified":True,"launch_verified":True,"force_stop_relaunch_verified":True,"device_smoke_verified":True}
 def main()->int:
-    parser=argparse.ArgumentParser(); parser.add_argument("--apk",required=True,type=Path); parser.add_argument("--manifest",required=True,type=Path); parser.add_argument("--expected-source-sha",required=True); parser.add_argument("--expected-source-tree",required=True); parser.add_argument("--aapt",default="aapt"); parser.add_argument("--apksigner",default="apksigner"); parser.add_argument("--adb",default="adb"); parser.add_argument("--serial"); parser.add_argument("--smoke-device",action="store_true"); parser.add_argument("--require-production-signer",action="store_true"); parser.add_argument("--expected-signer-sha256"); args=parser.parse_args()
+    parser=argparse.ArgumentParser(); parser.add_argument("--apk",required=True,type=Path); parser.add_argument("--manifest",required=True,type=Path); parser.add_argument("--expected-package",default=EXPECTED_PACKAGE); parser.add_argument("--expected-source-sha",required=True); parser.add_argument("--expected-source-tree",required=True); parser.add_argument("--aapt",default="aapt"); parser.add_argument("--apksigner",default="apksigner"); parser.add_argument("--adb",default="adb"); parser.add_argument("--serial"); parser.add_argument("--smoke-device",action="store_true"); parser.add_argument("--require-production-signer",action="store_true"); parser.add_argument("--expected-signer-sha256"); args=parser.parse_args()
     if not args.apk.is_file() or not args.manifest.is_file(): raise VerificationError("APK and exact-source manifest must both exist")
     manifest=parse_manifest(args.manifest); apk_sha=sha256_file(args.apk); app_version=manifest.get("app_version","")
-    require_manifest_binding(manifest,source_sha=args.expected_source_sha,source_tree=args.expected_source_tree,apk_sha256=apk_sha,package_name=EXPECTED_PACKAGE,app_version=app_version)
+    require_manifest_binding(manifest,source_sha=args.expected_source_sha,source_tree=args.expected_source_tree,apk_sha256=apk_sha,package_name=args.expected_package,app_version=app_version)
     badging=run_checked([args.aapt,"dump","badging",str(args.apk)])
     package_name,version_name,version_code=parse_badging(badging)
-    if package_name!=EXPECTED_PACKAGE: raise VerificationError(f"unexpected Android package: {package_name}")
+    if package_name!=args.expected_package: raise VerificationError(f"unexpected Android package: {package_name}")
     expected_version_name=app_version.split("+",1)[0]; expected_version_code=app_version.split("+",1)[1] if "+" in app_version else ""
     if version_name!=expected_version_name or version_code!=expected_version_code: raise VerificationError("APK version identity does not match exact-source manifest")
     if args.require_production_signer: require_production_badging(badging)
@@ -112,7 +118,7 @@ def main()->int:
     if args.require_production_signer:
         if debug_signer: raise VerificationError("production acceptance cannot use the Android debug signer")
         require_modern_signature_scheme(signing)
-        signer_sha256=require_expected_production_signer(signing,args.expected_signer_sha256)
+        signer_sha256=require_expected_production_signer(signing,args.expected_signer_sha256); require_production_manifest(manifest,args.expected_signer_sha256)
     evidence={"source_sha":args.expected_source_sha,"source_tree":args.expected_source_tree,"apk_sha256":apk_sha,"android_package":package_name,"version_name":version_name,"version_code":version_code,"permissions_verified":True,"debug_signer":debug_signer,"signer_sha256":signer_sha256,"manifest_bound":True,"device_smoke_verified":False,"physical_device_verified":False,"wifi_journey_verified":False,"mobile_data_journey_verified":False,"authenticated_owner_journey_verified":False,"network_switch_verified":False,"rollback_verified":False}
     if args.smoke_device: evidence.update(smoke_device(args.adb,args.serial,args.apk,package_name,version_name,version_code))
     print(json.dumps(evidence,sort_keys=True)); return 0
