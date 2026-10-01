@@ -14,6 +14,8 @@ import '../features/approvals/approvals_screen.dart';
 import '../features/enterprise/batalla_workspace_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/enterprise_workspace_home.dart';
+import '../features/enterprise/marketing_growth_workspace_screen.dart';
+import '../features/enterprise/provider_ecosystem_screen.dart';
 import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
@@ -42,7 +44,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     _ChatDestination('Settings & More', Icons.tune_rounded, Icons.tune_rounded),
     _ChatDestination('Activity', Icons.history_rounded, Icons.history_rounded),
     _ChatDestination(
-        'Connections', Icons.extension_outlined, Icons.extension_rounded),
+        'Live Connections', Icons.extension_outlined, Icons.extension_rounded),
     _ChatDestination('Saved evidence', Icons.offline_pin_outlined,
         Icons.offline_pin_rounded),
     _ChatDestination(
@@ -54,6 +56,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       'Vision Intelligence',
       Icons.videocam_outlined,
       Icons.videocam_rounded,
+    ),
+    _ChatDestination(
+      'Capabilities & Providers',
+      Icons.account_tree_outlined,
+      Icons.account_tree_rounded,
     ),
   ];
 
@@ -151,12 +158,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       2 => 'needs_you',
       3 => 'more',
       4 => 'activity',
-      5 => 'plugins',
+      5 => 'live_connections',
       6 => 'saved_evidence',
       7 => 'verify_safety',
       8 => 'operations_room',
       9 => 'enterprise_home',
       10 => 'vision_intelligence',
+      11 => 'provider_ecosystem',
       _ => 'pandora_chat',
     };
     unawaited(
@@ -505,6 +513,16 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                   onHome: () => _select(9),
                 )
               : _activeWorkspaceSelection?.workspace.key ==
+                      'pandora-marketing-growth'
+                  ? MarketingGrowthWorkspaceScreen(
+                      initialRouteSlug:
+                          _activeWorkspaceSelection!.section.routeSlug,
+                      enterpriseContext:
+                          _activeEnterpriseContext ?? _activeWorkspaceSelection!.enterpriseContext,
+                      onHome: () => _select(9),
+                      onApprovals: () => _select(2),
+                    )
+                  : _activeWorkspaceSelection?.workspace.key ==
                       'batalla-associates'
                   ? BatallaWorkspaceScreen(
                       initialRouteSlug:
@@ -534,6 +552,9 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               onMore: () => _select(3),
             ),
           10 => EnterpriseVisionScreen(onAskPandora: _openVisionChat),
+          11 => ProviderEcosystemScreen(
+              onOpenConnections: () => _select(5),
+            ),
           _ => AskPandoraScreen(key: _chatKey),
         },
       );
@@ -738,7 +759,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 onTap: () => onOpenThread(thread),
               ),
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: PandoraV2Colors.line)),
-          for (final index in const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])
+          for (final index in const <int>[9, 10, 0, 8, 11, 1, 2, 4, 6, 7, 3])
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: ListTile(

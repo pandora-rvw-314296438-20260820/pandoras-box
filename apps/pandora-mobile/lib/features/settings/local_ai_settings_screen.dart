@@ -9,7 +9,12 @@ import '../../core/widgets/status_badge.dart';
 import '../../pandora_config.dart';
 
 class LocalAiSettingsScreen extends StatefulWidget {
-  const LocalAiSettingsScreen({super.key});
+  const LocalAiSettingsScreen({
+    super.key,
+    this.organizationId = PandoraConfig.organizationId,
+  });
+
+  final String organizationId;
 
   @override
   State<LocalAiSettingsScreen> createState() => _LocalAiSettingsScreenState();
@@ -147,7 +152,7 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
           await client.rpc(
             'begin_phone_local_ai_acceptance',
             params: <String, Object?>{
-              'p_organization_id': PandoraConfig.organizationId,
+              'p_organization_id': widget.organizationId,
               'p_source_sha': PandoraConfig.sourceRevision,
             },
           ),
@@ -285,7 +290,7 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                 : 'Choose your local model',
             message: loaded
                 ? 'Routine chat can start on your phone and escalate to cloud intelligence only when needed.'
-                : 'For this phone, use Qwen2.5 3B Instruct Q4_K_M. Pandora loads it only for safe local turns and routes heavier or unsafe work to cloud intelligence.',
+                : 'For this phone, use Qwen3 4B Instruct Q4_K_M. Pandora loads it only for safe local turns and routes heavier or unsafe work to cloud intelligence.',
             icon: Icons.memory_rounded,
             tone: loaded
                 ? PandoraStatusTone.verified
@@ -514,7 +519,7 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
               label: Text(loaded ? 'Unload local model' : 'Warm local model'),
             ),
             Visibility(
-              visible: false,
+              visible: true,
               maintainState: false,
               child: OutlinedButton.icon(
                 onPressed: _busy ? null : _runPhysicalAcceptance,

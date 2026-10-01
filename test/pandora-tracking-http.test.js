@@ -130,11 +130,11 @@ function storageFixture(calls) {
       id: CAMPAIGN_ID, tenant_id: TENANT_ID,
       destination_url: "https://example.com/offer?reviewed=keep",
       source: "campaign-source", medium: "paid-social", campaign: "owners",
-      content: "video-a", term: null, status: "active",
+      content: "video-a", term: null, status: "active", metadata: {},
     }]);
     if (resource === "pandora_tracking_tenants") return response([{ status: "active" }]);
     if (resource === "pandora_tracking_clicks") {
-      return response([{ tenant_id: TENANT_ID, campaign_id: CAMPAIGN_ID }]);
+      return response([{ tenant_id: TENANT_ID, campaign_id: CAMPAIGN_ID, is_test: true }]);
     }
     if (resource === "pandora_tracking_api_keys" && options.method !== "PATCH") {
       return response([{
@@ -193,6 +193,7 @@ test("redirect route neither stores nor forwards incoming tracking and identity 
   assert.deepEqual(click.body.platform_click_ids, {});
   assert.deepEqual(click.body.query_params, {});
   assert.deepEqual(click.body.metadata, { collector: "vercel" });
+  assert.equal(click.body.is_test, false);
   for (const key of ["referrer", "user_agent", "ip_hash", "visitor_hash"]) {
     assert.equal(click.body[key], null);
   }
@@ -202,7 +203,7 @@ test("redirect route neither stores nor forwards incoming tracking and identity 
   }
 });
 
-test("event route preserves FB-017 consent, test marker, and event meaning with empty metadata", async () => {
+test("event route preserves consent and inherits test truth from the server click", async () => {
   const calls = [];
   await withTrackingApp(storageFixture(calls), async (baseUrl) => {
     const result = await fetch(baseUrl + "/api/tracking/event", {
@@ -232,6 +233,30 @@ test("event route preserves FB-017 consent, test marker, and event meaning with 
     event_type: "event", event_name: "landing.viewed", schema_version: 1,
     consent: { analytics: true, marketing: false }, is_test: true, metadata: {},
   });
+});
+
+test("event route rejects a browser attempt to relabel server test traffic", async () => {
+  const calls = [];
+  await withTrackingApp(storageFixture(calls), async (baseUrl) => {
+    const result = await fetch(baseUrl + "/api/tracking/event", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        click_id: "pdc_" + "b".repeat(32),
+        event_name: "landing.viewed",
+        event_type: "event",
+        schema_version: 1,
+        consent: { analytics: false, marketing: false },
+        is_test: false,
+        metadata: {},
+      }),
+    });
+    assert.equal(result.status, 409);
+    assert.deepEqual(await result.json(), { ok: false, error: "test_marker_mismatch" });
+  });
+  assert.equal(calls.some((call) =>
+    call.resource === "pandora_tracking_events" && call.method === "POST"
+  ), false);
 });
 
 test("all write routes reject nonempty metadata and unsupported top-level fields", async () => {
@@ -347,4 +372,37 @@ test("authenticated conversion and cost routes preserve typed measurements with 
     external_record_id: "registered-cost", spend: 50, impressions: 1000,
     provider_clicks: 40, currency: "USD", metadata: {},
   });
+});
+
+test("controlled-test campaign marks redirect clicks as test traffic", async () => {
+  const calls = [];
+  const fixture = async (url, options = {}) => {
+    const resource = new URL(url).pathname.replace(/^\/rest\/v1\//, "");
+    const body = options.body ? JSON.parse(options.body) : null;
+    calls.push({ resource, method: options.method || "GET", body });
+    if (resource === "pandora_tracking_clicks" && options.method === "POST") return response(null, 201);
+    if (resource === "pandora_tracking_campaigns") return response([{
+      id: CAMPAIGN_ID, tenant_id: TENANT_ID,
+      destination_url: "https://example.com/test", source: "meta", medium: "paid-social",
+      campaign: "controlled", content: null, term: null, status: "active",
+      metadata: { purpose: "controlled-test", business_kpi: false },
+    }]);
+    if (resource === "pandora_tracking_tenants") return response([{ status: "active" }]);
+    return response(null, 404);
+  };
+  await withTrackingApp(fixture, async (baseUrl) => {
+    const result = await fetch(baseUrl + "/t/controlled-test", { redirect: "manual" });
+    assert.equal(result.status, 302);
+  });
+  const click = calls.find((call) => call.resource === "pandora_tracking_clicks" && call.method === "POST");
+  assert.equal(click.body.is_test, true);
+  assert.deepEqual(click.body.metadata, { collector: "vercel" });
+});
+
+test("public tracking aliases mirror the reserved /api routes", async () => {
+  const source = require("node:fs").readFileSync("src/pandora-tracking-http.js", "utf8");
+  for (const route of ["health","event","conversion","outcome","cost","report"]) {
+    assert.ok(source.includes('"/tracking/' + route + '"'), "missing /tracking/" + route);
+  }
+  assert.match(source, /router\.use\(\["\/api\/tracking", "\/tracking"\], express\.json/);
 });
