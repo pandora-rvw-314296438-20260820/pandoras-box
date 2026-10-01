@@ -25,15 +25,10 @@ import {
   resolveOperationalConflict,
   stageOperationalImport,
 } from "./operational-workspace.mjs";
-import {
-  isPandoraTenantKey,
-  PANDORA_CONNECTION_PROVIDER_KEYS,
-  verifyPandoraConnectionProvider,
-} from "../_shared/pandora-connections-provider-verification.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SERVER_ROLE_KEY = Deno.env.get(["SUPABASE", "SERVICE_ROLE_KEY"].join("_"))!;
+const SUPABASE_SERVICE_ROLE_SECRET = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ALLOWED_ORIGINS = parseAllowedOrigins(
   Deno.env.get("PANDORA_ALLOWED_ORIGINS"),
 );
@@ -378,7 +373,7 @@ async function authenticate(req: Request): Promise<UserContext> {
 }
 
 async function enforceRateLimit(context: UserContext, method: string) {
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const limit = method === "GET" ? 120 : 20;
@@ -544,24 +539,13 @@ async function loadProjectSummaries(context: UserContext) {
   });
 }
 
-function connectionSummary(value: unknown) {
+function legacyConnectionSummary(value: unknown) {
   const connection = asRecord(value);
   const provider = textValue(connection.provider, "Service");
   const status = textValue(connection.status, "not_checked").toLowerCase();
-  const now = Date.now();
-  const lastCheckedAt = textValue(connection.last_health_check_at);
-  const connectorFresh = Boolean(
-    lastCheckedAt && Number.isFinite(Date.parse(lastCheckedAt)) &&
-      now - Date.parse(lastCheckedAt) <= 15 * 60 * 1000,
-  );
   const problem = ["error", "failed", "degraded"].includes(status);
-  const ready = ["active", "connected", "healthy", "ready"].includes(
-    status,
-  ) && connectorFresh && !problem;
   const off = ["disabled", "disconnected", "revoked", "off"].includes(status);
-  const state = ready
-    ? "ready"
-    : problem
+  const state = problem
     ? "problem"
     : off
     ? "off"
@@ -586,25 +570,153 @@ function connectionSummary(value: unknown) {
     name: textValue(connection.display_name, provider),
     plainPurpose: purposes[provider.toLowerCase()] || "Connected service",
     state,
-    plainStatus: ready
-      ? "Ready"
-      : problem
+    plainStatus: problem
       ? "Needs attention"
       : off
       ? "Off"
       : status === "pending"
       ? "Needs permission"
       : "Not checked yet",
-    canRead: ready,
-    canChange: ready &&
-      scopes.some((scope) => /write|admin|manage/i.test(scope)),
+    canRead: false,
+    canChange: false,
     canConnect: connectionActionAllowed("connect", state),
     canReconnect: connectionActionAllowed("reconnect", state),
     canTest: connectionActionAllowed("test", state),
     canDisconnect: connectionActionAllowed("disconnect", state),
     needsOwnerApprovalForChanges: true,
     lastCheckedAt: connection.last_health_check_at ?? null,
-    advanced: { provider, scopes, observedStatus: status },
+    advanced: {
+      provider,
+      scopes,
+      observedStatus: status,
+      authority: "legacy_installation_without_live_provider_readback",
+      accountVerified: false,
+      scopesVerified: false,
+    },
+  };
+}
+
+function liveConnectionSummary(
+  value: unknown,
+  organizationId: string,
+  legacyInstallation?: JsonRecord,
+) {
+  const connection = asRecord(value);
+  const provider = textValue(connection.provider).toLowerCase();
+  const activeAccount = asRecord(connection.activeAccount);
+  const healthContract = asRecord(connection.healthContract);
+  const scopes = Array.isArray(activeAccount.scopes)
+    ? activeAccount.scopes.map(String)
+    : [];
+  const capabilities = Array.isArray(activeAccount.capabilities)
+    ? activeAccount.capabilities.map(String)
+    : [];
+  const requiredScopes = Array.isArray(connection.requiredScopes)
+    ? connection.requiredScopes.map(String)
+    : [];
+  const requiredCapabilities = Array.isArray(connection.requiredCapabilities)
+    ? connection.requiredCapabilities.map(String)
+    : [];
+  const lastVerifiedAt = textValue(activeAccount.lastVerifiedAt);
+  const verifiedAtMs = Date.parse(lastVerifiedAt);
+  const now = Date.now();
+  const maxAgeSeconds = Number(healthContract.maxAgeSeconds);
+  const expiresAt = textValue(activeAccount.expiresAt);
+  const expiresAtMs = expiresAt ? Date.parse(expiresAt) : Number.POSITIVE_INFINITY;
+  const rotationDueAt = textValue(activeAccount.rotationDueAt);
+  const rotationDueAtMs = Date.parse(rotationDueAt);
+  const exactAccountBinding = /^[0-9a-f-]{36}$/i.test(
+    textValue(activeAccount.id),
+  ) &&
+    textValue(activeAccount.label).length > 0 &&
+    textValue(activeAccount.tenantId) === organizationId &&
+    textValue(activeAccount.tenantKey).length > 0;
+  const scopesVerified = requiredScopes.length > 0 &&
+    new Set(requiredScopes).size === new Set(scopes).size &&
+    requiredScopes.every((scope) => scopes.includes(scope));
+  const capabilitiesVerified = requiredCapabilities.length > 0 &&
+    new Set(requiredCapabilities).size === new Set(capabilities).size &&
+    requiredCapabilities.every((capability) => capabilities.includes(capability));
+  const readbackFresh = Number.isFinite(verifiedAtMs) &&
+    verifiedAtMs <= now + 60_000 &&
+    Number.isFinite(maxAgeSeconds) &&
+    maxAgeSeconds >= 30 &&
+    now - verifiedAtMs <= maxAgeSeconds * 1000;
+  const credentialLive = !expiresAt ||
+    (Number.isFinite(expiresAtMs) && expiresAtMs > now);
+  const rotationCurrent = Number.isFinite(rotationDueAtMs) &&
+    rotationDueAtMs > now;
+  const providerReadbackVerified =
+    activeAccount.providerReadbackVerified === true;
+  const connected = connection.connected === true &&
+    textValue(connection.state) === "Connected" &&
+    textValue(connection.authority) === "live_provider_readback" &&
+    exactAccountBinding &&
+    scopesVerified &&
+    capabilitiesVerified &&
+    providerReadbackVerified &&
+    textValue(activeAccount.health) === "healthy" &&
+    readbackFresh &&
+    credentialLive &&
+    rotationCurrent;
+  const rawState = textValue(connection.state);
+  const state = connected
+    ? "ready"
+    : rawState === "Needs authorization"
+    ? "needs_permission"
+    : "problem";
+  const legacyId = textValue(legacyInstallation?.id);
+  const displayName = textValue(
+    connection.displayName,
+    textValue(legacyInstallation?.display_name, provider || "Service"),
+  );
+  const purposes: Record<string, string> = {
+    google_workspace: "Google Drive and Sheets read access",
+    posthog: "Product usage and reliability signals",
+    meta: "Facebook Page and Meta Business access",
+    openai: "OpenAI model health and bounded test inference",
+    gemini: "Gemini model health and bounded test inference",
+    kimi: "Kimi model health and bounded test inference",
+    supabase: "Database, sign-in, and safe server functions",
+    vercel: "Live web versions and service health",
+  };
+  return {
+    id: legacyId || textValue(activeAccount.id) || provider,
+    name: displayName,
+    plainPurpose: purposes[provider] || "Connected service",
+    state,
+    plainStatus: connected
+      ? "Connected"
+      : rawState === "Needs authorization"
+      ? "Needs permission"
+      : "Needs attention",
+    canRead: connected,
+    canChange: false,
+    canConnect: connectionActionAllowed("connect", state),
+    canReconnect: connectionActionAllowed("reconnect", state),
+    canTest: Boolean(legacyId) && connectionActionAllowed("test", state),
+    canDisconnect: connected && connectionActionAllowed("disconnect", state),
+    needsOwnerApprovalForChanges: true,
+    lastCheckedAt: lastVerifiedAt || null,
+    advanced: {
+      provider,
+      authority: textValue(connection.authority),
+      accountId: textValue(activeAccount.id) || null,
+      accountLabel: textValue(activeAccount.label) || null,
+      tenantId: textValue(activeAccount.tenantId) || null,
+      tenantKey: textValue(activeAccount.tenantKey) || null,
+      scopes,
+      capabilities,
+      scopesVerified,
+      capabilitiesVerified,
+      providerReadbackVerified,
+      accountVerified: exactAccountBinding,
+      readbackFresh,
+      credentialLive,
+      rotationCurrent,
+      legacyInstallationId: legacyId || null,
+      failureCode: textValue(activeAccount.failureCode) || null,
+    },
   };
 }
 
@@ -695,7 +807,7 @@ function microsText(value: bigint) {
 }
 
 async function business(context: UserContext) {
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
@@ -878,7 +990,7 @@ async function business(context: UserContext) {
 }
 
 async function home(context: UserContext) {
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const [
@@ -1021,7 +1133,7 @@ async function project(context: UserContext, identifier: string) {
     throw new Error("BACKEND_READ_FAILED");
   }
   const evidenceRows = (evidence.data || []) as JsonRecord[];
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const operations = await loadOperationalWorkspace(
@@ -1051,108 +1163,288 @@ async function project(context: UserContext, identifier: string) {
   };
 }
 
-function liveConnectionSummary(value: unknown, organizationId: string) {
-  const connection = asRecord(value);
-  const provider = textValue(connection.provider).toLowerCase();
-  const activeAccount = asRecord(connection.activeAccount);
-  const rawState = textValue(connection.state, "Needs authorization");
-  const connected = connection.connected === true && rawState === "Connected";
-  const needsAttention = rawState === "Needs attention";
-  const state = connected
-    ? "ready"
-    : needsAttention
-      ? "problem"
-      : "needs_permission";
-  const accountId = textValue(activeAccount.id);
-  const tenantId = textValue(activeAccount.tenantId);
-  const tenantKey = textValue(activeAccount.tenantKey);
-  const scopes = Array.isArray(activeAccount.scopes)
-    ? activeAccount.scopes.map(String)
-    : [];
-  const capabilities = Array.isArray(activeAccount.capabilities)
-    ? activeAccount.capabilities.map(String)
-    : [];
-  const names: Record<string, string> = {
-    google_workspace: "Google Workspace",
-    posthog: "PostHog",
-    openai: "OpenAI",
-    gemini: "Gemini",
-    kimi: "Kimi",
-  };
+async function connections(
+  context: UserContext,
+){
+  const [liveResult, legacyResult] = await Promise.all([
+    context.client.rpc("pandora_live_connections_v1", {
+      p_organization_id: context.organizationId,
+    }),
+    context.client.from("connector_installations")
+      .select(
+        "id, provider, display_name, status, scopes, last_health_check_at, updated_at",
+      )
+      .eq("organization_id", context.organizationId)
+      .order("provider"),
+  ]);
+  if (liveResult.error || legacyResult.error) {
+    throw new Error("BACKEND_READ_FAILED");
+  }
+  const live = asRecord(liveResult.data);
+  if (
+    textValue(live.contractVersion) !== "pandora-live-connections-v1" ||
+    textValue(live.organizationId) !== context.organizationId ||
+    textValue(live.authority) !== "live_connections_not_catalog" ||
+    !Array.isArray(live.providers)
+  ) {
+    throw new Error("BACKEND_READ_FAILED");
+  }
+  const legacyRows = (legacyResult.data || []) as JsonRecord[];
+  const legacyByProvider = new Map<string, JsonRecord>();
+  for (const row of legacyRows) {
+    const provider = textValue(row.provider).toLowerCase();
+    if (provider && !legacyByProvider.has(provider)) {
+      legacyByProvider.set(provider, row);
+    }
+  }
+  const liveProviders = new Set<string>();
+  const projected: JsonRecord[] = live.providers.map((item) => {
+    const provider = textValue(asRecord(item).provider).toLowerCase();
+    if (!provider) throw new Error("BACKEND_READ_FAILED");
+    liveProviders.add(provider);
+    return liveConnectionSummary(
+      item,
+      context.organizationId,
+      legacyByProvider.get(provider),
+    );
+  });
+  for (const row of legacyRows) {
+    const provider = textValue(row.provider).toLowerCase();
+    if (!liveProviders.has(provider)) projected.push(legacyConnectionSummary(row));
+  }
+  return projected;
+}
+
+const SELF_SERVICE_PROVIDERS = new Set(["posthog", "openai", "gemini", "kimi"]);
+const POSTHOG_HOSTS = new Set(["https://us.posthog.com", "https://eu.posthog.com"]);
+const PROVIDER_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PROVIDER_MODEL = /^[A-Za-z0-9._:/-]{1,160}$/;
+const PROVIDER_TENANT = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,319}$/;
+
+async function providerJson(response: Response): Promise<JsonRecord> {
+  return await response.json().catch(() => ({})) as JsonRecord;
+}
+
+async function providerFetch(url: string, init: RequestInit) {
+  return await fetch(url, {
+    ...init,
+    redirect: "error",
+    signal: AbortSignal.timeout(15_000),
+  });
+}
+
+async function sha256Text(value: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyOwnerProvider(
+  provider: string,
+  credential: string,
+  input: JsonRecord,
+) {
+  const tenantKey = textValue(input.tenantKey);
+  if (!PROVIDER_TENANT.test(tenantKey)) throw new Error("TENANT_KEY_INVALID");
+  if (provider === "posthog") {
+    const host = textValue(input.host);
+    const projectId = textValue(input.projectId);
+    if (!POSTHOG_HOSTS.has(host) || tenantKey !== host || !/^\d{1,24}$/.test(projectId)) {
+      throw new Error("POSTHOG_TARGET_INVALID");
+    }
+    const response = await providerFetch(`${host}/api/projects/${projectId}/`, {
+      headers: { authorization: `Bearer ${credential}`, accept: "application/json" },
+    });
+    const body = await providerJson(response);
+    const id = String(body.id || "");
+    const name = textValue(body.name);
+    if (!response.ok || id !== projectId || !name) throw new Error("PROVIDER_READBACK_FAILED");
+    return {
+      subject: id,
+      label: name,
+      tenantKey: host,
+      tenantLabel: new URL(host).hostname,
+      scopes: ["project.read"],
+      capabilities: ["project.read", "insights.read"],
+      readback: { probe: "projects.get", httpStatus: response.status, projectId: id, identityVerified: true },
+    };
+  }
+
+  const model = textValue(input.model);
+  const runTest = input.runTestInference === true;
+  if (!PROVIDER_MODEL.test(model)) throw new Error("MODEL_REQUIRED");
+  const bearerHeaders = { authorization: `Bearer ${credential}`, accept: "application/json" };
+  let models: Response;
+  let listed: JsonRecord;
+  let normalizedModel = model;
+  let modelCount = 0;
+  let inference: Response | null = null;
+  if (provider === "gemini") {
+    const headers = { "x-goog-api-key": credential, accept: "application/json" };
+    models = await providerFetch("https://generativelanguage.googleapis.com/v1beta/models", { headers });
+    listed = await providerJson(models);
+    normalizedModel = model.startsWith("models/") ? model : `models/${model}`;
+    const available = Array.isArray(listed.models) && listed.models.some((item) =>
+      textValue(asRecord(item).name) === normalizedModel
+    );
+    if (!models.ok || !available) throw new Error("MODEL_NOT_AVAILABLE");
+    modelCount = Array.isArray(listed.models) ? listed.models.length : 0;
+    if (runTest) inference = await providerFetch(
+      `https://generativelanguage.googleapis.com/v1beta/${normalizedModel}:generateContent`,
+      { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: "Reply OK." }] }], generationConfig: { maxOutputTokens: 8 } }) },
+    );
+  } else {
+    const base = provider === "openai" ? "https://api.openai.com/v1" : "https://api.moonshot.ai/v1";
+    models = await providerFetch(`${base}/models`, { headers: bearerHeaders });
+    listed = await providerJson(models);
+    const available = Array.isArray(listed.data) && listed.data.some((item) =>
+      textValue(asRecord(item).id) === model
+    );
+    if (!models.ok || !available) throw new Error("MODEL_NOT_AVAILABLE");
+    modelCount = Array.isArray(listed.data) ? listed.data.length : 0;
+    if (runTest) inference = await providerFetch(
+      provider === "openai" ? `${base}/responses` : `${base}/chat/completions`,
+      {
+        method: "POST",
+        headers: { ...bearerHeaders, "content-type": "application/json" },
+        body: provider === "openai"
+          ? JSON.stringify({ model, input: "Reply OK.", max_output_tokens: 8 })
+          : JSON.stringify({ model, messages: [{ role: "user", content: "Reply OK." }], max_tokens: 8 }),
+      },
+    );
+  }
+  if (runTest && !inference?.ok) throw new Error("TEST_INFERENCE_FAILED");
   return {
-    id: accountId || `provider:${provider}`,
-    name: textValue(connection.displayName, names[provider] || provider),
-    plainPurpose:
-      provider === "posthog"
-        ? "Product usage and reliability signals"
-        : provider === "google_workspace"
-          ? "Drive and Sheets read access"
-          : "Model availability and owner-triggered test inference",
-    state,
-    plainStatus: rawState,
-    canRead: connected,
-    canChange: false,
-    canConnect: state === "needs_permission",
-    canReconnect: state === "problem",
-    canTest: Boolean(accountId),
-    canDisconnect: connected,
-    needsOwnerApprovalForChanges: true,
-    lastCheckedAt: activeAccount.lastVerifiedAt ?? null,
-    advanced: {
-      provider,
-      authority: textValue(connection.authority),
-      tenantId: tenantId || organizationId,
-      tenantKey: tenantKey || null,
-      connectionId: accountId || null,
-      scopes,
-      capabilities,
-      health: activeAccount.health ?? null,
-      failureCode: activeAccount.failureCode ?? null,
-      expiresAt: activeAccount.expiresAt ?? null,
-      requiredScopes: connection.requiredScopes ?? [],
-      accounts: connection.accounts ?? [],
+    subject: await sha256Text(credential),
+    label: `${provider[0].toUpperCase()}${provider.slice(1)} API credential`,
+    tenantKey,
+    tenantLabel: tenantKey,
+    scopes: ["models.read", "inference.test"],
+    capabilities: ["models.read", "inference.test"],
+    readback: {
+      probe: "models.list", httpStatus: 200, identityVerified: true,
+      model: normalizedModel, modelCount, testInference: runTest ? "passed" : "not_run",
+      testStatus: inference?.status ?? null,
     },
   };
 }
 
-async function liveConnections(context: UserContext) {
-  const result = await context.client.rpc("pandora_live_connections_v1", {
-    p_organization_id: context.organizationId,
-  });
-  if (result.error) throw new Error("BACKEND_READ_FAILED");
-  const payload = asRecord(result.data);
-  if (
-    textValue(payload.organizationId) !== context.organizationId ||
-    textValue(payload.authority) !== "live_connections_not_catalog" ||
-    !Array.isArray(payload.providers)
-  ) {
-    throw new Error("CONNECTION_AUTHORITY_INVALID");
+async function ownerProviderAction(context: UserContext, body: JsonRecord) {
+  const organizationId = textValue(body.organizationId);
+  const tenantId = textValue(body.tenantId);
+  const provider = textValue(body.provider).toLowerCase();
+  const action = textValue(body.action);
+  if (organizationId !== context.organizationId || tenantId !== organizationId ||
+      !SELF_SERVICE_PROVIDERS.has(provider) ||
+      !["connect", "health", "test_inference"].includes(action)) {
+    throw new Error("CONNECTION_INPUT_INVALID");
   }
-  return payload.providers.map((item) =>
-    liveConnectionSummary(item, context.organizationId),
-  );
-}
+  if (
+    action !== "connect" &&
+    (Object.prototype.hasOwnProperty.call(body, "credential") ||
+      Object.prototype.hasOwnProperty.call(body, "secret") ||
+      Object.prototype.hasOwnProperty.call(body, "token"))
+  ) {
+    throw new Error("CONNECTION_SECRET_INPUT_NOT_ALLOWED");
+  }
+  const admin = createOperationalAdminClient();
+  const now = new Date().toISOString();
+  if (action === "connect") {
+    if (context.aal !== "aal2") throw new Error("AAL2_REQUIRED");
+    if (
+      Object.prototype.hasOwnProperty.call(body, "secret") ||
+      Object.prototype.hasOwnProperty.call(body, "token")
+    ) {
+      throw new Error("CONNECTION_SECRET_INPUT_NOT_ALLOWED");
+    }
+    const credential = textValue(body.credential);
+    if (credential.length < 16 || credential.length > 8192 ||
+        (provider !== "posthog" && body.runTestInference !== true)) {
+      throw new Error("CONNECTION_INPUT_INVALID");
+    }
+    const verified = await verifyOwnerProvider(provider, credential, body);
+    const committed = await admin.rpc("pandora_connection_commit_verified_credential_v1", {
+      p_organization_id: organizationId, p_provider_key: provider,
+      p_actor_user_id: context.userId, p_credential: credential,
+      p_provider_subject: verified.subject, p_account_label: verified.label,
+      p_tenant_key: verified.tenantKey, p_tenant_label: verified.tenantLabel,
+      p_granted_scopes: verified.scopes, p_granted_capabilities: verified.capabilities,
+      p_verified_at: now, p_expires_at: null, p_provider_readback: verified.readback,
+    });
+    if (committed.error || committed.data?.ok !== true) throw new Error("CONNECTION_COMMIT_FAILED");
+    return {
+      ok: true,
+      action: "connect",
+      connectionId: committed.data.connectionId,
+      provider,
+      accountLabel: committed.data.accountLabel,
+      tenantId: organizationId,
+      tenantKey: verified.tenantKey,
+      tenantLabel: verified.tenantLabel,
+      healthy: true,
+      verifiedAt: committed.data.verifiedAt,
+      credentialStored: true,
+      credentialReturned: false,
+    };
+  }
 
-async function connections(context: UserContext) {
-  const authoritative = await liveConnections(context);
-  const authoritativeProviders = new Set(
-    authoritative.map((item) => textValue(asRecord(item.advanced).provider)),
-  );
-  const connectionsResult = await context.client
-    .from("connector_installations")
-    .select(
-      "id, provider, display_name, status, scopes, last_health_check_at, updated_at",
-    )
-    .eq("organization_id", context.organizationId)
-    .order("provider");
-  if (connectionsResult.error) throw new Error("BACKEND_READ_FAILED");
-  const legacy = (connectionsResult.data || [])
-    .filter(
-      (item: JsonRecord) =>
-        !authoritativeProviders.has(textValue(item.provider).toLowerCase()),
-    )
-    .map((item: JsonRecord) => connectionSummary(item));
-  return [...authoritative, ...legacy];
+  const connectionId = textValue(body.connectionId);
+  const tenantKey = textValue(body.tenantKey);
+  if (!PROVIDER_UUID.test(connectionId) || !PROVIDER_TENANT.test(tenantKey)) {
+    throw new Error("CONNECTION_IDENTITY_INVALID");
+  }
+  const runtime = await admin.rpc("pandora_connection_runtime_credential_v1", {
+    p_organization_id: organizationId, p_provider_key: provider,
+    p_connection_id: connectionId, p_tenant_key: tenantKey,
+  });
+  if (runtime.error || textValue(runtime.data?.organizationId) !== organizationId ||
+      textValue(runtime.data?.tenantId) !== organizationId ||
+      textValue(runtime.data?.connectionId) !== connectionId ||
+      textValue(runtime.data?.provider) !== provider ||
+      textValue(runtime.data?.tenantKey) !== tenantKey) {
+    throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
+  }
+  const credential = textValue(runtime.data?.credential);
+  if (!credential) throw new Error("CONNECTION_RUNTIME_UNAVAILABLE");
+  const metadata = asRecord(runtime.data?.metadata);
+  try {
+    const verified = await verifyOwnerProvider(provider, credential, {
+      ...body,
+      tenantKey,
+      host: body.host || tenantKey,
+      projectId: body.projectId || metadata.projectId,
+      model: body.model || metadata.model,
+      runTestInference: action === "test_inference" ? true : body.runTestInference,
+    });
+    const health = await admin.rpc("pandora_connection_health_commit_v2", {
+      p_organization_id: organizationId, p_provider_key: provider,
+      p_connection_id: connectionId, p_tenant_key: tenantKey,
+      p_provider_subject: verified.subject, p_granted_scopes: verified.scopes,
+      p_granted_capabilities: verified.capabilities, p_provider_readback: verified.readback,
+      p_healthy: true, p_verified_at: now, p_failure_code: null,
+    });
+    if (health.error || health.data?.ok !== true) throw new Error("HEALTH_COMMIT_FAILED");
+    return {
+      ok: true, connectionId, provider, tenantId: organizationId, tenantKey,
+      healthy: true, verifiedAt: health.data.verifiedAt,
+      credentialReturned: false,
+      testInference: action === "test_inference" ? "passed" : undefined,
+    };
+  } catch (error) {
+    const failureCode = error instanceof Error && /^[A-Z0-9_]{3,80}$/.test(error.message)
+      ? error.message
+      : "PROVIDER_HEALTH_FAILED";
+    await admin.rpc("pandora_connection_health_commit_v1", {
+      p_organization_id: organizationId, p_provider_key: provider,
+      p_connection_id: connectionId, p_tenant_key: tenantKey,
+      p_healthy: false, p_verified_at: new Date().toISOString(),
+      p_failure_code: failureCode,
+    });
+    throw error;
+  }
 }
 
 function base64UrlBytes(bytes: Uint8Array) {
@@ -1292,7 +1584,7 @@ async function verifyGithubConnection(
   context: UserContext,
   connectionId: string,
 ) {
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const token = await githubInstallationToken(admin);
@@ -1330,7 +1622,7 @@ async function verifySupabaseConnection(
   context: UserContext,
   connectionId: string,
 ) {
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await admin.rpc(
@@ -1355,7 +1647,7 @@ async function verifyVercelConnection(
   context: UserContext,
   connectionId: string,
 ) {
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const [teamResult, projectResult] = await Promise.all([
@@ -1415,7 +1707,7 @@ async function verifyMetaConnection(
   context: UserContext,
   connectionId: string,
 ) {
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await admin.rpc(
@@ -1458,199 +1750,6 @@ async function verifyMetaConnection(
   }
 }
 
-async function liveProviderConnectionAction(
-  context: UserContext,
-  connectionId: string,
-  requestedAction: string,
-  body: JsonRecord,
-) {
-  if (!["connect", "health", "test_inference"].includes(requestedAction)) {
-    throw new Error("CONNECTION_ACTION_NOT_FOUND");
-  }
-  if (
-    requestedAction !== "connect" &&
-    (Object.prototype.hasOwnProperty.call(body, "credential") ||
-      Object.prototype.hasOwnProperty.call(body, "secret") ||
-      Object.prototype.hasOwnProperty.call(body, "token"))
-  ) {
-    throw new Error("CONNECTION_SECRET_INPUT_NOT_ALLOWED");
-  }
-  const tenantId = textValue(body.tenantId);
-  const tenantKey = textValue(body.tenantKey);
-  const provider = textValue(body.provider).toLowerCase();
-  if (
-    tenantId !== context.organizationId ||
-    !PANDORA_CONNECTION_PROVIDER_KEYS.has(provider) ||
-    !isPandoraTenantKey(tenantKey)
-  ) {
-    throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
-  }
-  if (
-    requestedAction === "connect" &&
-    connectionId !== `provider:${provider}`
-  ) {
-    throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
-  }
-  if (requestedAction === "test_inference" && provider === "posthog") {
-    throw new Error("CONNECTION_ACTION_NOT_AVAILABLE");
-  }
-
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  if (requestedAction === "connect") {
-    if (context.aal !== "aal2") throw new Error("AAL2_REQUIRED");
-    if (
-      Object.prototype.hasOwnProperty.call(body, "secret") ||
-      Object.prototype.hasOwnProperty.call(body, "token")
-    ) {
-      throw new Error("CONNECTION_SECRET_INPUT_NOT_ALLOWED");
-    }
-    const credential = textValue(body.credential);
-    if (credential.length < 16 || credential.length > 8192) {
-      throw new Error("CONNECTION_INPUT_INVALID");
-    }
-    if (provider !== "posthog" && body.runTestInference !== true) {
-      throw new Error("TEST_INFERENCE_REQUIRED");
-    }
-    const verified = await verifyPandoraConnectionProvider(
-      provider,
-      credential,
-      body,
-    );
-    const committed = await admin.rpc(
-      "pandora_connection_commit_verified_credential_v1",
-      {
-        p_organization_id: context.organizationId,
-        p_provider_key: provider,
-        p_actor_user_id: context.userId,
-        p_credential: credential,
-        p_provider_subject: verified.subject,
-        p_account_label: verified.label,
-        p_tenant_key: verified.tenantKey,
-        p_tenant_label: verified.tenantLabel,
-        p_granted_scopes: verified.scopes,
-        p_granted_capabilities: verified.capabilities,
-        p_verified_at: new Date().toISOString(),
-        p_expires_at: null,
-        p_provider_readback: verified.readback,
-      },
-    );
-    const result = asRecord(committed.data);
-    if (committed.error || result.ok !== true) {
-      throw new Error("CONNECTION_COMMIT_FAILED");
-    }
-    return {
-      ok: true,
-      action: "connect",
-      connectionId: result.connectionId,
-      provider,
-      accountLabel: result.accountLabel,
-      tenantId: context.organizationId,
-      tenantKey: verified.tenantKey,
-      tenantLabel: verified.tenantLabel,
-      health: "healthy",
-      verifiedAt: result.verifiedAt,
-      credentialStored: true,
-      credentialReturned: false,
-    };
-  }
-
-  const listed = (await liveConnections(context)).find(
-    (item) => item.id === connectionId,
-  );
-  const advanced = asRecord(listed?.advanced);
-  if (
-    !listed ||
-    listed.state === "needs_permission" ||
-    textValue(advanced.authority) !== "live_provider_readback" ||
-    textValue(advanced.connectionId) !== connectionId ||
-    textValue(advanced.provider) !== provider ||
-    textValue(advanced.tenantId) !== tenantId ||
-    textValue(advanced.tenantKey) !== tenantKey
-  ) {
-    throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
-  }
-
-  const runtime = await admin.rpc("pandora_connection_runtime_credential_v1", {
-    p_organization_id: context.organizationId,
-    p_provider_key: provider,
-    p_connection_id: connectionId,
-    p_tenant_key: tenantKey,
-  });
-  const runtimeData = asRecord(runtime.data);
-  if (
-    runtime.error ||
-    textValue(runtimeData.organizationId) !== context.organizationId ||
-    textValue(runtimeData.tenantId) !== context.organizationId ||
-    textValue(runtimeData.connectionId) !== connectionId ||
-    textValue(runtimeData.provider) !== provider ||
-    textValue(runtimeData.tenantKey) !== tenantKey
-  ) {
-    throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
-  }
-  const credential = textValue(runtimeData.credential);
-  if (!credential) throw new Error("CONNECTION_RUNTIME_UNAVAILABLE");
-  const metadata = asRecord(runtimeData.metadata);
-  const target = {
-    tenantKey,
-    host: provider === "posthog" ? tenantKey : undefined,
-    projectId: body.projectId ?? metadata.projectId,
-    model: body.model ?? metadata.model,
-    runTestInference: requestedAction === "test_inference",
-  };
-
-  try {
-    const verified = await verifyPandoraConnectionProvider(
-      provider,
-      credential,
-      target,
-    );
-    const verifiedAt = new Date().toISOString();
-    const health = await admin.rpc("pandora_connection_health_commit_v1", {
-      p_organization_id: context.organizationId,
-      p_provider_key: provider,
-      p_connection_id: connectionId,
-      p_tenant_key: tenantKey,
-      p_healthy: true,
-      p_verified_at: verifiedAt,
-      p_failure_code: null,
-    });
-    if (health.error || asRecord(health.data).ok !== true) {
-      throw new Error("HEALTH_COMMIT_FAILED");
-    }
-    return {
-      ok: true,
-      action: requestedAction,
-      connectionId,
-      provider,
-      tenantId: context.organizationId,
-      tenantKey,
-      healthy: true,
-      verifiedAt: asRecord(health.data).verifiedAt ?? verifiedAt,
-      model: verified.readback.model ?? undefined,
-      testInference:
-        requestedAction === "test_inference" ? "passed" : undefined,
-      credentialReturned: false,
-    };
-  } catch (error) {
-    const failureCode =
-      error instanceof Error && /^[A-Z0-9_]{3,80}$/.test(error.message)
-        ? error.message
-        : "PROVIDER_HEALTH_FAILED";
-    await admin.rpc("pandora_connection_health_commit_v1", {
-      p_organization_id: context.organizationId,
-      p_provider_key: provider,
-      p_connection_id: connectionId,
-      p_tenant_key: tenantKey,
-      p_healthy: false,
-      p_verified_at: new Date().toISOString(),
-      p_failure_code: failureCode,
-    });
-    throw new Error(failureCode);
-  }
-}
-
 async function connectionAction(
   context: UserContext,
   connectionId: string,
@@ -1672,14 +1771,17 @@ async function connectionAction(
     connection.id === connectionId
   );
   if (!item) throw new Error("CONNECTION_NOT_FOUND");
-  if (!connectionActionAllowed(action, item.state)) {
+  if (!connectionActionAllowed(action, textValue(item.state))) {
     throw new Error("CONNECTION_ACTION_NOT_AVAILABLE");
   }
   if (action !== "test" && context.aal !== "aal2") {
     throw new Error("AAL2_REQUIRED");
   }
 
-  const provider = textValue(asRecord(item.advanced).provider, item.name);
+  const provider = textValue(
+    asRecord(item.advanced).provider,
+    textValue(item.name),
+  );
   if (action === "test") {
     const normalizedProvider = provider.toLowerCase();
     if (normalizedProvider === "github") {
@@ -1690,6 +1792,8 @@ async function connectionAction(
       await verifyVercelConnection(context, connectionId);
     } else if (normalizedProvider === "meta") {
       await verifyMetaConnection(context, connectionId);
+    } else {
+      throw new Error("CONNECTION_TEST_UNSUPPORTED");
     }
   }
   const requests: Record<GovernedConnectionAction, string> = {
@@ -1746,7 +1850,7 @@ async function approvals(context: UserContext, limit: number) {
     return !(["R3", "R4"].includes(risk || "") &&
       row.requested_by === context.userId);
   }).map((row) => approvalSummary(row, risks.get(textValue(row.step_id))));
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: plans, error: planError } = await admin.rpc(
@@ -2028,7 +2132,7 @@ async function canonicalSafetyProjectId(context: UserContext) {
 }
 
 async function safety(context: UserContext) {
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const safetyProjectId = await canonicalSafetyProjectId(context);
@@ -2130,7 +2234,7 @@ async function completeConnectedServicesRead(
     ? `I checked ${connectionItems.length} connected service${connectionItems.length === 1 ? "" : "s"}. No connected service currently needs attention.`
     : "I checked the connected-service registry. No connected services are configured yet.";
 
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: completion, error: completionError } = await admin.rpc(
@@ -2321,7 +2425,7 @@ async function ownerConnectBridge(
 }
 
 function createOwnerWorkerAdapter(context: UserContext) {
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   return {
@@ -2421,7 +2525,7 @@ async function governedWorkerExecution(
   ) {
     throw new Error("INVALID_WORKER_PLAN_ID");
   }
-  const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await admin.rpc("get_governed_worker_execution", {
@@ -2565,7 +2669,7 @@ async function acceptIntake(
       projectKey,
       command: normalizedCommand,
     }));
-    const admin = createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const result = await admin.rpc("projectos_accept_governed_worker_intake", {
@@ -2644,7 +2748,7 @@ async function acceptIntake(
 }
 
 function createOperationalAdminClient() {
-  return createClient(SUPABASE_URL, SERVER_ROLE_KEY, {
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_SECRET, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
@@ -2978,19 +3082,8 @@ Deno.serve(async (req: Request) => {
         ),
       );
     }
-    if (
-      req.method === "POST" &&
-      /^\/connections\/[^/]+\/provider-actions\/[^/]+$/.test(route)
-    ) {
-      const segments = route.split("/");
-      return send(
-        await liveProviderConnectionAction(
-          context,
-          decodeURIComponent(segments[2]),
-          decodeURIComponent(segments[4]),
-          await bodyJson(req),
-        ),
-      );
+    if (req.method === "POST" && route === "/connections/providers/actions") {
+      return send(await ownerProviderAction(context, await bodyJson(req)));
     }
     if (
       req.method === "POST" &&
@@ -3116,10 +3209,13 @@ Deno.serve(async (req: Request) => {
         "INVALID_OPERATIONAL_RESOLUTION",
         "PROJECT_REQUIRED",
         "VERCEL_CONNECT_AUTHORIZATION_BODY_NOT_ALLOWED",
-        "BODY_TOO_LARGE",
-        "CONNECTION_SECRET_INPUT_NOT_ALLOWED",
         "CONNECTION_INPUT_INVALID",
+        "CONNECTION_IDENTITY_INVALID",
+        "TENANT_KEY_INVALID",
+        "POSTHOG_TARGET_INVALID",
+        "MODEL_REQUIRED",
         "TEST_INFERENCE_REQUIRED",
+        "BODY_TOO_LARGE",
       ]
         .includes(code)
     ) {
@@ -3164,13 +3260,6 @@ Deno.serve(async (req: Request) => {
         "Fresh Pandora Memory context must be attached before this exact plan can run.",
       );
     }
-    if (code === "CONNECTION_ACCOUNT_TENANT_MISMATCH") {
-      return reject(
-        409,
-        code,
-        "That provider account does not match the active client organization and tenant.",
-      );
-    }
     if (code === "CONNECTION_ACTION_NOT_AVAILABLE") {
       return reject(
         409,
@@ -3192,29 +3281,18 @@ Deno.serve(async (req: Request) => {
         "The Meta authorization does not match the configured Page. Pandora left the connection unchanged.",
       );
     }
-    if (
-      [
-        "CONNECTION_RUNTIME_UNAVAILABLE",
-        "CONNECTION_COMMIT_FAILED",
-        "POSTHOG_TARGET_INVALID",
-        "PROVIDER_READBACK_FAILED",
-        "MODEL_REQUIRED",
-        "MODEL_NOT_AVAILABLE",
-        "TEST_INFERENCE_FAILED",
-        "HEALTH_COMMIT_FAILED",
-      ].includes(code)
-    ) {
-      return reject(
-        503,
-        code,
-        "Pandora could not verify that provider connection right now.",
-      );
-    }
     if (code === "CONNECTION_TEST_FAILED") {
       return reject(
         503,
         code,
         "Pandora could not verify that connection right now.",
+      );
+    }
+    if (code === "CONNECTION_TEST_UNSUPPORTED") {
+      return reject(
+        409,
+        code,
+        "This connection does not have a provider-backed test route yet.",
       );
     }
     if (

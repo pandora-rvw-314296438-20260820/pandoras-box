@@ -15,6 +15,10 @@ const google = read(
   "supabase/functions/pandora-google-workspace-oauth/index.ts",
   "work/pandora-google-workspace-oauth-index.ts",
 );
+const googleOidc = read(
+  "supabase/functions/pandora-google-workspace-oauth/google_oidc_verification.mjs",
+  "work/google_oidc_verification.mjs",
+);
 const providerApps = read(
   "docs/operations/connections-provider-developer-apps.md",
   "work/connections-provider-developer-apps.md",
@@ -82,10 +86,16 @@ test("Google is read-first and validates provider OIDC nonce before commit", () 
   assert.match(migration, /spreadsheets\.readonly/);
   assert.doesNotMatch(migration, /'https:\/\/www\.googleapis\.com\/auth\/drive'/);
   assert.doesNotMatch(migration, /'https:\/\/www\.googleapis\.com\/auth\/spreadsheets'/);
-  assert.match(google, /tokeninfo\?id_token=/);
-  assert.match(google, /idTokenInfo\.nonce/);
-  assert.match(google, /text\(idTokenInfo\.aud\) === clientId/);
-  assert.match(google, /p_oidc_nonce: oidcNonce/);
+  assert.match(google, /from "\.\/google_oidc_verification\.mjs"/);
+  assert.match(google, /verifyGoogleIdToken\(\{/);
+  assert.match(googleOidc, /GOOGLE_JWKS_URI = "https:\/\/www\.googleapis\.com\/oauth2\/v3\/certs"/);
+  assert.match(googleOidc, /header\.alg !== "RS256"/);
+  assert.match(googleOidc, /crypto\.subtle\.importKey/);
+  assert.match(googleOidc, /crypto\.subtle\.verify/);
+  assert.match(google, /https:\/\/openidconnect\.googleapis\.com\/v1\/userinfo/);
+  assert.match(google, /https:\/\/www\.googleapis\.com\/drive\/v3\/about\?fields=user/);
+  assert.doesNotMatch(google, /tokeninfo\?id_token=/);
+  assert.match(google, /p_oidc_nonce: identity\.nonce/);
 });
 
 test("PostHog and model cards require live readback; models require a test inference on connect", () => {
