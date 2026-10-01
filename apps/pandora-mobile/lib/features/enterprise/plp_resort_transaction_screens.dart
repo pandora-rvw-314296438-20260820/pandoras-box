@@ -150,12 +150,12 @@ class _PlpReservationCreateScreenState
         error: _error,
         children: [
           _Field(
-            key: const ValueKey('plp-reservation-name'),
+            fieldKey: const ValueKey('plp-reservation-name'),
             controller: _name,
             label: 'Guest name',
           ),
           _Field(
-            key: const ValueKey('plp-reservation-email'),
+            fieldKey: const ValueKey('plp-reservation-email'),
             controller: _email,
             label: 'Email',
             keyboardType: TextInputType.emailAddress,
@@ -478,7 +478,7 @@ class _PlpResortMutationScreenState extends State<PlpResortMutationScreen> {
       case 'manual_payment':
         fields.addAll([
           _Field(
-            key: const ValueKey('plp-payment-amount'),
+            fieldKey: const ValueKey('plp-payment-amount'),
             controller: _amount,
             label: 'Amount (PHP)',
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -744,13 +744,14 @@ class _TransactionScaffold extends StatelessWidget {
 
 class _Field extends StatelessWidget {
   const _Field({
-    super.key,
+    this.fieldKey,
     required this.controller,
     required this.label,
     this.keyboardType,
     this.maxLines = 1,
   });
 
+  final Key? fieldKey;
   final TextEditingController controller;
   final String label;
   final TextInputType? keyboardType;
@@ -758,7 +759,7 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextField(
-        key: key,
+        key: fieldKey,
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,

@@ -599,6 +599,24 @@ revoke execute on function public.plp_resort_transaction_v1(text,text,jsonb)
 grant execute on function public.plp_resort_transaction_v1(text,text,jsonb)
   to authenticated;
 
+drop trigger if exists plp_realtime_room_operations_signal
+  on plp_runtime.plp_room_operations;
+create trigger plp_realtime_room_operations_signal
+after insert or update or delete on plp_runtime.plp_room_operations
+for each row execute function private.emit_plp_runtime_realtime_signal('hospitality');
+
+drop trigger if exists plp_realtime_payments_signal
+  on plp_runtime.plp_payments;
+create trigger plp_realtime_payments_signal
+after insert or update or delete on plp_runtime.plp_payments
+for each row execute function private.emit_plp_runtime_realtime_signal('hospitality');
+
+drop trigger if exists plp_realtime_ota_conflicts_signal
+  on plp_runtime.plp_ota_conflicts;
+create trigger plp_realtime_ota_conflicts_signal
+after insert or update or delete on plp_runtime.plp_ota_conflicts
+for each row execute function private.emit_plp_runtime_realtime_signal('hospitality');
+
 create or replace function public.plp_room_operations_v1()
 returns jsonb
 language plpgsql

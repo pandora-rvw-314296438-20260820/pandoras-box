@@ -383,8 +383,21 @@ void main() {
     await tester.tap(stay);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('plp-record-action-check_in')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('plp-record-action-check_in')));
+    final recordPage = find.byKey(const ValueKey('plp-record-stay'));
+    final checkInAction =
+        find.byKey(const ValueKey('plp-record-action-check_in'));
+    await tester.scrollUntilVisible(
+      checkInAction,
+      220,
+      scrollable: find
+          .descendant(
+            of: recordPage,
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(checkInAction, findsOneWidget);
+    await tester.tap(checkInAction);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('plp-mutation-check_in')), findsOneWidget);
