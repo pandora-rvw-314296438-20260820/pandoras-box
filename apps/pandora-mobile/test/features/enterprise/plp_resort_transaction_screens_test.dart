@@ -196,7 +196,14 @@ void main() {
     expect(find.byKey(const ValueKey('plp-reservation-check-in')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-reservation-check-out')), findsOneWidget);
     final save = find.byKey(const ValueKey('plp-reservation-save'));
-    await tester.scrollUntilVisible(save, 220);
+    final transactionScroll =
+        find.byKey(const ValueKey('plp-transaction-scroll'));
+    expect(transactionScroll, findsOneWidget);
+    await tester.scrollUntilVisible(
+      save,
+      220,
+      scrollable: transactionScroll,
+    );
     expect(save, findsOneWidget);
     expect(tester.takeException(), isNull);
   });

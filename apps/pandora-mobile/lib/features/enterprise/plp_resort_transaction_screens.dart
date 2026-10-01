@@ -682,6 +682,7 @@ class _TransactionScaffold extends StatelessWidget {
         child: SafeArea(
           bottom: false,
           child: ListView(
+            key: const ValueKey('plp-transaction-scroll'),
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 190),
             children: [
               Row(
