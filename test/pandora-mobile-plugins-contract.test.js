@@ -12,12 +12,15 @@ const pluginsPath = new URL(
   import.meta.url,
 );
 
-test('mobile drawer exposes Connections as the owner-facing plugin destination', async () => {
+test('mobile exposes Capabilities & Providers with runtime Live Connections behind it', async () => {
   const shell = await readFile(shellPath, 'utf8');
 
-  assert.match(shell, /_ChatDestination\(\s*'Connections'/);
+  assert.match(shell, /_ChatDestination\(\s*'Live Connections'/);
+  assert.match(shell, /'Capabilities & Providers'/);
+  assert.match(shell, /ProviderEcosystemScreen/);
   assert.match(shell, /PluginsScreen\(\)/);
-  assert.match(shell, /5 => 'plugins'/);
+  assert.match(shell, /5 => 'live_connections'/);
+  assert.match(shell, /11 => 'provider_ecosystem'/);
 });
 
 test('Plugins UI derives installed state from runtime connection truth', async () => {
@@ -30,7 +33,7 @@ test('Plugins UI derives installed state from runtime connection truth', async (
   assert.match(plugins, /connection\.canRead \|\| connection\.canChange/);
   assert.match(plugins, /runtime\.map\(_PluginViewModel\.fromRuntime\)/);
   assert.match(plugins, /provider\.installed/);
-  assert.match(plugins, /Search plugins/);
+  assert.match(plugins, /Search connections/);
   assert.match(plugins, /'Installed'/);
   assert.match(plugins, /label: 'Public'/);
   assert.match(plugins, /label: 'Personal'/);
