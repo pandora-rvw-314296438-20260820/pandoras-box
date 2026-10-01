@@ -286,9 +286,9 @@ begin
 
   if guest.id is null then
     insert into plp_runtime.plp_guests(
-      full_name,email,normalized_email,phone,metadata
+      full_name,email,phone,metadata
     ) values (
-      v_guest_name,v_email,v_email,nullif(trim(coalesce(p_guest_phone,'')),''),
+      v_guest_name,v_email,nullif(trim(coalesce(p_guest_phone,'')),''),
 
       jsonb_build_object('source','pandora_plp_mobile')
     )
@@ -297,7 +297,6 @@ begin
     update plp_runtime.plp_guests
     set full_name=v_guest_name,
         email=v_email,
-        normalized_email=v_email,
         phone=nullif(trim(coalesce(p_guest_phone,'')),''),
         updated_at=clock_timestamp()
     where id=guest.id
@@ -678,7 +677,6 @@ begin
   update plp_runtime.plp_guests
   set full_name=new_name,
       email=new_email,
-      normalized_email=new_email,
       phone=new_phone,
       updated_at=clock_timestamp()
   where id=g.id
