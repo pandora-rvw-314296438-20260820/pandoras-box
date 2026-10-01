@@ -13,6 +13,7 @@ import '../features/enterprise/plp_connectivity_infrastructure_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_resort_workspace.dart';
+import '../features/enterprise/plp_resort_operational_screens.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_team_access_screen.dart';
 import '../features/enterprise/plp_team_management_screen.dart';
@@ -125,6 +126,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       } catch (_) {
         // The verified PLP core remains authoritative if the additive resort
         // command-center projection is rolling out or temporarily unavailable.
+      }
+      try {
+        final operations = await Supabase.instance.client.rpc(
+          'plp_resort_operations_v1',
+        );
+        normalized['resortOperations'] = _normalizeBootstrap(operations);
+      } catch (_) {
+        // Operational detail is additive; core resort truth remains usable.
       }
       _ensureRealtime(normalized);
       if (cache != null) {
@@ -373,6 +382,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           plpResortSectionById(toolKey.substring('resort:'.length));
       if (section != null) return section.commandHint;
     }
+    if (toolKey != null && toolKey.startsWith('resort-module:')) {
+      final module = toolKey.substring('resort-module:'.length);
+      return 'Ask about ' + module.replaceAll('-', ' ') + '…';
+    }
+    if (toolKey != null && toolKey.startsWith('resort-record:')) {
+      return 'Ask about this resort record…';
+    }
     return switch (_index) {
       0 => 'Ask what matters today…',
       2 => 'Ask about operations…',
@@ -427,6 +443,45 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     return null;
   }
 
+  void _openResortRecord(
+    String kind,
+    Map<String, Object?> record, {
+    String? returnModule,
+  }) {
+    final id = record['id']?.toString() ??
+        record['bookingReference']?.toString() ??
+        record['name']?.toString() ??
+        kind;
+    _openTool(
+      'resort-record:' + kind + ':' + id,
+      PlpResortRecordScreen(
+        kind: kind,
+        record: record,
+        onBack: returnModule == null
+            ? _closeTool
+            : () => _openResortModule(returnModule),
+      ),
+    );
+  }
+
+  void _openResortModule(String moduleId) {
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    _openTool(
+      'resort-module:' + moduleId,
+      PlpResortOperationalScreen(
+        moduleId: moduleId,
+        bootstrap: bootstrap,
+        onBack: _closeTool,
+        onRefresh: _refresh,
+        onOpenRecord: (kind, record) => _openResortRecord(
+          kind,
+          record,
+          returnModule: moduleId,
+        ),
+      ),
+    );
+  }
+
   void _openResortSection(String destination) {
     if (destination == 'today' || destination == 'home') {
       _openHome();
@@ -442,8 +497,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         bootstrap: bootstrap,
         onOpenNavigation: _openDrawer,
         onRefresh: _refresh,
-        onAskPandora: (prompt) => unawaited(_submitCommand(prompt)),
         onOpenSection: _openResortSection,
+        onOpenModule: _openResortModule,
+        onOpenRecord: (kind, record) => _openResortRecord(kind, record),
         onOpenOperationsRoom: () {
           _openTool(
             'operations-room',
@@ -609,8 +665,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
               onRefresh: _refresh,
-              onAskAlfred: () => _open(1),
               onOpenSection: _openResortSection,
+              onOpenModule: _openResortModule,
+              onOpenRecord: (kind, record) => _openResortRecord(kind, record),
             ),
             AskPandoraScreen(
               key: _alfredKey,
@@ -779,7 +836,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                   },
                 ),
                 body: PandoraNavigationScope(
-                  openDrawer: _openDrawer,
+                  openDrawer: null,
                   child: Stack(
                     children: [
                       Navigator(
@@ -810,23 +867,22 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                           _closeTool();
                         },
                       ),
-                      if (_index == 4 || _index == 12)
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          child: SafeArea(
-                            bottom: false,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
-                              child: PandoraMenuButton(
-                                key: const ValueKey<String>(
-                                  'pandora-side-panel-open',
-                                ),
-                                onPressed: _openDrawer,
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
+                            child: PandoraMenuButton(
+                              key: const ValueKey<String>(
+                                'plp-floating-navigation',
                               ),
+                              onPressed: _openDrawer,
                             ),
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),

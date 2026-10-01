@@ -96,7 +96,6 @@ void main() {
           body: PlpEnterpriseHome(
             bootstrap: bootstrap,
             onRefresh: () {},
-            onAskAlfred: () {},
           ),
         ),
       );
