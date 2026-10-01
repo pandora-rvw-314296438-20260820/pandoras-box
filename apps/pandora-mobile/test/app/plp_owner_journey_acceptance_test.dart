@@ -429,8 +429,19 @@ void main() {
     );
     expect(find.text('Inspect room before arrival'), findsOneWidget);
 
+    // Android may consume the first Back to dismiss the keyboard. Whether
+    // one or two Back presses are required, neither may escape Housekeeping.
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('plp-module-housekeeping')),
+      findsOneWidget,
+    );
+    if (find.text('New housekeeping task').evaluate().isNotEmpty) {
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('New housekeeping task'), findsNothing);
     expect(
       find.byKey(const ValueKey('plp-module-housekeeping')),
       findsOneWidget,
