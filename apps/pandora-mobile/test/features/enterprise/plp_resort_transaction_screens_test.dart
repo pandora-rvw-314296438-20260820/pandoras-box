@@ -195,7 +195,9 @@ void main() {
     expect(find.byKey(const ValueKey('plp-reservation-room')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-reservation-check-in')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-reservation-check-out')), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-reservation-save')), findsOneWidget);
+    final save = find.byKey(const ValueKey('plp-reservation-save'));
+    await tester.scrollUntilVisible(save, 220);
+    expect(save, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

@@ -233,9 +233,9 @@ class _PlpTeamManagementScreenState extends State<PlpTeamManagementScreen> {
   Widget build(BuildContext context) {
     final active = _members.where((member) => member.isActive).length;
     final invited = _members.where((member) => member.isInvited).length;
-    return Material(
-      color: _canvas,
-      child: SafeArea(
+    return Scaffold(
+      backgroundColor: _canvas,
+      body: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -619,7 +619,214 @@ class _InviteSheetState extends State<_InviteSheet> {
 
   void _submit() {
     final email = _email.text.trim();
-    if (!RegExp(r'^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$').hasMatch(email)) {
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+.hasMatch(email)) {
+      return;
+    }
+    Navigator.of(context).pop(
+      PandoraInviteRequest(
+        email: email,
+        displayName: _name.text.trim().isEmpty ? null : _name.text.trim(),
+        role: _role,
+        timezone: 'Asia/Manila',
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(22, 10, 22, bottom + 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Add a person',
+            style: TextStyle(
+              color: _PlpTeamManagementScreenState._ink,
+              fontFamily: 'serif',
+              fontSize: 30,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            key: const ValueKey<String>('plp-team-invite-email'),
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email address',
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey<String>('plp-team-invite-name'),
+            controller: _name,
+            decoration: const InputDecoration(
+              labelText: 'Display name (optional)',
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            key: const ValueKey<String>('plp-team-invite-role'),
+            initialValue: _role,
+            decoration: const InputDecoration(
+              labelText: 'Role',
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            ),
+            items: [
+              for (final role in _roles)
+                DropdownMenuItem<String>(
+                  value: role,
+                  child: Text(role[0].toUpperCase() + role.substring(1)),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => _role = value);
+            },
+          ),
+          const SizedBox(height: 18),
+          FilledButton(
+            key: const ValueKey<String>('plp-team-invite-submit'),
+            onPressed: _submit,
+            style: FilledButton.styleFrom(
+              backgroundColor: _PlpTeamManagementScreenState._ink,
+              foregroundColor: Colors.white,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+              ),
+            ),
+            child: const Text('Send invitation'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManageSheet extends StatefulWidget {
+  const _ManageSheet({required this.member, required this.isOwner});
+
+  final PandoraTeamMember member;
+  final bool isOwner;
+
+  @override
+  State<_ManageSheet> createState() => _ManageSheetState();
+}
+
+class _ManageSheetState extends State<_ManageSheet> {
+  late String _role;
+  late String _status;
+
+  bool get _pendingInvite => widget.member.isInvited;
+
+  List<String> get _roles => widget.isOwner
+      ? const ['owner', 'admin', 'operator', 'member', 'viewer']
+      : const ['operator', 'member', 'viewer'];
+
+  List<String> get _statuses => _pendingInvite
+      ? const ['revoked']
+      : const ['active', 'suspended', 'revoked'];
+
+  @override
+  void initState() {
+    super.initState();
+    _role = widget.member.role;
+    _status = _pendingInvite ? 'revoked' : widget.member.status;
+    if (!_roles.contains(_role)) _role = _roles.last;
+    if (!_statuses.contains(_status)) _status = _statuses.first;
+  }
+
+  void _submit() {
+    Navigator.of(context).pop(
+      PandoraMemberUpdateRequest(
+        userId: widget.member.id,
+        role: _pendingInvite ? null : _role,
+        status: _status,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(22, 10, 22, bottom + 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.member.primaryLabel,
+            style: const TextStyle(
+              color: _PlpTeamManagementScreenState._ink,
+              fontFamily: 'serif',
+              fontSize: 30,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (!_pendingInvite) ...[
+            DropdownButtonFormField<String>(
+              key: const ValueKey<String>('plp-team-member-role'),
+              initialValue: _role,
+              decoration: const InputDecoration(
+                labelText: 'Role',
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+              ),
+              items: [
+                for (final role in _roles)
+                  DropdownMenuItem<String>(
+                    value: role,
+                    child: Text(role[0].toUpperCase() + role.substring(1)),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _role = value);
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+          DropdownButtonFormField<String>(
+            key: const ValueKey<String>('plp-team-member-status'),
+            initialValue: _status,
+            decoration: const InputDecoration(
+              labelText: 'Access status',
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            ),
+            items: [
+              for (final status in _statuses)
+                DropdownMenuItem<String>(
+                  value: status,
+                  child: Text(
+                    status[0].toUpperCase() + status.substring(1),
+                  ),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => _status = value);
+            },
+          ),
+          const SizedBox(height: 18),
+          FilledButton(
+            key: const ValueKey<String>('plp-team-member-save'),
+            onPressed: _submit,
+            style: FilledButton.styleFrom(
+              backgroundColor: _PlpTeamManagementScreenState._ink,
+              foregroundColor: Colors.white,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+              ),
+            ),
+            child: const Text('Save access'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+).hasMatch(email)) {
       return;
     }
     Navigator.of(context).pop(
