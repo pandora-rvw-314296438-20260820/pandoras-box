@@ -540,11 +540,15 @@ class PlpResortRecordScreen extends StatelessWidget {
     required this.kind,
     required this.record,
     required this.onBack,
+    required this.role,
+    this.onAction,
   });
 
   final String kind;
   final Map<String, Object?> record;
   final VoidCallback onBack;
+  final String role;
+  final ValueChanged<String>? onAction;
 
   String get _title {
     if (kind == 'room') return _text(record['name'], fallback: 'Room');
@@ -572,6 +576,8 @@ class PlpResortRecordScreen extends StatelessWidget {
         ('Capacity', record['capacity']),
         ('Bedrooms', record['bedrooms']),
         ('Nightly rate', _peso(record['nightlyRatePhp'])),
+        ('Operational state', record['operationalState']),
+        ('Operational note', record['operationalNote']),
       ];
     }
     if (kind == 'stay') {
@@ -620,6 +626,97 @@ class PlpResortRecordScreen extends StatelessWidget {
     ];
   }
 
+  bool get _canOperate =>
+      const {'owner', 'admin', 'operator'}.contains(role.toLowerCase());
+  bool get _canAdmin =>
+      const {'owner', 'admin'}.contains(role.toLowerCase());
+
+  List<_RecordActionSpec> get _actions {
+    final status = _text(record['status'], fallback: '').toUpperCase();
+    final actions = <_RecordActionSpec>[];
+    if (onAction == null) return actions;
+
+    if (kind == 'stay' && _canOperate) {
+      if (!const {'CANCELLED', 'CANCELED', 'CHECKED_OUT'}.contains(status)) {
+        actions.add(const _RecordActionSpec(
+          id: 'edit_booking',
+          label: 'Edit reservation',
+          icon: Icons.edit_calendar_outlined,
+        ));
+        if (status == 'CHECKED_IN') {
+          actions.add(const _RecordActionSpec(
+            id: 'check_out',
+            label: 'Check out',
+            icon: Icons.logout_rounded,
+          ));
+        } else {
+          actions.add(const _RecordActionSpec(
+            id: 'check_in',
+            label: 'Check in',
+            icon: Icons.login_rounded,
+          ));
+          actions.add(const _RecordActionSpec(
+            id: 'cancel_booking',
+            label: 'Cancel reservation',
+            icon: Icons.event_busy_outlined,
+            destructive: true,
+          ));
+        }
+      }
+      actions.add(const _RecordActionSpec(
+        id: 'update_guest',
+        label: 'Update guest',
+        icon: Icons.person_outline_rounded,
+      ));
+      if (_number(record['balanceAmountPhp']) > 0) {
+        actions.add(const _RecordActionSpec(
+          id: 'manual_payment',
+          label: 'Record payment',
+          icon: Icons.payments_outlined,
+        ));
+      }
+    } else if (kind == 'request' && _canOperate) {
+      actions.add(const _RecordActionSpec(
+        id: 'update_guest',
+        label: 'Update guest',
+        icon: Icons.person_outline_rounded,
+      ));
+    } else if (kind == 'room' && _canOperate) {
+      actions.add(const _RecordActionSpec(
+        id: 'room_state',
+        label: 'Operational state',
+        icon: Icons.room_preferences_outlined,
+      ));
+      if (_canAdmin) {
+        actions.add(const _RecordActionSpec(
+          id: 'room_rate',
+          label: 'Nightly rate',
+          icon: Icons.sell_outlined,
+        ));
+      }
+    } else if (kind == 'work' && _canOperate) {
+      if (!const {'DONE', 'COMPLETED', 'CLOSED', 'CANCELLED', 'CANCELED'}
+          .contains(status)) {
+        actions.add(const _RecordActionSpec(
+          id: 'task_done',
+          label: 'Mark done',
+          icon: Icons.check_circle_outline_rounded,
+        ));
+      }
+    } else if (kind == 'conflict' && _canOperate) {
+      final resolution =
+          _text(record['resolutionStatus'], fallback: '').toLowerCase();
+      if (status.toLowerCase() != 'resolved' && resolution != 'resolved') {
+        actions.add(const _RecordActionSpec(
+          id: 'resolve_conflict',
+          label: 'Resolve exception',
+          icon: Icons.task_alt_rounded,
+        ));
+      }
+    }
+    return actions;
+  }
+
   @override
   Widget build(BuildContext context) => Material(
         color: _PlpResortOperationalScreenState.canvas,
@@ -648,6 +745,53 @@ class PlpResortRecordScreen extends StatelessWidget {
               for (final field in _fields)
                 if (_hasValue(field.$2))
                   _DetailRow(label: field.$1, value: _text(field.$2)),
+              if (_actions.isNotEmpty) ...[
+                const SizedBox(height: 26),
+                const _SectionLabel('ACTIONS'),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final action in _actions)
+                      action.destructive
+                          ? OutlinedButton.icon(
+                              key: ValueKey<String>(
+                                'plp-record-action-' + action.id,
+                              ),
+                              onPressed: () => onAction?.call(action.id),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF7C3028),
+                                shape: const RoundedRectangleBorder(),
+                                side: const BorderSide(
+                                  color: Color(0xFFC9958F),
+                                ),
+                              ),
+                              icon: Icon(action.icon, size: 18),
+                              label: Text(action.label),
+                            )
+                          : FilledButton.tonalIcon(
+                              key: ValueKey<String>(
+                                'plp-record-action-' + action.id,
+                              ),
+                              onPressed: () => onAction?.call(action.id),
+                              style: FilledButton.styleFrom(
+                                foregroundColor:
+                                    _PlpResortOperationalScreenState.ink,
+                                backgroundColor:
+                                    _PlpResortOperationalScreenState.paper,
+                                shape: const RoundedRectangleBorder(),
+                                side: const BorderSide(
+                                  color:
+                                      _PlpResortOperationalScreenState.line,
+                                ),
+                              ),
+                              icon: Icon(action.icon, size: 18),
+                              label: Text(action.label),
+                            ),
+                  ],
+                ),
+              ],
               if (record['isTestData'] == true || record['isMock'] == true) ...[
                 const SizedBox(height: 18),
                 const _TruthfulEmptyState(
@@ -658,6 +802,20 @@ class PlpResortRecordScreen extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _RecordActionSpec {
+  const _RecordActionSpec({
+    required this.id,
+    required this.label,
+    required this.icon,
+    this.destructive = false,
+  });
+
+  final String id;
+  final String label;
+  final IconData icon;
+  final bool destructive;
 }
 
 class _ModuleSpec {

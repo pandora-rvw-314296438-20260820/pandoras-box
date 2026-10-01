@@ -14,6 +14,7 @@ import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_resort_workspace.dart';
 import '../features/enterprise/plp_resort_operational_screens.dart';
+import '../features/enterprise/plp_resort_transaction_screens.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_team_management_screen.dart';
 import '../features/enterprise/tax_compliance_screen.dart';
@@ -147,6 +148,25 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       } catch (_) {
         // Operational detail is additive; core resort truth remains usable.
       }
+      try {
+        final roomOperations = await Supabase.instance.client.rpc(
+          'plp_room_operations_v1',
+        );
+        normalized['roomOperations'] = _normalizeBootstrap(roomOperations);
+        _mergeRoomOperations(normalized);
+      } catch (_) {
+        // Booking-derived room truth remains usable if room operations are
+        // unavailable during a rolling deployment.
+      }
+      try {
+        final audit = await Supabase.instance.client.rpc(
+          'plp_resort_audit_v1',
+          params: const <String, Object?>{'p_limit': 50},
+        );
+        normalized['resortAudit'] = _normalizeBootstrap(audit);
+      } catch (_) {
+        // Audit projection is additive; core workspace truth remains usable.
+      }
       _ensureRealtime(normalized);
       if (cache != null) {
         try {
@@ -180,6 +200,81 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       return value.map((key, item) => MapEntry(key.toString(), item));
     }
     throw StateError('PLP bootstrap returned an invalid payload.');
+  }
+
+  void _mergeRoomOperations(Map<String, Object?> bootstrap) {
+    final rawCommand = bootstrap['resortCommandCenter'];
+    final rawOps = bootstrap['roomOperations'];
+    if (rawCommand is! Map || rawOps is! Map) return;
+
+    final command = rawCommand.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+    final operations = rawOps.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+    final rawRooms = command['rooms'];
+    final rawRoomOps = operations['rooms'];
+    if (rawRooms is! List || rawRoomOps is! List) return;
+
+    final operationById = <String, Map<String, Object?>>{};
+    for (final item in rawRoomOps) {
+      if (item is! Map) continue;
+      final normalized = item.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final id = normalized['accommodationId']?.toString().trim();
+      if (id != null && id.isNotEmpty) operationById[id] = normalized;
+    }
+
+    final rooms = <Map<String, Object?>>[];
+    for (final item in rawRooms) {
+      if (item is! Map) continue;
+      final room = item.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final id = room['id']?.toString().trim();
+      final operation = id == null ? null : operationById[id];
+      final operationalState =
+          operation?['operationalState']?.toString().trim().toLowerCase();
+      final bookingState = room['state']?.toString().trim().toLowerCase();
+      final effectiveState =
+          operationalState != null &&
+                  operationalState.isNotEmpty &&
+                  operationalState != 'ready'
+              ? operationalState
+              : bookingState;
+      rooms.add(<String, Object?>{
+        ...room,
+        if (effectiveState != null && effectiveState.isNotEmpty)
+          'state': effectiveState,
+        'operationalState':
+            operationalState == null || operationalState.isEmpty
+                ? 'ready'
+                : operationalState,
+        if (operation?['note'] != null)
+          'operationalNote': operation!['note'],
+      });
+    }
+
+    final pulseRaw = command['roomPulse'];
+    final pulse = pulseRaw is Map
+        ? pulseRaw.map((key, value) => MapEntry(key.toString(), value))
+        : <String, Object?>{};
+    pulse['total'] = rooms.length;
+    pulse['occupied'] =
+        rooms.where((room) => room['state']?.toString() == 'occupied').length;
+    pulse['available'] =
+        rooms.where((room) => room['state']?.toString() == 'available').length;
+    command['rooms'] = rooms;
+    command['roomPulse'] = pulse;
+    bootstrap['resortCommandCenter'] = command;
+  }
+
+  String _userRole(Map<String, Object?> bootstrap) {
+    final raw = bootstrap['user'];
+    if (raw is! Map) return 'viewer';
+    return raw['role']?.toString().trim().toLowerCase() ?? 'viewer';
   }
 
   Map<String, Object?> _offlineBootstrap(Object? value) {
@@ -482,12 +577,56 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         record['bookingReference']?.toString() ??
         record['name']?.toString() ??
         kind;
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
     _openTool(
       'resort-record:' + kind + ':' + id,
       PlpResortRecordScreen(
         kind: kind,
         record: record,
+        role: _userRole(bootstrap),
         onBack: _closeTool,
+        onAction: (actionId) =>
+            _openResortRecordAction(actionId, kind, record),
+      ),
+    );
+  }
+
+  void _openResortRecordAction(
+    String actionId,
+    String kind,
+    Map<String, Object?> record,
+  ) {
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    _openTool(
+      'resort-action:' + actionId,
+      PlpResortMutationScreen(
+        actionId: actionId,
+        record: record,
+        bootstrap: bootstrap,
+        onBack: _closeTool,
+        onChanged: _finishRecordMutation,
+      ),
+    );
+  }
+
+  void _finishRecordMutation() {
+    _refresh();
+    if (_routedToolKey?.startsWith('resort-action:') == true) {
+      _closeTool();
+    }
+    if (_routedToolKey?.startsWith('resort-record:') == true) {
+      _closeTool();
+    }
+  }
+
+  void _openReservationCreate() {
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    _openTool(
+      'resort:new-reservation',
+      PlpReservationCreateScreen(
+        bootstrap: bootstrap,
+        onBack: _closeTool,
+        onChanged: _refresh,
       ),
     );
   }
@@ -527,6 +666,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         onOpenSection: _openResortSection,
         onOpenModule: _openResortModule,
         onOpenRecord: (kind, record) => _openResortRecord(kind, record),
+        onCreateReservation: plpRoleCanOperate(bootstrap)
+            ? _openReservationCreate
+            : null,
         onOpenOperationsRoom: () {
           _openTool(
             'operations-room',

@@ -14,7 +14,10 @@ const _bootstrap = <String, Object?>{
     'propertyName': 'Pueblo La Perla',
     'propertySlug': 'plp-boracay',
   },
-  'user': <String, Object?>{'displayName': 'Owner QA'},
+  'user': <String, Object?>{
+    'displayName': 'Owner QA',
+    'role': 'owner',
+  },
   'sourceHealth': <String, Object?>{
     'state': 'healthy',
     'message': 'Verified fixture',
@@ -340,6 +343,57 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('plp-module-back')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('plp-resort-stays')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('owner creates a reservation through a normal system page', (tester) async {
+    await _mountOwnerShell(tester);
+    await _openSection(tester, 'stays');
+
+    final stays = find.byKey(const ValueKey('plp-resort-stays'));
+    final newReservation = find.text('New reservation');
+    await tester.scrollUntilVisible(
+      newReservation,
+      220,
+      scrollable: find.descendant(
+        of: stays,
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    await tester.tap(newReservation);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('plp-new-reservation')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-reservation-name')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-reservation-room')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('plp-transaction-back')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('plp-resort-stays')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('owner stay detail exposes check-in as a normal action page', (tester) async {
+    await _mountOwnerShell(tester);
+    await _openSection(tester, 'stays');
+
+    final stay = find.byKey(const ValueKey('plp-stay-stay-maria'));
+    await tester.ensureVisible(stay);
+    await tester.tap(stay);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('plp-record-action-check_in')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('plp-record-action-check_in')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('plp-mutation-check_in')), findsOneWidget);
+    expect(find.text('Confirm check-in'), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('plp-transaction-back')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('plp-record-stay')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

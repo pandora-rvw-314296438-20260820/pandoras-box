@@ -43,6 +43,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     this.onOpenSection,
     this.onOpenModule,
     this.onOpenRecord,
+    this.onCreateReservation,
     this.onOpenOperationsRoom,
     this.onOpenGuestExperience,
     this.onOpenTeam,
@@ -56,6 +57,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   final ValueChanged<String>? onOpenSection;
   final ValueChanged<String>? onOpenModule;
   final void Function(String kind, Map<String, Object?> record)? onOpenRecord;
+  final VoidCallback? onCreateReservation;
   final VoidCallback? onOpenOperationsRoom;
   final VoidCallback? onOpenGuestExperience;
   final VoidCallback? onOpenTeam;
@@ -246,6 +248,14 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           _Metric('Visible stays', stays.length.toString(), 'next 30 days'),
         ],
       ),
+      if (onCreateReservation != null) ...[
+        const SizedBox(height: 22),
+        _ActionBar(
+          label: 'New reservation',
+          icon: Icons.add_circle_outline_rounded,
+          onTap: onCreateReservation!,
+        ),
+      ],
       const SizedBox(height: 24),
       _SectionHeader(
         'UPCOMING & ACTIVE',
@@ -673,7 +683,20 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   List<Widget> _activity() {
     final source = _map(bootstrap['sourceHealth']);
     final team = _map(bootstrap['teamAccess']);
-    final activity = _clientRecords(_maps(team['recentActivity']));
+    final teamActivity = _clientRecords(_maps(team['recentActivity']));
+    final auditItems = _maps(_map(bootstrap['resortAudit'])['items'])
+        .map(
+          (item) => <String, Object?>{
+            'title': _humanStatus(item['action']),
+            'actor': _humanStatus(item['actorRole']),
+            'status': _truthy(item['providerReadbackVerified'])
+                ? 'verified'
+                : 'unverified',
+            'category': item['entityKind'],
+            'updatedAt': item['createdAt'],
+          },
+        )
+        .toList(growable: false);
     final sourceState = _text(source['state'], fallback: 'unknown');
     return [
       const _HeroLine(
@@ -687,14 +710,24 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ),
       const SizedBox(height: 24),
       _SectionHeader(
-        'RECENT BUSINESS ACTIVITY',
-        action: activity.isNotEmpty ? activity.length.toString() : null,
+        'RESORT CHANGES',
+        action: auditItems.isNotEmpty ? auditItems.length.toString() : null,
       ),
       const SizedBox(height: 8),
-      if (activity.isEmpty)
-        const _EmptyState('No recent business activity is available.')
+      if (auditItems.isEmpty)
+        const _EmptyState('No verified resort change has been recorded yet.')
       else
-        _ActivityList(items: activity),
+        _ActivityList(items: auditItems),
+      const SizedBox(height: 24),
+      _SectionHeader(
+        'TEAM ACTIVITY',
+        action: teamActivity.isNotEmpty ? teamActivity.length.toString() : null,
+      ),
+      const SizedBox(height: 8),
+      if (teamActivity.isEmpty)
+        const _EmptyState('No recent team activity is available.')
+      else
+        _ActivityList(items: teamActivity),
       if (onOpenActivity != null) ...[
         const SizedBox(height: 22),
         _ActionBar(
@@ -704,8 +737,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ),
       ],
     ];
-  }
-}
+  }}
 
 class _ResortHeader extends StatelessWidget {
   const _ResortHeader({
