@@ -83,7 +83,7 @@ function buildManifest(definition) {
       evidenceModes: ["provider_readback", "http_status", "sha256_digest"],
     }],
     connectionPolicy: {
-      catalogAction: "Connect",
+      catalogAction: "Request activation",
       connectedAuthority: "fresh_provider_readback",
       falseConnectedForbidden: true,
       credentialMode: definition.credentialMode,
@@ -200,9 +200,9 @@ const publicCatalog = publicDefinitions.map((definition) => Object.freeze({
   metadata: Object.freeze({
     family: "government",
     priority: "P1",
-    connectionMode: definition.credentialMode === "none" ? "public_safe_read" : "self_service_credential",
-    catalogAction: "Connect",
-    publicConnectAllowed: true,
+    connectionMode: "request_activation",
+    catalogAction: "Request activation",
+    publicConnectAllowed: false,
     liveConnectionStatus: "not_connected",
     statusAuthority: "fresh_provider_readback_only",
     credentialMode: definition.credentialMode,
@@ -211,8 +211,8 @@ const publicCatalog = publicDefinitions.map((definition) => Object.freeze({
     ui: Object.freeze({
       surface: "generic_connections_center",
       customProviderUi: false,
-      primaryAction: "connect",
-      primaryLabel: "Connect",
+      primaryAction: "request_activation",
+      primaryLabel: "Request activation",
     }),
   }),
 }));

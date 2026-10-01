@@ -5,7 +5,13 @@ const { badge, statusSummary, pendingPlans } = window.PandorasOwnerRuntime;
 function connectionRows() {
   if (!state.live) return `<div class="owner-setting-row static"><span class="owner-setting-icon warning">${icons.link}</span><span><strong>Connected services</strong><small>Status unavailable</small></span>${badge('Unavailable', 'warning')}</div>`;
   if (!state.connections.length) return `<div class="owner-setting-row static"><span class="owner-setting-icon">${icons.link}</span><span><strong>Connected services</strong><small>No live connections returned</small></span>${badge('None', 'neutral')}</div>`;
-  return state.connections.map((connection) => `<button type="button" class="owner-setting-row" data-action="open-connection" data-key="${esc(`${connection.provider}:${connection.id}`)}"><span class="owner-setting-icon">${icons.link}</span><span><strong>${esc(connection.label || cleanName(connection.provider))}</strong><small>${esc(cleanName(connection.provider))} · ${connection.mutations ? 'Routine changes enabled' : 'Read only'}</small></span>${badge('Connected', 'success')}${icons.arrow}</button>`).join('');
+  return state.connections.map((connection) => {
+    const connected = connection.state === 'ready' && connection.plainStatus === 'Connected';
+    const status = connected ? 'Connected' : (connection.plainStatus || 'Needs attention');
+    const tone = connected ? 'success' : status === 'Needs permission' ? 'neutral' : 'warning';
+    const access = connection.canChange === true ? 'Changes require approval' : 'Read only';
+    return `<button type="button" class="owner-setting-row" data-action="open-connection" data-key="${esc(`${connection.provider}:${connection.id}`)}"><span class="owner-setting-icon">${icons.link}</span><span><strong>${esc(connection.label || cleanName(connection.provider))}</strong><small>${esc(cleanName(connection.provider))} · ${esc(status)} · ${access}</small></span>${badge(status, tone)}${icons.arrow}</button>`;
+  }).join('');
 }
 
 function renderMore() {
