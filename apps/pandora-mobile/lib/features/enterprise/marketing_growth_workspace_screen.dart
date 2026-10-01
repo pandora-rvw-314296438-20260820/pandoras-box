@@ -31,6 +31,7 @@ class _MarketingGrowthWorkspaceScreenState
   Map<String, Object?>? _data;
   String? _error;
   bool _loading = true;
+  bool _controlBusy = false;
 
   static const _canvas = Color(0xFF07111B);
   static const _paper = Color(0xFF0D1722);
@@ -106,6 +107,129 @@ class _MarketingGrowthWorkspaceScreenState
         _loading = false;
       });
     }
+  }
+
+  Future<void> _runPilotControl(
+    String action,
+    Map<String, Object?> pilot,
+  ) async {
+    if (_controlBusy) return;
+
+    if (action == 'activate') {
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Activate bounded Meta pilot?'),
+          content: Text(
+            'This uses the already approved envelope: ' +
+                _moneyMinor(
+                  pilot['dailyBudgetMinor'],
+                  currency: _text(pilot['currency'], fallback: 'PHP'),
+                ) +
+                '/day, ' +
+                _moneyMinor(
+                  pilot['maxSpendMinor'],
+                  currency: _text(pilot['currency'], fallback: 'PHP'),
+                ) +
+                ' maximum, with automatic provider readback and stop controls.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Activate'),
+            ),
+          ],
+        ),
+      );
+      if (approved != true || !mounted) return;
+    }
+
+    setState(() => _controlBusy = true);
+    final requestKey =
+        'owner-growth-' + action + '-' + DateTime.now().microsecondsSinceEpoch.toString();
+    try {
+      await Supabase.instance.client.rpc(
+        'pandora_growth_paid_pilot_owner_control_v1',
+        params: <String, Object?>{
+          'p_organization_id': PandoraConfig.organizationId,
+          'p_action': action,
+          'p_request_key': requestKey,
+          'p_reason': action == 'stop'
+              ? 'owner paused from Marketing & Growth'
+              : null,
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            action == 'prepare'
+                ? 'Pilot prepared and provider-read back.'
+                : action == 'activate'
+                    ? 'Pilot activation submitted and verified.'
+                    : 'Pilot paused and kill switch restored.',
+          ),
+        ),
+      );
+      await _load();
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      final creativeBlocked =
+          error.message.contains('PANDORA_GROWTH_OWNER_CONTROL_CREATIVE_NOT_READY');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            creativeBlocked
+                ? 'Tracked Meta creative is not provider-ready yet.'
+                : 'Pilot control could not be completed.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _controlBusy = false);
+    }
+  }
+
+  Widget _pilotControlButton(Map<String, Object?> pilot) {
+    final state = _text(pilot['state'], fallback: 'none').toLowerCase();
+    final creativeReady = _bool(pilot['providerCreativeReady']);
+
+    if (state == 'active') {
+      return FilledButton.icon(
+        key: const ValueKey('marketing-growth-pilot-pause'),
+        onPressed: _controlBusy ? null : () => _runPilotControl('stop', pilot),
+        icon: const Icon(Icons.pause_circle_outline_rounded),
+        label: Text(_controlBusy ? 'Working…' : 'Pause pilot'),
+      );
+    }
+
+    if (state == 'prepared') {
+      return FilledButton.icon(
+        key: const ValueKey('marketing-growth-pilot-activate'),
+        onPressed: _controlBusy || !creativeReady
+            ? null
+            : () => _runPilotControl('activate', pilot),
+        icon: const Icon(Icons.play_circle_outline_rounded),
+        label: Text(_controlBusy ? 'Working…' : 'Activate pilot'),
+      );
+    }
+
+    if (state == 'approved') {
+      return FilledButton.icon(
+        key: const ValueKey('marketing-growth-pilot-prepare'),
+        onPressed: _controlBusy || !creativeReady
+            ? null
+            : () => _runPilotControl('prepare', pilot),
+        icon: const Icon(Icons.fact_check_outlined),
+        label: Text(_controlBusy ? 'Working…' : 'Prepare pilot'),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   void _openPandora() {
@@ -354,6 +478,18 @@ class _MarketingGrowthWorkspaceScreenState
           _text(pilot['impressions'], fallback: 'Not observed'),
         ),
         _lineRow('Clicks', _text(pilot['clicks'], fallback: 'Not observed')),
+        const SizedBox(height: 14),
+        if (!providerCreativeReady && pilotState != 'active')
+          const Text(
+            'Prepare and Activate stay disabled until Meta verifies a tracked creative. Pause always remains available for an active pilot.',
+            style: TextStyle(color: _muted, height: 1.4),
+          ),
+        if (!providerCreativeReady && pilotState != 'active')
+          const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _pilotControlButton(pilot),
+        ),
       ]),
       const SizedBox(height: 14),
       Wrap(
