@@ -77,14 +77,14 @@ const definitions = [
   },
   {
     providerKey: "grab", displayName: "Grab", family: "logistics", priority: "P1",
-    authType: "service_credential", authScheme: "partner_api_credentials", riskClass: "high",
+    authType: "service_credential", authScheme: "partner_api_credentials", riskClass: "high", requestActivation: true,
     readScopes: ["partner.identity.read", "quote.read", "booking.status.read"], writeScopes: ["booking.dispatch"],
     identityFields: ["partnerId"], displayFields: ["market"], safeProbe: "logistics.quote.read",
     capabilities: [cap("logistics.account.read"), cap("logistics.quote.read"), cap("logistics.booking.dispatch", "write", ["provider_receipt", "booking_readback"])],
   },
   {
     providerKey: "lalamove", displayName: "Lalamove", family: "logistics", priority: "P1",
-    authType: "api_key", authScheme: "api_key_partner_auth", riskClass: "high",
+    authType: "api_key", authScheme: "api_key_partner_auth", riskClass: "high", requestActivation: true,
     readScopes: ["account.identity.read", "quote.read", "tracking.read"], writeScopes: ["delivery.dispatch"],
     identityFields: ["accountId"], displayFields: ["market"], safeProbe: "logistics.quote.read",
     capabilities: [cap("logistics.account.read"), cap("logistics.quote.read"), cap("logistics.delivery.dispatch", "write", ["provider_receipt", "tracking_readback"])],
@@ -280,6 +280,17 @@ function makeMetadata(definition) {
       identityReadback: true,
       scopesReadback: true,
       noCredentialOnlyConnectedState: true,
+    },
+    readiness: requestActivation ? {
+      defaultCatalogState: "request_activation",
+      serverConfigurationAuthority: "partner_verified_runtime_handoff",
+      connectEnabledByDefault: false,
+      blockedReason: "partner_activation_required",
+    } : {
+      defaultCatalogState: "implemented_awaiting_credential",
+      serverConfigurationAuthority: "server_runtime_config_registry",
+      connectEnabledByDefault: false,
+      blockedReason: "server_configuration_missing",
     },
     credential: {
       storage: "server_vault_reference",
