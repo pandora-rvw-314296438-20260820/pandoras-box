@@ -1354,6 +1354,12 @@ async function ownerProviderAction(context: UserContext, body: JsonRecord) {
   const now = new Date().toISOString();
   if (action === "connect") {
     if (context.aal !== "aal2") throw new Error("AAL2_REQUIRED");
+    if (
+      Object.prototype.hasOwnProperty.call(body, "secret") ||
+      Object.prototype.hasOwnProperty.call(body, "token")
+    ) {
+      throw new Error("CONNECTION_SECRET_INPUT_NOT_ALLOWED");
+    }
     const credential = textValue(body.credential);
     if (credential.length < 16 || credential.length > 8192 ||
         (provider !== "posthog" && body.runTestInference !== true)) {

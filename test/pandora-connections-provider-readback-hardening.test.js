@@ -63,6 +63,17 @@ test("owner API hosts the server-only self-service provider route", () => {
   assert.match(ownerApi, /context\.aal !== "aal2"/);
   assert.match(ownerApi, /CONNECTION_SECRET_INPUT_NOT_ALLOWED/);
   assert.match(ownerApi, /hasOwnProperty\.call\(body, "credential"\)/);
+  const providerAction = ownerApi.slice(
+    ownerApi.indexOf("async function ownerProviderAction"),
+    ownerApi.indexOf("\nasync function connectionAction"),
+  );
+  const connectGuard = providerAction.slice(
+    providerAction.indexOf('if (action === "connect")'),
+    providerAction.indexOf("const credential"),
+  );
+  assert.match(connectGuard, /hasOwnProperty\.call\(body, "secret"\)/);
+  assert.match(connectGuard, /hasOwnProperty\.call\(body, "token"\)/);
+  assert.match(connectGuard, /CONNECTION_SECRET_INPUT_NOT_ALLOWED/);
   assert.match(ownerApi, /credentialStored: true/);
   assert.match(ownerApi, /credentialReturned: false/);
   assert.match(ownerApi, /CONNECTION_RUNTIME_UNAVAILABLE/);
