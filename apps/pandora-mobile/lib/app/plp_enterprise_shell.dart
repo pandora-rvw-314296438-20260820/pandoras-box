@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/local/pandora_local_state_cache.dart';
+import '../core/security/pandora_auth.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/diagnostics/developer_diagnostics_screen.dart';
@@ -253,6 +254,18 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   void _refresh() {
     setState(() => _bootstrapFuture = _loadBootstrapAndRemember());
   }
+
+  Future<void> _signOut() async {
+    try {
+      await PandoraDependencies.of(context).auth.signOut();
+    } on PandoraAuthFailure catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
 
   void _open(
     int index, {
@@ -798,6 +811,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenFullSettings: () {
                 _openTool('full-settings', const SettingsScreen());
               },
+              onSignOut: _signOut,
             ),
             const DeveloperDiagnosticsScreen(key: ValueKey('plp-developer')),
             TaxComplianceScreen(

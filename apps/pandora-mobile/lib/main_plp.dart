@@ -6,6 +6,7 @@ import 'app/pandora_runtime_bootstrap.dart';
 import 'app/plp_enterprise_app.dart';
 import 'core/local/pandora_local_store.dart';
 import 'core/security/mobile_auth_storage.dart';
+import 'core/security/plp_secure_auth_storage.dart';
 import 'pandora_config.dart';
 
 Future<void> main() async {
@@ -22,8 +23,10 @@ Future<void> main() async {
   await Supabase.initialize(
     url: PandoraConfig.supabaseUrl,
     publishableKey: PandoraConfig.supabasePublishableKey,
-    authOptions: const FlutterAuthClientOptions(
-      localStorage: EmptyLocalStorage(),
+    authOptions: FlutterAuthClientOptions(
+      localStorage: PlpSecureAuthStorage(
+        supabaseUrl: PandoraConfig.supabaseUrl,
+      ),
     ),
   );
 
