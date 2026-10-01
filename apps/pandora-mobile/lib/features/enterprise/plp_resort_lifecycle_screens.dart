@@ -140,19 +140,19 @@ class _PlpReservationCreateScreenState
 
   @override
   Widget build(BuildContext context) => _LifecycleScaffold(
-        key: const ValueKey('plp-reservation-create'),
+        surfaceKey: const ValueKey('plp-reservation-create'),
         title: 'New reservation',
         eyebrow: 'RESERVATIONS',
         onBack: widget.onBack,
         children: [
           _TextField(
-            key: const ValueKey('plp-reservation-guest-name'),
+            fieldKey: const ValueKey('plp-reservation-guest-name'),
             controller: _name,
             label: 'Guest name',
             hint: 'Full name',
           ),
           _TextField(
-            key: const ValueKey('plp-reservation-guest-email'),
+            fieldKey: const ValueKey('plp-reservation-guest-email'),
             controller: _email,
             label: 'Email',
             hint: 'guest@example.com',
@@ -201,7 +201,7 @@ class _PlpReservationCreateScreenState
             onTap: _busy ? null : () => _pickDate(false),
           ),
           _TextField(
-            key: const ValueKey('plp-reservation-guest-count'),
+            fieldKey: const ValueKey('plp-reservation-guest-count'),
             controller: _guestCount,
             label: 'Guests',
             hint: '1',
@@ -215,7 +215,7 @@ class _PlpReservationCreateScreenState
           ),
           if (_error != null) _ErrorText(_error!),
           _PrimaryAction(
-            key: const ValueKey('plp-reservation-submit'),
+            controlKey: const ValueKey('plp-reservation-submit'),
             label: 'Create reservation',
             busy: _busy,
             onPressed: _rooms.isEmpty ? null : _submit,
@@ -438,7 +438,7 @@ class _PlpStayLifecycleScreenState extends State<PlpStayLifecycleScreen> {
     }.contains(status);
 
     return _LifecycleScaffold(
-      key: const ValueKey('plp-stay-lifecycle'),
+      surfaceKey: const ValueKey('plp-stay-lifecycle'),
       title: _text(detail['fullName'], fallback: 'Guest stay'),
       eyebrow: 'STAY · $_bookingReference',
       onBack: widget.onBack,
@@ -463,40 +463,40 @@ class _PlpStayLifecycleScreenState extends State<PlpStayLifecycleScreen> {
             runSpacing: 8,
             children: [
               _SmallAction(
-                key: const ValueKey('plp-stay-edit'),
+                controlKey: const ValueKey('plp-stay-edit'),
                 label: 'Edit stay',
                 icon: Icons.edit_calendar_outlined,
                 onTap: finalized || _busy ? null : _editStay,
               ),
               _SmallAction(
-                key: const ValueKey('plp-guest-edit'),
+                controlKey: const ValueKey('plp-guest-edit'),
                 label: 'Edit guest',
                 icon: Icons.person_outline,
                 onTap: _busy ? null : _editGuest,
               ),
               _SmallAction(
-                key: const ValueKey('plp-payment-record'),
+                controlKey: const ValueKey('plp-payment-record'),
                 label: 'Record payment',
                 icon: Icons.payments_outlined,
                 onTap: balance <= 0 || finalized || _busy ? null : _recordPayment,
               ),
               if (!checkedIn && !finalized)
                 _SmallAction(
-                  key: const ValueKey('plp-stay-check-in'),
+                  controlKey: const ValueKey('plp-stay-check-in'),
                   label: 'Check in',
                   icon: Icons.login_rounded,
                   onTap: _busy ? null : () => _transition('check_in'),
                 ),
               if (checkedIn)
                 _SmallAction(
-                  key: const ValueKey('plp-stay-check-out'),
+                  controlKey: const ValueKey('plp-stay-check-out'),
                   label: 'Check out',
                   icon: Icons.logout_rounded,
                   onTap: _busy ? null : () => _transition('check_out'),
                 ),
               if (!finalized)
                 _SmallAction(
-                  key: const ValueKey('plp-stay-cancel'),
+                  controlKey: const ValueKey('plp-stay-cancel'),
                   label: 'Cancel',
                   icon: Icons.cancel_outlined,
                   destructive: true,
@@ -590,7 +590,7 @@ class _PlpRoomLifecycleScreenState extends State<PlpRoomLifecycleScreen> {
 
   @override
   Widget build(BuildContext context) => _LifecycleScaffold(
-        key: const ValueKey('plp-room-lifecycle'),
+        surfaceKey: const ValueKey('plp-room-lifecycle'),
         title: _text(_room['name'], fallback: 'Room'),
         eyebrow: 'ROOM',
         onBack: widget.onBack,
@@ -602,7 +602,7 @@ class _PlpRoomLifecycleScreenState extends State<PlpRoomLifecycleScreen> {
           _Detail('Bedrooms', _text(_room['bedrooms'])),
           if (_canAdmin)
             _PrimaryAction(
-              key: const ValueKey('plp-room-edit'),
+              controlKey: const ValueKey('plp-room-edit'),
               label: 'Edit room settings',
               busy: _busy,
               onPressed: _edit,
@@ -617,13 +617,14 @@ class _PlpRoomLifecycleScreenState extends State<PlpRoomLifecycleScreen> {
 
 class _LifecycleScaffold extends StatelessWidget {
   const _LifecycleScaffold({
-    super.key,
+    this.surfaceKey,
     required this.title,
     required this.eyebrow,
     required this.onBack,
     required this.children,
   });
 
+  final Key? surfaceKey;
   final String title;
   final String eyebrow;
   final VoidCallback onBack;
@@ -631,7 +632,7 @@ class _LifecycleScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        key: key,
+        key: surfaceKey,
         color: _canvas,
         child: SafeArea(
           bottom: false,
@@ -918,7 +919,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         title: 'Record payment',
         children: [
           _TextField(
-            key: const ValueKey('plp-payment-amount'),
+            fieldKey: const ValueKey('plp-payment-amount'),
             controller: _amount,
             label: 'Amount',
             hint: '0.00',
@@ -948,7 +949,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             'This records an already-received payment. It does not charge a card or wallet.',
           ),
           _PrimaryAction(
-            key: const ValueKey('plp-payment-submit'),
+            controlKey: const ValueKey('plp-payment-submit'),
             label: 'Record verified payment',
             onPressed: () {
               final amount = num.tryParse(_amount.text.trim());
@@ -1114,7 +1115,7 @@ class _Sheet extends StatelessWidget {
 
 class _TextField extends StatelessWidget {
   const _TextField({
-    super.key,
+    this.fieldKey,
     required this.controller,
     required this.label,
     required this.hint,
@@ -1122,6 +1123,7 @@ class _TextField extends StatelessWidget {
     this.keyboardType,
   });
 
+  final Key? fieldKey;
   final TextEditingController controller;
   final String label;
   final String hint;
@@ -1130,7 +1132,7 @@ class _TextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextField(
-        key: key,
+        key: fieldKey,
         controller: controller,
         maxLines: maxLines,
         keyboardType: keyboardType,
@@ -1258,11 +1260,12 @@ class _Detail extends StatelessWidget {
 
 class _PrimaryAction extends StatelessWidget {
   const _PrimaryAction({
-    super.key,
+    this.controlKey,
     required this.label,
     required this.onPressed,
     this.busy = false,
   });
+  final Key? controlKey;
   final String label;
   final VoidCallback? onPressed;
   final bool busy;
@@ -1271,7 +1274,7 @@ class _PrimaryAction extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
         width: double.infinity,
         child: FilledButton(
-          key: key,
+          key: controlKey,
           onPressed: busy ? null : onPressed,
           style: FilledButton.styleFrom(
             backgroundColor: _ink,
@@ -1294,12 +1297,13 @@ class _PrimaryAction extends StatelessWidget {
 
 class _SmallAction extends StatelessWidget {
   const _SmallAction({
-    super.key,
+    this.controlKey,
     required this.label,
     required this.icon,
     required this.onTap,
     this.destructive = false,
   });
+  final Key? controlKey;
   final String label;
   final IconData icon;
   final VoidCallback? onTap;
@@ -1307,7 +1311,7 @@ class _SmallAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
-        key: key,
+        key: controlKey,
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
           foregroundColor: destructive ? _warn : _ink,
