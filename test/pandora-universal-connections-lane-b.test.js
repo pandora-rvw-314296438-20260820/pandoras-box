@@ -11,6 +11,16 @@ const modules = Promise.all([
 const requestActivationKeys = [
   "pldt-enterprise", "smart", "globe", "dito", "ubivelox-philippines", "government-regulated",
 ];
+const organizationId = "11111111-1111-4111-8111-111111111111";
+const connectionId = "22222222-2222-4222-8222-222222222222";
+const tenantKey = "external-client.account";
+const tenantBinding = Object.freeze({
+  organizationId, tenantId: organizationId, connectionId, tenantKey,
+  vaultCredentialRef: "vault-ref://opaque/1",
+});
+const boundAction = (fields) => ({
+  organizationId, tenantId: organizationId, connectionId, tenantKey, ...fields,
+});
 
 test("Lane B registers every requested P1/P2 provider through Provider SDK manifests", async () => {
   const [{ providerEntries }, { validateProviderManifest }] = await modules;
@@ -24,6 +34,11 @@ test("Lane B registers every requested P1/P2 provider through Provider SDK manif
     assert.equal(entry.metadata.health.identityReadback, true);
     assert.equal(entry.metadata.health.scopesReadback, true);
     assert.equal(entry.metadata.health.noCredentialOnlyConnectedState, true);
+    assert.deepEqual(entry.metadata.tenantBinding.requiredRequestFields, ["tenantId", "connectionId", "tenantKey"]);
+    assert.equal(entry.metadata.tenantBinding.canonicalTenantColumn, "organization_id");
+    assert.equal(entry.metadata.tenantBinding.mismatchPolicy, "fail_closed");
+    assert.equal(entry.metadata.tenantBinding.crossTenantCredentialSharing, false);
+    assert.equal(entry.metadata.tenantBinding.credentialsMayReachDevices, false);
     assert.equal(Object.isFrozen(entry.metadata), true);
   }
   const keys = new Set(providerEntries.map((item) => item.providerKey));
@@ -100,50 +115,65 @@ test("closed and regulated providers expose Request activation and never a fake 
   }
 });
 
-test("partner activation rejects credential material and needs authority plus provider evidence", async () => {
+test("partner activation binds every action and Vault reference to the exact external-client tenant tuple", async () => {
   const [{ PARTNER_ACTIVATION_STATES, createPartnerActivationRequest, transitionPartnerActivation }] = await modules;
-  const input = {
+  const input = boundAction({
     requestId: "activation-1",
     providerKey: "pldt-enterprise",
-    pandoraOrganizationId: "org-1",
     requesterRef: "owner-1",
     contactEmail: "owner@example.com",
     legalEntityName: "Example Corp",
     requestedCapabilities: ["telecom.account.read"],
     jurisdiction: "PH",
     requestedAt: "2026-10-01T12:00:00.000Z",
-  };
-  assert.throws(() => createPartnerActivationRequest({ ...input, apiKey: "forbidden" }), /forbidden_fields:apiKey/);
+  });
+  assert.throws(
+    () => createPartnerActivationRequest({ ...input, apiKey: "forbidden" }, { tenantBinding }),
+    /forbidden_fields:apiKey/,
+  );
   assert.throws(() => createPartnerActivationRequest({
     ...input, accountReference: "gh" + "p_" + "a".repeat(30),
-  }), /credential_material/);
-  let request = createPartnerActivationRequest(input);
+  }, { tenantBinding }), /credential_material/);
+  assert.throws(() => createPartnerActivationRequest({
+    ...input, tenantId: "33333333-3333-4333-8333-333333333333",
+  }, { tenantBinding }), /CONNECTION_ACCOUNT_TENANT_MISMATCH/);
+  assert.throws(() => createPartnerActivationRequest(input), /CONNECTION_ACCOUNT_TENANT_MISMATCH/);
+
+  let request = createPartnerActivationRequest(input, { tenantBinding });
   assert.equal(request.liveConnectionStatus, "not_connected");
-  request = transitionPartnerActivation(request, {
+  request = transitionPartnerActivation(request, boundAction({
     to: PARTNER_ACTIVATION_STATES.AUTHORITY_REVIEW, at: "2026-10-01T12:01:00.000Z", actorRef: "reviewer-1",
-  });
-  assert.throws(() => transitionPartnerActivation(request, {
+  }), { tenantBinding });
+  assert.throws(() => transitionPartnerActivation(request, boundAction({
     to: PARTNER_ACTIVATION_STATES.PARTNER_ONBOARDING, at: "2026-10-01T12:02:00.000Z", actorRef: "reviewer-1",
-  }), /authorityEvidenceRef required/);
-  request = transitionPartnerActivation(request, {
+  }), { tenantBinding }), /authorityEvidenceRef required/);
+  request = transitionPartnerActivation(request, boundAction({
     to: PARTNER_ACTIVATION_STATES.PARTNER_ONBOARDING, at: "2026-10-01T12:02:00.000Z", actorRef: "reviewer-1",
     authorityEvidenceRef: "evidence://authority/1", providerContractRef: "evidence://contract/1",
-  });
-  request = transitionPartnerActivation(request, {
+  }), { tenantBinding });
+  assert.throws(() => transitionPartnerActivation(request, boundAction({
+    to: PARTNER_ACTIVATION_STATES.PROVIDER_VERIFICATION, at: "2026-10-01T12:03:00.000Z", actorRef: "operator-1",
+    vaultCredentialRef: "vault-ref://opaque/other",
+  }), { tenantBinding }), /CONNECTION_VAULT_TENANT_MISMATCH/);
+  request = transitionPartnerActivation(request, boundAction({
     to: PARTNER_ACTIVATION_STATES.PROVIDER_VERIFICATION, at: "2026-10-01T12:03:00.000Z", actorRef: "operator-1",
     vaultCredentialRef: "vault-ref://opaque/1",
-  });
-  assert.throws(() => transitionPartnerActivation(request, {
+  }), { tenantBinding });
+  assert.throws(() => transitionPartnerActivation(request, boundAction({
     to: PARTNER_ACTIVATION_STATES.VERIFIED_FOR_RUNTIME_HANDOFF, at: "2026-10-01T12:04:00.000Z", actorRef: "verifier-1",
     providerReadbackRef: "evidence://provider/1",
-  }), /accountIdentityRef required/);
-  request = transitionPartnerActivation(request, {
+  }), { tenantBinding }), /accountIdentityRef required/);
+  request = transitionPartnerActivation(request, boundAction({
     to: PARTNER_ACTIVATION_STATES.VERIFIED_FOR_RUNTIME_HANDOFF, at: "2026-10-01T12:04:00.000Z", actorRef: "verifier-1",
     providerReadbackRef: "evidence://provider/1", accountIdentityRef: "evidence://identity/1",
     scopesEvidenceRef: "evidence://scopes/1", safeProbeEvidenceRef: "evidence://probe/1",
-  });
+  }), { tenantBinding });
   assert.equal(request.state, "verified_for_runtime_handoff");
   assert.equal(request.liveConnectionStatus, "not_connected");
+  assert.equal(request.organizationId, organizationId);
+  assert.equal(request.tenantId, organizationId);
+  assert.equal(request.connectionId, connectionId);
+  assert.equal(request.tenantKey, tenantKey);
 });
 
 test("custom connectors are sandboxed and read-only first", async () => {
@@ -155,3 +185,4 @@ test("custom connectors are sandboxed and read-only first", async () => {
     assert.equal(policy.operationClassificationRequired, true);
   }
 });
+

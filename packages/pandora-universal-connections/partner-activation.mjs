@@ -9,15 +9,19 @@ export const PARTNER_ACTIVATION_STATES = Object.freeze({
   CANCELLED: "cancelled",
 });
 
+const TENANT_FIELDS = ["organizationId", "tenantId", "connectionId", "tenantKey"];
 const allowedCreateFields = new Set([
-  "requestId", "providerKey", "pandoraOrganizationId", "requesterRef", "contactEmail",
+  "requestId", "providerKey", ...TENANT_FIELDS, "requesterRef", "contactEmail",
   "legalEntityName", "accountReference", "requestedCapabilities", "jurisdiction", "requestedAt",
 ]);
-
 const allowedTransitionFields = new Set([
-  "to", "at", "actorRef", "authorityEvidenceRef", "providerContractRef", "vaultCredentialRef",
-  "providerReadbackRef", "accountIdentityRef", "scopesEvidenceRef", "safeProbeEvidenceRef", "reason",
+  "to", "at", "actorRef", ...TENANT_FIELDS, "authorityEvidenceRef", "providerContractRef",
+  "vaultCredentialRef", "providerReadbackRef", "accountIdentityRef", "scopesEvidenceRef",
+  "safeProbeEvidenceRef", "reason",
 ]);
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TENANT_KEY = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,319}$/;
 
 const transitions = new Map([
   [PARTNER_ACTIVATION_STATES.REQUESTED, new Set([PARTNER_ACTIVATION_STATES.AUTHORITY_REVIEW, PARTNER_ACTIVATION_STATES.CANCELLED])],
@@ -64,13 +68,39 @@ function requireEvidence(transition, fields) {
   for (const field of fields) requireText(transition[field], field);
 }
 
+function assertTenantBinding(source, runtime, expected = null) {
+  const organizationId = requireText(source.organizationId, "organizationId");
+  const tenantId = requireText(source.tenantId, "tenantId");
+  const connectionId = requireText(source.connectionId, "connectionId");
+  const tenantKey = requireText(source.tenantKey, "tenantKey");
+  if (!UUID.test(organizationId) || !UUID.test(tenantId) || !UUID.test(connectionId) || !TENANT_KEY.test(tenantKey)) {
+    throw new Error("CONNECTION_IDENTITY_INVALID");
+  }
+  const trusted = runtime?.tenantBinding || runtime?.evidence?.tenantBinding;
+  if (
+    organizationId !== tenantId
+    || !trusted
+    || trusted.organizationId !== organizationId
+    || trusted.tenantId !== tenantId
+    || trusted.connectionId !== connectionId
+    || trusted.tenantKey !== tenantKey
+    || (expected && (
+      expected.organizationId !== organizationId
+      || expected.tenantId !== tenantId
+      || expected.connectionId !== connectionId
+      || expected.tenantKey !== tenantKey
+    ))
+  ) throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
+  return Object.freeze({ organizationId, tenantId, connectionId, tenantKey, vaultCredentialRef: trusted.vaultCredentialRef });
+}
+
 function cloneAndFreeze(value) {
   const clone = structuredClone(value);
   Object.freeze(clone.history);
   return Object.freeze(clone);
 }
 
-export function createPartnerActivationRequest(input) {
+export function createPartnerActivationRequest(input, runtime = {}) {
   assertPlainObject(input, "activation request");
   assertAllowedFields(input, allowedCreateFields, "activation_request");
   assertNoCredentialMaterial(input, "activation_request");
@@ -78,6 +108,7 @@ export function createPartnerActivationRequest(input) {
   if (!entry || entry.metadata.connectionMode !== "request_activation") {
     throw new Error("provider_does_not_use_partner_activation");
   }
+  const binding = assertTenantBinding(input, runtime);
   if (!Array.isArray(input.requestedCapabilities) || input.requestedCapabilities.length === 0) {
     throw new TypeError("requestedCapabilities required");
   }
@@ -91,7 +122,10 @@ export function createPartnerActivationRequest(input) {
     schemaVersion: 1,
     requestId: requireText(input.requestId, "requestId"),
     providerKey: entry.providerKey,
-    pandoraOrganizationId: requireText(input.pandoraOrganizationId, "pandoraOrganizationId"),
+    organizationId: binding.organizationId,
+    tenantId: binding.tenantId,
+    connectionId: binding.connectionId,
+    tenantKey: binding.tenantKey,
     requesterRef: requireText(input.requesterRef, "requesterRef"),
     contactEmail: requireText(input.contactEmail, "contactEmail"),
     legalEntityName: requireText(input.legalEntityName, "legalEntityName"),
@@ -105,11 +139,12 @@ export function createPartnerActivationRequest(input) {
   });
 }
 
-export function transitionPartnerActivation(request, transition) {
+export function transitionPartnerActivation(request, transition, runtime = {}) {
   assertPlainObject(request, "activation request");
   assertPlainObject(transition, "activation transition");
   assertAllowedFields(transition, allowedTransitionFields, "activation_transition");
   assertNoCredentialMaterial(transition, "activation_transition");
+  const binding = assertTenantBinding(transition, runtime, request);
   const to = requireText(transition.to, "to");
   if (!transitions.get(request.state)?.has(to)) throw new Error(`invalid_activation_transition:${request.state}->${to}`);
   const at = requireText(transition.at, "at");
@@ -121,6 +156,9 @@ export function transitionPartnerActivation(request, transition) {
   }
   if (to === PARTNER_ACTIVATION_STATES.PROVIDER_VERIFICATION) {
     requireEvidence(transition, ["vaultCredentialRef"]);
+    if (binding.vaultCredentialRef !== transition.vaultCredentialRef) {
+      throw new Error("CONNECTION_VAULT_TENANT_MISMATCH");
+    }
   }
   if (to === PARTNER_ACTIVATION_STATES.VERIFIED_FOR_RUNTIME_HANDOFF) {
     requireEvidence(transition, ["providerReadbackRef", "accountIdentityRef", "scopesEvidenceRef", "safeProbeEvidenceRef"]);
@@ -136,6 +174,9 @@ export function transitionPartnerActivation(request, transition) {
       state: to,
       at: new Date(at).toISOString(),
       actorRef: transition.actorRef,
+      tenantId: binding.tenantId,
+      connectionId: binding.connectionId,
+      tenantKey: binding.tenantKey,
       evidence,
       reason: transition.reason ?? null,
     }],
