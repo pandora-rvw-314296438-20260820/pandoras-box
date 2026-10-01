@@ -378,13 +378,26 @@ void main() {
         final capability = find.byKey(
           ValueKey<String>('plp-capability-' + module.value),
         );
+        final activeSection = find.byKey(
+          ValueKey<String>('plp-resort-' + section.key),
+        );
+        final verticalScroll = find
+            .descendant(
+              of: activeSection,
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        await tester.scrollUntilVisible(
+          capability,
+          220,
+          scrollable: verticalScroll,
+        );
         expect(
           capability,
           findsOneWidget,
           reason: section.key + ' must expose ' + module.key +
-              ' as a real tappable capability.',
+              ' after the owner scrolls to its capability controls.',
         );
-        await tester.ensureVisible(capability);
         await tester.tap(capability);
         await tester.pumpAndSettle();
         expect(
