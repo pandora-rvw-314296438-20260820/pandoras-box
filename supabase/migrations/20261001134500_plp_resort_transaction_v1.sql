@@ -72,7 +72,7 @@ declare
   check_in_date date;
   check_out_date date;
   business_date date;
-  guest_count integer;
+  guest_count_value integer;
   nights_count integer;
   rate_php numeric;
   total_php numeric;
@@ -167,8 +167,8 @@ begin
       raise exception 'active accommodation not found' using errcode='P0002';
     end if;
 
-    guest_count := greatest(coalesce(nullif(payload->>'guestCount','')::integer,1),1);
-    if guest_count>room.capacity then
+    guest_count_value := greatest(coalesce(nullif(payload->>'guestCount','')::integer,1),1);
+    if guest_count_value>room.capacity then
       raise exception 'guest count exceeds room capacity' using errcode='22023';
     end if;
     if exists (
@@ -220,7 +220,7 @@ begin
       source,confirmed_at,updated_at
     ) values (
       booking_ref,guest_id,room.id,room.name,
-      check_in_date,check_out_date,guest_count,nights_count,rate_php,total_php,
+      check_in_date,check_out_date,guest_count_value,nights_count,rate_php,total_php,
       0,total_php,'CONFIRMED','PENDING',
       nullif(btrim(coalesce(payload->>'specialRequests','')),''),
       'pandora_plp_mobile',clock_timestamp(),clock_timestamp()
@@ -256,7 +256,7 @@ begin
     if check_out_date<=check_in_date then
       raise exception 'checkOut must be after checkIn' using errcode='22023';
     end if;
-    guest_count:=coalesce(nullif(payload->>'guestCount','')::integer,booking.guest_count);
+    guest_count_value:=coalesce(nullif(payload->>'guestCount','')::integer,booking.guest_count);
 
     if nullif(payload->>'accommodationId','') is not null then
       select * into room from plp_runtime.plp_accommodations
@@ -266,7 +266,7 @@ begin
       where id=booking.accommodation_id;
     end if;
     if room.id is null then raise exception 'active accommodation not found' using errcode='P0002'; end if;
-    if guest_count<1 or guest_count>room.capacity then
+    if guest_count_value<1 or guest_count_value>room.capacity then
       raise exception 'guest count is outside room capacity' using errcode='22023';
     end if;
     if exists (
@@ -297,7 +297,7 @@ begin
       accommodation_name=room.name,
       check_in=check_in_date,
       check_out=check_out_date,
-      guest_count=guest_count,
+      guest_count=guest_count_value,
       nights=nights_count,
       rate_per_night_php=rate_php,
       total_amount_php=total_php,
