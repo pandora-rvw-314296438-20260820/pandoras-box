@@ -82,3 +82,27 @@ test("PLP operational detail projection exposes real work queues without fabrica
   assert.match(operationsMigration, /active PLP membership required/);
   assert.match(operationsMigration, /revoke execute on function public\.plp_resort_operations_v1\(\)\s+from public,anon/);
 });
+
+
+test("PLP 6405 audit keeps normal work operational and strips client-facing implementation leakage", () => {
+  assert.doesNotMatch(resort, /The resort needs a little attention\./);
+  assert.doesNotMatch(resort, /The resort is composed\./);
+  assert.doesNotMatch(resort, /Every stay in one calm view\./);
+  assert.doesNotMatch(resort, /Hospitality beyond the room\./);
+  assert.doesNotMatch(resort, /The people running the property\./);
+  assert.doesNotMatch(resort, /What changed, without the noise\./);
+  assert.doesNotMatch(resort, /Staff IDs/);
+  assert.match(resort, /_humanStatus/);
+  assert.match(resort, /_clientRecords/);
+  assert.match(resort, /_clientSourceMessage/);
+  assert.match(resort, /Sales today/);
+  assert.doesNotMatch(resort, /source\['message'\]/);
+  assert.doesNotMatch(resort, /onAskPandora/);
+});
+
+test("PLP Team is one resort workspace and legacy Team & Access is not routed", () => {
+  assert.match(shell, /plpResortSectionById\('team'\)!/);
+  assert.match(shell, /_openTeamManagement\(bootstrap\)/);
+  assert.doesNotMatch(shell, /PlpTeamAccessScreen/);
+  assert.doesNotMatch(shell, /plp_team_access_screen\.dart/);
+});
