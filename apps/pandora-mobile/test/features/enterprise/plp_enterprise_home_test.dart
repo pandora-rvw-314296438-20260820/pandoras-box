@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/features/enterprise/plp_enterprise_home.dart';
+import 'package:pandora_mobile/features/enterprise/plp_resort_workspace.dart';
 
 void main() {
   Map<String, Object?> fixture({
@@ -10,11 +11,10 @@ void main() {
     int conflicts = 1,
   }) =>
       <String, Object?>{
-        'organization': <String, Object?>{
-          'propertyName': 'PLP Boracay',
+        'organization': const <String, Object?>{
+          'propertyName': 'Pueblo La Perla',
           'businessIdentity': 'Luxury Resort',
         },
-        'user': <String, Object?>{'displayName': 'Doctora'},
         'today': <String, Object?>{
           'occupancy_percent': 66.67,
           'occupied_rooms': 2,
@@ -26,9 +26,69 @@ void main() {
           'open_staff_tasks': tasks,
           'open_ota_conflicts': conflicts,
         },
-        'sourceHealth': <String, Object?>{
+        'sourceHealth': const <String, Object?>{
           'state': 'healthy',
           'message': 'Provider snapshot verified',
+        },
+        'guestExperience': <String, Object?>{
+          'inHouse': const <Object?>[
+            <String, Object?>{
+              'fullName': 'Maria Santos',
+              'accommodationName': 'Villa 1',
+            },
+          ],
+          'arrivals': List<Object?>.generate(
+            arrivals,
+            (i) => <String, Object?>{'fullName': 'Arrival ' + i.toString()},
+          ),
+          'departing': List<Object?>.generate(
+            departures,
+            (i) => <String, Object?>{'fullName': 'Departure ' + i.toString()},
+          ),
+          'attention': tasks == 0
+              ? const <Object?>[]
+              : const <Object?>[
+                  <String, Object?>{
+                    'title': 'Prepare VIP arrival',
+                    'priority': 'high',
+                    'fullName': 'Maria Santos',
+                  },
+                ],
+        },
+        'resortCommandCenter': <String, Object?>{
+          'roomPulse': <String, Object?>{
+            'total': 3,
+            'occupied': 2,
+            'available': 1,
+            'arriving': arrivals,
+            'departing': departures,
+          },
+          'operations': <String, Object?>{
+            'openWork': tasks,
+            'priorityWork': tasks > 0 ? 1 : 0,
+            'channelExceptions': conflicts,
+          },
+          'finance': const <String, Object?>{
+            'bookedValue30dPhp': 500000,
+            'outstandingBalancePhp': 100000,
+            'paidValue30dPhp': 400000,
+          },
+          'rooms': const <Object?>[
+            <String, Object?>{
+              'name': 'Villa 1',
+              'state': 'occupied',
+              'capacity': 2,
+              'bedrooms': 1,
+            },
+            <String, Object?>{
+              'name': 'Villa 2',
+              'state': 'available',
+              'capacity': 2,
+              'bedrooms': 1,
+            },
+          ],
+          'stays': const <Object?>[],
+          'experienceSignals': const <Object?>[],
         },
       };
 
@@ -37,51 +97,39 @@ void main() {
           body: PlpEnterpriseHome(
             bootstrap: bootstrap,
             onRefresh: () {},
-            onAskAlfred: () {},
           ),
         ),
       );
 
-  testWidgets('Home is an adaptive owner briefing instead of a duplicate Overview',
-      (tester) async {
-    await tester.pumpWidget(mount(fixture()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'Home is a visual resort command center instead of an editorial briefing',
+    (tester) async {
+      await tester.pumpWidget(mount(fixture()));
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('plp-enterprise-home')), findsOneWidget);
-    expect(find.text('OWNER’S HOME'), findsOneWidget);
-    expect(find.text('TODAY'), findsOneWidget);
-    expect(find.text('Welcome, Doctora'), findsOneWidget);
-    expect(find.text('A few things need you.'), findsOneWidget);
-    expect(
-      find.text('66.67% occupancy · 1 room available · ₱300,000 today'),
-      findsOneWidget,
-    );
+      expect(
+        find.byKey(const ValueKey('plp-enterprise-home')),
+        findsOneWidget,
+      );
+      expect(find.text('RESORT STATUS'), findsOneWidget);
+      expect(find.text('Today'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('plp-metric-rail')),
+        findsOneWidget,
+      );
+      expect(find.text('ARRIVALS'), findsNWidgets(2));
+      expect(find.text('DEPARTURES'), findsOneWidget);
+      expect(find.text('ROOM PULSE'), findsOneWidget);
+      expect(find.text('OWNER’S HOME'), findsNothing);
+      expect(
+        find.text('Your private briefing for what matters now.'),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-    await tester.scrollUntilVisible(
-      find.text('1 OTA conflict'),
-      240,
-      scrollable: find.byType(Scrollable),
-    );
-    expect(find.text('1 OTA conflict'), findsOneWidget);
-    expect(find.text('2 open staff tasks'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('MOVEMENT TODAY'),
-      220,
-      scrollable: find.byType(Scrollable),
-    );
-    expect(find.text('MOVEMENT TODAY'), findsOneWidget);
-
-    expect(find.text('TODAY AT PUEBLO LA PERLA'), findsNothing);
-    expect(find.text('COMMAND PLP'), findsNothing);
-    expect(find.byKey(const ValueKey('plp-metric-sales')), findsNothing);
-    expect(find.byKey(const ValueKey('plp-open-alfred')), findsNothing);
-    expect(find.byKey(const ValueKey('plp-open-operations-room')), findsNothing);
-    expect(find.byKey(const ValueKey('plp-open-vision')), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('Home collapses quiet zero states', (tester) async {
+  testWidgets('Home keeps quiet states compact', (tester) async {
     await tester.pumpWidget(
       mount(
         fixture(
@@ -94,11 +142,141 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('The resort is quiet today.'), findsOneWidget);
-    expect(find.text('No arrivals or departures are scheduled.'), findsOneWidget);
-    expect(find.text('MOVEMENT TODAY'), findsNothing);
-    expect(find.text('NEEDS YOUR ATTENTION'), findsNothing);
-    expect(find.byKey(const ValueKey('plp-source-health')), findsOneWidget);
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('The resort is composed.'), findsNothing);
+    expect(
+      find.text('No guest or channel exception needs owner attention.'),
+      findsOneWidget,
+    );
+    expect(find.text('A few things need you.'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'Team hides internal identities and exposes one management surface',
+      (tester) async {
+    final data = fixture();
+    data['teamAccess'] = <String, Object?>{
+      'members': <Object?>[
+        <String, Object?>{
+          'displayName': 'MCPMaster Staging Owner',
+          'roleLabel': 'Owner',
+          'accessRole': 'owner',
+          'active': true,
+        },
+        <String, Object?>{
+          'displayName': 'Doctora',
+          'roleLabel': 'Owner',
+          'accessRole': 'owner',
+          'active': true,
+        },
+      ],
+      'recentActivity': const <Object?>[],
+    };
+    await tester.pumpWidget(MaterialApp(
+        home: PlpResortWorkspaceScreen(
+      section: plpResortSectionById('team')!,
+      bootstrap: data,
+      onOpenNavigation: () {},
+      onRefresh: () {},
+      onOpenTeam: () {},
+    )));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('MCPMaster Staging Owner'), findsNothing);
+    expect(find.text('Doctora'), findsOneWidget);
+    expect(find.textContaining('Staff IDs'), findsNothing);
+    expect(find.text('Manage team & access'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Activity hides QA/staging copy and humanizes raw statuses',
+      (tester) async {
+    final data = fixture();
+    data['sourceHealth'] = <String, Object?>{
+      'state': 'stale',
+      'message':
+          'Demo/staging PLP data. Customer production tenant is not connected.',
+    };
+    data['teamAccess'] = <String, Object?>{
+      'members': const <Object?>[],
+      'recentActivity': <Object?>[
+        <String, Object?>{
+          'title': 'QA transfer',
+          'actor': 'Alfred QA',
+          'status': 'in_progress',
+          'isMock': true
+        },
+        <String, Object?>{
+          'title': 'Confirm guest transfer',
+          'actor': 'Front Desk',
+          'status': 'in_progress',
+          'category': 'arrival',
+          'updatedAt': '2026-10-01T06:30:00+08:00',
+        },
+      ],
+    };
+    await tester.pumpWidget(MaterialApp(
+        home: PlpResortWorkspaceScreen(
+      section: plpResortSectionById('activity')!,
+      bootstrap: data,
+      onOpenNavigation: () {},
+      onRefresh: () {},
+    )));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Demo/staging'), findsNothing);
+    expect(find.textContaining('Customer production tenant'), findsNothing);
+    expect(find.textContaining('Alfred QA'), findsNothing);
+    expect(find.textContaining('in_progress'), findsNothing);
+    expect(find.textContaining('In progress'), findsWidgets);
+    expect(find.text('Confirm guest transfer'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home fails closed when the live resort source is not connected',
+      (tester) async {
+    final data = fixture();
+    data['sourceHealth'] = <String, Object?>{
+      'state': 'not_connected',
+      'customerTenantConnected': false,
+      'liveOperationalDataAvailable': false,
+    };
+    await tester.pumpWidget(mount(data));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-metric-rail')), findsNothing);
+    expect(find.text('ROOM PULSE'), findsNothing);
+    expect(find.textContaining('Live occupancy'), findsOneWidget);
+    expect(find.text('RESORT WORKSPACES'), findsOneWidget);
+    expect(find.text('₱0'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('source-dependent workspaces do not manufacture zero truth',
+      (tester) async {
+    final data = fixture();
+    data['sourceHealth'] = <String, Object?>{
+      'state': 'not_connected',
+      'customerTenantActive': true,
+      'customerTenantConnected': true,
+      'liveBusinessSourceConnected': false,
+      'liveOperationalDataAvailable': false,
+    };
+
+    for (final sectionId in <String>['stays', 'rooms', 'guests', 'revenue']) {
+      await tester.pumpWidget(MaterialApp(
+        home: PlpResortWorkspaceScreen(
+          section: plpResortSectionById(sectionId)!,
+          bootstrap: data,
+          onOpenNavigation: () {},
+          onRefresh: () {},
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('plp-metric-rail')), findsNothing);
+      expect(find.textContaining('verified resort source'), findsOneWidget);
+      expect(find.text('₱0'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
   });
 }

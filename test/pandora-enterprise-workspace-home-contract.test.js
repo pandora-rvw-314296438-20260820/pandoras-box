@@ -151,19 +151,33 @@ test("tax stays visible without duplicated or cross-workspace readiness claims",
 });
 
 
-test("PLP primary drawer exposes Tax & Compliance and routes it to the live tax screen", () => {
-  assert.match(plpDrawer, /'tax-compliance',[\s\S]*'Tax & Compliance'/);
-  const homeAt = plpDrawer.indexOf("'home'");
-  const overviewAt = plpDrawer.indexOf("'overview'");
-  const taxAt = plpDrawer.indexOf("'tax-compliance'");
+test("PLP keeps resort work primary and Tax & Compliance available under System", () => {
+  const todayAt = plpDrawer.indexOf("'home'");
+  const staysAt = plpDrawer.indexOf("'stays'");
+  const roomsAt = plpDrawer.indexOf("'rooms'");
+  const guestsAt = plpDrawer.indexOf("'guests'");
   const operationsAt = plpDrawer.indexOf("'operations'");
-  assert.ok(homeAt >= 0 && overviewAt > homeAt);
-  assert.ok(taxAt > overviewAt && taxAt < operationsAt);
+  const revenueAt = plpDrawer.indexOf("'revenue'");
+  const experiencesAt = plpDrawer.indexOf("'experiences'");
+  const teamAt = plpDrawer.indexOf("'team'");
+  const activityAt = plpDrawer.indexOf("'activity'");
+  const systemAt = plpDrawer.indexOf("_systemItems");
+  const taxAt = plpDrawer.indexOf("'tax-compliance'");
+
+  assert.ok(todayAt >= 0);
+  assert.ok(staysAt > todayAt && roomsAt > staysAt && guestsAt > roomsAt);
+  assert.ok(operationsAt > guestsAt && revenueAt > operationsAt);
+  assert.ok(experiencesAt > revenueAt && teamAt > experiencesAt && activityAt > teamAt);
+  assert.ok(systemAt > activityAt && taxAt > systemAt);
+  assert.doesNotMatch(plpDrawer, /_PlpDrawerDestination\('overview'/);
+  assert.doesNotMatch(plpDrawer, /_PlpDrawerDestination\('needs-you'/);
+
   assert.match(plpShell, /'tax-compliance': 13/);
   assert.match(plpShell, /TaxComplianceScreen\(/);
   assert.match(plpShell, /'surface': 'enterprise_tax'/);
-  assert.match(plpShell, /openDrawer: _openDrawer/);
-  assert.match(plpShell, /_index == 4 \|\| _index == 12/);
+  assert.match(plpShell, /PandoraNavigationScope\(\s*openDrawer: null/);
+  assert.match(plpShell, /'plp-floating-navigation'/);
+  assert.doesNotMatch(plpShell, /_index == 4 \|\| _index == 12/);
   assert.match(tax, /bottomNavigationBar: _isPlp \? null : SafeArea/);
   assert.match(tax, /plp-tax-owner-status/);
 });

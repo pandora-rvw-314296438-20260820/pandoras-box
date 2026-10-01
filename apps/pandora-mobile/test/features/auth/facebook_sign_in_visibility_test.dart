@@ -6,7 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/features/auth/sign_in_screen.dart';
 
 void main() {
-  testWidgets('disabled Facebook provider hides the Android button', (tester) async {
+  testWidgets('disabled Facebook provider hides the Android button',
+      (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     try {
       await tester.pumpWidget(MaterialApp(
@@ -19,7 +20,8 @@ void main() {
     }
   });
 
-  testWidgets('enabled Facebook provider shows the Android button', (tester) async {
+  testWidgets('enabled Facebook provider shows the Android button',
+      (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     try {
       await tester.pumpWidget(MaterialApp(
@@ -32,7 +34,8 @@ void main() {
     }
   });
 
-  testWidgets('provider availability remains hidden while still loading', (tester) async {
+  testWidgets('provider availability remains hidden while still loading',
+      (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     final pending = Completer<bool>();
     try {
@@ -48,12 +51,14 @@ void main() {
     }
   });
 
-  testWidgets('disabling provider after display prevents OAuth launch', (tester) async {
+  testWidgets('disabling provider after display prevents OAuth launch',
+      (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     var reads = 0;
     try {
       await tester.pumpWidget(MaterialApp(
-        home: SignInScreen(checkFacebookProviderEnabled: () async => ++reads == 1),
+        home: SignInScreen(
+            checkFacebookProviderEnabled: () async => ++reads == 1),
       ));
       await tester.pump();
       final facebookButton = find.text('Continue with Facebook');
@@ -63,13 +68,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(reads, 2);
       expect(find.text('Continue with Facebook'), findsNothing);
-      expect(find.text('Facebook sign-in is not available yet.'), findsOneWidget);
+      expect(
+          find.text('Facebook sign-in is not available yet.'), findsOneWidget);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
   });
 
-  testWidgets('unsupported native platform stays hidden even if enabled', (tester) async {
+  testWidgets('unsupported native platform stays hidden even if enabled',
+      (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     var called = false;
     try {
@@ -82,6 +89,37 @@ void main() {
       await tester.pump();
       expect(called, isFalse);
       expect(find.text('Continue with Facebook'), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets(
+      'PLP presentation uses resort identity and suppresses consumer OAuth',
+      (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    var providerRead = false;
+    try {
+      await tester.pumpWidget(MaterialApp(
+        home: SignInScreen(
+          presentation: SignInPresentation.plp,
+          checkFacebookProviderEnabled: () async {
+            providerRead = true;
+            return true;
+          },
+        ),
+      ));
+      await tester.pump();
+      expect(find.text('Pueblo La Perla'), findsOneWidget);
+      expect(find.text('PLP BORACAY · LUXURY RESORT'), findsOneWidget);
+      expect(find.text('Private resort command center'), findsOneWidget);
+      expect(
+          find.text('Authorized PLP owners and staff only.'), findsOneWidget);
+      expect(find.text("Pandora's Box"), findsNothing);
+      expect(
+          find.text('Build, change, and publish with Pandora.'), findsNothing);
+      expect(find.text('Continue with Facebook'), findsNothing);
+      expect(providerRead, isFalse);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }

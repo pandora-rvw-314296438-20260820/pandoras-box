@@ -135,7 +135,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
                         ),
                         const Expanded(
                           child: Text(
-                            'Plugins',
+                            'Live Connections',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 20,
@@ -160,7 +160,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       onChanged: (value) =>
                           setState(() => _query = value.trim()),
                       decoration: InputDecoration(
-                        hintText: 'Search plugins',
+                        hintText: 'Search connections',
                         prefixIcon: const Icon(Icons.search_rounded),
                         suffixIcon: _query.isEmpty
                             ? null
@@ -627,7 +627,7 @@ class _PluginViewModel {
             name: 'change',
             mode: 'write',
             available: true,
-            approval: 'projectos',
+            approval: 'governed',
           ),
       ],
       lastVerifiedAt: connection.freshness.lastVerifiedAt,

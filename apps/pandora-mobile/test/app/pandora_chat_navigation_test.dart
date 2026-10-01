@@ -94,7 +94,7 @@ void main() {
         'Projects',
         'Needs You',
         'Activity',
-        'Connections',
+        'Capabilities & Providers',
         'Saved evidence',
         'Verify & Safety',
         'Operations Room',
@@ -157,7 +157,7 @@ void main() {
     await mount(tester, const Size(1024, 800));
     expect(menu, findsNothing);
     expect(find.byType(Drawer), findsNothing);
-    expect(find.widgetWithText(ListTile, 'Connections'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Capabilities & Providers'), findsOneWidget);
     expect(tester.getSize(find.byType(AskPandoraScreen)).width, 759);
     expect(tester.takeException(), isNull);
   });
@@ -203,7 +203,7 @@ void main() {
     for (final title in <String>[
       'Needs You',
       'Settings & More',
-      'Connections',
+      'Capabilities & Providers',
       'Activity',
       'Saved evidence',
       'Verify & Safety',
