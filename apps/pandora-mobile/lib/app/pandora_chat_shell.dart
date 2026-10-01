@@ -15,6 +15,7 @@ import '../features/enterprise/batalla_workspace_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/enterprise_workspace_home.dart';
 import '../features/enterprise/marketing_growth_workspace_screen.dart';
+import '../features/enterprise/provider_ecosystem_screen.dart';
 import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
