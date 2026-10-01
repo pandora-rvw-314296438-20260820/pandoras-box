@@ -58,6 +58,7 @@ test('PLP reservation lifecycle rejects unsafe booking states', () => {
   assert.match(migration, /guest count exceeds room capacity/);
   assert.match(migration, /booking must be checked in before check-out/);
   assert.match(migration, /checked-in stay must be checked out or owner-forced/);
+  assert.match(migration, /checked-out booking cannot be cancelled/);
 });
 
 test('PLP finance, task, room and channel mutations are bounded', () => {

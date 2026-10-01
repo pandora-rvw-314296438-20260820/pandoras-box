@@ -113,6 +113,9 @@ String _friendlyMessage(String message) {
   if (value.contains('checked in before check-out')) {
     return 'Check the guest in before checking them out.';
   }
+  if (value.contains('checked-out booking cannot be cancelled')) {
+    return 'A completed stay cannot be cancelled.';
+  }
   if (value.contains('not due for check-in')) {
     return 'This stay is not due for check-in yet.';
   }

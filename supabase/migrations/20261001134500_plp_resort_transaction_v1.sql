@@ -361,6 +361,8 @@ begin
       end if;
     else
       if upper(booking.status) in ('CANCELLED','CANCELED') then null;
+      elsif upper(booking.status)='CHECKED_OUT' then
+        raise exception 'checked-out booking cannot be cancelled' using errcode='22023';
       elsif upper(booking.status)='CHECKED_IN'
         and not (force_action and actor_role in ('owner','admin')) then
         raise exception 'checked-in stay must be checked out or owner-forced' using errcode='22023';
