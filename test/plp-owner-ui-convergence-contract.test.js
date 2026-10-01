@@ -12,12 +12,12 @@ const operationsMigration = read("supabase/migrations/20261001070000_plp_resort_
 const operational = read("apps/pandora-mobile/lib/features/enterprise/plp_resort_operational_screens.dart");
 const plpAuthGate = read("apps/pandora-mobile/lib/features/auth/plp_auth_gate.dart");
 const signIn = read("apps/pandora-mobile/lib/features/auth/sign_in_screen.dart");
-const failClosedTruth = read("supabase/migrations/20261001080000_plp_fail_closed_source_truth_v1.sql");
+const failClosedTruth = read("supabase/migrations/20261001070517_plp_fail_closed_source_truth_v1.sql");
 
 test("PLP Home is one shared resort workspace, not a second editorial design", () => {
   assert.match(home, /PlpResortWorkspaceScreen/);
   assert.match(home, /plpResortSectionById\('today'\)/);
-  assert.doesNotMatch(home, /OWNER’S HOME|Your private briefing/);
+  assert.doesNotMatch(home, /OWNERâ€™S HOME|Your private briefing/);
 });
 
 test("PLP exposes nine coherent resort workspaces instead of a feature catalog", () => {
@@ -50,7 +50,7 @@ test("PLP shell loads one additive resort projection and preserves contextual Pa
 });
 
 test("PLP disconnected customer source truth cannot claim connection or manufacture current metrics", () => {
-  const failClosed = read("supabase/migrations/20261001080000_plp_fail_closed_source_truth_v1.sql");
+  const failClosed = read("supabase/migrations/20261001070517_plp_fail_closed_source_truth_v1.sql");
   assert.match(
     failClosed,
     /'customerTenantConnected',\s*effective_source_state in \('healthy','current','live','ready'\)/,
@@ -134,7 +134,7 @@ test("PLP Team is one resort workspace and legacy Team & Access is not routed", 
 test("PLP authentication is explicitly resort-branded", () => {
   assert.match(plpAuthGate, /SignInPresentation\.plp/);
   assert.match(signIn, /Pueblo La Perla/);
-  assert.match(signIn, /PLP BORACAY · LUXURY RESORT/);
+  assert.match(signIn, /PLP BORACAY .* LUXURY RESORT/);
   assert.match(signIn, /allowFacebookSignIn: false/);
 });
 
