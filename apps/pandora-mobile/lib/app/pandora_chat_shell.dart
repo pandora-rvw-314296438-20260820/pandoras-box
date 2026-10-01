@@ -44,7 +44,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     _ChatDestination('Settings & More', Icons.tune_rounded, Icons.tune_rounded),
     _ChatDestination('Activity', Icons.history_rounded, Icons.history_rounded),
     _ChatDestination(
-        'Connections', Icons.extension_outlined, Icons.extension_rounded),
+        'Live Connections', Icons.extension_outlined, Icons.extension_rounded),
     _ChatDestination('Saved evidence', Icons.offline_pin_outlined,
         Icons.offline_pin_rounded),
     _ChatDestination(
