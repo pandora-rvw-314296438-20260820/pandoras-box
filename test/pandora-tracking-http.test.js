@@ -134,7 +134,7 @@ function storageFixture(calls) {
     }]);
     if (resource === "pandora_tracking_tenants") return response([{ status: "active" }]);
     if (resource === "pandora_tracking_clicks") {
-      return response([{ tenant_id: TENANT_ID, campaign_id: CAMPAIGN_ID }]);
+      return response([{ tenant_id: TENANT_ID, campaign_id: CAMPAIGN_ID, is_test: true }]);
     }
     if (resource === "pandora_tracking_api_keys" && options.method !== "PATCH") {
       return response([{
@@ -203,7 +203,7 @@ test("redirect route neither stores nor forwards incoming tracking and identity 
   }
 });
 
-test("event route preserves FB-017 consent, test marker, and event meaning with empty metadata", async () => {
+test("event route preserves consent and inherits test truth from the server click", async () => {
   const calls = [];
   await withTrackingApp(storageFixture(calls), async (baseUrl) => {
     const result = await fetch(baseUrl + "/api/tracking/event", {
@@ -233,6 +233,30 @@ test("event route preserves FB-017 consent, test marker, and event meaning with 
     event_type: "event", event_name: "landing.viewed", schema_version: 1,
     consent: { analytics: true, marketing: false }, is_test: true, metadata: {},
   });
+});
+
+test("event route rejects a browser attempt to relabel server test traffic", async () => {
+  const calls = [];
+  await withTrackingApp(storageFixture(calls), async (baseUrl) => {
+    const result = await fetch(baseUrl + "/api/tracking/event", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        click_id: "pdc_" + "b".repeat(32),
+        event_name: "landing.viewed",
+        event_type: "event",
+        schema_version: 1,
+        consent: { analytics: false, marketing: false },
+        is_test: false,
+        metadata: {},
+      }),
+    });
+    assert.equal(result.status, 409);
+    assert.deepEqual(await result.json(), { ok: false, error: "test_marker_mismatch" });
+  });
+  assert.equal(calls.some((call) =>
+    call.resource === "pandora_tracking_events" && call.method === "POST"
+  ), false);
 });
 
 test("all write routes reject nonempty metadata and unsupported top-level fields", async () => {
