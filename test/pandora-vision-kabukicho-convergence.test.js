@@ -32,7 +32,7 @@ test("Kabukicho Vision Intelligence is wired into the current shell", () => {
   assert.match(shell, /'Vision Intelligence'/);
   assert.match(shell, /10 => 'vision_intelligence'/);
   assert.match(shell, /10 => EnterpriseVisionScreen\(/);
-  assert.match(shell, /\[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3\]/);
+  assert.match(shell, /\[9, 10, 0, 8, 11, 1, 2, 4, 6, 7, 3\]/);
 });
 
 test("web and Android use the same provider-controlled CamStreamer feed", () => {
