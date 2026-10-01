@@ -15,6 +15,10 @@ const google = read(
   "supabase/functions/pandora-google-workspace-oauth/index.ts",
   "work/pandora-google-workspace-oauth-index.ts",
 );
+const providerApps = read(
+  "docs/operations/connections-provider-developer-apps.md",
+  "work/connections-provider-developer-apps.md",
+);
 
 test("P0 manifests carry all mandatory Connection Manifest controls", () => {
   for (const provider of ["google_workspace", "posthog", "meta", "openai", "gemini", "kimi", "supabase", "vercel"]) {
@@ -60,6 +64,19 @@ test("Vault lifecycle and account selector never return credentials to clients",
   assert.match(migration, /revoke all on function public\.pandora_connection_runtime_credential_v1/);
 });
 
+test("tenant, active account and provider account are bound as one fail-closed runtime identity", () => {
+  assert.match(migration, /foreign key \(connection_id, organization_id, provider_key, tenant_key\)/);
+  assert.match(migration, /pandora_connection_runtime_credential_v1\(\s*p_organization_id uuid,p_provider_key text,p_connection_id uuid,p_tenant_key text/);
+  assert.match(migration, /pandora_connection_account_tenant_mismatch/);
+  assert.match(migration, /a\.organization_id=p_organization_id/);
+  assert.match(migration, /a\.provider_key=p_provider_key/);
+  assert.match(migration, /a\.tenant_key=trim\(p_tenant_key\)/);
+  assert.match(broker, /tenantId !== organizationId/);
+  assert.match(broker, /CONNECTION_ACCOUNT_TENANT_MISMATCH/);
+  assert.match(broker, /runtimeBound = true/);
+  assert.match(broker, /if \(runtimeBound && uuid\.test\(connectionId\)\)/);
+});
+
 test("Google is read-first and validates provider OIDC nonce before commit", () => {
   assert.match(migration, /drive\.metadata\.readonly/);
   assert.match(migration, /spreadsheets\.readonly/);
@@ -93,4 +110,15 @@ test("Supabase and Vercel writes are exact-target, hash-bound, expiring, one-tim
   assert.match(migration, /interval '10 minutes'/);
   assert.match(migration, /status='consumed'/);
   assert.match(migration, /write_preview_contains_secret_keys/);
+  assert.match(migration, /connection_id=p_connection_id and tenant_key=trim\(p_tenant_key\)/);
+  assert.match(migration, /p_organization_id::text\|\|'.*p_connection_id::text/);
+});
+
+test("external-client provider app register is explicit and never upgrades unknown review state", () => {
+  for (const provider of ["Google Workspace", "Meta", "Shopify", "Xero", "QuickBooks", "DocuSign", "Google Ads", "Microsoft Entra"] ) {
+    assert.match(providerApps, new RegExp(provider));
+  }
+  assert.match(providerApps, /NOT VERIFIED/);
+  assert.match(providerApps, /organization_id.*tenant_id/);
+  assert.match(providerApps, /PLDT, Smart, Globe, DITO, Ubivelox/);
 });

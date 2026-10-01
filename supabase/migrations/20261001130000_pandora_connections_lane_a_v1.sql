@@ -57,7 +57,7 @@ create table if not exists private.pandora_connection_accounts_v1 (
   connected_by uuid not null references auth.users(id),
   account_subject_hash text not null check (account_subject_hash ~ '^[0-9a-f]{64}$'),
   account_label text not null check (length(account_label) between 1 and 320),
-  tenant_key text not null default '',
+  tenant_key text not null check (length(tenant_key) between 1 and 320),
   tenant_label text,
   credential_secret_id uuid not null,
   credential_version integer not null default 1 check (credential_version > 0),
@@ -78,22 +78,28 @@ create table if not exists private.pandora_connection_accounts_v1 (
   updated_at timestamptz not null default clock_timestamp(),
   foreign key (provider_key, manifest_version)
     references private.pandora_connection_manifest_contracts_v1(provider_key, manifest_version),
-  unique (organization_id, provider_key, account_subject_hash, tenant_key)
+  unique (organization_id, provider_key, account_subject_hash, tenant_key),
+  unique (id, organization_id, provider_key, tenant_key)
 );
 
 create table if not exists private.pandora_connection_active_accounts_v1 (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   provider_key text not null,
   connection_id uuid not null references private.pandora_connection_accounts_v1(id) on delete cascade,
+  tenant_key text not null check (length(tenant_key) between 1 and 320),
   selected_by uuid not null references auth.users(id),
   selected_at timestamptz not null default clock_timestamp(),
-  primary key (organization_id, provider_key)
+  primary key (organization_id, provider_key),
+  foreign key (connection_id, organization_id, provider_key, tenant_key)
+    references private.pandora_connection_accounts_v1(id, organization_id, provider_key, tenant_key)
 );
 
 create table if not exists private.pandora_connection_write_approvals_v1 (
   id uuid primary key default extensions.gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   provider_key text not null check (provider_key in ('supabase','vercel')),
+  connection_id uuid not null,
+  tenant_key text not null check (length(tenant_key) between 1 and 320),
   requested_by uuid not null references auth.users(id),
   operation text not null check (operation ~ '^[a-z][a-z0-9_.-]{2,79}$'),
   target_preview jsonb not null check (jsonb_typeof(target_preview)='object'),
@@ -104,7 +110,9 @@ create table if not exists private.pandora_connection_write_approvals_v1 (
   consumed_at timestamptz,
   expires_at timestamptz not null,
   created_at timestamptz not null default clock_timestamp(),
-  unique (organization_id, provider_key, target_hash, status),
+  unique (organization_id, provider_key, connection_id, tenant_key, target_hash, status),
+  foreign key (connection_id, organization_id, provider_key, tenant_key)
+    references private.pandora_connection_accounts_v1(id, organization_id, provider_key, tenant_key),
   check (octet_length(target_preview::text) <= 8192)
 );
 
@@ -290,6 +298,7 @@ begin
      or length(trim(coalesce(p_credential,''))) not between 16 and 8192
      or length(trim(coalesce(p_provider_subject,''))) not between 1 and 512
      or length(trim(coalesce(p_account_label,''))) not between 1 and 320
+     or length(trim(coalesce(p_tenant_key,''))) not between 1 and 320
      or p_verified_at is null or p_verified_at < v_now-interval '5 minutes'
      or p_verified_at > v_now+interval '1 minute'
      or p_provider_readback is null or jsonb_typeof(p_provider_readback)<>'object'
@@ -315,9 +324,9 @@ begin
   select * into v_account
   from private.pandora_connection_accounts_v1 a
   where a.organization_id=p_organization_id and a.provider_key=p_provider_key
-    and a.account_subject_hash=v_subject_hash and a.tenant_key=coalesce(trim(p_tenant_key),'')
+    and a.account_subject_hash=v_subject_hash and a.tenant_key=trim(p_tenant_key)
   for update;
-  v_secret_name:='pandora_connection_'||p_provider_key||'_'||replace(p_organization_id::text,'-','')||'_'||left(v_subject_hash,16);
+  v_secret_name:='pandora_connection_'||p_provider_key||'_'||replace(p_organization_id::text,'-','')||'_'||left(v_subject_hash,16)||'_'||left(encode(extensions.digest(convert_to(trim(p_tenant_key),'UTF8'),'sha256'),'hex'),8);
   if v_account.id is null then
     v_secret_id:=vault.create_secret(p_credential,v_secret_name,'Pandora connection credential; server-side use only');
     insert into private.pandora_connection_accounts_v1(
@@ -327,7 +336,7 @@ begin
       rotation_due_at,provider_readback_hash,metadata_redacted
     ) values (
       p_organization_id,p_provider_key,'1.0.0',p_actor_user_id,v_subject_hash,
-      trim(p_account_label),coalesce(trim(p_tenant_key),''),nullif(trim(p_tenant_label),''),v_secret_id,
+      trim(p_account_label),trim(p_tenant_key),nullif(trim(p_tenant_label),''),v_secret_id,
       coalesce(p_granted_scopes,array[]::text[]),coalesce(p_granted_capabilities,array[]::text[]),
       'connected','healthy',p_verified_at,p_expires_at,v_now+interval '90 days',v_readback_hash,
       p_provider_readback||jsonb_build_object('verifiedBy','provider_readback','verifiedAt',p_verified_at)
@@ -346,20 +355,21 @@ begin
       updated_at=v_now
     where id=v_account.id returning * into v_account;
   end if;
-  insert into private.pandora_connection_active_accounts_v1(organization_id,provider_key,connection_id,selected_by)
-  values(p_organization_id,p_provider_key,v_account.id,p_actor_user_id)
+  insert into private.pandora_connection_active_accounts_v1(organization_id,provider_key,connection_id,tenant_key,selected_by)
+  values(p_organization_id,p_provider_key,v_account.id,v_account.tenant_key,p_actor_user_id)
   on conflict(organization_id,provider_key) do update set
-    connection_id=excluded.connection_id,selected_by=excluded.selected_by,selected_at=v_now;
+    connection_id=excluded.connection_id,tenant_key=excluded.tenant_key,selected_by=excluded.selected_by,selected_at=v_now;
   perform private.append_audit_event(
     p_organization_id,null,null,'provider'::public.audit_actor_type,p_actor_user_id,
     'connection.provider_verified',jsonb_build_object(
       'provider',p_provider_key,'connection_id',v_account.id,'account_subject_hash',v_subject_hash,
-      'tenant',coalesce(nullif(trim(p_tenant_key),''),'default'),'readback_hash',v_readback_hash
+      'tenant',trim(p_tenant_key),'readback_hash',v_readback_hash
     )
   );
   return jsonb_build_object(
     'ok',true,'connectionId',v_account.id,'provider',p_provider_key,'accountLabel',v_account.account_label,
-    'tenantLabel',v_account.tenant_label,'health','healthy','verifiedAt',p_verified_at,
+    'tenantId',p_organization_id,'tenantKey',v_account.tenant_key,'tenantLabel',v_account.tenant_label,
+    'health','healthy','verifiedAt',p_verified_at,
     'credentialStored',true,'credentialReturned',false
   );
 end; $$;
@@ -513,12 +523,14 @@ begin
         and private.pandora_connection_required_scopes_v1(c.provider_key)<@a.granted_scopes
         and exists(select 1 from vault.secrets s where s.id=a.credential_secret_id),false),
       'activeAccount',case when a.id is null then null else jsonb_build_object(
-        'id',a.id,'label',a.account_label,'tenant',a.tenant_label,'scopes',to_jsonb(a.granted_scopes),
+        'id',a.id,'label',a.account_label,'tenantId',a.organization_id,'tenantKey',a.tenant_key,
+        'tenant',a.tenant_label,'scopes',to_jsonb(a.granted_scopes),
         'capabilities',to_jsonb(a.granted_capabilities),'lastVerifiedAt',a.last_verified_at,
         'expiresAt',a.credential_expires_at,'health',a.health_state,'failureCode',a.failure_code
       ) end,
       'accounts',coalesce((select jsonb_agg(jsonb_build_object(
-        'id',aa.id,'label',aa.account_label,'tenant',aa.tenant_label,'selected',aa.id=a.id,
+        'id',aa.id,'label',aa.account_label,'tenantId',aa.organization_id,'tenantKey',aa.tenant_key,
+        'tenant',aa.tenant_label,'selected',aa.id=a.id and aa.tenant_key=s.tenant_key,
         'health',aa.health_state,'lastVerifiedAt',aa.last_verified_at,'expiresAt',aa.credential_expires_at
       ) order by aa.account_label)
       from private.pandora_connection_accounts_v1 aa
@@ -531,7 +543,9 @@ begin
     join public.pandora_provider_manifests m using(provider_key,manifest_version)
     left join private.pandora_connection_active_accounts_v1 s
       on s.organization_id=p_organization_id and s.provider_key=c.provider_key
-    left join private.pandora_connection_accounts_v1 a on a.id=s.connection_id
+    left join private.pandora_connection_accounts_v1 a
+      on a.id=s.connection_id and a.organization_id=s.organization_id
+      and a.provider_key=s.provider_key and a.tenant_key=s.tenant_key
     where m.lifecycle_state='active'
   ) projected;
   return jsonb_build_object(
@@ -540,7 +554,9 @@ begin
   );
 end; $$;
 
-create or replace function public.pandora_connection_select_account_v1(p_organization_id uuid,p_connection_id uuid)
+create or replace function public.pandora_connection_select_account_v1(
+  p_organization_id uuid,p_connection_id uuid,p_tenant_key text
+)
 returns jsonb language plpgsql security definer
 set search_path='pg_catalog','public','private','auth','pg_temp' as $$
 declare v_uid uuid:=auth.uid(); v_account private.pandora_connection_accounts_v1%rowtype;
@@ -549,20 +565,26 @@ begin
     raise exception 'pandora_connection_active_admin_required' using errcode='42501';
   end if;
   select * into v_account from private.pandora_connection_accounts_v1
-  where id=p_connection_id and organization_id=p_organization_id and revoked_at is null for update;
+  where id=p_connection_id and organization_id=p_organization_id
+    and tenant_key=trim(p_tenant_key) and revoked_at is null for update;
   if v_account.id is null then raise exception 'pandora_connection_account_not_found' using errcode='22023'; end if;
-  insert into private.pandora_connection_active_accounts_v1(organization_id,provider_key,connection_id,selected_by)
-  values(p_organization_id,v_account.provider_key,v_account.id,v_uid)
+  insert into private.pandora_connection_active_accounts_v1(organization_id,provider_key,connection_id,tenant_key,selected_by)
+  values(p_organization_id,v_account.provider_key,v_account.id,v_account.tenant_key,v_uid)
   on conflict(organization_id,provider_key) do update set
-    connection_id=excluded.connection_id,selected_by=excluded.selected_by,selected_at=clock_timestamp();
+    connection_id=excluded.connection_id,tenant_key=excluded.tenant_key,
+    selected_by=excluded.selected_by,selected_at=clock_timestamp();
   perform private.append_audit_event(
     p_organization_id,null,null,'human'::public.audit_actor_type,v_uid,'connection.account_selected',
-    jsonb_build_object('provider',v_account.provider_key,'connection_id',v_account.id,'account_subject_hash',v_account.account_subject_hash)
+    jsonb_build_object('provider',v_account.provider_key,'connection_id',v_account.id,
+      'tenant_id',v_account.organization_id,'tenant_key',v_account.tenant_key,'account_subject_hash',v_account.account_subject_hash)
   );
-  return jsonb_build_object('ok',true,'provider',v_account.provider_key,'connectionId',v_account.id,'accountLabel',v_account.account_label);
+  return jsonb_build_object('ok',true,'provider',v_account.provider_key,'connectionId',v_account.id,
+    'tenantId',v_account.organization_id,'tenantKey',v_account.tenant_key,'accountLabel',v_account.account_label);
 end; $$;
 
-create or replace function public.pandora_connection_revoke_v1(p_organization_id uuid,p_connection_id uuid)
+create or replace function public.pandora_connection_revoke_v1(
+  p_organization_id uuid,p_connection_id uuid,p_tenant_key text
+)
 returns jsonb language plpgsql security definer
 set search_path='pg_catalog','public','private','vault','auth','pg_temp' as $$
 declare v_uid uuid:=auth.uid(); v_account private.pandora_connection_accounts_v1%rowtype;
@@ -571,7 +593,8 @@ begin
     raise exception 'pandora_connection_active_admin_required' using errcode='42501';
   end if;
   select * into v_account from private.pandora_connection_accounts_v1
-  where id=p_connection_id and organization_id=p_organization_id for update;
+  where id=p_connection_id and organization_id=p_organization_id
+    and tenant_key=trim(p_tenant_key) for update;
   if v_account.id is null then raise exception 'pandora_connection_account_not_found' using errcode='22023'; end if;
   delete from vault.secrets where id=v_account.credential_secret_id;
   update private.pandora_connection_accounts_v1 set status='revoked',health_state='unhealthy',
@@ -582,10 +605,14 @@ begin
     p_organization_id,null,null,'human'::public.audit_actor_type,v_uid,'connection.credential_revoked',
     jsonb_build_object('provider',v_account.provider_key,'connection_id',v_account.id,'credential_deleted',true)
   );
-  return jsonb_build_object('ok',true,'provider',v_account.provider_key,'connectionId',v_account.id,'revoked',true,'credentialDeleted',true);
+  return jsonb_build_object('ok',true,'provider',v_account.provider_key,'connectionId',v_account.id,
+    'tenantId',v_account.organization_id,'tenantKey',v_account.tenant_key,
+    'revoked',true,'credentialDeleted',true);
 end; $$;
 
-create or replace function public.pandora_connection_runtime_credential_v1(p_connection_id uuid)
+create or replace function public.pandora_connection_runtime_credential_v1(
+  p_organization_id uuid,p_provider_key text,p_connection_id uuid,p_tenant_key text
+)
 returns jsonb language plpgsql security definer
 set search_path='pg_catalog','private','vault','auth','pg_temp' as $$
 declare v_account private.pandora_connection_accounts_v1%rowtype; v_secret text;
@@ -594,19 +621,27 @@ begin
      and coalesce(auth.jwt()->>'role','')<>'service_role' then
     raise exception 'pandora_connection_service_role_required' using errcode='42501';
   end if;
-  select * into v_account from private.pandora_connection_accounts_v1
-  where id=p_connection_id and status='connected' and revoked_at is null;
+  select a.* into v_account
+  from private.pandora_connection_accounts_v1 a
+  join private.pandora_connection_active_accounts_v1 s
+    on s.connection_id=a.id and s.organization_id=a.organization_id
+    and s.provider_key=a.provider_key and s.tenant_key=a.tenant_key
+  where a.id=p_connection_id and a.organization_id=p_organization_id
+    and a.provider_key=p_provider_key and a.tenant_key=trim(p_tenant_key)
+    and a.status='connected' and a.revoked_at is null;
   if v_account.id is null then raise exception 'pandora_connection_runtime_unavailable' using errcode='42501'; end if;
   select decrypted_secret into v_secret from vault.decrypted_secrets where id=v_account.credential_secret_id;
   if nullif(v_secret,'') is null then raise exception 'pandora_connection_runtime_credential_missing' using errcode='55000'; end if;
   return jsonb_build_object(
     'provider',v_account.provider_key,'organizationId',v_account.organization_id,
+    'tenantId',v_account.organization_id,'connectionId',v_account.id,
     'credential',v_secret,'tenantKey',v_account.tenant_key,'metadata',v_account.metadata_redacted
   );
 end; $$;
 
 create or replace function public.pandora_connection_health_commit_v1(
-  p_connection_id uuid,p_healthy boolean,p_verified_at timestamptz,p_failure_code text default null
+  p_organization_id uuid,p_provider_key text,p_connection_id uuid,p_tenant_key text,
+  p_healthy boolean,p_verified_at timestamptz,p_failure_code text default null
 ) returns jsonb language plpgsql security definer
 set search_path='pg_catalog','public','private','auth','pg_temp' as $$
 declare v_account private.pandora_connection_accounts_v1%rowtype;
@@ -623,20 +658,27 @@ begin
     status=case when p_healthy then 'connected' else 'needs_attention' end,
     last_verified_at=p_verified_at,failure_code=case when p_healthy then null else coalesce(nullif(trim(p_failure_code),''),'PROVIDER_HEALTH_FAILED') end,
     updated_at=clock_timestamp()
-  where id=p_connection_id and revoked_at is null returning * into v_account;
+  where id=p_connection_id and organization_id=p_organization_id
+    and provider_key=p_provider_key and tenant_key=trim(p_tenant_key)
+    and revoked_at is null returning * into v_account;
   if v_account.id is null then raise exception 'pandora_connection_account_not_found' using errcode='22023'; end if;
   perform private.append_audit_event(
     v_account.organization_id,null,null,'provider'::public.audit_actor_type,null,'connection.health_verified',
     jsonb_build_object('provider',v_account.provider_key,'connection_id',v_account.id,'healthy',p_healthy,'failure_code',v_account.failure_code)
   );
-  return jsonb_build_object('ok',true,'connectionId',v_account.id,'healthy',p_healthy,'verifiedAt',p_verified_at,'failureCode',v_account.failure_code);
+  return jsonb_build_object('ok',true,'connectionId',v_account.id,
+    'tenantId',v_account.organization_id,'tenantKey',v_account.tenant_key,
+    'healthy',p_healthy,'verifiedAt',p_verified_at,'failureCode',v_account.failure_code);
 end; $$;
 
 create or replace function public.pandora_connection_write_preview_v1(
-  p_organization_id uuid,p_provider_key text,p_operation text,p_exact_target jsonb
+  p_organization_id uuid,p_provider_key text,p_connection_id uuid,p_tenant_key text,
+  p_operation text,p_exact_target jsonb
 ) returns jsonb language plpgsql security definer
 set search_path='pg_catalog','public','private','auth','extensions','pg_temp' as $$
-declare v_uid uuid:=auth.uid(); v_hash text; v_id uuid; v_expires timestamptz:=clock_timestamp()+interval '10 minutes';
+declare
+  v_uid uuid:=auth.uid(); v_hash text; v_id uuid;
+  v_expires timestamptz:=clock_timestamp()+interval '10 minutes';
 begin
   if v_uid is null or not private.pandora_is_active_org_admin_v1(p_organization_id) then
     raise exception 'pandora_connection_active_admin_required' using errcode='42501';
@@ -649,26 +691,44 @@ begin
   if private.pandora_control_plane_json_has_secret_keys(p_exact_target) then
     raise exception 'pandora_connection_write_preview_contains_secret_keys' using errcode='22023';
   end if;
+  if not exists(
+    select 1
+    from private.pandora_connection_active_accounts_v1 s
+    join private.pandora_connection_accounts_v1 a
+      on a.id=s.connection_id and a.organization_id=s.organization_id
+      and a.provider_key=s.provider_key and a.tenant_key=s.tenant_key
+    where s.organization_id=p_organization_id and s.provider_key=p_provider_key
+      and s.connection_id=p_connection_id and s.tenant_key=trim(p_tenant_key)
+      and a.status='connected' and a.health_state='healthy' and a.revoked_at is null
+  ) then
+    raise exception 'pandora_connection_account_tenant_mismatch' using errcode='42501';
+  end if;
   update private.pandora_connection_write_approvals_v1 set status='expired'
-  where organization_id=p_organization_id and provider_key=p_provider_key and status='pending' and expires_at<=clock_timestamp();
-  v_hash:=encode(extensions.digest(convert_to(p_provider_key||'|'||p_operation||'|'||p_exact_target::text,'UTF8'),'sha256'),'hex');
+  where organization_id=p_organization_id and provider_key=p_provider_key
+    and connection_id=p_connection_id and tenant_key=trim(p_tenant_key)
+    and status='pending' and expires_at<=clock_timestamp();
+  v_hash:=encode(extensions.digest(convert_to(
+    p_organization_id::text||'|'||p_provider_key||'|'||p_connection_id::text||'|'||trim(p_tenant_key)||'|'||p_operation||'|'||p_exact_target::text,
+    'UTF8'),'sha256'),'hex');
   insert into private.pandora_connection_write_approvals_v1(
-    organization_id,provider_key,requested_by,operation,target_preview,target_hash,expires_at
-  ) values(p_organization_id,p_provider_key,v_uid,p_operation,p_exact_target,v_hash,v_expires)
+    organization_id,provider_key,connection_id,tenant_key,requested_by,operation,target_preview,target_hash,expires_at
+  ) values(p_organization_id,p_provider_key,p_connection_id,trim(p_tenant_key),v_uid,p_operation,p_exact_target,v_hash,v_expires)
   returning id into v_id;
   perform private.append_audit_event(
     p_organization_id,null,null,'human'::public.audit_actor_type,v_uid,'connection.write_previewed',
     jsonb_build_object('provider',p_provider_key,'approval_id',v_id,'operation',p_operation,'target_hash',v_hash)
   );
   return jsonb_build_object(
-    'ok',true,'approvalId',v_id,'provider',p_provider_key,'operation',p_operation,
+    'ok',true,'approvalId',v_id,'provider',p_provider_key,'connectionId',p_connection_id,
+    'tenantId',p_organization_id,'tenantKey',trim(p_tenant_key),'operation',p_operation,
     'exactTargetPreview',p_exact_target,'targetHash',v_hash,'status','pending','expiresAt',v_expires,
     'stepUpRequired',true,'confirmationText',v_hash
   );
 end; $$;
 
 create or replace function public.pandora_connection_write_approve_v1(
-  p_organization_id uuid,p_approval_id uuid,p_confirmation_hash text
+  p_organization_id uuid,p_approval_id uuid,p_provider_key text,
+  p_connection_id uuid,p_tenant_key text,p_confirmation_hash text
 ) returns jsonb language plpgsql security definer
 set search_path='pg_catalog','public','private','auth','pg_temp' as $$
 declare v_uid uuid:=auth.uid(); v_row private.pandora_connection_write_approvals_v1%rowtype;
@@ -678,7 +738,8 @@ begin
   end if;
   update private.pandora_connection_write_approvals_v1 set
     status='approved',approved_by=v_uid,approved_at=clock_timestamp()
-  where id=p_approval_id and organization_id=p_organization_id and status='pending'
+  where id=p_approval_id and organization_id=p_organization_id and provider_key=p_provider_key
+    and connection_id=p_connection_id and tenant_key=trim(p_tenant_key) and status='pending'
     and expires_at>clock_timestamp() and target_hash=p_confirmation_hash
   returning * into v_row;
   if v_row.id is null then raise exception 'pandora_connection_write_approval_invalid_or_expired' using errcode='42501'; end if;
@@ -686,11 +747,14 @@ begin
     p_organization_id,null,null,'human'::public.audit_actor_type,v_uid,'connection.write_approved',
     jsonb_build_object('provider',v_row.provider_key,'approval_id',v_row.id,'operation',v_row.operation,'target_hash',v_row.target_hash)
   );
-  return jsonb_build_object('ok',true,'approvalId',v_row.id,'provider',v_row.provider_key,'operation',v_row.operation,'targetHash',v_row.target_hash,'status','approved','expiresAt',v_row.expires_at);
+  return jsonb_build_object('ok',true,'approvalId',v_row.id,'provider',v_row.provider_key,
+    'connectionId',v_row.connection_id,'tenantId',v_row.organization_id,'tenantKey',v_row.tenant_key,
+    'operation',v_row.operation,'targetHash',v_row.target_hash,'status','approved','expiresAt',v_row.expires_at);
 end; $$;
 
 create or replace function public.pandora_connection_write_consume_v1(
-  p_organization_id uuid,p_approval_id uuid,p_provider_key text,p_operation text,p_target_hash text
+  p_organization_id uuid,p_approval_id uuid,p_provider_key text,p_connection_id uuid,
+  p_tenant_key text,p_operation text,p_target_hash text
 ) returns jsonb language plpgsql security definer
 set search_path='pg_catalog','public','private','auth','pg_temp' as $$
 declare v_row private.pandora_connection_write_approvals_v1%rowtype;
@@ -701,6 +765,7 @@ begin
   end if;
   update private.pandora_connection_write_approvals_v1 set status='consumed',consumed_at=clock_timestamp()
   where id=p_approval_id and organization_id=p_organization_id and provider_key=p_provider_key
+    and connection_id=p_connection_id and tenant_key=trim(p_tenant_key)
     and operation=p_operation and target_hash=p_target_hash and status='approved'
     and expires_at>clock_timestamp() returning * into v_row;
   if v_row.id is null then raise exception 'pandora_connection_write_approval_not_consumable' using errcode='42501'; end if;
@@ -708,7 +773,10 @@ begin
     p_organization_id,null,null,'system'::public.audit_actor_type,null,'connection.write_approval_consumed',
     jsonb_build_object('provider',v_row.provider_key,'approval_id',v_row.id,'operation',v_row.operation,'target_hash',v_row.target_hash)
   );
-  return jsonb_build_object('ok',true,'approvalId',v_row.id,'provider',v_row.provider_key,'operation',v_row.operation,'exactTarget',v_row.target_preview,'targetHash',v_row.target_hash,'status','consumed');
+  return jsonb_build_object('ok',true,'approvalId',v_row.id,'provider',v_row.provider_key,
+    'connectionId',v_row.connection_id,'tenantId',v_row.organization_id,'tenantKey',v_row.tenant_key,
+    'operation',v_row.operation,'exactTarget',v_row.target_preview,
+    'targetHash',v_row.target_hash,'status','consumed');
 end; $$;
 
 -- Google Workspace is read-first and OIDC nonce-bound. Existing in-flight states
@@ -799,7 +867,9 @@ begin
   end if;
   v_result:=private.pandora_connection_store_verified_credential_v1(
     v_row.organization_id,'google_workspace',v_row.user_id,p_refresh_token,trim(p_provider_subject),
-    lower(trim(p_account_email)),'',null,p_granted_scopes,array['drive.metadata.read','sheets.values.read'],
+    lower(trim(p_account_email)),coalesce(nullif(split_part(lower(trim(p_account_email)),'@',2),''),'consumer'),
+    coalesce(nullif(split_part(lower(trim(p_account_email)),'@',2),''),'Consumer Google account'),
+    p_granted_scopes,array['drive.metadata.read','sheets.values.read'],
     clock_timestamp(),null,jsonb_build_object('probe','drive.about.read','httpStatus',200,'identityVerified',true,'nonceVerified',true)
   );
   update private.pandora_google_workspace_oauth_states set consumed_at=clock_timestamp() where id=v_row.id;
@@ -844,19 +914,19 @@ end; $$;
 revoke all on function public.pandora_connection_commit_verified_credential_v1(uuid,text,uuid,text,text,text,text,text,text[],text[],timestamptz,timestamptz,jsonb) from public,anon,authenticated;
 revoke all on function public.pandora_connection_oauth_claim_v1(text) from public,anon,authenticated;
 revoke all on function public.pandora_connection_oauth_consume_v1(text,text) from public,anon,authenticated;
-revoke all on function public.pandora_connection_runtime_credential_v1(uuid) from public,anon,authenticated;
-revoke all on function public.pandora_connection_health_commit_v1(uuid,boolean,timestamptz,text) from public,anon,authenticated;
-revoke all on function public.pandora_connection_write_consume_v1(uuid,uuid,text,text,text) from public,anon,authenticated;
+revoke all on function public.pandora_connection_runtime_credential_v1(uuid,text,uuid,text) from public,anon,authenticated;
+revoke all on function public.pandora_connection_health_commit_v1(uuid,text,uuid,text,boolean,timestamptz,text) from public,anon,authenticated;
+revoke all on function public.pandora_connection_write_consume_v1(uuid,uuid,text,uuid,text,text,text) from public,anon,authenticated;
 
 grant execute on function public.pandora_connection_catalog_v1() to authenticated;
 grant execute on function public.pandora_live_connections_v1(uuid) to authenticated;
 grant execute on function public.pandora_connection_oauth_prepare_v1(uuid,text,text,text) to authenticated;
-grant execute on function public.pandora_connection_select_account_v1(uuid,uuid) to authenticated;
-grant execute on function public.pandora_connection_revoke_v1(uuid,uuid) to authenticated;
-grant execute on function public.pandora_connection_write_preview_v1(uuid,text,text,jsonb) to authenticated;
-grant execute on function public.pandora_connection_write_approve_v1(uuid,uuid,text) to authenticated;
+grant execute on function public.pandora_connection_select_account_v1(uuid,uuid,text) to authenticated;
+grant execute on function public.pandora_connection_revoke_v1(uuid,uuid,text) to authenticated;
+grant execute on function public.pandora_connection_write_preview_v1(uuid,text,uuid,text,text,jsonb) to authenticated;
+grant execute on function public.pandora_connection_write_approve_v1(uuid,uuid,text,uuid,text,text) to authenticated;
 
 comment on function public.pandora_live_connections_v1(uuid) is
   'Authoritative fail-closed connection projection. Catalog presence and credential presence alone never imply Connected.';
-comment on function public.pandora_connection_write_preview_v1(uuid,text,text,jsonb) is
-  'Creates an exact-target, hash-bound, short-lived Supabase/Vercel write step-up preview; it does not execute the write.';
+comment on function public.pandora_connection_write_preview_v1(uuid,text,uuid,text,text,jsonb) is
+  'Creates an exact-account, tenant-bound, target-hash-bound, short-lived Supabase/Vercel write step-up preview; it does not execute the write.';

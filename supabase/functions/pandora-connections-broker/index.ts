@@ -9,6 +9,7 @@ const admin = createClient(supabaseUrl, serviceRole, {
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const modelName = /^[A-Za-z0-9._:/-]{1,160}$/;
+const tenantKeyPattern = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,319}$/;
 const providers = new Set(["posthog", "openai", "gemini", "kimi"]);
 const posthogHosts = new Set(["https://us.posthog.com", "https://eu.posthog.com"]);
 
@@ -60,8 +61,10 @@ async function readJson(response: Response): Promise<Record<string, unknown>> {
   return await response.json().catch(() => ({})) as Record<string, unknown>;
 }
 
-async function verifyPosthog(credential: string, host: string, projectId: string) {
-  if (!posthogHosts.has(host) || !/^\d{1,24}$/.test(projectId)) throw new Error("POSTHOG_TARGET_INVALID");
+async function verifyPosthog(credential: string, host: string, projectId: string, tenantKey: string) {
+  if (!posthogHosts.has(host) || tenantKey !== host || !/^\d{1,24}$/.test(projectId)) {
+    throw new Error("POSTHOG_TARGET_INVALID");
+  }
   const response = await providerFetch(`${host}/api/projects/${projectId}/`, {
     headers: { authorization: `Bearer ${credential}`, accept: "application/json" },
   });
@@ -138,15 +141,22 @@ async function verifyKimi(credential: string, model: string, runTest: boolean) {
   return { model, modelCount: Array.isArray(listed.data) ? listed.data.length : 0, testStatus: inference.status };
 }
 
-async function verifyModel(provider: string, credential: string, model: string, runTest: boolean) {
+async function verifyModel(
+  provider: string,
+  credential: string,
+  model: string,
+  runTest: boolean,
+  tenantKey: string,
+) {
+  if (!tenantKeyPattern.test(tenantKey)) throw new Error("TENANT_KEY_INVALID");
   const detail = provider === "openai" ? await verifyOpenAI(credential, model, runTest)
     : provider === "gemini" ? await verifyGemini(credential, model, runTest)
     : await verifyKimi(credential, model, runTest);
   return {
     subject: await sha256(credential),
     label: `${provider[0].toUpperCase()}${provider.slice(1)} API credential`,
-    tenantKey: "",
-    tenantLabel: null,
+    tenantKey,
+    tenantLabel: tenantKey,
     scopes: ["models.read", "inference.test"],
     capabilities: ["models.read", "inference.test"],
     readback: {
@@ -161,8 +171,11 @@ async function verifyModel(provider: string, credential: string, model: string, 
 }
 
 async function verifyProvider(provider: string, credential: string, body: Record<string, unknown>) {
-  if (provider === "posthog") return await verifyPosthog(credential, text(body.host), text(body.projectId));
-  return await verifyModel(provider, credential, text(body.model), body.runTestInference === true);
+  const tenantKey = text(body.tenantKey);
+  if (provider === "posthog") {
+    return await verifyPosthog(credential, text(body.host), text(body.projectId), tenantKey);
+  }
+  return await verifyModel(provider, credential, text(body.model), body.runTestInference === true, tenantKey);
 }
 
 Deno.serve(async (req: Request) => {
@@ -186,11 +199,16 @@ Deno.serve(async (req: Request) => {
 
   let organizationId = "";
   let connectionId = "";
+  let providerKey = "";
+  let tenantKey = "";
+  let runtimeBound = false;
   try {
     const body = await req.json() as Record<string, unknown>;
     organizationId = text(body.organizationId);
+    const tenantId = text(body.tenantId);
     const action = text(body.action);
-    if (!uuid.test(organizationId) || !["connect", "health", "test_inference"].includes(action)) {
+    if (!uuid.test(organizationId) || tenantId !== organizationId ||
+        !["connect", "health", "test_inference"].includes(action)) {
       return json(400, { ok: false, code: "REQUEST_INVALID" }, origin);
     }
     const userId = await authenticate(req, organizationId);
@@ -198,7 +216,9 @@ Deno.serve(async (req: Request) => {
     if (action === "connect") {
       const provider = text(body.provider).toLowerCase();
       const credential = text(body.credential);
-      if (!providers.has(provider) || credential.length < 16 || credential.length > 8192) {
+      tenantKey = text(body.tenantKey);
+      if (!providers.has(provider) || !tenantKeyPattern.test(tenantKey) ||
+          credential.length < 16 || credential.length > 8192) {
         return json(400, { ok: false, code: "CONNECTION_INPUT_INVALID" }, origin);
       }
       if (provider !== "posthog" && body.runTestInference !== true) {
@@ -221,14 +241,33 @@ Deno.serve(async (req: Request) => {
         p_provider_readback: verified.readback,
       });
       if (committed.error || committed.data?.ok !== true) throw new Error("CONNECTION_COMMIT_FAILED");
-      return json(200, { ...committed.data, credential: undefined }, origin);
+      return json(200, {
+        ...committed.data,
+        tenantId: organizationId,
+        tenantKey,
+        credential: undefined,
+      }, origin);
     }
 
     connectionId = text(body.connectionId);
-    if (!uuid.test(connectionId)) return json(400, { ok: false, code: "CONNECTION_ID_INVALID" }, origin);
-    const runtime = await admin.rpc("pandora_connection_runtime_credential_v1", { p_connection_id: connectionId });
-    if (runtime.error || runtime.data?.organizationId !== organizationId) throw new Error("CONNECTION_RUNTIME_UNAVAILABLE");
-    const provider = text(runtime.data.provider);
+    providerKey = text(body.provider).toLowerCase();
+    tenantKey = text(body.tenantKey);
+    if (!uuid.test(connectionId) || !providers.has(providerKey) || !tenantKeyPattern.test(tenantKey)) {
+      return json(400, { ok: false, code: "CONNECTION_IDENTITY_INVALID" }, origin);
+    }
+    const runtime = await admin.rpc("pandora_connection_runtime_credential_v1", {
+      p_organization_id: organizationId,
+      p_provider_key: providerKey,
+      p_connection_id: connectionId,
+      p_tenant_key: tenantKey,
+    });
+    if (runtime.error || runtime.data?.organizationId !== organizationId ||
+        runtime.data?.tenantId !== organizationId || runtime.data?.connectionId !== connectionId ||
+        text(runtime.data?.provider) !== providerKey || text(runtime.data?.tenantKey) !== tenantKey) {
+      throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
+    }
+    runtimeBound = true;
+    const provider = providerKey;
     const credential = text(runtime.data.credential);
     const verification = await verifyProvider(provider, credential, {
       ...body,
@@ -238,7 +277,10 @@ Deno.serve(async (req: Request) => {
       runTestInference: action === "test_inference" ? true : body.runTestInference,
     });
     const health = await admin.rpc("pandora_connection_health_commit_v1", {
+      p_organization_id: organizationId,
+      p_provider_key: provider,
       p_connection_id: connectionId,
+      p_tenant_key: tenantKey,
       p_healthy: true,
       p_verified_at: new Date().toISOString(),
       p_failure_code: null,
@@ -248,6 +290,8 @@ Deno.serve(async (req: Request) => {
       ok: true,
       connectionId,
       provider,
+      tenantId: organizationId,
+      tenantKey,
       healthy: true,
       testInference: action === "test_inference" ? "passed" : undefined,
       model: "model" in verification.readback ? verification.readback.model : undefined,
@@ -257,9 +301,12 @@ Deno.serve(async (req: Request) => {
     const code = error instanceof Error && /^[A-Z0-9_]{3,80}$/.test(error.message)
       ? error.message
       : "CONNECTION_BROKER_FAILED";
-    if (uuid.test(connectionId)) {
+    if (runtimeBound && uuid.test(connectionId)) {
       await admin.rpc("pandora_connection_health_commit_v1", {
+        p_organization_id: organizationId,
+        p_provider_key: providerKey,
         p_connection_id: connectionId,
+        p_tenant_key: tenantKey,
         p_healthy: false,
         p_verified_at: new Date().toISOString(),
         p_failure_code: code,
