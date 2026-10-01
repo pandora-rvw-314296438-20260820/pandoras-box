@@ -3,15 +3,56 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/design/pandora_tokens.dart';
-import '../../core/security/pandora_auth.dart';
 import '../../core/security/facebook_provider_settings.dart';
+import '../../core/security/pandora_auth.dart';
 import '../../core/widgets/pandora_mark.dart';
 
+class SignInPresentation {
+  const SignInPresentation({
+    required this.title,
+    required this.subtitle,
+    required this.footer,
+    this.eyebrow,
+    this.brandAsset,
+    this.allowFacebookSignIn = true,
+    this.backgroundColor,
+  });
+
+  static const pandora = SignInPresentation(
+    title: "Pandora's Box",
+    subtitle: 'Build, change, and publish with Pandora.',
+    footer: 'Sign in to continue to your private projects.',
+  );
+
+  static const plp = SignInPresentation(
+    eyebrow: 'PLP BORACAY · LUXURY RESORT',
+    title: 'Pueblo La Perla',
+    subtitle: 'Private resort command center',
+    footer: 'Authorized PLP owners and staff only.',
+    brandAsset: 'assets/workspaces/plp.webp',
+    allowFacebookSignIn: false,
+    backgroundColor: Color(0xFFFAF7F1),
+  );
+
+  final String title;
+  final String subtitle;
+  final String footer;
+  final String? eyebrow;
+  final String? brandAsset;
+  final bool allowFacebookSignIn;
+  final Color? backgroundColor;
+}
+
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key, this.checkFacebookProviderEnabled});
+  const SignInScreen({
+    super.key,
+    this.checkFacebookProviderEnabled,
+    this.presentation = SignInPresentation.pandora,
+  });
 
   /// Tests may supply a settings read; production always calls Supabase Auth.
   final Future<bool> Function()? checkFacebookProviderEnabled;
+  final SignInPresentation presentation;
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -42,10 +83,15 @@ class _SignInScreenState extends State<SignInScreen>
   }
 
   Future<void> _refreshFacebookProvider() async {
+    if (!widget.presentation.allowFacebookSignIn) {
+      return;
+    }
     if (!pandoraFacebookSignInSupported(
       isWeb: kIsWeb,
       platform: defaultTargetPlatform,
-    )) return;
+    )) {
+      return;
+    }
     var enabled = false;
     try {
       enabled = await _providerEnabled();
@@ -124,6 +170,7 @@ class _SignInScreenState extends State<SignInScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        backgroundColor: widget.presentation.backgroundColor,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -136,21 +183,53 @@ class _SignInScreenState extends State<SignInScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Center(
-                          child: PandoraMark(size: PandoraSize.signInMark),
-                        ),
+                        if (widget.presentation.brandAsset == null)
+                          const Center(
+                            child: PandoraMark(size: PandoraSize.signInMark),
+                          )
+                        else
+                          Center(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: SizedBox.square(
+                                dimension: 72,
+                                child: Image.asset(
+                                  widget.presentation.brandAsset!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      const PandoraMark(
+                                    size: PandoraSize.signInMark,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         const SizedBox(height: PandoraSpacing.xl),
+                        if (widget.presentation.eyebrow != null) ...[
+                          Text(
+                            widget.presentation.eyebrow!,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  letterSpacing: 1.8,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: PandoraSpacing.xs),
+                        ],
                         Semantics(
                           header: true,
                           child: Text(
-                            "Pandora's Box",
+                            widget.presentation.title,
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.displaySmall,
                           ),
                         ),
                         const SizedBox(height: PandoraSpacing.xs),
                         Text(
-                          'Build, change, and publish with Pandora.',
+                          widget.presentation.subtitle,
                           textAlign: TextAlign.center,
                           style:
                               Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -220,10 +299,12 @@ class _SignInScreenState extends State<SignInScreen>
                           onPressed: _busy ? null : _resetPassword,
                           child: const Text('Reset password'),
                         ),
-                        if (_facebookProviderEnabled && pandoraFacebookSignInSupported(
-                          isWeb: kIsWeb,
-                          platform: defaultTargetPlatform,
-                        )) ...[
+                        if (widget.presentation.allowFacebookSignIn &&
+                            _facebookProviderEnabled &&
+                            pandoraFacebookSignInSupported(
+                              isWeb: kIsWeb,
+                              platform: defaultTargetPlatform,
+                            )) ...[
                           const SizedBox(height: PandoraSpacing.sm),
                           OutlinedButton(
                             onPressed: _busy ? null : _signInWithFacebook,
@@ -232,7 +313,7 @@ class _SignInScreenState extends State<SignInScreen>
                         ],
                         const SizedBox(height: PandoraSpacing.sm),
                         Text(
-                          'Sign in to continue to your private projects.',
+                          widget.presentation.footer,
                           textAlign: TextAlign.center,
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(

@@ -79,7 +79,7 @@ test('opening the PLP drawer dismisses keyboard focus, resets scroll, and gates 
   assert.match(shell, /final _drawerScrollController = ScrollController\(\)/);
   assert.match(
     shell,
-    /void _openDrawer\(\)[\s\S]*_dismissWorkspaceKeyboard\(\)[\s\S]*_resetDrawerScroll\(\)[\s\S]*addPostFrameCallback[\s\S]*openDrawer\(\)/,
+    /void _openDrawer\(\)[\s\S]*_dismissWorkspaceKeyboard\(\)[\s\S]*_resetDrawerScroll\(\)[\s\S]*_scaffoldKey\.currentState\?\.openDrawer\(\)/,
   );
   assert.match(
     shell,

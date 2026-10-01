@@ -4,7 +4,8 @@
     "includes": [
       "scripts/verify-engineering-toolchain.mjs",
       "playwright.config.mjs",
-      "test/e2e/toolchain-smoke.spec.mjs"
+      "test/e2e/toolchain-smoke.spec.mjs",
+      "test/e2e/rpa-containment.spec.mjs"
     ]
   },
   "formatter": {
