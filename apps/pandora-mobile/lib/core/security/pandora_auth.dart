@@ -123,9 +123,13 @@ String? _workspacePresentationProfile(User user) {
 
 class SupabasePandoraAuth
     implements PandoraAuth, ExtraIdentityVerificationSource {
-  SupabasePandoraAuth(this._client);
+  SupabasePandoraAuth(
+    this._client, {
+    String? organizationId,
+  }) : _organizationId = organizationId ?? PandoraConfig.organizationId;
 
   final SupabaseClient _client;
+  final String _organizationId;
 
   @override
   PandoraSession? get currentSession {
@@ -204,7 +208,7 @@ class SupabasePandoraAuth
     final membership = await _client
         .from('memberships')
         .select('role')
-        .eq('organization_id', PandoraConfig.organizationId)
+        .eq('organization_id', _organizationId)
         .eq('user_id', userId)
         .eq('status', 'active')
         .maybeSingle();
