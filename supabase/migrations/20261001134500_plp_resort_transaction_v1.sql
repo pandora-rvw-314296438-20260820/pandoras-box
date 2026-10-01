@@ -56,7 +56,7 @@ declare
   uid uuid := auth.uid();
   prop public.enterprise_properties%rowtype;
   actor_role text;
-  request_id text := btrim(coalesce(p_request_id,''));
+  request_key text := btrim(coalesce(p_request_id,''));
   action_name text := lower(btrim(coalesce(p_action,'')));
   payload jsonb := coalesce(p_payload,'{}'::jsonb);
   payload_sha text;
@@ -88,7 +88,7 @@ begin
   if uid is null then
     raise exception 'authentication required' using errcode='42501';
   end if;
-  if char_length(request_id) < 8 or char_length(request_id) > 160 then
+  if char_length(request_key) < 8 or char_length(request_key) > 160 then
     raise exception 'request_id must be 8 to 160 characters' using errcode='22023';
   end if;
   if action_name not in (
@@ -130,7 +130,7 @@ begin
   select r.* into prior
   from plp_runtime.plp_resort_write_receipts r
   where r.organization_id=prop.organization_id
-    and r.request_id=request_id;
+    and r.request_id=request_key;
   if prior.request_id is not null then
     if prior.action<>action_name or prior.payload_sha256<>payload_sha then
       raise exception 'request_id already used with different PLP action or payload'
@@ -214,7 +214,7 @@ begin
     nights_count := check_out_date-check_in_date;
     total_php := rate_php*nights_count;
     booking_ref := 'PLP-'||to_char(check_in_date,'YYMMDD')||'-'||
-      upper(substr(md5(request_id),1,6));
+      upper(substr(md5(request_key),1,6));
 
     insert into plp_runtime.plp_bookings(
       booking_reference,guest_id,accommodation_id,accommodation_name,
@@ -571,7 +571,7 @@ begin
 
   result:=jsonb_build_object(
     'schemaVersion','plp.resort.transaction.v1',
-    'requestId',request_id,
+    'requestId',request_key,
     'action',action_name,
     'verified',true,
     'providerReadbackVerified',true,
@@ -583,13 +583,13 @@ begin
   insert into plp_runtime.plp_resort_audit(
     organization_id,actor_user_id,actor_role,request_id,action,entity_kind,entity_id,result
   ) values (
-    prop.organization_id,uid,actor_role,request_id,action_name,entity_kind,entity_id,result
+    prop.organization_id,uid,actor_role,request_key,action_name,entity_kind,entity_id,result
   );
 
   insert into plp_runtime.plp_resort_write_receipts(
     organization_id,request_id,actor_user_id,action,payload_sha256,result
   ) values (
-    prop.organization_id,request_id,uid,action_name,payload_sha,result
+    prop.organization_id,request_key,uid,action_name,payload_sha,result
   );
 
   return result;
