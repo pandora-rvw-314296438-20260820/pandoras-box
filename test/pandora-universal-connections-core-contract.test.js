@@ -70,6 +70,24 @@ test("self-service providers require fresh provider readback before Connected", 
   }
 });
 
+test("catalog readiness never claims Connected and rejects client-supplied credential material", async () => {
+  const [{ buildProviderCatalogView }] = await modules;
+  const blocked = buildProviderCatalogView("twilio");
+  assert.equal(blocked.catalogState, "implemented_awaiting_credential");
+  assert.equal(blocked.connectButtonVisible, false);
+  assert.equal(blocked.connectionStatus, "not_connected");
+  const configured = buildProviderCatalogView("twilio", {
+    serverConfigurationPresent: true,
+    source: "server_runtime_config_registry",
+  });
+  assert.equal(configured.catalogState, "available_to_connect");
+  assert.equal(configured.connectionStatus, "not_connected");
+  assert.throws(
+    () => buildProviderCatalogView("twilio", { serverConfigurationPresent: true, token: "no" }),
+    /unexpected_readiness_evidence:token/,
+  );
+});
+
 test("revoked and stale evidence fail closed", async () => {
   const [{ getProviderEntry }, { deriveConnectionStatus }] = await modules;
   const manifest = getProviderEntry("twilio").connectionManifest;
