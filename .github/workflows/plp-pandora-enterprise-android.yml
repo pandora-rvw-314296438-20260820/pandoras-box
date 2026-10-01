@@ -164,7 +164,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/app/plp_owner_journey_acceptance_test.dart             test/features/enterprise/plp_resort_operational_screens_test.dart             test/features/enterprise/plp_guests_screen_test.dart             test/features/enterprise/plp_workspace_layout_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart             test/app/plp_navigation_drawer_test.dart
+          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/features/enterprise/plp_settings_session_test.dart             test/app/plp_owner_journey_acceptance_test.dart             test/features/enterprise/plp_resort_operational_screens_test.dart             test/features/enterprise/plp_guests_screen_test.dart             test/features/enterprise/plp_workspace_layout_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart             test/app/plp_navigation_drawer_test.dart
 
       - name: Build exact PLP native APK
         working-directory: .plp-android-build
@@ -343,8 +343,8 @@ jobs:
             test -n "$(adb shell pidof "$pkg" | tr -d '\r')"
           done
 
-          # Process death is expected to return to sign-in because PLP sessions
-          # are intentionally memory-only today. Record that product behavior.
+          # This installed-app smoke is unauthenticated. A process restart must
+          # therefore remain on sign-in and must not invent a session.
           adb shell am force-stop "$pkg"
           adb shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
           sleep 3
@@ -376,7 +376,7 @@ jobs:
             echo "background_foreground_verified=true"
             echo "rotation_verified=true"
             echo "process_restart_verified=true"
-            echo "memory_only_session_behavior_observed=true"
+            echo "unauthenticated_restart_returns_to_sign_in=true"
             echo "unexpected_runtime_permission_grant=false"
             echo "crash_buffer_clear=true"
           } > "$evidence/acceptance.txt"

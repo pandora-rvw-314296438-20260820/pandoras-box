@@ -887,6 +887,7 @@ class PlpSettingsScreen extends StatelessWidget {
     required this.onOpenFullSettings,
     required this.onOpenLocalAi,
     required this.onOpenDeveloper,
+    required this.onSignOut,
   });
 
   final Map<String, Object?> bootstrap;
@@ -894,6 +895,33 @@ class PlpSettingsScreen extends StatelessWidget {
   final VoidCallback onOpenFullSettings;
   final VoidCallback onOpenLocalAi;
   final VoidCallback onOpenDeveloper;
+  final Future<void> Function() onSignOut;
+
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign out of this device?'),
+        content: const Text(
+          'Your PLP session will be removed from this device. '
+          'You can sign in again with your account.',
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('plp-sign-out-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep me signed in'),
+          ),
+          FilledButton(
+            key: const ValueKey('plp-sign-out-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await onSignOut();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -949,6 +977,20 @@ class PlpSettingsScreen extends StatelessWidget {
           title: 'Developer diagnostics',
           detail: 'Privileged technical evidence and sanitized diagnostics.',
           onTap: onOpenDeveloper,
+        ),
+        const PlpSectionTitle(
+          'Device session',
+          detail: 'Authentication on this dedicated device.',
+        ),
+        PlpEditorialRow(
+          key: const ValueKey('plp-settings-sign-out'),
+          title: 'Sign out',
+          detail:
+              'Remove the encrypted PLP session from this device and return to sign in.',
+          tone: plpWarn,
+          onTap: () {
+            _confirmSignOut(context);
+          },
         ),
       ],
     );
