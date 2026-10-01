@@ -1,0 +1,115 @@
+/*
+ * Pandora Main Account design system
+ *
+ * Semantic tokens are the only source of colour, spacing, type, elevation,
+ * focus, and motion for the owner/operator control plane. Product red remains
+ * a brand signal; routine actions use the accessible indigo action colour.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Color */
+  --owner-bg: #101116;
+  --owner-bg-elevated: #15171d;
+  --owner-surface: #191b22;
+  --owner-surface-soft: #20232b;
+  --owner-line: #30333d;
+  --owner-line-strong: #454955;
+  --owner-text: #f7f7f8;
+  --owner-muted: #b3b6c0;
+  --owner-subtle: #8d919d;
+  --owner-action: #7c83ff;
+  --owner-action-hover: #9297ff;
+  --owner-action-strong: #656de8;
+  --owner-action-soft: rgba(124, 131, 255, 0.15);
+  --owner-on-action: #0c0d16;
+  --owner-focus: #aeb2ff;
+  --owner-red: #ef4349;
+  --owner-red-strong: #d92e38;
+  --owner-red-soft: rgba(239, 67, 73, 0.12);
+  --owner-green: #67d7a3;
+  --owner-green-soft: rgba(103, 215, 163, 0.13);
+  --owner-amber: #ffc46b;
+  --owner-amber-soft: rgba(255, 196, 107, 0.13);
+  --owner-danger: #ff817a;
+  --owner-danger-soft: rgba(255, 129, 122, 0.13);
+
+  /* Typography */
+  --owner-font-sans: "IBM Plex Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --owner-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  --owner-leading-tight: 1.08;
+  --owner-leading-body: 1.55;
+  --owner-tracking-display: -0.035em;
+
+  /* 4px base spacing scale */
+  --owner-space-1: 4px;
+  --owner-space-2: 8px;
+  --owner-space-3: 12px;
+  --owner-space-4: 16px;
+  --owner-space-5: 20px;
+  --owner-space-6: 24px;
+  --owner-space-8: 32px;
+  --owner-space-10: 40px;
+  --owner-space-12: 48px;
+
+  /* Shape, elevation, layout */
+  --owner-radius-control: 12px;
+  --owner-radius-small: 16px;
+  --owner-radius: 20px;
+  --owner-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
+  --owner-shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.16);
+  --owner-content-width: 760px;
+  --owner-wide-content-width: 1440px;
+  --owner-control-min: 48px;
+  --owner-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Motion */
+  --owner-motion-fast: 120ms;
+  --owner-motion-standard: 180ms;
+  --owner-motion-slow: 260ms;
+  --owner-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+html[data-owner-theme='light'] {
+  color-scheme: light;
+  --owner-bg: #f6f5f2;
+  --owner-bg-elevated: #ffffff;
+  --owner-surface: #ffffff;
+  --owner-surface-soft: #f0f0f4;
+  --owner-line: #d9dae2;
+  --owner-line-strong: #bfc2cc;
+  --owner-text: #17181d;
+  --owner-muted: #5f636d;
+  --owner-subtle: #737883;
+  --owner-action: #4c55c9;
+  --owner-action-hover: #3f48b7;
+  --owner-action-strong: #373fa7;
+  --owner-action-soft: rgba(76, 85, 201, 0.1);
+  --owner-on-action: #ffffff;
+  --owner-focus: #303aa7;
+  --owner-red-soft: rgba(217, 46, 56, 0.09);
+  --owner-green: #0b6b45;
+  --owner-green-soft: rgba(11, 107, 69, 0.09);
+  --owner-amber: #8c5200;
+  --owner-amber-soft: rgba(140, 82, 0, 0.09);
+  --owner-danger: #b3261e;
+  --owner-danger-soft: rgba(179, 38, 30, 0.09);
+  --owner-shadow: 0 18px 48px rgba(21, 24, 32, 0.1);
+  --owner-shadow-soft: 0 8px 24px rgba(21, 24, 32, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --owner-motion-fast: 1ms;
+    --owner-motion-standard: 1ms;
+    --owner-motion-slow: 1ms;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --owner-focus: Highlight;
+    --owner-line: CanvasText;
+    --owner-line-strong: CanvasText;
+  }
+}

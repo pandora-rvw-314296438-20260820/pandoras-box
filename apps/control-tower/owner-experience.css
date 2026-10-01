@@ -83,8 +83,8 @@
 .owner-ask-composer textarea::placeholder { color: var(--owner-subtle); }
 .owner-command-input:focus,
 .owner-ask-composer textarea:focus {
-  border-color: color-mix(in srgb, var(--owner-red) 62%, var(--owner-line-strong));
-  box-shadow: 0 0 0 3px var(--owner-red-soft);
+  border-color: var(--owner-action);
+  box-shadow: 0 0 0 3px var(--owner-action-soft);
   background: var(--owner-bg-elevated);
 }
 .owner-command-send {
@@ -94,10 +94,10 @@
   place-items: center;
   border: 0;
   border-radius: 15px;
-  background: linear-gradient(135deg, var(--owner-red), var(--owner-red-strong));
-  color: #fff;
+  background: var(--owner-action);
+  color: var(--owner-on-action);
   cursor: pointer;
-  box-shadow: 0 10px 26px rgba(217,30,43,.2);
+  box-shadow: none;
 }
 .owner-command-send:disabled { opacity: .45; cursor: not-allowed; }
 .owner-command-send svg { width: 19px; height: 19px; }
@@ -388,8 +388,8 @@
 }
 .owner-theatre-stage.active { color: var(--owner-text); }
 .owner-theatre-stage.active > span {
-  background: var(--owner-red);
-  box-shadow: 0 0 18px rgba(239,52,52,.26);
+  background: var(--owner-action);
+  box-shadow: none;
 }
 .owner-workspace-meta {
   display: flex;
@@ -518,8 +518,8 @@
   outline: none;
 }
 .owner-workspace-change textarea:focus {
-  border-color: color-mix(in srgb, var(--owner-red) 62%, var(--owner-line-strong));
-  box-shadow: 0 0 0 3px var(--owner-red-soft);
+  border-color: var(--owner-action);
+  box-shadow: 0 0 0 3px var(--owner-action-soft);
 }
 .owner-workspace-change textarea:disabled { opacity: .55; cursor: not-allowed; }
 
@@ -586,7 +586,7 @@
   background: #fff;
 }
 .owner-workspace-preview-frame-wrap.is-focusing {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--owner-red) 64%, var(--owner-line)) inset;
+  box-shadow: 0 0 0 2px var(--owner-focus) inset;
 }
 .owner-workspace-focus-hint {
   position: absolute;
@@ -728,7 +728,7 @@
   background: var(--owner-bg-elevated);
 }
 
-.professional-mode .owner-main { max-width: 1440px; }
+.professional-mode .owner-main { max-width: var(--owner-wide-content-width); }
 .professional-screen { gap: 28px; }
 .professional-page-intro {
   display: grid;

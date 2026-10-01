@@ -5,5 +5,5 @@
   black and never the platform default.
 -->
 <resources>
-    <color name="pandora_canvas">#FF121317</color>
+    <color name="pandora_canvas">#FF101116</color>
 </resources>
