@@ -219,8 +219,8 @@ declare
   booking plp_runtime.plp_bookings%rowtype;
   uid uuid;
   org_id uuid;
-  email text := lower(trim(coalesce(p_guest_email,'')));
-  guest_name text := trim(coalesce(p_guest_name,''));
+  v_email text := lower(trim(coalesce(p_guest_email,'')));
+  v_guest_name text := trim(coalesce(p_guest_name,''));
   reference text;
   nights_count integer;
   result jsonb;
@@ -241,10 +241,10 @@ begin
   uid := (actor->>'userId')::uuid;
   org_id := (actor->>'organizationId')::uuid;
 
-  if guest_name='' then
+  if v_guest_name='' then
     raise exception 'guest name required' using errcode='22023';
   end if;
-  if email='' or email !~ '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' then
+  if v_email='' or v_email !~ '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' then
     raise exception 'valid guest email required' using errcode='22023';
   end if;
   if p_check_in is null or p_check_out is null or p_check_out<=p_check_in then
@@ -279,7 +279,7 @@ begin
 
   select * into guest
   from plp_runtime.plp_guests g
-  where lower(coalesce(nullif(g.normalized_email,''),g.email))=email
+  where lower(coalesce(nullif(g.normalized_email,''),g.email))=v_email
   order by g.updated_at desc,g.id
   limit 1
   for update;
@@ -288,15 +288,16 @@ begin
     insert into plp_runtime.plp_guests(
       full_name,email,normalized_email,phone,metadata
     ) values (
-      guest_name,email,email,nullif(trim(coalesce(p_guest_phone,'')),''),
+      v_guest_name,v_email,v_email,nullif(trim(coalesce(p_guest_phone,'')),''),
+
       jsonb_build_object('source','pandora_plp_mobile')
     )
     returning * into guest;
   else
     update plp_runtime.plp_guests
-    set full_name=guest_name,
-        email=email,
-        normalized_email=email,
+    set full_name=v_guest_name,
+        email=v_email,
+        normalized_email=v_email,
         phone=nullif(trim(coalesce(p_guest_phone,'')),''),
         updated_at=clock_timestamp()
     where id=guest.id
