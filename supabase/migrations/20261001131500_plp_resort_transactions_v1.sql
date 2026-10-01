@@ -318,7 +318,7 @@ declare
   replay jsonb;
   room plp_runtime.plp_accommodations%rowtype;
   booking plp_runtime.plp_bookings%rowtype;
-  nights integer;
+  night_count integer;
   response jsonb;
 begin
   replay := private.plp_operation_replay_v1(org,uid,p_request_id,'reservation.update');
@@ -352,20 +352,20 @@ begin
     raise exception 'room is not available for those dates' using errcode='23P01';
   end if;
 
-  nights := p_check_out-p_check_in;
+  night_count := p_check_out-p_check_in;
   update plp_runtime.plp_bookings
   set accommodation_id=room.id,
       accommodation_name=room.name,
       check_in=p_check_in,
       check_out=p_check_out,
       guest_count=p_guest_count,
-      nights=nights,
+      nights=night_count,
       rate_per_night_php=room.nightly_rate_php,
-      total_amount_php=room.nightly_rate_php*nights,
-      balance_amount_php=greatest(room.nightly_rate_php*nights-deposit_amount_php,0),
+      total_amount_php=room.nightly_rate_php*night_count,
+      balance_amount_php=greatest(room.nightly_rate_php*night_count-deposit_amount_php,0),
       special_requests=nullif(trim(coalesce(p_special_requests,'')),''),
       payment_status=case
-        when greatest(room.nightly_rate_php*nights-deposit_amount_php,0)=0 then 'PAID'
+        when greatest(room.nightly_rate_php*night_count-deposit_amount_php,0)=0 then 'PAID'
         when deposit_amount_php>0 then 'PARTIAL'
         else 'PENDING'
       end,
