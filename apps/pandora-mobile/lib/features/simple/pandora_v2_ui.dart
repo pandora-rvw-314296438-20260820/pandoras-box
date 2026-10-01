@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design/pandora_tokens.dart';
 import '../../core/widgets/pandora_mark.dart';
 
 abstract final class PandoraV2Colors {
-  static const canvas = Color(0xFF000000);
-  static const surface = Color(0xFF0A0A0A);
-  static const ink = Color(0xFFFFFFFF);
-  static const muted = Color(0xFF888888);
-  static const line = Color(0xFF222222);
-  static const soft = Color(0xFF141414);
-  static const success = Color(0xFF66C58A);
-  static const warning = Color(0xFFE2A85D);
-  static const danger = Color(0xFFFF817A);
+  static const canvas = PandoraColorTokens.graphiteCanvas;
+  static const surface = PandoraColorTokens.graphiteSurface;
+  static const ink = PandoraColorTokens.graphiteText;
+  static const muted = PandoraColorTokens.graphiteMuted;
+  static const line = PandoraColorTokens.graphiteOutline;
+  static const soft = PandoraColorTokens.graphiteSurfaceSoft;
+  static const action = PandoraColorTokens.action;
+  static const onAction = PandoraColorTokens.onAction;
+  static const success = PandoraColorTokens.verifiedDark;
+  static const warning = PandoraColorTokens.attentionDark;
+  static const danger = PandoraColorTokens.criticalDark;
 }
 
 const pandoraV2Body = TextStyle(
@@ -192,7 +195,7 @@ class PandoraV2IntentSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedOpacity(
-        duration: const Duration(milliseconds: 180),
+        duration: PandoraMotion.standard,
         opacity: enabled ? 1 : .72,
         child: Container(
           decoration: BoxDecoration(
@@ -261,8 +264,8 @@ class PandoraV2IntentSurface extends StatelessWidget {
                         tooltip: 'Continue',
                         onPressed: enabled ? _submit : null,
                         style: IconButton.styleFrom(
-                          backgroundColor: PandoraV2Colors.ink,
-                          foregroundColor: Colors.white,
+                          backgroundColor: PandoraV2Colors.action,
+                          foregroundColor: PandoraV2Colors.onAction,
                           disabledBackgroundColor: PandoraV2Colors.soft,
                           disabledForegroundColor: PandoraV2Colors.muted,
                         ),
@@ -327,8 +330,8 @@ class PandoraV2PrimaryAction extends StatelessWidget {
         child: FilledButton(
           onPressed: loading ? null : onPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: PandoraV2Colors.ink,
-            foregroundColor: Colors.white,
+            backgroundColor: PandoraV2Colors.action,
+            foregroundColor: PandoraV2Colors.onAction,
             disabledBackgroundColor: const Color(0xFFB8B7B2),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

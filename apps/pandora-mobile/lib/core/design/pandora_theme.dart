@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'pandora_tokens.dart';
 
 abstract final class PandoraTheme {
-  static const Color _primary = Color(0xFF171717);
-
   /// Warm neutral premium canvas rather than sterile pure white.
   static ThemeData get porcelain => _build(
         brightness: Brightness.light,
         palette: PandoraPalette.porcelain,
         background: PandoraPalette.porcelain.canvas,
-        surface: const Color(0xFFFFFFFF),
+        surface: PandoraColorTokens.porcelainSurface,
+        action: PandoraColorTokens.actionLight,
+        onAction: PandoraColorTokens.onActionLight,
       );
 
   /// Premium charcoal rather than pure black or the bare Android underlay.
@@ -18,7 +18,9 @@ abstract final class PandoraTheme {
         brightness: Brightness.dark,
         palette: PandoraPalette.graphite,
         background: PandoraPalette.graphite.canvas,
-        surface: const Color(0xFF17181D),
+        surface: PandoraColorTokens.graphiteSurface,
+        action: PandoraColorTokens.action,
+        onAction: PandoraColorTokens.onAction,
       );
 
   static ThemeData _build({
@@ -26,13 +28,15 @@ abstract final class PandoraTheme {
     required PandoraPalette palette,
     required Color background,
     required Color surface,
+    required Color action,
+    required Color onAction,
   }) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: _primary,
+      seedColor: action,
       brightness: brightness,
       surface: surface,
       error: palette.critical,
-    );
+    ).copyWith(primary: action, onPrimary: onAction);
     final base = ThemeData(
       brightness: brightness,
       colorScheme: scheme,
@@ -40,6 +44,7 @@ abstract final class PandoraTheme {
       useMaterial3: true,
       visualDensity: VisualDensity.standard,
       extensions: <ThemeExtension<dynamic>>[palette],
+      focusColor: action,
     );
     final textTheme = base.textTheme.copyWith(
       displaySmall: base.textTheme.displaySmall?.copyWith(
@@ -115,6 +120,10 @@ abstract final class PandoraTheme {
         enabledBorder: OutlineInputBorder(
           borderRadius: PandoraRadius.controlBorder,
           borderSide: BorderSide(color: palette.outlineSoft),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: PandoraRadius.controlBorder,
+          borderSide: BorderSide(color: action, width: 2),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
