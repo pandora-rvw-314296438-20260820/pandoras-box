@@ -49,7 +49,10 @@ class PandoraRuntimeBootstrap {
   static PandoraRuntimeBootstrap create(
     SupabaseClient supabase, {
     required PandoraLocalStore localStore,
+    String? organizationId,
   }) {
+    final resolvedOrganizationId =
+        organizationId ?? PandoraConfig.organizationId;
     final diagnostics = DiagnosticsStore();
     installPandoraErrorHandling(
       record: (summary) => diagnostics.record(
@@ -68,13 +71,13 @@ class PandoraRuntimeBootstrap {
     final tokenProvider = SupabaseSessionTokenProvider(supabase);
     final ownerClient = PandoraApiClient(
       baseUri: Uri.parse(PandoraConfig.ownerApiBaseUrl),
-      organizationId: PandoraConfig.organizationId,
+      organizationId: resolvedOrganizationId,
       sessionTokenProvider: tokenProvider,
       diagnostics: diagnostics,
     );
     final runtimeClient = PandoraApiClient(
       baseUri: Uri.parse(PandoraConfig.projectRuntimeApiBaseUrl),
-      organizationId: PandoraConfig.organizationId,
+      organizationId: resolvedOrganizationId,
       sessionTokenProvider: tokenProvider,
       diagnostics: diagnostics,
       timeout: const Duration(seconds: 60),
@@ -83,13 +86,13 @@ class PandoraRuntimeBootstrap {
     final projectRuntime = ProjectRuntimeApi(client: runtimeClient);
     final projectExperience = ProjectExperienceApi(
       client: supabase,
-      organizationId: PandoraConfig.organizationId,
+      organizationId: resolvedOrganizationId,
       cursorStore: PandoraLocalProjectBuildStreamCursorStore(localStore),
     );
     final projectExperienceProjection =
         SupabaseProjectExperienceProjectionRepository(
       client: supabase,
-      organizationId: PandoraConfig.organizationId,
+      organizationId: resolvedOrganizationId,
     );
     final projectExperienceRepository = CompositeProjectExperienceRepository(
       projection: projectExperienceProjection,
@@ -98,15 +101,18 @@ class PandoraRuntimeBootstrap {
     );
 
     return PandoraRuntimeBootstrap._(
-      auth: SupabasePandoraAuth(supabase),
+      auth: SupabasePandoraAuth(
+        supabase,
+        organizationId: resolvedOrganizationId,
+      ),
       repository: RemotePandoraRepository(client: ownerClient),
       activityHistory: SupabasePandoraActivityHistorySource(
         client: supabase,
-        organizationId: PandoraConfig.organizationId,
+        organizationId: resolvedOrganizationId,
       ),
       intelligence: PandoraIntelligenceApi(
         client: supabase,
-        organizationId: PandoraConfig.organizationId,
+        organizationId: resolvedOrganizationId,
       ),
       projectRuntime: projectRuntime,
       projectExperience: projectExperience,
@@ -114,7 +120,7 @@ class PandoraRuntimeBootstrap {
       projectExperienceRepository: projectExperienceRepository,
       domainRegistrar: DomainRegistrarApi(
         client: supabase,
-        organizationId: PandoraConfig.organizationId,
+        organizationId: resolvedOrganizationId,
       ),
       diagnostics: diagnostics,
       localStore: localStore,
