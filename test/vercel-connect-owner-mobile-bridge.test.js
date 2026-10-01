@@ -67,16 +67,26 @@ test("owner API exposes only bounded Connect status and authorize routes", () =>
 });
 
 test("connection capability is account-scoped, not poisoned by project health", () => {
-  const summary = between(
+  const legacySummary = between(
     ownerApi,
-    "function connectionSummary(",
-    "function approvalSummary(",
+    "function legacyConnectionSummary(",
+    "function liveConnectionSummary(",
   );
-  assert.match(summary, /connectorFresh/);
+  assert.match(legacySummary, /canRead: false/);
+  assert.match(legacySummary, /legacy_installation_without_live_provider_readback/);
   assert.doesNotMatch(
-    summary,
+    legacySummary,
     /projectos_integration_health|healthRows|healthProblem|healthFresh/,
   );
+
+  const liveSummary = between(
+    ownerApi,
+    "function liveConnectionSummary(",
+    "async function connections(",
+  );
+  assert.match(liveSummary, /connection\.authority\) === "live_provider_readback"/);
+  assert.match(liveSummary, /activeAccount\.providerReadbackVerified === true/);
+  assert.match(liveSummary, /canRead: connected/);
 
   const read = between(
     ownerApi,

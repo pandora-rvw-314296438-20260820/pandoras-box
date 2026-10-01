@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../app/plp_enterprise_shell.dart';
 import '../../core/data/pandora_repository.dart';
+import '../../core/design/pandora_theme.dart';
 import '../../core/security/pandora_auth.dart';
 import 'sign_in_screen.dart';
 
@@ -61,7 +62,14 @@ class _PlpAuthGateState extends State<PlpAuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (_auth?.currentSession == null) return const SignInScreen();
+    if (_auth?.currentSession == null) {
+      return Theme(
+        data: PandoraTheme.porcelain,
+        child: const SignInScreen(
+          presentation: SignInPresentation.plp,
+        ),
+      );
+    }
 
     return NavigatorPopHandler(
       onPopWithResult: (_) {

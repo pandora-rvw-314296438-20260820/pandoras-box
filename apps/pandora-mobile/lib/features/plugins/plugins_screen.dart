@@ -11,6 +11,7 @@ import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
+import 'provider_catalog_screen.dart';
 
 class PluginsScreen extends StatefulWidget {
   const PluginsScreen({super.key});
@@ -134,7 +135,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
                         ),
                         const Expanded(
                           child: Text(
-                            'Plugins',
+                            'Live Connections',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 20,
@@ -159,7 +160,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       onChanged: (value) =>
                           setState(() => _query = value.trim()),
                       decoration: InputDecoration(
-                        hintText: 'Search plugins',
+                        hintText: 'Search connections',
                         prefixIcon: const Icon(Icons.search_rounded),
                         suffixIcon: _query.isEmpty
                             ? null
@@ -171,6 +172,19 @@ class _PluginsScreenState extends State<PluginsScreen> {
                                 },
                                 icon: const Icon(Icons.close_rounded),
                               ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ProviderCatalogScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.grid_view_rounded, size: 18),
+                        label: const Text('Browse provider catalog'),
                       ),
                     ),
                     if (_runtimeError != null) ...[
@@ -613,7 +627,7 @@ class _PluginViewModel {
             name: 'change',
             mode: 'write',
             available: true,
-            approval: 'projectos',
+            approval: 'governed',
           ),
       ],
       lastVerifiedAt: connection.freshness.lastVerifiedAt,

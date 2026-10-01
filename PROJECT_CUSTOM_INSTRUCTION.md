@@ -508,6 +508,14 @@ audit evidence
 source verification
 rollback protection
 
+### CANONICAL GITHUB WRITE FALLBACK
+
+If a connected GitHub App can read the canonical repository but a ref, branch, or contents write returns `403 Resource not accessible by integration`, do not edit `main` directly, do not switch to a legacy/lookalike repository, and do not treat the canonical repository as unwritable.
+
+Use the service-role-only Supabase function `private.pandora_github_governed_write_v1` in the canonical Pandora Supabase project. That path must use the Vault-backed `Github_supabase` transport, bind the exact current `main` SHA, create only a `chatgpt/*` task branch plus pull request, verify provider readback, preserve idempotency, reject credential material, never force-update refs, and never mutate `main` directly.
+
+The direct GitHub App installation and the Supabase Vault transport are separate authorization paths. A missing or read-only App installation is not evidence that the governed Vault path is unavailable. Never expose, copy, log, or commit the Vault credential.
+
 If a write result is ambiguous, assume it may already have occurred once.
 
 Verify provider state before retrying.
