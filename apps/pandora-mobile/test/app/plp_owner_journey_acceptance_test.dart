@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/app/plp_enterprise_shell.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
+import 'package:pandora_mobile/features/enterprise/plp_resort_operational_screens.dart';
 
 import '../helpers/fake_owner_api.dart';
 import '../helpers/test_app.dart';
