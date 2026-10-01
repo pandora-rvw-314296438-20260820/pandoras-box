@@ -82,6 +82,10 @@ test("adapter receipt cannot claim evidence without a passing provider readback"
     adapter.invoke(request, { transport: async () => response(JSON.stringify({ type: "Feature Layer", capabilities: "Map" })), clock: fixedClock }),
     /provider_probe_shape_invalid/,
   );
+  await assert.rejects(
+    adapter.invoke(request, { transport: async () => response("<html>not json</html>", "text/html"), clock: fixedClock }),
+    /provider_probe_content_type_invalid/,
+  );
   const receipt = await adapter.invoke(request, {
     transport: async () => response(JSON.stringify({ id: 0, name: "Ground Shaking (Deterministic)", type: "Feature Layer", capabilities: "Map,Query,Data" }), "text/plain"),
     clock: fixedClock,

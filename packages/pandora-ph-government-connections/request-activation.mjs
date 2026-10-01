@@ -12,7 +12,12 @@ function requireText(value, label) {
 
 function assertNoCredentialMaterial(value) {
   const serialized = JSON.stringify(value);
-  if (/(?:password|secret|api[_-]?key|access[_-]?token|private[_-]?key)/i.test(serialized)) {
+  if (
+    /(?:password|secret|api[_-]?key|access[_-]?token|private[_-]?key)/i.test(serialized)
+    || /(?:github_pat_|gh[pousr]_|sb_secret_|AIza)[A-Za-z0-9_-]{16,}/.test(serialized)
+    || /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(serialized)
+    || /postgres(?:ql)?:\/\/[^\s:@]+:[^\s@]+@/i.test(serialized)
+  ) {
     throw new Error("activation_request_must_not_contain_credentials");
   }
 }

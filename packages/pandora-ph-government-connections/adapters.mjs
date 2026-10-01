@@ -14,12 +14,38 @@ async function readBody(response) {
   const announced = Number(header(response, "content-length"));
   if (Number.isFinite(announced) && announced > MAX_BODY_BYTES) throw new Error("provider_probe_response_too_large");
   let body;
-  if (typeof response.arrayBuffer === "function") body = Buffer.from(await response.arrayBuffer());
+  if (response?.body && typeof response.body.getReader === "function") {
+    const reader = response.body.getReader();
+    const chunks = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_BODY_BYTES) {
+        await reader.cancel();
+        throw new Error("provider_probe_response_too_large");
+      }
+      chunks.push(Buffer.from(value));
+    }
+    body = Buffer.concat(chunks, total);
+  }
+  else if (typeof response.arrayBuffer === "function") body = Buffer.from(await response.arrayBuffer());
   else if (response.body instanceof Uint8Array || Buffer.isBuffer(response.body)) body = Buffer.from(response.body);
   else if (typeof response.body === "string") body = Buffer.from(response.body, "utf8");
   else throw new Error("provider_probe_body_unavailable");
   if (body.length > MAX_BODY_BYTES) throw new Error("provider_probe_response_too_large");
   return body;
+}
+
+function assertContentType(providerKey, response) {
+  const contentType = String(header(response, "content-type") || "").toLowerCase();
+  const accepted = providerKey === "ph.namria.geoportal"
+    ? /(?:xml|vnd\.ogc\.wms_xml)/.test(contentType)
+    : providerKey === "ph.phivolcs.hazard_gis"
+      ? /(?:json|text\/plain)/.test(contentType)
+      : /json/.test(contentType);
+  if (!accepted) throw new Error("provider_probe_content_type_invalid");
 }
 
 function assertVaultReference(value) {
@@ -82,6 +108,7 @@ export async function runGovernmentSafeReadProbe(providerKey, request = {}, runt
   if (!manifest) throw new Error("provider_probe_not_allowlisted");
   const response = await dispatch(manifest, request, runtime);
   if (!Number.isInteger(response?.status) || response.status !== 200) throw new Error(`provider_probe_http_${response?.status ?? "unknown"}`);
+  assertContentType(providerKey, response);
   const body = await readBody(response);
   const validated = validateReadback(providerKey, body);
   const observedAt = (runtime.clock ? runtime.clock() : new Date()).toISOString();
