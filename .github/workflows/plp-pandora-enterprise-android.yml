@@ -217,6 +217,24 @@ jobs:
           test "$(sha256sum PLP-Pandora-Enterprise-arm64.apk | cut -d ' ' -f1)" = \
             "$(sha256sum build/app/outputs/flutter-apk/app-release.apk | cut -d ' ' -f1)"
 
+          # The production project is intentionally arm64-only. For emulator
+          # acceptance only, retarget the disposable generated Gradle copy to
+          # x86_64 after the release APK has already been preserved.
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("android/app/build.gradle.kts")
+          text = path.read_text()
+          old = 'abiFilters += "arm64-v8a"'
+          new = 'abiFilters += "x86_64"'
+          if old not in text:
+              raise SystemExit("arm64 ABI filter missing from disposable project")
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+          grep -Fq 'abiFilters += "x86_64"' android/app/build.gradle.kts
+          ! grep -Fq 'abiFilters += "arm64-v8a"' android/app/build.gradle.kts
+          flutter clean
+
           flutter build apk --release \
             --target=lib/main_plp.dart \
             --target-platform=android-x64 \
