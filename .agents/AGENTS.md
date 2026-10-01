@@ -1,4 +1,3 @@
-
 # Pandora Agent Operating Contract
 
 This directory contains the portable Pandora Skill System. The rules below apply to every skill and every project.
@@ -25,12 +24,6 @@ A file, passing test, merged pull request, or provider `READY` state does not pr
 ## Safe autonomy
 
 Execute safe, reversible, no-cost connected work when the exact tools and permissions are available. Stop for missing permission or credentials, new spending, destructive production or data changes, legal or public commitments, regulated activation, non-preauthorized production release, or unavoidable provider confirmation.
-
-### Canonical GitHub write fallback
-
-If a connected GitHub App can read the canonical repository but a ref, branch, or content write returns `403 Resource not accessible by integration`, do not write `main` directly, do not switch repositories, and do not treat the canonical repository as unwritable. Use the service-role-only Supabase function `private.pandora_github_governed_write_v1` in the canonical Pandora Supabase project. It uses the Vault-backed `Github_supabase` transport, binds the exact current `main` SHA, creates only a `chatgpt/*` task branch plus pull request, records idempotent provider readback, rejects credential material, never force-updates refs, and never mutates `main`.
-
-The direct GitHub App installation and the Supabase Vault transport are separate authorization paths. A broken or incomplete App installation is not evidence that the governed Vault path is unavailable. Never expose or copy the Vault credential.
 
 ## Planning and execution
 
