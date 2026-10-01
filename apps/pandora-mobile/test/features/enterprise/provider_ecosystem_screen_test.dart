@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/features/enterprise/provider_ecosystem_screen.dart';
@@ -13,6 +14,8 @@ void main() {
     expect(find.text('Capabilities & Providers'), findsOneWidget);
     expect(find.textContaining('15 capability families'), findsOneWidget);
 
+    final search =
+        find.byKey(const ValueKey<String>('provider-ecosystem-search'));
     for (final capability in <String>[
       'Compute',
       'Data',
@@ -30,6 +33,8 @@ void main() {
       'Devices',
       'Intelligence',
     ]) {
+      await tester.enterText(search, capability);
+      await tester.pump();
       expect(find.text(capability), findsOneWidget);
     }
   });
@@ -50,7 +55,9 @@ void main() {
 
     expect(find.text('Identity'), findsOneWidget);
     expect(find.text('Compute'), findsNothing);
-    expect(find.textContaining('Catalog presence never means connected'),
-        findsOneWidget);
+    expect(
+      find.textContaining('Catalog presence never means connected'),
+      findsOneWidget,
+    );
   });
 }
