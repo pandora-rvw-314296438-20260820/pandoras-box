@@ -217,22 +217,16 @@ jobs:
           test "$(sha256sum PLP-Pandora-Enterprise-arm64.apk | cut -d ' ' -f1)" = \
             "$(sha256sum build/app/outputs/flutter-apk/app-release.apk | cut -d ' ' -f1)"
 
-          # The production project is intentionally arm64-only. For emulator
-          # acceptance only, retarget the disposable generated Gradle copy to
-          # x86_64 after the release APK has already been preserved.
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("android/app/build.gradle.kts")
-          text = path.read_text()
-          old = 'abiFilters += "arm64-v8a"'
-          new = 'abiFilters += "x86_64"'
-          if old not in text:
-              raise SystemExit("arm64 ABI filter missing from disposable project")
-          text = text.replace(old, new, 1)
-          path.write_text(text)
-          PY
+          # The production APK is intentionally arm64-only with local AI.
+          # Emulator acceptance uses the same Dart/UI/business source but
+          # disables the arm64-only native local-AI bridge in this disposable
+          # x86_64 project.
+          python3 ../apps/pandora-mobile/tool/configure_plp_emulator_android.py \
+            android/app/build.gradle.kts \
+            android/app/src/main/kotlin
           grep -Fq 'abiFilters += "x86_64"' android/app/build.gradle.kts
           ! grep -Fq 'abiFilters += "arm64-v8a"' android/app/build.gradle.kts
+          ! grep -Fq 'externalNativeBuild {' android/app/build.gradle.kts
           flutter clean
 
           flutter build apk --release \
@@ -247,6 +241,7 @@ jobs:
             > plp-emulator-apk-files.txt
           grep -Fq 'lib/x86_64/' plp-emulator-apk-files.txt
           ! grep -Fq 'lib/arm64-v8a/' plp-emulator-apk-files.txt
+          ! grep -Fq 'libai-chat.so' plp-emulator-apk-files.txt
 
       - name: Install Android emulator system image
         shell: bash
