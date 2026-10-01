@@ -164,6 +164,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       8 => 'operations_room',
       9 => 'enterprise_home',
       10 => 'vision_intelligence',
+      11 => 'provider_ecosystem',
       _ => 'pandora_chat',
     };
     unawaited(
