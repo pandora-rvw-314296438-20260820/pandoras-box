@@ -1,0 +1,33 @@
+# Philippine government connections
+
+This Lane B package adds Philippine government providers through Provider SDK manifests and generic adapters. It adds no provider-specific UI. Catalog presence never means connected: only a fresh, validated provider readback can produce a `connected_verified` receipt, and the Live Connections runtime remains the UI status authority.
+
+## Implemented public interfaces
+
+| Provider | Interface | Safe read | Credential policy |
+| --- | --- | --- | --- |
+| PSA OpenSTAT | PXWeb REST | `GET /PXWeb/api/v1/en` catalog | Anonymous |
+| PSA PSGC | PSGC REST | `GET /psgc/Q2_2024/regions` | PSA-issued token, injected server-side from an opaque Vault reference |
+| PHIVOLCS Hazard GIS | ArcGIS REST | Ground Shaking layer metadata with `f=pjson` | Anonymous |
+| NAMRIA Geoportal | OGC WMS | WMS 1.1.1 `GetCapabilities` | Anonymous |
+
+Every safe-read adapter uses an exact allowlisted HTTPS URL, GET only, redirect refusal, a response-size ceiling, content-shape validation, a SHA-256 body digest, and no raw-body logging. A 200 response alone is insufficient. PSGC intentionally fails unless a trusted server-side transport receives a `vault://` credential reference; the token is never placed in application code or returned evidence.
+
+Point-in-time provider evidence from October 1, 2026 is recorded in `docs/connections/evidence/PHILIPPINE_GOVERNMENT_READBACK_2026-10-01.json`. The snapshot verifies OpenSTAT, PHIVOLCS, and NAMRIA. It deliberately marks PSGC unverified because no PSA-issued token was available.
+
+## Request activation only
+
+Open Data Philippines/data.gov.ph, DICT eGovPH, PAGASA, BSP reference rates, PhilGEPS, BIR, SEC, LTO, SSS, PhilHealth, Pag-IBIG Fund, DFA, NBI, and PNP expose only the generic `Request activation` action. Their catalog records contain no adapter and explicitly prohibit a public Connect action.
+
+- data.gov.ph currently serves the web application shell at legacy CKAN `/api/3/action/...` and DKAN `/data.json` paths; that is not API readback.
+- DICT's eGov API portal documents APIs but requires organization registration, administrator review, and scoped credentials.
+- Public webpages, PDFs, CSV downloads, dashboards, or undocumented JSON feeds are not treated as documented public APIs.
+
+The activation request accepts business onboarding metadata only and rejects unexpected or credential-shaped fields. It remains `not_connected`; successful contracting or accreditation must still be followed by provider verification and authoritative Live Connections readback.
+
+## Operations
+
+- Re-run each safe read before presenting Connected; stale evidence must degrade to Needs attention.
+- Do not log URL query parameters for PSGC because the upstream API requires a token in the query string. Only the credential broker may place it at dispatch time.
+- On schema drift, redirects, non-200 responses, invalid content type/shape, over-size responses, or identity mismatch, fail closed and keep the provider not connected.
+- Review official documentation and residency policy before enabling any non-public dataset or write capability.

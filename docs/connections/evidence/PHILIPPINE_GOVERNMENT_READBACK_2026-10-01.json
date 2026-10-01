@@ -1,0 +1,68 @@
+{
+  "evidenceSchemaVersion": 1,
+  "evidenceBoundary": "Point-in-time safe reads from official provider endpoints; this file is not an enduring Live Connections status assertion.",
+  "readbacks": [
+    {
+      "providerKey": "ph.psa.openstat",
+      "status": "connected_verified",
+      "probeUrl": "https://openstat.psa.gov.ph/PXWeb/api/v1/en",
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "observedAt": "2026-10-01T12:26:29.294Z",
+      "responseBytes": 27,
+      "bodySha256": "18e5f943ca33243e294a28c1ff984d442b0d077efb968e3f97a9294a67678ffb",
+      "validatedIdentity": "PSA OpenSTAT PXWeb",
+      "validatedShape": "non-empty PXWeb database catalog using dbid and text"
+    },
+    {
+      "providerKey": "ph.phivolcs.hazard_gis",
+      "status": "connected_verified",
+      "probeUrl": "https://gisweb.phivolcs.dost.gov.ph/arcgis/rest/services/PHIVOLCS/GroundShaking/MapServer/0?f=pjson",
+      "httpStatus": 200,
+      "contentType": "text/plain;charset=utf-8",
+      "observedAt": "2026-10-01T12:26:31.095Z",
+      "responseBytes": 8176,
+      "bodySha256": "77559c57f0a41f3ebf225d277dd420d3679cc0c44b7f3b3f9a1175f5da136a0d",
+      "validatedIdentity": "PHIVOLCS Ground Shaking (Deterministic)",
+      "validatedShape": "ArcGIS Feature Layer with Query capability"
+    },
+    {
+      "providerKey": "ph.namria.geoportal",
+      "status": "connected_verified",
+      "probeUrl": "https://geoserver.geoportal.gov.ph/geoserver/ows?service=wms&version=1.1.1&request=GetCapabilities",
+      "httpStatus": 200,
+      "contentType": "application/vnd.ogc.wms_xml",
+      "observedAt": "2026-10-01T12:26:33.747Z",
+      "responseBytes": 7154973,
+      "bodySha256": "3105ab99ca34dd8f9d36963489ea2203f14888d35b3c549a94b52e15caa65a28",
+      "validatedIdentity": "GeoServer Web Map Service",
+      "validatedShape": "OGC WMS capabilities document with Service metadata"
+    },
+    {
+      "providerKey": "ph.psa.psgc",
+      "status": "not_verified",
+      "probeUrl": "https://classification.psa.gov.ph/psgc/Q2_2024/regions",
+      "reason": "Official data endpoint requires a PSA-issued token; no token was available and no credential was requested or exposed."
+    }
+  ],
+  "negativeReadbacks": [
+    {
+      "providerKey": "ph.data_gov",
+      "url": "https://data.gov.ph/api/3/action/package_search?rows=1",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "bodySha256": "37dbec66d65593d71b56415c66de1a850d5614c2003175371018bd4f5e5c3ac1",
+      "result": "not_api_readback",
+      "reason": "Returned the Open Data Philippines web application shell, not a CKAN action response."
+    },
+    {
+      "providerKey": "ph.data_gov",
+      "url": "https://data.gov.ph/data.json",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "bodySha256": "37dbec66d65593d71b56415c66de1a850d5614c2003175371018bd4f5e5c3ac1",
+      "result": "not_api_readback",
+      "reason": "Returned the Open Data Philippines web application shell, not a DKAN catalog response."
+    }
+  ]
+}
