@@ -2099,11 +2099,21 @@ String _recordIdentity(Map<String, Object?> record) {
 
 String _capabilityKey(String label) => _semanticKey(label);
 
-String _semanticKey(String value) => value
-    .trim()
-    .toLowerCase()
-    .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-    .replaceAll(RegExp(r'^-+|-+
+String _semanticKey(String value) {
+  var result = value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+  while (result.startsWith('-')) {
+    result = result.substring(1);
+  }
+  while (result.endsWith('-')) {
+    result = result.substring(0, result.length - 1);
+  }
+  return result.isEmpty ? 'item' : result;
+}
+
+String _humanStatus(Object? value) {
   final raw = value?.toString().trim() ?? '';
   if (raw.isEmpty) return '';
   final normalized = raw
