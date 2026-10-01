@@ -14,16 +14,24 @@ const foundationPath = join(
   'supabase/migrations/20260724010000_control_plane_foundation.sql',
 );
 const ownerApiPath = join(root, 'supabase/functions/pandora-owner-api/index.ts');
+const laneAPath = join(
+  root,
+  'supabase/migrations/20261001130000_pandora_connections_lane_a_v1.sql',
+);
+const laneABrokerPath = join(
+  root,
+  'supabase/functions/pandora-connections-broker/index.ts',
+);
 
 const actorA = {
   organizationId: 'org-a',
-  tenantId: 'tenant-a',
-  accountId: 'account-a',
+  tenantId: 'org-a',
 };
 const connectionA = {
   id: 'connection-a',
   organizationId: 'org-a',
-  tenantId: 'tenant-a',
+  tenantId: 'org-a',
+  tenantKey: 'provider-tenant-a',
   accountId: 'account-a',
   provider: 'example',
   state: 'healthy',
@@ -31,7 +39,8 @@ const connectionA = {
 const connectionB = {
   id: 'connection-b',
   organizationId: 'org-b',
-  tenantId: 'tenant-b',
+  tenantId: 'org-b',
+  tenantKey: 'provider-tenant-b',
   accountId: 'account-b',
   provider: 'example',
   state: 'healthy',
@@ -39,20 +48,32 @@ const connectionB = {
 const credentialA = {
   credentialReferenceId: 'credential-a',
   organizationId: 'org-a',
-  tenantId: 'tenant-a',
+  tenantId: 'org-a',
+  tenantKey: 'provider-tenant-a',
   accountId: 'account-a',
   connectionId: 'connection-a',
 };
 const credentialB = {
   credentialReferenceId: 'credential-b',
   organizationId: 'org-b',
-  tenantId: 'tenant-b',
+  tenantId: 'org-b',
+  tenantKey: 'provider-tenant-b',
   accountId: 'account-b',
   connectionId: 'connection-b',
 };
+const targetA = {
+  tenantId: 'org-a',
+  connectionId: 'connection-a',
+  tenantKey: 'provider-tenant-a',
+};
+const targetB = {
+  tenantId: 'org-a',
+  connectionId: 'connection-b',
+  tenantKey: 'provider-tenant-b',
+};
 
 function harness(overrides = {}) {
-  const calls = { credential: 0, execute: 0 };
+  const calls = { credential: 0, execute: 0, listScopes: [], connectionScopes: [], credentialScopes: [] };
   const connections = new Map([
     [connectionA.id, connectionA],
     [connectionB.id, connectionB],
@@ -62,15 +83,20 @@ function harness(overrides = {}) {
     [connectionB.id, credentialB],
   ]);
   const api = createTenantScopedConnectionApi({
-    async listConnections(organizationId) {
-      return [...connections.values()].filter((item) => item.organizationId === organizationId);
+    async listConnections(scope) {
+      calls.listScopes.push(scope);
+      return [...connections.values()].filter((item) =>
+        item.organizationId === scope.organizationId && item.tenantId === scope.tenantId
+      );
     },
-    async getConnection(connectionId) {
-      return connections.get(connectionId) ?? null;
+    async getConnection(scope) {
+      calls.connectionScopes.push(scope);
+      return connections.get(scope.connectionId) ?? null;
     },
-    async getCredentialReference(connectionId) {
+    async getCredentialReference(scope) {
       calls.credential += 1;
-      return credentials.get(connectionId) ?? null;
+      calls.credentialScopes.push(scope);
+      return credentials.get(scope.connectionId) ?? null;
     },
     async executeAction() {
       calls.execute += 1;
@@ -259,43 +285,101 @@ test('owner API lists by organization and resolves actions only from that scoped
   }
 });
 
+test('Lane A external-client contract binds every runtime surface to the exact tenant tuple', {
+  skip: !existsSync(laneAPath) || !existsSync(laneABrokerPath),
+}, () => {
+  const migration = readFileSync(laneAPath, 'utf8');
+  const broker = readFileSync(laneABrokerPath, 'utf8');
+
+  assert.match(
+    migration,
+    /foreign key \(connection_id, organization_id, provider_key, tenant_key\)[\s\S]*?references private[.]pandora_connection_accounts_v1\(id, organization_id, provider_key, tenant_key\)/i,
+  );
+  for (const signature of [
+    /pandora_connection_runtime_credential_v1\(\s*p_organization_id uuid,p_provider_key text,p_connection_id uuid,p_tenant_key text/i,
+    /pandora_connection_health_commit_v1\(\s*p_organization_id uuid,p_provider_key text,p_connection_id uuid,p_tenant_key text/i,
+    /pandora_connection_write_preview_v1\(\s*p_organization_id uuid,p_provider_key text,p_connection_id uuid,p_tenant_key text/i,
+    /pandora_connection_revoke_v1\(\s*p_organization_id uuid,p_connection_id uuid,p_tenant_key text/i,
+  ]) {
+    assert.match(migration, signature);
+  }
+  assert.match(
+    migration,
+    /where a[.]id=p_connection_id and a[.]organization_id=p_organization_id[\s\S]*?a[.]provider_key=p_provider_key and a[.]tenant_key=trim\(p_tenant_key\)/i,
+  );
+  assert.match(migration, /revoke all on function public[.]pandora_connection_runtime_credential_v1/i);
+  assert.doesNotMatch(
+    migration,
+    /grant execute on function public[.]pandora_connection_runtime_credential_v1[^;]*to authenticated/i,
+  );
+  assert.match(broker, /tenantId !== organizationId/);
+  assert.match(broker, /p_connection_id: connectionId/);
+  assert.match(broker, /p_tenant_key: tenantKey/);
+  assert.match(broker, /runtime[.]data[?][.]tenantId !== organizationId/);
+  assert.match(broker, /runtime[.]data[?][.]connectionId !== connectionId/);
+  assert.match(broker, /text\(runtime[.]data[?][.]tenantKey\) !== tenantKey/);
+  assert.match(broker, /credential: undefined/);
+  assert.doesNotMatch(broker, /return json\([^;]*credential\s*,/i);
+});
+
 test('org A cannot list or read an org B connection', async () => {
-  const { api } = harness();
-  assert.deepEqual(await api.list(actorA), [{
+  const { api, calls } = harness();
+  assert.deepEqual(await api.list(actorA, { tenantId: 'org-a' }), [{
     id: 'connection-a',
     provider: 'example',
     state: 'healthy',
     accountId: 'account-a',
-    tenantId: 'tenant-a',
+    tenantId: 'org-a',
+    tenantKey: 'provider-tenant-a',
   }]);
-  await assert.rejects(api.read(actorA, connectionB.id), /ORGANIZATION_MISMATCH/);
+  assert.deepEqual(calls.listScopes, [{ organizationId: 'org-a', tenantId: 'org-a' }]);
+  await assert.rejects(api.read(actorA, targetB), /ORGANIZATION_MISMATCH/);
+  assert.deepEqual(calls.connectionScopes, [{
+    organizationId: 'org-a',
+    tenantId: 'org-a',
+    connectionId: 'connection-b',
+    tenantKey: 'provider-tenant-b',
+  }]);
+  await assert.rejects(
+    api.list(actorA, { tenantId: 'org-b' }),
+    /ACTION_TENANT_MISMATCH/,
+  );
 
   const breached = harness({
     async listConnections() {
       return [connectionA, connectionB];
     },
   });
-  await assert.rejects(breached.api.list(actorA), /ORGANIZATION_MISMATCH/);
+  await assert.rejects(
+    breached.api.list(actorA, { tenantId: 'org-a' }),
+    /ORGANIZATION_MISMATCH/,
+  );
 });
 
 test('org A cannot use, refresh, or revoke org B and credential lookup never runs', async () => {
   for (const action of ['use', 'refresh', 'revoke']) {
     const { api, calls } = harness();
-    await assert.rejects(api[action](actorA, connectionB.id), /ORGANIZATION_MISMATCH/);
+    await assert.rejects(api[action](actorA, targetB), /ORGANIZATION_MISMATCH/);
     assert.equal(calls.credential, 0);
     assert.equal(calls.execute, 0);
+    assert.deepEqual(calls.credentialScopes, []);
   }
 });
 
 test('credential and account or tenant mismatch fail before provider execution', async () => {
   const cases = [
-    [{ ...connectionA, accountId: 'account-b' }, credentialA, /ACCOUNT_MISMATCH/],
-    [{ ...connectionA, tenantId: 'tenant-b' }, credentialA, /TENANT_MISMATCH/],
+    [{ ...connectionA, organizationId: 'org-b' }, credentialA, targetA, /CONNECTION_CANONICAL_TENANT_MISMATCH/],
+    [{ ...connectionA, tenantId: 'org-b' }, credentialA, targetA, /CONNECTION_CANONICAL_TENANT_MISMATCH/],
+    [{ ...connectionA, tenantKey: 'provider-tenant-b' }, credentialA, targetA, /TENANT_KEY_MISMATCH/],
     [connectionA, { ...credentialA, accountId: 'account-b' }, /CREDENTIAL_ACCOUNT_MISMATCH/],
-    [connectionA, { ...credentialA, tenantId: 'tenant-b' }, /CREDENTIAL_TENANT_MISMATCH/],
-    [connectionA, { ...credentialB, organizationId: 'org-a' }, /CREDENTIAL_TENANT_MISMATCH/],
+    [connectionA, { ...credentialA, tenantId: 'org-b' }, targetA, /CREDENTIAL_TENANT_MISMATCH/],
+    [connectionA, { ...credentialA, tenantKey: 'provider-tenant-b' }, targetA, /CREDENTIAL_TENANT_KEY_MISMATCH/],
+    [connectionA, { ...credentialB, organizationId: 'org-a', tenantId: 'org-a' }, targetA, /CREDENTIAL_ACCOUNT_MISMATCH/],
   ];
-  for (const [connection, credential, expected] of cases) {
+  for (const item of cases) {
+    const [connection, credential] = item;
+    const target = item.length === 4 ? item[2] : targetA;
+    const expected = item.at(-1);
     let executed = false;
     const api = createTenantScopedConnectionApi({
       async listConnections() { return [connection]; },
@@ -303,18 +387,46 @@ test('credential and account or tenant mismatch fail before provider execution',
       async getCredentialReference() { return credential; },
       async executeAction() { executed = true; },
     });
-    await assert.rejects(api.refresh(actorA, connection.id), expected);
+    await assert.rejects(api.refresh(actorA, target), expected);
     assert.equal(executed, false);
   }
+
+  const { api, calls } = harness();
+  await assert.rejects(
+    api.refresh({ organizationId: 'org-a', tenantId: 'org-b' }, targetA),
+    /ACTOR_TENANT_MISMATCH/,
+  );
+  await assert.rejects(
+    api.refresh(actorA, { ...targetA, tenantId: 'org-b' }),
+    /ACTION_TENANT_MISMATCH/,
+  );
+  await assert.rejects(
+    api.refresh(actorA, { ...targetA, connectionId: 'connection-b' }),
+    /ORGANIZATION_MISMATCH/,
+  );
+  assert.equal(calls.credential, 0);
+  assert.equal(calls.execute, 0);
 });
 
 test('valid tenant-bound actions expose no credential reference or credential material', async () => {
   for (const action of ['use', 'refresh', 'revoke']) {
     const { api, calls } = harness();
-    const result = await api[action](actorA, connectionA.id);
-    assert.deepEqual(result, { ok: true, action, connectionId: connectionA.id });
+    const result = await api[action](actorA, targetA);
+    assert.deepEqual(result, {
+      ok: true,
+      action,
+      tenantId: 'org-a',
+      connectionId: connectionA.id,
+      tenantKey: 'provider-tenant-a',
+    });
     assert.equal(calls.credential, 1);
     assert.equal(calls.execute, 1);
+    assert.deepEqual(calls.credentialScopes, [{
+      organizationId: 'org-a',
+      tenantId: 'org-a',
+      connectionId: 'connection-a',
+      tenantKey: 'provider-tenant-a',
+    }]);
     assert.doesNotMatch(JSON.stringify(result), /credential|secret|token|vault/i);
   }
 
@@ -322,6 +434,7 @@ test('valid tenant-bound actions expose no credential reference or credential ma
     () => assertTenantActionBinding({
       action: 'refresh',
       actor: actorA,
+      target: targetA,
       connection: connectionA,
       credential: { ...credentialA, accessToken: 'should-never-appear' },
     }),
