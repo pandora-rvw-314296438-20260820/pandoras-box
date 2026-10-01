@@ -103,11 +103,11 @@ export const governmentProviderManifests = Object.freeze(Object.fromEntries(
 ));
 
 const requestActivationDefinitions = [
-  ["ph.data_gov", "Open Data Philippines", "Department of Information and Communications Technology", "Public dataset portal; no documented live CKAN/DKAN API verified", "https://data.gov.ph/index/home"],
-  ["ph.dict.egov", "eGovPH / eGov API", "Department of Information and Communications Technology", "Reviewed organization account and scoped credentials required", "https://platforms.e.gov.ph/"],
-  ["ph.pagasa", "PAGASA", "DOST-PAGASA", "No officially documented public API verified", "https://www.pagasa.dost.gov.ph/"],
-  ["ph.bsp", "BSP Reference Rates", "Bangko Sentral ng Pilipinas", "Reference-rate publications found; no officially documented public API verified", "https://www.bsp.gov.ph/"],
-  ["ph.philgeps", "PhilGEPS", "Procurement Service - PhilGEPS", "Open-data downloads found; no officially documented public API verified", "https://open.philgeps.gov.ph/"],
+  ["ph.data_gov", "Open Data Philippines", "Department of Information and Communications Technology", "Public dataset portal; no documented live CKAN/DKAN API verified", "https://data.gov.ph/index/home", "dataset_portal_no_verified_api"],
+  ["ph.dict.egov", "eGovPH / eGov API", "Department of Information and Communications Technology", "Reviewed organization account and scoped credentials required", "https://platforms.e.gov.ph/", "governed_api_gateway"],
+  ["ph.pagasa", "PAGASA Ten-Day Forecast", "DOST-PAGASA", "Documented API requires a token and PAGASA states access is currently limited to government agencies", "https://tenday.pagasa.dost.gov.ph/static/media/api-doc.c9cf6abbaa781437ed96.pdf", "restricted_rest_api"],
+  ["ph.bsp", "BSP Reference Rates", "Bangko Sentral ng Pilipinas", "Reference-rate publications found; no officially documented public API verified", "https://www.bsp.gov.ph/sitepages/statistics/exchangerate.aspx", "web_and_file_publication"],
+  ["ph.philgeps", "PhilGEPS", "Procurement Service - PhilGEPS", "Open-data downloads found; no officially documented public API verified", "https://open.philgeps.gov.ph/", "open_data_downloads_no_verified_api"],
   ["ph.bir", "Bureau of Internal Revenue", "Bureau of Internal Revenue", "Accreditation or agency agreement required", "https://www.bir.gov.ph/"],
   ["ph.sec", "Securities and Exchange Commission", "Securities and Exchange Commission", "Accreditation or agency agreement required", "https://www.sec.gov.ph/"],
   ["ph.lto", "Land Transportation Office", "Land Transportation Office", "Accreditation or agency agreement required", "https://lto.gov.ph/"],
@@ -136,11 +136,11 @@ const publicCatalog = publicDefinitions.map((definition) => Object.freeze({
   }),
 }));
 
-const requestCatalog = requestActivationDefinitions.map(([providerKey, displayName, agency, reason, officialUrl]) => Object.freeze({
+const requestCatalog = requestActivationDefinitions.map(([providerKey, displayName, agency, reason, officialUrl, apiType = "partner_or_unverified"]) => Object.freeze({
   providerKey,
   displayName,
   agency,
-  apiType: "partner_or_unverified",
+  apiType,
   officialUrl,
   adapterManifest: null,
   metadata: Object.freeze({

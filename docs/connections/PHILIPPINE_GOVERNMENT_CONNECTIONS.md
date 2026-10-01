@@ -21,6 +21,7 @@ Open Data Philippines/data.gov.ph, DICT eGovPH, PAGASA, BSP reference rates, Phi
 
 - data.gov.ph currently serves the web application shell at legacy CKAN `/api/3/action/...` and DKAN `/data.json` paths; that is not API readback.
 - DICT's eGov API portal documents APIs but requires organization registration, administrator review, and scoped credentials.
+- PAGASA documents a Ten-Day Weather Forecast REST API, but an anonymous safe read returns `Missing Token`; PAGASA's August 2026 FOI response states that access is currently limited to government agencies. It therefore remains Request activation, not public Connect.
 - Public webpages, PDFs, CSV downloads, dashboards, or undocumented JSON feeds are not treated as documented public APIs.
 
 The activation request accepts business onboarding metadata only and rejects unexpected or credential-shaped fields. It remains `not_connected`; successful contracting or accreditation must still be followed by provider verification and authoritative Live Connections readback.

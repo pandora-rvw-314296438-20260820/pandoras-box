@@ -63,6 +63,17 @@
       "bodySha256": "37dbec66d65593d71b56415c66de1a850d5614c2003175371018bd4f5e5c3ac1",
       "result": "not_api_readback",
       "reason": "Returned the Open Data Philippines web application shell, not a DKAN catalog response."
+    },
+    {
+      "providerKey": "ph.pagasa",
+      "url": "https://tenday.pagasa.dost.gov.ph/api/v1/tenday/current",
+      "httpStatus": 498,
+      "contentType": "application/json; charset=utf-8",
+      "observedAt": "2026-10-01T12:31:59.000Z",
+      "responseBytes": 302,
+      "bodySha256": "e1bb3247bff7f3ae42e3ef9dcee4209ff3fb83019fc7b040f70db95caef53ebf",
+      "result": "credential_required",
+      "reason": "Provider readback returned Missing Token; official PAGASA FOI response says API access is currently limited to government agencies."
     }
   ]
 }

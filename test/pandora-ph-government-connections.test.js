@@ -106,6 +106,9 @@ test("unverified, credentialed, and regulated agencies expose Request activation
   for (const key of ["ph.bir", "ph.sec", "ph.lto", "ph.sss", "ph.philhealth", "ph.pagibig", "ph.dfa", "ph.nbi", "ph.pnp"]) {
     assert.ok(requestOnly.some((entry) => entry.providerKey === key), key);
   }
+  const pagasa = requestOnly.find((entry) => entry.providerKey === "ph.pagasa");
+  assert.equal(pagasa.apiType, "restricted_rest_api");
+  assert.match(pagasa.metadata.activationReason, /limited to government agencies/);
 });
 
 test("activation workflow rejects credential-shaped fields and never marks Connected", () => {
