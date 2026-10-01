@@ -49,6 +49,27 @@ test("PLP shell loads one additive resort projection and preserves contextual Pa
   assert.match(shell, /hintText: _commandHint/);
 });
 
+test("PLP disconnected customer source truth cannot claim connection or manufacture current metrics", () => {
+  const failClosed = read("supabase/migrations/20261001080000_plp_fail_closed_source_truth_v1.sql");
+  assert.match(
+    failClosed,
+    /'customerTenantConnected',\s*effective_source_state in \('healthy','current','live','ready'\)/,
+  );
+  assert.match(failClosed, /'customerTenantActive'/);
+  assert.match(
+    failClosed,
+    /'available',case when live_operational_data_available then greatest\(rooms_total-rooms_occupied,0\) else null end/,
+  );
+  assert.match(
+    failClosed,
+    /'bookedValue30dPhp',case when live_operational_data_available then booked_value_30d else null end/,
+  );
+  assert.doesNotMatch(
+    failClosed,
+    /'customerTenantConnected',\s*prop\.organization_id<>/,
+  );
+});
+
 test("PLP resort projection is bounded to existing truth and excludes direct contact data", () => {
   assert.match(migration, /active PLP membership required/);
   assert.match(migration, /plp_runtime\.plp_bookings/);
