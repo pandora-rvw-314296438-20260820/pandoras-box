@@ -10,11 +10,14 @@ const shell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
 const migration = read("supabase/migrations/20261001044500_plp_resort_command_center_v1.sql");
 const operationsMigration = read("supabase/migrations/20261001070000_plp_resort_operations_v1.sql");
 const operational = read("apps/pandora-mobile/lib/features/enterprise/plp_resort_operational_screens.dart");
+const plpAuthGate = read("apps/pandora-mobile/lib/features/auth/plp_auth_gate.dart");
+const signIn = read("apps/pandora-mobile/lib/features/auth/sign_in_screen.dart");
+const failClosedTruth = read("supabase/migrations/20261001070517_plp_fail_closed_source_truth_v1.sql");
 
 test("PLP Home is one shared resort workspace, not a second editorial design", () => {
   assert.match(home, /PlpResortWorkspaceScreen/);
   assert.match(home, /plpResortSectionById\('today'\)/);
-  assert.doesNotMatch(home, /OWNER’S HOME|Your private briefing/);
+  assert.doesNotMatch(home, /OWNERâ€™S HOME|Your private briefing/);
 });
 
 test("PLP exposes nine coherent resort workspaces instead of a feature catalog", () => {
@@ -44,6 +47,27 @@ test("PLP shell loads one additive resort projection and preserves contextual Pa
   assert.match(shell, /onOpenSection: _openResortSection/);
   assert.match(shell, /'name': 'Alfred'/);
   assert.match(shell, /hintText: _commandHint/);
+});
+
+test("PLP disconnected customer source truth cannot claim connection or manufacture current metrics", () => {
+  const failClosed = read("supabase/migrations/20261001070517_plp_fail_closed_source_truth_v1.sql");
+  assert.match(
+    failClosed,
+    /'customerTenantConnected',\s*effective_source_state in \('healthy','current','live','ready'\)/,
+  );
+  assert.match(failClosed, /'customerTenantActive'/);
+  assert.match(
+    failClosed,
+    /'available',case when live_operational_data_available then greatest\(rooms_total-rooms_occupied,0\) else null end/,
+  );
+  assert.match(
+    failClosed,
+    /'bookedValue30dPhp',case when live_operational_data_available then booked_value_30d else null end/,
+  );
+  assert.doesNotMatch(
+    failClosed,
+    /'customerTenantConnected',\s*prop\.organization_id<>/,
+  );
 });
 
 test("PLP resort projection is bounded to existing truth and excludes direct contact data", () => {
@@ -105,4 +129,19 @@ test("PLP Team is one resort workspace and legacy Team & Access is not routed", 
   assert.match(shell, /_openTeamManagement\(bootstrap\)/);
   assert.doesNotMatch(shell, /PlpTeamAccessScreen/);
   assert.doesNotMatch(shell, /plp_team_access_screen\.dart/);
+});
+
+test("PLP authentication is explicitly resort-branded", () => {
+  assert.match(plpAuthGate, /SignInPresentation\.plp/);
+  assert.match(signIn, /Pueblo La Perla/);
+  assert.match(signIn, /PLP BORACAY .* LUXURY RESORT/);
+  assert.match(signIn, /allowFacebookSignIn: false/);
+});
+
+test("PLP live business truth fails closed while the source is unavailable", () => {
+  assert.match(failClosedTruth, /liveOperationalDataAvailable/);
+  assert.match(failClosedTruth, /liveBusinessSourceConnected/);
+  assert.match(failClosedTruth, /when not live_operational_data_available then 'unknown'/);
+  assert.match(failClosedTruth, /available'.*case when live_operational_data_available/s);
+  assert.match(failClosedTruth, /bookedValue30dPhp'.*case when live_operational_data_available/s);
 });
