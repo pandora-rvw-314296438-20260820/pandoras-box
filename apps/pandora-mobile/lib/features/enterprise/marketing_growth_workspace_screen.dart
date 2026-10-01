@@ -441,7 +441,11 @@ class _MarketingGrowthWorkspaceScreenState
           _metric(
             'Paid pilot',
             pilotState,
-            deliveryObserved ? 'Delivery observed' : 'Awaiting first delivery',
+            !providerCreativeReady
+                ? 'Launch blocked until tracked creative is verified'
+                : deliveryObserved
+                    ? 'Delivery observed'
+                    : 'Awaiting first delivery',
           ),
           _metric(
             'Pilot spend',
@@ -451,8 +455,12 @@ class _MarketingGrowthWorkspaceScreenState
           ),
           _metric(
             'Safety monitor',
-            monitorHealthy ? 'Healthy' : 'Check needed',
-            _text(pilot['lastMonitorAt'], fallback: 'No monitor receipt'),
+            pilotState == 'active' || pilotState == 'prepared'
+                ? (monitorHealthy ? 'Healthy' : 'Check needed')
+                : 'Standby',
+            pilotState == 'active' || pilotState == 'prepared'
+                ? _text(pilot['lastMonitorAt'], fallback: 'No monitor receipt')
+                : 'Automatic checks remain armed for launch',
           ),
           _metric(
             'Tracked creative',
