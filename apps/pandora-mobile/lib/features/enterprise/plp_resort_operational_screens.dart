@@ -250,8 +250,11 @@ class _PlpResortOperationalScreenState
                     shape: const RoundedRectangleBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 15),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     if (title.text.trim().length < 3) return;
+                    FocusScope.of(sheetContext).unfocus();
+                    await WidgetsBinding.instance.endOfFrame;
+                    if (!sheetContext.mounted) return;
                     Navigator.of(sheetContext, rootNavigator: true).pop(true);
                   },
                   child: const Text('Create task'),
@@ -262,8 +265,10 @@ class _PlpResortOperationalScreenState
                 width: double.infinity,
                 child: TextButton(
                   key: const ValueKey('plp-module-cancel-task'),
-                  onPressed: () {
+                  onPressed: () async {
                     FocusScope.of(sheetContext).unfocus();
+                    await WidgetsBinding.instance.endOfFrame;
+                    if (!sheetContext.mounted) return;
                     Navigator.of(sheetContext, rootNavigator: true).pop(false);
                   },
                   child: const Text('Cancel'),
@@ -276,10 +281,21 @@ class _PlpResortOperationalScreenState
       ),
     );
 
-    if (confirmed != true || !mounted) {
-      title.dispose(); note.dispose(); booking.dispose();
-      return;
-    }
+    final titleValue = title.text.trim();
+    final bookingValue =
+        booking.text.trim().isEmpty ? 'PLP' : booking.text.trim();
+    final noteValue = note.text.trim().isEmpty
+        ? 'Created from the PLP ' + _spec.label + ' workspace.'
+        : note.text.trim();
+
+    // The sheet route and any focused EditableText must be fully detached
+    // before its local controllers are disposed.
+    await WidgetsBinding.instance.endOfFrame;
+    title.dispose();
+    note.dispose();
+    booking.dispose();
+
+    if (confirmed != true || !mounted) return;
 
     setState(() => _creating = true);
     try {
@@ -287,12 +303,9 @@ class _PlpResortOperationalScreenState
         requestId: 'plp-ui-' + widget.moduleId + '-' +
             DateTime.now().microsecondsSinceEpoch.toString(),
         command: PlpStaffTaskCommand(
-          bookingReference:
-              booking.text.trim().isEmpty ? 'PLP' : booking.text.trim(),
-          title: title.text.trim(),
-          note: note.text.trim().isEmpty
-              ? 'Created from the PLP ' + _spec.label + ' workspace.'
-              : note.text.trim(),
+          bookingReference: bookingValue,
+          title: titleValue,
+          note: noteValue,
           category: category,
           priority: priority,
         ),
@@ -314,7 +327,6 @@ class _PlpResortOperationalScreenState
             .showSnackBar(SnackBar(content: Text(error.message)));
       }
     } finally {
-      title.dispose(); note.dispose(); booking.dispose();
       if (mounted) setState(() => _creating = false);
     }
   }
