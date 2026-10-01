@@ -57,6 +57,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       Icons.videocam_outlined,
       Icons.videocam_rounded,
     ),
+    _ChatDestination(
+      'Capabilities & Providers',
+      Icons.account_tree_outlined,
+      Icons.account_tree_rounded,
+    ),
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
