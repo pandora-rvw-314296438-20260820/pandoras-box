@@ -48,6 +48,7 @@ test("provider actions fail closed on secret input or an account and tenant mism
   assert.match(source, /hasOwnProperty[.]call\(body, "credential"\)/);
   assert.match(source, /CONNECTION_SECRET_INPUT_NOT_ALLOWED/);
   assert.match(source, /tenantId !== context[.]organizationId/);
+  assert.match(source, /connectionId !== `provider:\$\{provider\}`/);
   assert.match(source, /textValue\(advanced[.]connectionId\) !== connectionId/);
   assert.match(source, /textValue\(advanced[.]tenantId\) !== tenantId/);
   assert.match(source, /textValue\(advanced[.]tenantKey\) !== tenantKey/);

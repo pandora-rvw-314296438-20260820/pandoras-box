@@ -1485,6 +1485,12 @@ async function liveProviderConnectionAction(
   ) {
     throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
   }
+  if (
+    requestedAction === "connect" &&
+    connectionId !== `provider:${provider}`
+  ) {
+    throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
+  }
   if (requestedAction === "test_inference" && provider === "posthog") {
     throw new Error("CONNECTION_ACTION_NOT_AVAILABLE");
   }
