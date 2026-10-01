@@ -40,7 +40,10 @@ class PandoraConfig {
     defaultValue: '0.4.0-rc.14+21',
   );
   static String get releaseLabel => '${appVersion.split('+').first} Owner Test';
-  static const artifactClass = 'Owner Test — Android debug signed';
+  static const artifactClass = String.fromEnvironment(
+    'PANDORA_ARTIFACT_CLASS',
+    defaultValue: 'Owner Test — Android debug signed',
+  );
   static const productionRelease = false;
 
   static const sourceRevision = String.fromEnvironment(
