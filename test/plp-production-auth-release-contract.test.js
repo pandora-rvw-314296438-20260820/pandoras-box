@@ -23,13 +23,10 @@ test('PLP dedicated-device sessions use OS encrypted storage', () => {
   assert.match(storage, /clearLegacyPersistedSession/);
 });
 
-test('PLP production identity is an explicit build-time release gate', () => {
-  assert.match(
-    config,
-    /bool\.fromEnvironment\(\s*'PANDORA_PRODUCTION_RELEASE'/,
-  );
-  assert.match(config, /defaultValue: false/);
-  assert.match(config, /Production Release — Android release signed/);
+test('PLP release identity stays non-production until external certification', () => {
+  assert.match(config, /PANDORA_ARTIFACT_CLASS/);
+  assert.match(config, /static const productionRelease = false/);
   assert.match(config, /Owner Test — Android debug signed/);
-  assert.match(settings, /PandoraConfig\.releaseStateLabel/);
+  assert.match(settings, /Not a production release/);
+  assert.doesNotMatch(settings, /PandoraConfig\.releaseStateLabel/);
 });

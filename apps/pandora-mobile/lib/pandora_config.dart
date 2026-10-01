@@ -39,21 +39,12 @@ class PandoraConfig {
     'PANDORA_APP_VERSION',
     defaultValue: '0.4.0-rc.14+21',
   );
-  static const productionRelease = bool.fromEnvironment(
-    'PANDORA_PRODUCTION_RELEASE',
-    defaultValue: false,
+  static String get releaseLabel => '${appVersion.split('+').first} Owner Test';
+  static const artifactClass = String.fromEnvironment(
+    'PANDORA_ARTIFACT_CLASS',
+    defaultValue: 'Owner Test — Android debug signed',
   );
-
-  static String get releaseLabel => productionRelease
-      ? appVersion.split('+').first
-      : '${appVersion.split('+').first} Owner Test';
-
-  static String get artifactClass => productionRelease
-      ? 'Production Release — Android release signed'
-      : 'Owner Test — Android debug signed';
-
-  static String get releaseStateLabel =>
-      productionRelease ? 'Production release' : 'Not a production release';
+  static const productionRelease = false;
 
   static const sourceRevision = String.fromEnvironment(
     'PANDORA_SOURCE_REVISION',
