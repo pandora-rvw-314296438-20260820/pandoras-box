@@ -19,6 +19,23 @@ create table if not exists plp_runtime.plp_operation_receipts (
 alter table plp_runtime.plp_operation_receipts enable row level security;
 revoke all on table plp_runtime.plp_operation_receipts from public,anon,authenticated;
 
+create or replace function private.plp_reject_operation_receipt_mutation_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path to ''
+as $
+begin
+  raise exception 'PLP operation receipts are immutable' using errcode='42501';
+end;
+$;
+
+drop trigger if exists plp_operation_receipts_immutable_v1
+  on plp_runtime.plp_operation_receipts;
+create trigger plp_operation_receipts_immutable_v1
+before update or delete on plp_runtime.plp_operation_receipts
+for each row execute function private.plp_reject_operation_receipt_mutation_v1();
+
 create table if not exists plp_runtime.plp_room_states (
   accommodation_id uuid primary key
     references plp_runtime.plp_accommodations(id) on delete cascade,
@@ -444,6 +461,9 @@ begin
     if upper(booking.status) not in ('PENDING_PAYMENT','CONFIRMED') then
       raise exception 'reservation cannot be cancelled from its current state' using errcode='22023';
     end if;
+    if booking.deposit_amount_php>0 then
+      raise exception 'recorded payments must be reversed before cancellation' using errcode='22023';
+    end if;
     new_status := 'CANCELLED';
     update plp_runtime.plp_bookings
     set status=new_status,cancelled_at=clock_timestamp(),
@@ -560,7 +580,7 @@ begin
     booking.id,
     'manual:'||lower(trim(coalesce(p_method,'manual'))),
     nullif(trim(coalesce(p_reference,'')),''),
-    p_amount_php,'PHP','PAID','VERIFIED',
+    p_amount_php,'PHP','PAID','MANUAL_RECORDED',
     jsonb_build_object('requestId',p_request_id,'actorUserId',uid),
     clock_timestamp()
   ) returning * into payment;
@@ -594,6 +614,235 @@ begin
   );
 end;
 $$;
+
+create or replace function public.plp_void_manual_payment_v1(
+  p_request_id text,
+  p_payment_id uuid,
+  p_note text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to ''
+as $
+declare
+  ctx jsonb := private.plp_membership_context_v1(array['owner','admin']);
+  uid uuid := (ctx->>'userId')::uuid;
+  org uuid := (ctx->>'organizationId')::uuid;
+  replay jsonb;
+  payment plp_runtime.plp_payments%rowtype;
+  booking plp_runtime.plp_bookings%rowtype;
+  new_deposit numeric;
+  new_balance numeric;
+  response jsonb;
+begin
+  replay := private.plp_operation_replay_v1(org,uid,p_request_id,'payment.void_manual');
+  if replay is not null then return replay; end if;
+
+  select * into payment
+  from plp_runtime.plp_payments
+  where id=p_payment_id
+  for update;
+  if payment.id is null then
+    raise exception 'payment not found' using errcode='P0002';
+  end if;
+  if payment.provider not like 'manual:%' or upper(payment.status)<>'PAID' then
+    raise exception 'only a recorded manual payment can be reversed here' using errcode='22023';
+  end if;
+
+  select * into booking
+  from plp_runtime.plp_bookings
+  where id=payment.booking_id
+  for update;
+  if booking.id is null then
+    raise exception 'reservation not found' using errcode='P0002';
+  end if;
+
+  update plp_runtime.plp_payments
+  set status='REFUNDED',
+      verification_status='MANUAL_REVERSED',
+      verification_error=nullif(trim(coalesce(p_note,'')),''),
+      raw_response=coalesce(raw_response,'{}'::jsonb) ||
+        jsonb_build_object(
+          'voidRequestId',p_request_id,
+          'voidActorUserId',uid,
+          'voidedAt',clock_timestamp()
+        ),
+      updated_at=clock_timestamp()
+  where id=payment.id
+  returning * into payment;
+
+  new_deposit := greatest(booking.deposit_amount_php-payment.amount_php,0);
+  new_balance := greatest(booking.total_amount_php-new_deposit,0);
+  update plp_runtime.plp_bookings
+  set deposit_amount_php=new_deposit,
+      balance_amount_php=new_balance,
+      payment_status=case
+        when new_balance=0 then 'PAID'
+        when new_deposit>0 then 'PARTIAL'
+        else 'PENDING'
+      end,
+      updated_by=uid,
+      updated_at=clock_timestamp()
+  where id=booking.id
+  returning * into booking;
+
+  perform public.enterprise_refresh_plp_runtime_overview_v1();
+
+  response := jsonb_build_object(
+    'verified',true,
+    'providerReadbackVerified',payment.status='REFUNDED',
+    'operation','payment.void_manual',
+    'requestId',p_request_id,
+    'payment',jsonb_build_object(
+      'id',payment.id,
+      'status',payment.status,
+      'verificationStatus',payment.verification_status,
+      'amountPhp',payment.amount_php
+    ),
+    'booking',jsonb_build_object(
+      'id',booking.id,
+      'paymentStatus',booking.payment_status,
+      'depositAmountPhp',booking.deposit_amount_php,
+      'balanceAmountPhp',booking.balance_amount_php
+    )
+  );
+  return private.plp_operation_record_v1(
+    org,uid,p_request_id,'payment.void_manual','payment',payment.id,response
+  );
+end;
+$;
+
+create or replace function public.plp_resort_access_v1()
+returns jsonb
+language plpgsql
+security definer
+set search_path to ''
+as $
+declare
+  ctx jsonb := private.plp_membership_context_v1(null);
+  role_name text := ctx->>'role';
+begin
+  return jsonb_build_object(
+    'schemaVersion','plp.resort.access.v1',
+    'role',role_name,
+    'canOperate',role_name in ('owner','admin','operator'),
+    'canAdmin',role_name in ('owner','admin'),
+    'canManageTeam',role_name in ('owner','admin'),
+    'canManageOwners',role_name='owner',
+    'canView',true
+  );
+end;
+$;
+
+create or replace function public.plp_room_board_v1()
+returns jsonb
+language plpgsql
+security definer
+set search_path to ''
+as $
+declare
+  ctx jsonb := private.plp_membership_context_v1(null);
+  prop public.enterprise_properties%rowtype;
+  business_date date;
+  rooms jsonb;
+  total_count integer;
+  occupied_count integer;
+  arrival_count integer;
+  departure_count integer;
+  available_count integer;
+  not_ready_count integer;
+begin
+  select * into prop
+  from public.enterprise_properties
+  where slug='plp-boracay'
+  order by updated_at desc,id desc
+  limit 1;
+  business_date :=
+    (clock_timestamp() at time zone coalesce(nullif(prop.timezone,''),'Asia/Manila'))::date;
+
+  with board as (
+    select
+      a.*,
+      coalesce(rs.state,'ready') as operational_state,
+      rs.note as operational_note,
+      rs.updated_at as operational_updated_at,
+      case
+        when exists (
+          select 1 from plp_runtime.plp_bookings b
+          where b.accommodation_id=a.id
+            and b.check_out=business_date
+            and upper(coalesce(b.status,'')) not in ('CANCELLED','CANCELED','CHECKED_OUT')
+        ) then 'departure'
+        when exists (
+          select 1 from plp_runtime.plp_bookings b
+          where b.accommodation_id=a.id
+            and b.check_in=business_date
+            and upper(coalesce(b.status,'')) not in ('CANCELLED','CANCELED','CHECKED_OUT')
+        ) then 'arrival'
+        when exists (
+          select 1 from plp_runtime.plp_bookings b
+          where b.accommodation_id=a.id
+            and b.check_in<=business_date
+            and b.check_out>business_date
+            and upper(coalesce(b.status,'')) not in ('CANCELLED','CANCELED','CHECKED_OUT')
+        ) then 'occupied'
+        else 'available'
+      end as stay_state
+    from plp_runtime.plp_accommodations a
+    left join plp_runtime.plp_room_states rs on rs.accommodation_id=a.id
+    where a.is_active=true
+  ), effective as (
+    select *,
+      case
+        when operational_state<>'ready' then operational_state
+        else stay_state
+      end as effective_state
+    from board
+  )
+  select
+    coalesce(jsonb_agg(
+      jsonb_build_object(
+        'id',id,
+        'name',name,
+        'capacity',capacity,
+        'bedrooms',bedrooms,
+        'nightlyRatePhp',nightly_rate_php,
+        'state',effective_state,
+        'stayState',stay_state,
+        'operationalState',operational_state,
+        'operationalNote',operational_note,
+        'operationalUpdatedAt',operational_updated_at
+      ) order by name
+    ),'[]'::jsonb),
+    count(*)::integer,
+    count(*) filter (where stay_state='occupied')::integer,
+    count(*) filter (where stay_state='arrival')::integer,
+    count(*) filter (where stay_state='departure')::integer,
+    count(*) filter (where effective_state='available')::integer,
+    count(*) filter (where operational_state<>'ready')::integer
+  into rooms,total_count,occupied_count,arrival_count,departure_count,available_count,not_ready_count
+  from effective;
+
+  return jsonb_build_object(
+    'schemaVersion','plp.room.board.v1',
+    'businessDate',business_date,
+    'rooms',rooms,
+    'roomPulse',jsonb_build_object(
+      'total',coalesce(total_count,0),
+      'occupied',coalesce(occupied_count,0),
+      'arriving',coalesce(arrival_count,0),
+      'departing',coalesce(departure_count,0),
+      'available',coalesce(available_count,0),
+      'notReady',coalesce(not_ready_count,0)
+    ),
+    'truth',jsonb_build_object(
+      'source','plp_accommodations + plp_bookings + plp_room_states',
+      'projectionOnly',true
+    )
+  );
+end;
+$;
 
 create or replace function public.plp_update_room_v1(
   p_request_id text,
@@ -774,6 +1023,7 @@ begin
       resolution_status='resolved',
       resolution_type=nullif(trim(coalesce(p_resolution_type,'')),''),
       resolution_note=nullif(trim(coalesce(p_resolution_note,'')),''),
+      resolved_by=uid::text,
       resolved_at=clock_timestamp(),
       updated_at=clock_timestamp()
   where id=p_conflict_id
@@ -881,6 +1131,7 @@ begin
 end;
 $$;
 
+revoke execute on function private.plp_reject_operation_receipt_mutation_v1() from public,anon,authenticated;
 revoke execute on function private.plp_membership_context_v1(text[]) from public,anon,authenticated;
 revoke execute on function private.plp_operation_replay_v1(uuid,uuid,text,text) from public,anon,authenticated;
 revoke execute on function private.plp_operation_record_v1(uuid,uuid,text,text,text,uuid,jsonb) from public,anon,authenticated;
@@ -890,6 +1141,9 @@ revoke execute on function public.plp_update_reservation_v1(text,uuid,uuid,date,
 revoke execute on function public.plp_transition_reservation_v1(text,uuid,text) from public,anon;
 revoke execute on function public.plp_update_guest_v1(text,uuid,text,text,text) from public,anon;
 revoke execute on function public.plp_record_payment_v1(text,uuid,numeric,text,text) from public,anon;
+revoke execute on function public.plp_void_manual_payment_v1(text,uuid,text) from public,anon;
+revoke execute on function public.plp_resort_access_v1() from public,anon;
+revoke execute on function public.plp_room_board_v1() from public,anon;
 revoke execute on function public.plp_update_room_v1(text,uuid,numeric,integer,integer,boolean) from public,anon;
 revoke execute on function public.plp_update_room_state_v1(text,uuid,text,text) from public,anon;
 revoke execute on function public.plp_update_staff_task_v1(text,uuid,text,text) from public,anon;
@@ -902,6 +1156,9 @@ grant execute on function public.plp_update_reservation_v1(text,uuid,uuid,date,d
 grant execute on function public.plp_transition_reservation_v1(text,uuid,text) to authenticated;
 grant execute on function public.plp_update_guest_v1(text,uuid,text,text,text) to authenticated;
 grant execute on function public.plp_record_payment_v1(text,uuid,numeric,text,text) to authenticated;
+grant execute on function public.plp_void_manual_payment_v1(text,uuid,text) to authenticated;
+grant execute on function public.plp_resort_access_v1() to authenticated;
+grant execute on function public.plp_room_board_v1() to authenticated;
 grant execute on function public.plp_update_room_v1(text,uuid,numeric,integer,integer,boolean) to authenticated;
 grant execute on function public.plp_update_room_state_v1(text,uuid,text,text) to authenticated;
 grant execute on function public.plp_update_staff_task_v1(text,uuid,text,text) to authenticated;
