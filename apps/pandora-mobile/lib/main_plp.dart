@@ -30,6 +30,7 @@ Future<void> main() async {
   final runtime = PandoraRuntimeBootstrap.create(
     Supabase.instance.client,
     localStore: localStore,
+    organizationId: PandoraConfig.plpOrganizationId,
   );
 
   runApp(PlpEnterpriseApp(runtime: runtime));
