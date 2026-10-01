@@ -195,15 +195,12 @@ void main() {
     expect(find.byKey(const ValueKey('plp-reservation-room')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-reservation-check-in')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-reservation-check-out')), findsOneWidget);
-    final save = find.byKey(const ValueKey('plp-reservation-save'));
     final transactionScroll =
         find.byKey(const ValueKey('plp-transaction-scroll'));
     expect(transactionScroll, findsOneWidget);
-    await tester.scrollUntilVisible(
-      save,
-      220,
-      scrollable: transactionScroll,
-    );
+    await tester.drag(transactionScroll, const Offset(0, -520));
+    await tester.pumpAndSettle();
+    final save = find.byKey(const ValueKey('plp-reservation-save'));
     expect(save, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
