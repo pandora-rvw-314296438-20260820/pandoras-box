@@ -34,7 +34,7 @@ void main() {
     expect(shell, contains("'Vision Intelligence'"));
     expect(shell, contains("10 => 'vision_intelligence'"));
     expect(shell, contains('10 => EnterpriseVisionScreen('));
-    expect(shell, contains('for (final index in const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])'));
+    expect(shell, contains('for (final index in const <int>[9, 10, 0, 8, 11, 1, 2, 4, 6, 7, 3])'));
   });
 
   test('web uses provider-controlled CamStreamer Kabukicho embed', () {

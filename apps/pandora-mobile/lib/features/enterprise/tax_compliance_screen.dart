@@ -142,31 +142,61 @@ class _TaxComplianceScreenState extends State<TaxComplianceScreen> {
                         key: const ValueKey<String>('tax-compliance-navigation'),
                         onPressed: navigation?.openDrawer ?? widget.onHome,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.workspaceName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: _muted,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: .3,
+                      SizedBox(width: _isPlp ? 12 : 8),
+                      if (_isPlp)
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'PUEBLO LA PERLA',
+                                style: TextStyle(
+                                  color: Color(0xFF171512),
+                                  fontFamily: 'serif',
+                                  fontSize: 16,
+                                  letterSpacing: 2.6,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'TAX & COMPLIANCE',
+                                style: TextStyle(
+                                  color: Color(0xFF70643F),
+                                  fontSize: 8.5,
+                                  letterSpacing: 2.2,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        Expanded(
+                          child: Text(
+                            widget.workspaceName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _muted,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: .3,
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        key: const ValueKey<String>('tax-compliance-refresh'),
-                        tooltip: 'Refresh tax workspace',
-                        onPressed: _loading ? null : _load,
-                        icon: Icon(Icons.refresh_rounded, color: _ink),
-                      ),
-                      IconButton(
-                        tooltip: 'Back to Home',
-                        onPressed: widget.onHome,
-                        icon: Icon(Icons.home_outlined, color: _ink),
-                      ),
+                        IconButton(
+                          key: const ValueKey<String>('tax-compliance-refresh'),
+                          tooltip: 'Refresh tax workspace',
+                          onPressed: _loading ? null : _load,
+                          icon: Icon(Icons.refresh_rounded, color: _ink),
+                        ),
+                        IconButton(
+                          tooltip: 'Back to Home',
+                          onPressed: widget.onHome,
+                          icon: Icon(Icons.home_outlined, color: _ink),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -175,16 +205,18 @@ class _TaxComplianceScreenState extends State<TaxComplianceScreen> {
                 padding: const EdgeInsets.fromLTRB(22, 26, 22, 124),
                 sliver: SliverList.list(
                   children: [
-                    Text(
-                      'TAX & COMPLIANCE',
-                      style: TextStyle(
-                        color: _accent,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2.2,
+                    if (!_isPlp) ...[
+                      Text(
+                        'TAX & COMPLIANCE',
+                        style: TextStyle(
+                          color: _accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 10),
+                    ],
                     Text(
                       'Know what is ready.\nKnow what still needs proof.',
                       style: TextStyle(
@@ -198,7 +230,9 @@ class _TaxComplianceScreenState extends State<TaxComplianceScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Evidence, ledger treatment, reconciliation, rules, calculations, review and filing readiness stay tied to their source records.',
+                      _isPlp
+                          ? 'Current filing readiness, review gates, and unresolved exceptions.'
+                          : 'Evidence, ledger treatment, reconciliation, rules, calculations, review and filing readiness stay tied to their source records.',
                       style: TextStyle(
                         color: _muted,
                         fontSize: 14,
@@ -217,7 +251,7 @@ class _TaxComplianceScreenState extends State<TaxComplianceScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: _isPlp ? null : SafeArea(
         top: false,
         child: Container(
           decoration: BoxDecoration(
@@ -299,6 +333,8 @@ class _TaxComplianceScreenState extends State<TaxComplianceScreen> {
       );
 
   List<Widget> _content(Map<String, Object?> data) {
+    if (_isPlp) return _plpContent(data);
+
     final evidence = _map(data['evidence']);
     final ledger = _map(data['ledger']);
     final exceptions = _map(data['exceptions']);
@@ -369,6 +405,204 @@ class _TaxComplianceScreenState extends State<TaxComplianceScreen> {
       ),
     ];
   }
+
+  List<Widget> _plpContent(Map<String, Object?> data) {
+    final evidence = _map(data['evidence']);
+    final ledger = _map(data['ledger']);
+    final exceptions = _map(data['exceptions']);
+    final rules = _map(data['rules']);
+    final period = _map(data['latestPeriod']);
+    final reconciliation = _map(data['latestReconciliation']);
+    final calculation = _map(data['latestCalculation']);
+    final filingPackage = _map(data['latestFilingPackage']);
+    final capabilities = _map(data['capabilities']);
+
+    final calcEnabled = _bool(capabilities['deterministicCalculation']);
+    final filingEnabled = _bool(capabilities['filingSubmission']);
+    final paymentEnabled = _bool(capabilities['paymentExecution']);
+    final professionalRecorded = filingPackage['accountant_review_id'] != null;
+    final ownerRecorded = filingPackage['owner_approval_id'] != null;
+
+    late final String statusTitle;
+    late final String statusDetail;
+    if (filingPackage.isEmpty) {
+      statusTitle = 'Not ready to file.';
+      statusDetail = 'No filing package has been prepared.';
+    } else if (!professionalRecorded) {
+      statusTitle = 'Professional review required.';
+      statusDetail = 'The filing package exists, but professional review is not recorded.';
+    } else if (!ownerRecorded) {
+      statusTitle = 'Owner approval required.';
+      statusDetail = 'Professional review is recorded. Owner approval is still required.';
+    } else if (!filingEnabled) {
+      statusTitle = 'Submission is not enabled.';
+      statusDetail = 'Review and approval are recorded, but the verified filing adapter is disabled.';
+    } else {
+      statusTitle = 'Submission controls are ready.';
+      statusDetail = 'Professional review and owner approval are recorded.';
+    }
+
+    final exceptionDetail =
+        '${_int(exceptions['high'])} high · ${_int(exceptions['critical'])} critical';
+
+    return [
+      _plpStatusBlock(statusTitle, statusDetail),
+      const SizedBox(height: 28),
+      _plpMetricStrip(
+        [
+          ('Evidence', _int(evidence['verified']).toString(), '${_int(evidence['needsReview'])} need review'),
+          ('Ledger', _int(ledger['verified']).toString(), '${_int(ledger['needsReview'])} need treatment'),
+          ('Exceptions', _int(exceptions['open']).toString(), exceptionDetail),
+        ],
+      ),
+      const SizedBox(height: 30),
+      _plpSection(
+        'CURRENT PERIOD',
+        period.isEmpty ? 'No tax period has been prepared yet.' : _periodLabel(period),
+        [
+          _row('Status', _text(period['status'])),
+          _row('Jurisdiction', _text(period['jurisdiction_code'])),
+          _row('Source sync', _text(period['source_sync_state'])),
+        ],
+      ),
+      _plpSection(
+        'FILING READINESS',
+        filingPackage.isEmpty
+            ? 'No filing package prepared yet.'
+            : 'Package ${_text(filingPackage['package_version'])} · ${_text(filingPackage['status'])}',
+        [
+          _row('Professional review', professionalRecorded ? 'Recorded' : 'Required'),
+          _row('Owner approval', ownerRecorded ? 'Recorded' : 'Required'),
+          _row('Submission', filingEnabled ? 'Verified adapter enabled' : 'Disabled'),
+          _row('Tax payment', paymentEnabled ? 'Verified execution enabled' : 'Disabled'),
+        ],
+      ),
+      _plpSection(
+        'EVIDENCE & RECONCILIATION',
+        reconciliation.isEmpty
+            ? 'No completed reconciliation yet.'
+            : 'Latest reconciliation is ${_text(reconciliation['status'])}.',
+        [
+          _row('Matched', _text(reconciliation['matched_count'], fallback: '0')),
+          _row('Exceptions', _text(reconciliation['exception_count'], fallback: '0')),
+          _row('Calculation', calculation.isEmpty ? 'Not run' : _text(calculation['status'])),
+        ],
+      ),
+      _plpSection(
+        'RULE AUTHORITY',
+        calcEnabled
+            ? 'Approved deterministic rule authority is active.'
+            : 'The Philippines rule pack is still under professional review.',
+        [
+          _row('Jurisdiction', _text(rules['jurisdictionStatus'])),
+          _row('Approved rule authority', rules['approvedPackId'] == null ? 'Not active' : 'Active'),
+          _row('Pack under review', rules['inReviewPackId'] == null ? 'None' : 'Present'),
+        ],
+      ),
+    ];
+  }
+
+  Widget _plpStatusBlock(String title, String detail) => Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: _line),
+            bottom: BorderSide(color: _line),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 23),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'CURRENT STATUS',
+              style: TextStyle(
+                color: _accent,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 11),
+            Text(
+              title,
+              key: const ValueKey<String>('plp-tax-owner-status'),
+              style: TextStyle(
+                color: _ink,
+                fontFamily: 'serif',
+                fontSize: 31,
+                height: 1.02,
+                fontWeight: FontWeight.w400,
+                letterSpacing: -.6,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(detail, style: TextStyle(color: _muted, fontSize: 12.5, height: 1.45)),
+          ],
+        ),
+      );
+
+  Widget _plpMetricStrip(List<(String, String, String)> items) => IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var index = 0; index < items.length; index++) ...[
+              if (index > 0) VerticalDivider(width: 22, thickness: 1, color: _line),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(items[index].$1, style: TextStyle(color: _muted, fontSize: 10.5, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        items[index].$2,
+                        style: TextStyle(
+                          color: _ink,
+                          fontFamily: 'serif',
+                          fontSize: 30,
+                          height: 1,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(items[index].$3, style: TextStyle(color: _muted, fontSize: 10.5, height: 1.3)),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+
+  Widget _plpSection(String label, String intro, List<Widget> rows) => Container(
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: _line))),
+        padding: const EdgeInsets.symmetric(vertical: 23),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(color: _accent, fontSize: 9.5, fontWeight: FontWeight.w700, letterSpacing: 1.8),
+            ),
+            const SizedBox(height: 9),
+            Text(
+              intro,
+              style: TextStyle(
+                color: _ink,
+                fontFamily: 'serif',
+                fontSize: 20,
+                height: 1.2,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 5),
+            for (final row in rows) row,
+          ],
+        ),
+      );
 
   Widget _metric(String label, String value, String detail) => SizedBox(
         width: 162,

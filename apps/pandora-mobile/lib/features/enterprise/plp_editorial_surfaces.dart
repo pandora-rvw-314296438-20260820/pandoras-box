@@ -52,6 +52,28 @@ String _plpPeso(Object? value) {
   return (amount < 0 ? '-\u20B1' : '\u20B1') + out.toString();
 }
 
+int _plpInfrastructureEvidenceCount(Map<String, Object?> bootstrap) {
+  final infrastructure = _plpMap(bootstrap['enterpriseConnectivity']);
+  final services = _plpMap(infrastructure['services']);
+  var verified = 0;
+  for (final value in services.values) {
+    final service = _plpMap(value);
+    final evidence = _plpText(service['evidenceRef'], fallback: '');
+    if (service['providerVerified'] == true && evidence.isNotEmpty) {
+      verified += 1;
+    }
+  }
+  return verified;
+}
+
+String _plpInfrastructureSummary(Map<String, Object?> bootstrap) {
+  final verified = _plpInfrastructureEvidenceCount(bootstrap);
+  if (verified == 0) {
+    return 'Pandora has not verified the resort’s network resilience yet.';
+  }
+  return '$verified provider-backed infrastructure signal${verified == 1 ? '' : 's'} are current.';
+}
+
 class PlpEditorialHeader extends StatelessWidget {
   const PlpEditorialHeader({
     super.key,
@@ -140,9 +162,7 @@ class PlpEditorialPage extends StatelessWidget {
                 title: eyebrow,
                 onOpenNavigation: onOpenNavigation,
               ),
-              const SizedBox(height: 38),
-              PlpEyebrow(eyebrow),
-              const SizedBox(height: 13),
+              const SizedBox(height: 34),
               Text(
                 title,
                 style: const TextStyle(
@@ -168,22 +188,6 @@ class PlpEditorialPage extends StatelessWidget {
               ...children,
             ],
           ),
-        ),
-      );
-}
-
-class PlpEyebrow extends StatelessWidget {
-  const PlpEyebrow(this.text, {super.key});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          color: plpAccent,
-          fontSize: 9.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 2,
         ),
       );
 }
@@ -456,13 +460,17 @@ class PlpBlackPanel extends StatelessWidget {
                   const SizedBox(height: 18),
                   Row(
                     children: [
-                      Text(
-                        action!.toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.7,
+                      Flexible(
+                        child: Text(
+                          action!.toUpperCase(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.7,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 7),
@@ -486,17 +494,22 @@ class PlpOverviewScreen extends StatelessWidget {
     super.key,
     required this.bootstrap,
     required this.onOpenNavigation,
-    required this.onAskPandora,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback onOpenNavigation;
-  final VoidCallback onAskPandora;
 
   @override
   Widget build(BuildContext context) {
     final today = _plpMap(bootstrap['today']);
     final source = _plpMap(bootstrap['sourceHealth']);
+    final sourceState = _plpText(source['state'], fallback: 'unknown').toLowerCase();
+    final sourceLabel = switch (sourceState) {
+      'healthy' => 'Live data',
+      'cached_offline' => 'Offline snapshot',
+      'stale' => 'Data needs refresh',
+      _ => 'Data status',
+    };
     final occupancy = _plpText(today['occupancy_percent'], fallback: '0');
     final rooms = _plpInt(today['rooms_total']);
     final occupied = _plpInt(today['occupied_rooms']);
@@ -511,7 +524,7 @@ class PlpOverviewScreen extends StatelessWidget {
       eyebrow: 'Overview',
       title: 'The resort, in one quiet view.',
       intro:
-          'Today\'s operating picture without dashboard noise: occupancy, movement, revenue, exceptions, and the decisions that need the owner.',
+          'A stable operating picture of occupancy, revenue, room position, movement, and exceptions.',
       onOpenNavigation: onOpenNavigation,
       children: [
         const SizedBox(height: 24),
@@ -557,24 +570,13 @@ class PlpOverviewScreen extends StatelessWidget {
           tone: tasks == '0' ? plpGood : plpAccent,
         ),
         const SizedBox(height: 28),
-        PlpBlackPanel(
-          eyebrow: 'Pandora',
-          title: 'Turn the overview into action.',
-          body:
-              'Ask for the reason behind a number, resolve an exception, prepare a briefing, or coordinate the next move.',
-          action: 'Message Pandora',
-          onTap: onAskPandora,
-        ),
-        const SizedBox(height: 28),
         PlpEditorialRow(
-          title: _plpText(source['state'], fallback: 'Source status'),
+          title: sourceLabel,
           detail: _plpText(
             source['message'],
             fallback: 'No provider status message.',
           ),
-          tone: _plpText(source['state']).toLowerCase() == 'healthy'
-              ? plpGood
-              : plpWarn,
+          tone: sourceState == 'healthy' ? plpGood : plpWarn,
         ),
       ],
     );
@@ -586,14 +588,14 @@ class PlpOperationsScreen extends StatelessWidget {
     super.key,
     required this.bootstrap,
     required this.onOpenNavigation,
+    required this.onOpenInfrastructure,
     required this.onOpenRoom,
-    required this.onAskPandora,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback onOpenNavigation;
+  final VoidCallback onOpenInfrastructure;
   final VoidCallback onOpenRoom;
-  final VoidCallback onAskPandora;
 
   @override
   Widget build(BuildContext context) {
@@ -602,64 +604,83 @@ class PlpOperationsScreen extends StatelessWidget {
     final departures = _plpInt(today['departures_today']);
     final tasks = _plpInt(today['open_staff_tasks']);
     final conflicts = _plpInt(today['open_ota_conflicts']);
+    final quietMovement = arrivals == '0' && departures == '0';
 
     return PlpEditorialPage(
       pageKey: const ValueKey('plp-operations-editorial'),
       eyebrow: 'Operations',
       title: 'The resort in motion.',
-      intro:
-          'A calm operating layer for arrivals, departures, staff work, exceptions, and coordinated execution.',
+      intro: 'Guest movement, open work, and exceptions — ordered by what needs action now.',
       onOpenNavigation: onOpenNavigation,
       children: [
         const SizedBox(height: 24),
-        PlpMetricStrip(
-          items: [
-            ('Arrivals', arrivals, 'today'),
-            ('Departures', departures, 'today'),
-            ('Open work', tasks, 'staff tasks'),
-          ],
-        ),
+        if (quietMovement)
+          PlpEditorialRow(
+            title: 'No guest movement today.',
+            detail: tasks == '0'
+                ? 'No arrivals, departures, or open staff work are waiting.'
+                : '$tasks open staff task${tasks == '1' ? '' : 's'} remain.',
+            tone: tasks == '0' ? plpGood : plpAccent,
+          )
+        else
+          PlpMetricStrip(
+            items: [
+              ('Arrivals', arrivals, 'today'),
+              ('Departures', departures, 'today'),
+              ('Open work', tasks, 'staff tasks'),
+            ],
+          ),
         const PlpSectionTitle(
-          'Today\'s operating rhythm',
-          detail:
-              'Sequence the work around guest movement instead of a generic task board.',
+          'What needs action',
+          detail: 'Only active movement, work, and exceptions are expanded here.',
         ),
-        PlpEditorialRow(
-          title: 'Arrival readiness',
-          detail: arrivals == '0'
-              ? 'No arrivals are scheduled today.'
-              : '$arrivals arrival(s) should be checked against transport, room readiness, and special requests.',
-          tone: arrivals == '0' ? plpGood : plpAccent,
-        ),
-        PlpEditorialRow(
-          title: 'Departure readiness',
-          detail: departures == '0'
-              ? 'No departures are scheduled today.'
-              : '$departures departure(s) affect housekeeping, transport, and room turnover.',
-          tone: plpAccent,
-        ),
+        if (arrivals != '0')
+          PlpEditorialRow(
+            title: 'Arrival readiness',
+            detail: '$arrivals arrival${arrivals == '1' ? '' : 's'} should be checked against transport, room readiness, and special requests.',
+            tone: plpAccent,
+          ),
+        if (departures != '0')
+          PlpEditorialRow(
+            title: 'Departure readiness',
+            detail: '$departures departure${departures == '1' ? '' : 's'} affect housekeeping, transport, and room turnover.',
+            tone: plpAccent,
+          ),
+        if (tasks != '0')
+          PlpEditorialRow(
+            title: 'Open staff work',
+            detail: '$tasks staff task${tasks == '1' ? '' : 's'} remain open.',
+            value: tasks,
+            tone: plpAccent,
+          ),
         PlpEditorialRow(
           title: 'Channel exceptions',
           detail: conflicts == '0'
               ? 'No OTA conflicts are open.'
-              : '$conflicts conflict(s) need reconciliation.',
+              : '$conflicts conflict${conflicts == '1' ? '' : 's'} need reconciliation.',
           value: conflicts,
           tone: conflicts == '0' ? plpGood : plpWarn,
+        ),
+        const PlpSectionTitle(
+          'Continuity',
+          detail: 'Infrastructure stays quiet until it affects resort operations.',
+        ),
+        PlpEditorialRow(
+          key: const ValueKey('plp-operations-infrastructure'),
+          title: 'Resort infrastructure',
+          detail: _plpInfrastructureSummary(bootstrap),
+          tone: _plpInfrastructureEvidenceCount(bootstrap) == 0
+              ? plpAccent
+              : plpGood,
+          onTap: onOpenInfrastructure,
         ),
         const SizedBox(height: 28),
         PlpBlackPanel(
           eyebrow: 'Operations Room',
           title: 'Coordinate the difficult work.',
-          body:
-              'Open Pandora\'s governed Operations Room when the task needs specialists, execution evidence, or incident coordination.',
+          body: 'Open the governed Operations Room when work needs specialists, execution evidence, or incident coordination.',
           action: 'Open Operations Room',
           onTap: onOpenRoom,
-        ),
-        const SizedBox(height: 14),
-        PlpEditorialRow(
-          title: 'Ask Pandora',
-          detail: 'Brief, assign, verify, or resolve resort operations.',
-          onTap: onAskPandora,
         ),
       ],
     );
@@ -670,70 +691,59 @@ class PlpVisionScreen extends StatelessWidget {
   const PlpVisionScreen({
     super.key,
     required this.onOpenNavigation,
-    required this.onAskPandora,
+    this.onOpenInfrastructure,
   });
 
   final VoidCallback onOpenNavigation;
-  final VoidCallback onAskPandora;
+  final VoidCallback? onOpenInfrastructure;
 
   @override
   Widget build(BuildContext context) => PlpEditorialPage(
         pageKey: const ValueKey('plp-vision-editorial'),
         eyebrow: 'Vision',
         title: 'See the property with context.',
-        intro:
-            'Vision should feel like part of resort operations: live views, verified observations, incidents, and the next action - not a wall of surveillance cards.',
+        intro: 'A live property view with observation state kept separate from verified incidents.',
         onOpenNavigation: onOpenNavigation,
         children: [
-          const PlpSectionTitle(
-            'Live view',
-            detail:
-                'Current demo feed. Customer-owned PLP cameras can replace this source under the same governed surface.',
-          ),
+          const PlpSectionTitle('Live view', detail: 'Current authorized display source.'),
           Container(
             decoration: const BoxDecoration(
               border: Border.fromBorderSide(BorderSide(color: plpLine)),
               color: Colors.black,
             ),
-            child: const AspectRatio(
-              aspectRatio: 16 / 9,
-              child: _PlpVisionEmbed(),
-            ),
+            child: const AspectRatio(aspectRatio: 16 / 9, child: _PlpVisionEmbed()),
           ),
           const PlpSectionTitle(
             'Vision state',
-            detail: 'Keep machine observation separate from verified fact.',
+            detail: 'Observation is not treated as verified fact.',
           ),
           PlpEditorialRow(
             title: 'Display',
             detail: enterpriseVisionEmbedAvailable
-                ? 'Live source is visible in the owner workspace.'
-                : 'Live public camera preview is unavailable on this platform.',
+                ? 'The live source is visible in the owner workspace.'
+                : 'The live preview is unavailable on this platform.',
             value: enterpriseVisionEmbedAvailable ? 'Live' : 'Unavailable',
             tone: enterpriseVisionEmbedAvailable ? plpGood : plpAccent,
           ),
           const PlpEditorialRow(
             title: 'Automated analysis',
-            detail:
-                'Not active for this public demo source. PLP-owned feeds can be governed separately.',
+            detail: 'Automated analysis is not active for this source.',
             value: 'Off',
             tone: plpAccent,
           ),
           const PlpEditorialRow(
             title: 'Verified incident',
-            detail: 'No verified incident is attached to this display feed.',
+            detail: 'No verified incident is attached to this feed.',
             value: 'None',
             tone: plpGood,
           ),
-          const SizedBox(height: 28),
-          PlpBlackPanel(
-            eyebrow: 'Pandora Vision',
-            title: 'Ask about what matters.',
-            body:
-                'Search an authorized feed, review an incident, build a timeline, or prepare an owner summary once verified camera events exist.',
-            action: 'Ask Pandora',
-            onTap: onAskPandora,
-          ),
+          if (onOpenInfrastructure != null)
+            PlpEditorialRow(
+              title: 'Camera connectivity',
+              detail:
+                  'Inspect the network and device path behind the property view.',
+              onTap: onOpenInfrastructure,
+            ),
         ],
       );
 }
@@ -750,12 +760,10 @@ class PlpRevenueScreen extends StatelessWidget {
     super.key,
     required this.bootstrap,
     required this.onOpenNavigation,
-    required this.onAskPandora,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback onOpenNavigation;
-  final VoidCallback onAskPandora;
 
   @override
   Widget build(BuildContext context) {
@@ -771,7 +779,7 @@ class PlpRevenueScreen extends StatelessWidget {
       eyebrow: 'Revenue',
       title: sales,
       intro:
-          'Revenue should read like an owner\'s financial page: one clear number first, then the operating facts that explain it.',
+          'Today\'s revenue first, followed by the operating facts that explain it.',
       onOpenNavigation: onOpenNavigation,
       children: [
         const SizedBox(height: 24),
@@ -807,14 +815,6 @@ class PlpRevenueScreen extends StatelessWidget {
               : plpWarn,
         ),
         const SizedBox(height: 28),
-        PlpBlackPanel(
-          eyebrow: 'Revenue intelligence',
-          title: 'Interrogate the number.',
-          body:
-              'Ask Pandora for variance, booking-channel context, occupancy implications, or the next commercial action.',
-          action: 'Ask Pandora',
-          onTap: onAskPandora,
-        ),
       ],
     );
   }
@@ -826,13 +826,11 @@ class PlpNeedsYouScreen extends StatelessWidget {
     required this.bootstrap,
     required this.onOpenNavigation,
     required this.onOpenApprovals,
-    required this.onAskPandora,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback onOpenNavigation;
   final VoidCallback onOpenApprovals;
-  final VoidCallback onAskPandora;
 
   @override
   Widget build(BuildContext context) {
@@ -875,12 +873,7 @@ class PlpNeedsYouScreen extends StatelessWidget {
           action: 'Open approvals',
           onTap: onOpenApprovals,
         ),
-        const SizedBox(height: 14),
-        PlpEditorialRow(
-          title: 'Ask Pandora what needs attention',
-          detail: 'Have Pandora separate routine work from real owner decisions.',
-          onTap: onAskPandora,
-        ),
+
       ],
     );
   }

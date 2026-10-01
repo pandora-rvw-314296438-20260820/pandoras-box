@@ -227,17 +227,30 @@ class _Header extends StatelessWidget {
             const SizedBox.square(dimension: 44),
           const SizedBox(width: 12),
           const Expanded(
-            child: Text(
-              'PUEBLO\nLA PERLA\nBORACAY',
-              maxLines: 3,
-              overflow: TextOverflow.fade,
-              style: TextStyle(
-                color: Color(0xFF4C3020),
-                fontSize: 8.5,
-                height: 1.06,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PUEBLO LA PERLA',
+                  style: TextStyle(
+                    color: _PlpTeamAccessScreenState._ink,
+                    fontFamily: 'serif',
+                    fontSize: 16,
+                    letterSpacing: 2.6,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'TEAM & ACCESS',
+                  style: TextStyle(
+                    color: _PlpTeamAccessScreenState._gold,
+                    fontSize: 8.5,
+                    letterSpacing: 2.2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
           IconButton(
@@ -246,25 +259,23 @@ class _Header extends StatelessWidget {
             onPressed: onSearch,
             style: IconButton.styleFrom(
               foregroundColor: _PlpTeamAccessScreenState._ink,
-              backgroundColor: Colors.white.withValues(alpha: .74),
-              side: const BorderSide(color: Color(0xFFF0EBE3)),
+              backgroundColor: Colors.transparent,
             ),
-            icon: const Icon(Icons.search_rounded, size: 26),
+            icon: const Icon(Icons.search_rounded, size: 23),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 5),
           Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(
               color: _PlpTeamAccessScreenState._ink,
-              border: Border.all(color: _PlpTeamAccessScreenState._line),
             ),
             child: Center(
               child: Text(
                 _initials(currentUserName),
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 10.5,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: .5,
                 ),

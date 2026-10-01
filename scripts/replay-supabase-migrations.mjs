@@ -90,6 +90,77 @@ function portableSql(filename, source) {
       'into v_org_id, v_project_ref, v_expected_name, v_token',
     );
   }
+  if (
+    filename ===
+    '20260930204758_pandora_growth_fb060_lifecycle_acceptance_v1.sql'
+  ) {
+    const acceptanceBlocks = transformed.match(/do \$block\$[\s\S]*?\$block\$;/gi) || [];
+    assert.equal(
+      acceptanceBlocks.length,
+      1,
+      `${filename}: production-only lifecycle acceptance block substitution drift`,
+    );
+    transformed = transformed.replace(
+      acceptanceBlocks[0],
+      '-- PGLITE PROVIDER STUB: production-only synthetic lifecycle acceptance omitted during replay',
+    );
+  }
+  if (
+    filename ===
+    '20260930235134_pandora_meta_paid_pilot_business_attribution_v1.sql'
+  ) {
+    const newline = String.fromCharCode(10);
+    const dollar = String.fromCharCode(36);
+    const liveDataStart = transformed.indexOf(
+      'update public.pandora_tracking_campaigns',
+    );
+    const patchMarker = 'do ' + dollar + 'patch' + dollar;
+    const patchStart = transformed.indexOf(patchMarker, liveDataStart);
+    assert.ok(
+      liveDataStart >= 0 && patchStart > liveDataStart,
+      filename + ': production-only paid-pilot data block substitution drift',
+    );
+    transformed =
+      transformed.slice(0, liveDataStart) +
+      '-- PGLITE PROVIDER STUB: production-only paid-pilot live data omitted during replay' +
+      newline +
+      transformed.slice(patchStart);
+
+    const assertStartMarker = 'do ' + dollar + 'assert' + dollar;
+    const assertEndMarker = dollar + 'assert' + dollar + ';';
+    const assertStart = transformed.indexOf(assertStartMarker);
+    const assertEnd = transformed.indexOf(assertEndMarker, assertStart);
+    assert.ok(
+      assertStart >= 0 && assertEnd > assertStart,
+      filename + ': paid-pilot production assertion substitution drift',
+    );
+    transformed =
+      transformed.slice(0, assertStart) +
+      '-- PGLITE PROVIDER STUB: production-only paid-pilot row assertion omitted during replay' +
+      newline +
+      transformed.slice(assertEnd + assertEndMarker.length);
+  }
+  if (
+    filename ===
+    '20260930235454_pandora_growth_provider_creative_readiness_projection_v1.sql'
+  ) {
+    const newline = String.fromCharCode(10);
+    const dollar = String.fromCharCode(36);
+    const assertStartMarker = 'do ' + dollar + 'assert' + dollar;
+    const assertEndMarker = dollar + 'assert' + dollar + ';';
+    const assertStart = transformed.indexOf(assertStartMarker);
+    const assertEnd = transformed.indexOf(assertEndMarker, assertStart);
+    assert.ok(
+      assertStart >= 0 && assertEnd > assertStart,
+      filename + ': provider-readiness production assertion substitution drift',
+    );
+    transformed =
+      transformed.slice(0, assertStart) +
+      '-- PGLITE PROVIDER STUB: production-only provider-readiness row assertion omitted during replay' +
+      newline +
+      transformed.slice(assertEnd + assertEndMarker.length);
+  }
+
   // PGlite does not fully emulate PostgreSQL pg_get_functiondef() rewrites.
   // Normalize authority literals only inside replayed function definitions so
   // active behavior matches production while historical rows and source bytes

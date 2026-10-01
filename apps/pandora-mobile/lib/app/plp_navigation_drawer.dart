@@ -45,35 +45,29 @@ class PlpNavigationDrawer extends StatefulWidget {
 
 class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   static const _businessItems = <_PlpDrawerDestination>[
-    _PlpDrawerDestination('home', 'Home', Icons.home_outlined),
-    _PlpDrawerDestination('overview', 'Overview', Icons.dashboard_outlined),
-    _PlpDrawerDestination(
-      'tax-compliance',
-      'Tax & Compliance',
-      Icons.account_balance_outlined,
-    ),
+    _PlpDrawerDestination('home', 'Today', Icons.wb_sunny_outlined),
+    _PlpDrawerDestination('stays', 'Stays', Icons.event_available_outlined),
+    _PlpDrawerDestination('rooms', 'Rooms', Icons.bed_outlined),
+    _PlpDrawerDestination('guests', 'Guests', Icons.person_outline_rounded),
     _PlpDrawerDestination('operations', 'Operations', Icons.hub_outlined),
-    _PlpDrawerDestination('vision', 'Vision', Icons.visibility_outlined),
-    _PlpDrawerDestination('guests', 'Guest Experience', Icons.room_service_outlined),
-    _PlpDrawerDestination('team-access', 'Team & Access', Icons.group_outlined),
-    _PlpDrawerDestination('revenue', 'Revenue', Icons.payments_outlined),
-    _PlpDrawerDestination('needs-you', 'Needs You', Icons.priority_high_rounded),
+    _PlpDrawerDestination('revenue', 'Revenue', Icons.insights_outlined),
+    _PlpDrawerDestination('experiences', 'Experiences', Icons.spa_outlined),
+    _PlpDrawerDestination('team', 'Team', Icons.groups_outlined),
     _PlpDrawerDestination('activity', 'Activity', Icons.history_rounded),
-    _PlpDrawerDestination('settings', 'Settings', Icons.settings_outlined),
   ];
 
   static const _systemItems = <_PlpDrawerDestination>[
+    _PlpDrawerDestination('settings', 'Settings', Icons.settings_outlined),
+    _PlpDrawerDestination('connectivity', 'Infrastructure', Icons.router_outlined),
+    _PlpDrawerDestination('vision', 'Vision', Icons.visibility_outlined),
+    _PlpDrawerDestination('tax-compliance', 'Tax & Compliance', Icons.account_balance_outlined),
     _PlpDrawerDestination('local-ai', 'Local AI', Icons.memory_outlined),
-    _PlpDrawerDestination(
-      'developer',
-      'Developer diagnostics',
-      Icons.developer_mode_outlined,
-    ),
+    _PlpDrawerDestination('developer', 'Developer diagnostics', Icons.developer_mode_outlined),
   ];
 
   final TextEditingController _searchController = TextEditingController();
   bool _workspaceExpanded = true;
-  bool _recentExpanded = true;
+  bool _recentExpanded = false;
   bool _systemExpanded = false;
   bool _searchOpen = false;
   String _query = '';
@@ -117,7 +111,9 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   @override
   Widget build(BuildContext context) {
     final viewportWidth = MediaQuery.sizeOf(context).width;
-    final drawerWidth = math.min(360.0, viewportWidth * .76);
+    final drawerWidth = viewportWidth < 600
+        ? viewportWidth
+        : math.min(420.0, viewportWidth * .82);
     final visibleBusiness = _businessItems.where((item) => _matches(item.label)).toList();
     final visibleSystem = _systemItems.where((item) => _matches(item.label)).toList();
     final visibleChats = widget.recentChats.where((item) => _matches(item.title)).toList();
@@ -172,7 +168,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                 _expandableRow(semanticTitle: 'PLP Boracay', title: 'PLP Boracay', subtitle: 'Owner workspace',
                     expanded: _workspaceExpanded, leading: _plpLogo(), onTap: () => setState(() => _workspaceExpanded = !_workspaceExpanded)),
                 if (_workspaceExpanded)
-                  const Padding(padding: EdgeInsets.fromLTRB(12, 4, 8, 8), child: Text('PLP Boracay owner workspace',
+                  const Padding(padding: EdgeInsets.fromLTRB(12, 4, 8, 8), child: Text('Luxury resort command center',
                       style: TextStyle(color: Color(0xFFAAA39A), fontSize: 12))),
               ],
               if (_workspaceExpanded || searching)
