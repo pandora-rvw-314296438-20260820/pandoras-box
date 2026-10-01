@@ -552,6 +552,9 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               onMore: () => _select(3),
             ),
           10 => EnterpriseVisionScreen(onAskPandora: _openVisionChat),
+          11 => ProviderEcosystemScreen(
+              onOpenConnections: () => _select(5),
+            ),
           _ => AskPandoraScreen(key: _chatKey),
         },
       );
