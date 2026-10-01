@@ -12,6 +12,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
+  // Remove the historical SharedPreferences token if an older PLP build left
+  // one behind. The active session below is stored only in secure storage.
   await PandoraMobileAuthStorage.clearLegacyPersistedSession(
     PandoraConfig.supabaseUrl,
   );
@@ -19,11 +21,19 @@ Future<void> main() async {
   final localStore = await openPandoraLocalStore();
   await localStore.purgeExpired(DateTime.now().toUtc());
 
+  final secureAuthStorage = PandoraSecureSupabaseSessionStorage(
+    persistSessionKey: PandoraMobileAuthStorage.secureSessionKey(
+      PandoraConfig.supabaseUrl,
+    ),
+  );
+
   await Supabase.initialize(
     url: PandoraConfig.supabaseUrl,
     publishableKey: PandoraConfig.supabasePublishableKey,
-    authOptions: const FlutterAuthClientOptions(
-      localStorage: EmptyLocalStorage(),
+    authOptions: FlutterAuthClientOptions(
+      localStorage: secureAuthStorage,
+      autoRefreshToken: true,
+      persistSession: true,
     ),
   );
 

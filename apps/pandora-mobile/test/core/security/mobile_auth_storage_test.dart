@@ -1,15 +1,21 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/security/mobile_auth_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
+    FlutterSecureStorage.setMockInitialValues(<String, String>{});
   });
 
-  test('matches the pinned supabase_flutter v2 session key contract', () {
+  test('project-scoped session keys are deterministic and distinct', () {
+    expect(
+      PandoraMobileAuthStorage.secureSessionKey(
+        'https://jcyqixttuebxqqfkjonq.supabase.co',
+      ),
+      'pandora-jcyqixttuebxqqfkjonq-secure-auth-session-v1',
+    );
     expect(
       PandoraMobileAuthStorage.legacySessionKey(
         'https://jcyqixttuebxqqfkjonq.supabase.co',
@@ -18,29 +24,30 @@ void main() {
     );
   });
 
-  test('purges only the legacy persisted Supabase session', () async {
-    SharedPreferences.setMockInitialValues(<String, Object>{
-      'sb-jcyqixttuebxqqfkjonq-auth-token': 'legacy-session',
-      'pandora.project.cursor': 42,
-    });
-
-    await PandoraMobileAuthStorage.clearLegacyPersistedSession(
-      'https://jcyqixttuebxqqfkjonq.supabase.co',
+  test('secure Supabase session storage persists and removes the session', () async {
+    const key = 'pandora-test-secure-auth-session-v1';
+    final storage = PandoraSecureSupabaseSessionStorage(
+      persistSessionKey: key,
     );
 
-    final preferences = await SharedPreferences.getInstance();
-    expect(
-      preferences.containsKey('sb-jcyqixttuebxqqfkjonq-auth-token'),
-      isFalse,
-    );
-    expect(preferences.getInt('pandora.project.cursor'), 42);
+    await storage.initialize();
+    expect(await storage.hasAccessToken(), isFalse);
+    expect(await storage.accessToken(), isNull);
+
+    const session = '{"access_token":"token","refresh_token":"refresh"}';
+    await storage.persistSession(session);
+
+    expect(await storage.hasAccessToken(), isTrue);
+    expect(await storage.accessToken(), session);
+
+    await storage.removePersistedSession();
+    expect(await storage.hasAccessToken(), isFalse);
+    expect(await storage.accessToken(), isNull);
   });
 
-  test('fails closed for non-HTTPS auth origins', () {
+  test('invalid Supabase URL fails closed', () {
     expect(
-      () => PandoraMobileAuthStorage.legacySessionKey(
-        'http://jcyqixttuebxqqfkjonq.supabase.co',
-      ),
+      () => PandoraMobileAuthStorage.secureSessionKey('http://not-secure'),
       throwsStateError,
     );
   });
