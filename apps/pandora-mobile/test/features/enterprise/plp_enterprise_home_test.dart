@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/features/enterprise/plp_enterprise_home.dart';
+import 'package:pandora_mobile/features/enterprise/plp_resort_workspace.dart';
 
 void main() {
   Map<String, Object?> fixture({
@@ -110,7 +111,8 @@ void main() {
         find.byKey(const ValueKey('plp-enterprise-home')),
         findsOneWidget,
       );
-      expect(find.text('TODAY AT PUEBLO LA PERLA'), findsOneWidget);
+      expect(find.text('RESORT STATUS'), findsOneWidget);
+      expect(find.text('Today'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('plp-metric-rail')),
         findsOneWidget,
@@ -140,7 +142,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('The resort is composed.'), findsOneWidget);
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('The resort is composed.'), findsNothing);
     expect(
       find.text('No guest or channel exception needs owner attention.'),
       findsOneWidget,
@@ -148,4 +151,69 @@ void main() {
     expect(find.text('A few things need you.'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Team hides internal identities and exposes one management surface',
+      (tester) async {
+    final data = fixture();
+    data['teamAccess'] = <String, Object?>{
+      'members': <Object?>[
+        <String, Object?>{
+          'displayName': 'MCPMaster Staging Owner',
+          'roleLabel': 'Owner',
+          'accessRole': 'owner',
+          'active': true,
+        },
+        <String, Object?>{
+          'displayName': 'Doctora',
+          'roleLabel': 'Owner',
+          'accessRole': 'owner',
+          'active': true,
+        },
+      ],
+      'recentActivity': const <Object?>[],
+    };
+    await tester.pumpWidget(MaterialApp(home: PlpResortWorkspaceScreen(
+      section: plpResortSectionById('team')!, bootstrap: data,
+      onOpenNavigation: () {}, onRefresh: () {},
+    )));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('MCPMaster Staging Owner'), findsNothing);
+    expect(find.text('Doctora'), findsOneWidget);
+    expect(find.textContaining('Staff IDs'), findsNothing);
+    expect(find.text('Manage team & access'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Activity hides QA/staging copy and humanizes raw statuses',
+      (tester) async {
+    final data = fixture();
+    data['sourceHealth'] = <String, Object?>{
+      'state': 'stale',
+      'message': 'Demo/staging PLP data. Customer production tenant is not connected.',
+    };
+    data['teamAccess'] = <String, Object?>{
+      'members': const <Object?>[],
+      'recentActivity': <Object?>[
+        <String, Object?>{'title': 'QA transfer', 'actor': 'Alfred QA', 'status': 'in_progress', 'isMock': true},
+        <String, Object?>{
+          'title': 'Confirm guest transfer', 'actor': 'Front Desk',
+          'status': 'in_progress', 'category': 'arrival',
+          'updatedAt': '2026-10-01T06:30:00+08:00',
+        },
+      ],
+    };
+    await tester.pumpWidget(MaterialApp(home: PlpResortWorkspaceScreen(
+      section: plpResortSectionById('activity')!, bootstrap: data,
+      onOpenNavigation: () {}, onRefresh: () {},
+    )));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Demo/staging'), findsNothing);
+    expect(find.textContaining('Customer production tenant'), findsNothing);
+    expect(find.textContaining('Alfred QA'), findsNothing);
+    expect(find.textContaining('in_progress'), findsNothing);
+    expect(find.textContaining('In progress'), findsWidgets);
+    expect(find.text('Confirm guest transfer'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
 }
