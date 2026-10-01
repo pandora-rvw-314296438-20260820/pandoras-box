@@ -741,12 +741,8 @@ class PlpResortRecordScreen extends StatelessWidget {
                     fontFamily: 'serif', fontSize: 39, height: .98,
                     fontWeight: FontWeight.w400, letterSpacing: -1.1,
                   )),
-              const SizedBox(height: 28),
-              for (final field in _fields)
-                if (_hasValue(field.$2))
-                  _DetailRow(label: field.$1, value: _text(field.$2)),
               if (_actions.isNotEmpty) ...[
-                const SizedBox(height: 26),
+                const SizedBox(height: 22),
                 const _SectionLabel('ACTIONS'),
                 const SizedBox(height: 10),
                 Wrap(
@@ -792,6 +788,10 @@ class PlpResortRecordScreen extends StatelessWidget {
                   ],
                 ),
               ],
+              const SizedBox(height: 24),
+              for (final field in _fields)
+                if (_hasValue(field.$2))
+                  _DetailRow(label: field.$1, value: _text(field.$2)),
               if (record['isTestData'] == true || record['isMock'] == true) ...[
                 const SizedBox(height: 18),
                 const _TruthfulEmptyState(

@@ -179,13 +179,13 @@ class _PlpReservationCreateScreenState
             onChanged: (value) => setState(() => _roomId = value),
           ),
           _DateButton(
-            key: const ValueKey('plp-reservation-check-in'),
+            buttonKey: const ValueKey('plp-reservation-check-in'),
             label: 'Check-in',
             value: _checkIn,
             onTap: _pickCheckIn,
           ),
           _DateButton(
-            key: const ValueKey('plp-reservation-check-out'),
+            buttonKey: const ValueKey('plp-reservation-check-out'),
             label: 'Check-out',
             value: _checkOut,
             onTap: _pickCheckOut,
@@ -201,7 +201,7 @@ class _PlpReservationCreateScreenState
             maxLines: 3,
           ),
           _SubmitButton(
-            key: const ValueKey('plp-reservation-save'),
+            buttonKey: const ValueKey('plp-reservation-save'),
             label: 'Create reservation',
             busy: _saving,
             onPressed: _submit,
@@ -551,7 +551,7 @@ class _PlpResortMutationScreenState extends State<PlpResortMutationScreen> {
       children: [
         ...fields,
         _SubmitButton(
-          key: ValueKey<String>('plp-mutation-submit-${widget.actionId}'),
+          buttonKey: ValueKey<String>('plp-mutation-submit-${widget.actionId}'),
           label: config.button,
           busy: _saving,
           destructive: config.destructive,
@@ -769,19 +769,20 @@ class _Field extends StatelessWidget {
 
 class _DateButton extends StatelessWidget {
   const _DateButton({
-    super.key,
+    this.buttonKey,
     required this.label,
     required this.value,
     required this.onTap,
   });
 
+  final Key? buttonKey;
   final String label;
   final DateTime? value;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => OutlinedButton(
-        key: key,
+        key: buttonKey,
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
           foregroundColor: _ink,
@@ -799,13 +800,14 @@ class _DateButton extends StatelessWidget {
 
 class _SubmitButton extends StatelessWidget {
   const _SubmitButton({
-    super.key,
+    this.buttonKey,
     required this.label,
     required this.busy,
     required this.onPressed,
     this.destructive = false,
   });
 
+  final Key? buttonKey;
   final String label;
   final bool busy;
   final VoidCallback onPressed;
@@ -815,7 +817,7 @@ class _SubmitButton extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
         width: double.infinity,
         child: FilledButton(
-          key: key,
+          key: buttonKey,
           onPressed: busy ? null : onPressed,
           style: FilledButton.styleFrom(
             backgroundColor: destructive ? const Color(0xFF7C3028) : _ink,
