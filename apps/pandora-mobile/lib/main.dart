@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/pandora_app.dart';
@@ -9,8 +13,46 @@ import 'core/security/mobile_auth_storage.dart';
 import 'core/security/pandora_session_storage.dart';
 import 'pandora_config.dart';
 
+bool _isPandoraClickId(String? value) {
+  if (value == null || value.length != 36 || !value.startsWith('pdc_')) {
+    return false;
+  }
+  for (final unit in value.substring(4).codeUnits) {
+    final decimal = unit >= 48 && unit <= 57;
+    final lowerHex = unit >= 97 && unit <= 102;
+    if (!decimal && !lowerHex) return false;
+  }
+  return true;
+}
+
+Future<void> _captureLandingAttribution() async {
+  final clickId = Uri.base.queryParameters['pcid'];
+  if (!_isPandoraClickId(clickId)) return;
+
+  try {
+    await http
+        .post(
+          Uri.base.resolve('/api/tracking/event'),
+          headers: const {'content-type': 'application/json'},
+          body: jsonEncode({
+            'click_id': clickId,
+            'event_name': 'landing.viewed',
+            'event_type': 'event',
+            'schema_version': 1,
+            'consent': const {'analytics': false, 'marketing': false},
+            'metadata': const <String, Object?>{},
+          }),
+        )
+        .timeout(const Duration(seconds: 4));
+  } catch (_) {
+    // Attribution must never block app startup. The redirect click remains
+    // durable even when the optional landing event cannot be delivered.
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  unawaited(_captureLandingAttribution());
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   // Android sessions remain memory-only; web OAuth survives same-tab redirects.

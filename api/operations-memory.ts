@@ -3,8 +3,17 @@ import {loadOperatorPublicConfig} from '../src/operator-public-config.js';
 import {SupabaseBearerAuthenticator} from '../apps/meta-business-mcp/src/auth/supabase-bearer.js';
 import {SupabaseOrganizationMembershipResolver} from '../apps/meta-business-mcp/src/auth/membership.js';
 import {resolveVercelWorkloadToken} from '../src/runtime/vercel-workload-identity.js';
-import {createWorkloadOperationsMemory} from '../packages/pandora-operations-memory/workload-rpc.mjs';
-import {createOwnerMemoryRead,OPERATIONS_MEMORY_MAPPING} from '../packages/pandora-operations-memory/owner-read.mjs';
+let ownerMemoryModulesPromise:any;
+function loadOwnerMemoryModules(){
+  return ownerMemoryModulesPromise ??= Promise.all([
+    import('../packages/pandora-operations-memory/workload-rpc.mjs'),
+    import('../packages/pandora-operations-memory/owner-read.mjs'),
+  ]).then(([workload,owner])=>({
+    createWorkloadOperationsMemory:workload.createWorkloadOperationsMemory,
+    createOwnerMemoryRead:owner.createOwnerMemoryRead,
+    OPERATIONS_MEMORY_MAPPING:owner.OPERATIONS_MEMORY_MAPPING,
+  }));
+}
 
 const growthMemory = require('../src/pandora-growth-memory-http.js') as {
   createPandoraGrowthMemoryRouter: () => any;
@@ -35,6 +44,11 @@ app.use((req:any,res:any,next:any)=>{
 app.use(express.json({limit:'8kb',strict:true}));
 app.use(async(req:any,res:any)=>{
   try{
+    const {
+      createWorkloadOperationsMemory,
+      createOwnerMemoryRead,
+      OPERATIONS_MEMORY_MAPPING,
+    }=await loadOwnerMemoryModules();
     const settings=loadOperatorPublicConfig(process.env);
     if(settings.organizationId!==OPERATIONS_MEMORY_MAPPING.organizationId||settings.supabaseUrl!=='https://jcyqixttuebxqqfkjonq.supabase.co')throw new Error('OPS_MEMORY_OWNER_CONFIGURATION_REQUIRED');
     const options={supabaseUrl:settings.supabaseUrl,publishableKey:settings.supabasePublishableKey,timeoutMs:6000};

@@ -33,6 +33,14 @@ test("consumer Gemini shares the canonical MCP function instead of consuming ano
   assert.match(vercel, /consumer=gemini&metadata=gemini-consumer-mcp/);
 });
 
+test("operations Memory avoids CommonJS require of ESM runtime modules", () => {
+  assert.doesNotMatch(route, /import \{createWorkloadOperationsMemory\} from '..\/packages\/pandora-operations-memory\/workload-rpc\.mjs'/);
+  assert.doesNotMatch(route, /import \{createOwnerMemoryRead,OPERATIONS_MEMORY_MAPPING\} from '..\/packages\/pandora-operations-memory\/owner-read\.mjs'/);
+  assert.match(route, /import\('\.\.\/packages\/pandora-operations-memory\/workload-rpc\.mjs'\)/);
+  assert.match(route, /import\('\.\.\/packages\/pandora-operations-memory\/owner-read\.mjs'\)/);
+  assert.match(route, /await loadOwnerMemoryModules\(\)/);
+});
+
 test("the shared growth route keeps workload identity server-side", () => {
   assert.doesNotMatch(vercel, /x-pandora-vercel-oidc|VERCEL_OIDC|workloadToken/);
   assert.match(router, /resolveVercelWorkloadToken/);

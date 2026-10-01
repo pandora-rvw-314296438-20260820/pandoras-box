@@ -389,17 +389,21 @@ function createPandoraTrackingRouter(options = {}) {
       const eventType = stringValue(req.body?.event_type, 32) || "event";
       const schemaVersion = parseSchemaVersion(req.body?.schema_version);
       const consent = parseConsentFlags(req.body?.consent);
-      const isTest = parseTestMarker(req.body?.is_test);
+      const requestedIsTest = parseTestMarker(req.body?.is_test);
       if (!clickId || !CLICK_ID_RE.test(clickId)) throw new TrackingError(400, "click_id_invalid");
       if (!eventName || !EVENT_NAME_RE.test(eventName)) throw new TrackingError(400, "event_name_invalid");
       if (eventType !== "event") throw new TrackingError(403, "conversion_auth_required");
 
       const click = firstRow(await storage().request("pandora_tracking_clicks?" + queryString({
-        select: "tenant_id,campaign_id",
+        select: "tenant_id,campaign_id,is_test",
         click_id: "eq." + clickId,
         limit: 1,
       })));
       if (!click) throw new TrackingError(404, "click_not_found");
+      const clickIsTest = click.is_test === true;
+      if (req.body?.is_test !== undefined && requestedIsTest !== clickIsTest) {
+        throw new TrackingError(409, "test_marker_mismatch");
+      }
 
       await storage().request("pandora_tracking_events", {
         method: "POST",
@@ -412,7 +416,7 @@ function createPandoraTrackingRouter(options = {}) {
           source: "browser",
           schema_version: schemaVersion,
           consent,
-          is_test: isTest,
+          is_test: clickIsTest,
           metadata,
         },
         prefer: "return=minimal",
