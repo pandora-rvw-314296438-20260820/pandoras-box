@@ -52,3 +52,27 @@ test("PLP resort projection is bounded to existing truth and excludes direct con
   assert.doesNotMatch(migration, /g\.email|g\.phone/);
   assert.match(migration, /revoke execute on function public\.plp_resort_command_center_v1\(\)\s+from public, anon/);
 });
+
+
+test("PLP operational UX keeps normal work out of chat and removes client-facing implementation leakage", () => {
+  assert.doesNotMatch(resort, /The resort needs a little attention\./);
+  assert.doesNotMatch(resort, /The resort is composed\./);
+  assert.doesNotMatch(resort, /Every stay in one calm view\./);
+  assert.doesNotMatch(resort, /Hospitality beyond the room\./);
+  assert.doesNotMatch(resort, /The people running the property\./);
+  assert.doesNotMatch(resort, /What changed, without the noise\./);
+  assert.doesNotMatch(resort, /Staff IDs/);
+  assert.match(resort, /showModalBottomSheet<void>/);
+  assert.match(resort, /_humanStatus/);
+  assert.match(resort, /_clientRecords/);
+  assert.match(resort, /Sales today/);
+  assert.doesNotMatch(resort, /source\['message'\]/);
+  assert.doesNotMatch(resort, /onTap:\s*\(\)\s*=>\s*onAskPandora/);
+});
+
+test("PLP Team is one resort workspace and legacy Team & Access screen is not routed", () => {
+  assert.match(shell, /plpResortSectionById\('team'\)!/);
+  assert.match(shell, /_openTeamManagement\(bootstrap\)/);
+  assert.doesNotMatch(shell, /PlpTeamAccessScreen/);
+  assert.doesNotMatch(shell, /plp_team_access_screen\.dart/);
+});
