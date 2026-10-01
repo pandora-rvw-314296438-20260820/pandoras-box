@@ -176,18 +176,21 @@ class _PlpResortOperationalScreenState
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: paper,
       showDragHandle: false,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            20, 20, 20, 20 + MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        builder: (context, setSheetState) => SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              20, 20, 20, 20 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Text(
                 'New ' + _spec.singularLabel,
                 style: const TextStyle(
@@ -215,21 +218,25 @@ class _PlpResortOperationalScreenState
                 maxLines: 3,
               ),
               const SizedBox(height: 12),
-              Row(
+              const Text(
+                'Priority',
+                style: TextStyle(
+                  color: muted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
                 children: [
-                  const Text('Priority',
-                      style: TextStyle(
-                        color: muted, fontSize: 11, fontWeight: FontWeight.w700,
-                      )),
-                  const Spacer(),
-                  for (final value in const ['normal', 'medium', 'high']) ...[
+                  for (final value in const ['normal', 'medium', 'high'])
                     _PriorityButton(
                       label: value,
                       selected: priority == value,
                       onTap: () => setSheetState(() => priority = value),
                     ),
-                    const SizedBox(width: 6),
-                  ],
                 ],
               ),
               const SizedBox(height: 20),
@@ -245,12 +252,13 @@ class _PlpResortOperationalScreenState
                   ),
                   onPressed: () {
                     if (title.text.trim().length < 3) return;
-                    Navigator.of(sheetContext).pop(true);
+                    Navigator.of(sheetContext, rootNavigator: true).pop(true);
                   },
                   child: const Text('Create task'),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
