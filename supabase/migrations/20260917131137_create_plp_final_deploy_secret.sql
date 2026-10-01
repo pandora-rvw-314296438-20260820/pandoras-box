@@ -1,0 +1,1 @@
+do $do$ begin if not exists (select 1 from vault.secrets where name='plp_final_deploy_run_secret_20260917') then perform vault.create_secret(replace(gen_random_uuid()::text,'-','')||replace(gen_random_uuid()::text,'-',''),'plp_final_deploy_run_secret_20260917','One-time exact-source PLP final preview deployment'); end if; end $do$;
