@@ -2056,6 +2056,7 @@ bool _isInternalRecord(Map<String, Object?> item) {
   return identities.any(
     (identity) => const {
       'mcpmaster',
+      'mcpmaster staging owner',
       'staging owner',
       'alfred qa',
       'fixture',
@@ -2099,6 +2100,7 @@ String _clientActor(Object? value) {
   if (const {
     'qa',
     'mcpmaster',
+    'mcpmaster staging owner',
     'staging',
     'staging owner',
     'alfred qa',
