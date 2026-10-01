@@ -77,7 +77,7 @@ declare
   rate_php numeric;
   total_php numeric;
   amount_php numeric;
-  normalized_email text;
+  guest_email_key text;
   requested_state text;
   requested_status text;
   requested_priority text;
@@ -182,13 +182,13 @@ begin
       raise exception 'room is not available for the selected dates' using errcode='23P01';
     end if;
 
-    normalized_email := lower(btrim(payload->>'guestEmail'));
+    guest_email_key := lower(btrim(payload->>'guestEmail'));
     insert into plp_runtime.plp_guests(
       full_name,email,normalized_email,phone,metadata,updated_at
     ) values (
       btrim(payload->>'guestFullName'),
       btrim(payload->>'guestEmail'),
-      normalized_email,
+      guest_email_key,
       nullif(btrim(coalesce(payload->>'guestPhone','')),''),
       jsonb_build_object('source','pandora_plp_mobile'),
       clock_timestamp()
@@ -392,8 +392,8 @@ begin
     if guest_id is null then raise exception 'guest not found' using errcode='P0002'; end if;
 
     if payload ? 'guestEmail' then
-      normalized_email:=lower(btrim(coalesce(payload->>'guestEmail','')));
-      if normalized_email='' then raise exception 'guestEmail cannot be empty' using errcode='22023'; end if;
+      guest_email_key:=lower(btrim(coalesce(payload->>'guestEmail','')));
+      if guest_email_key='' then raise exception 'guestEmail cannot be empty' using errcode='22023'; end if;
     end if;
 
     update plp_runtime.plp_guests g set
@@ -402,7 +402,7 @@ begin
       email=case when payload ? 'guestEmail'
         then btrim(payload->>'guestEmail') else g.email end,
       normalized_email=case when payload ? 'guestEmail'
-        then normalized_email else g.normalized_email end,
+        then guest_email_key else g.normalized_email end,
       phone=case when payload ? 'guestPhone'
         then nullif(btrim(coalesce(payload->>'guestPhone','')),'') else g.phone end,
       updated_at=clock_timestamp()
