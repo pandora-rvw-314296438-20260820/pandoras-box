@@ -759,7 +759,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 onTap: () => onOpenThread(thread),
               ),
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: PandoraV2Colors.line)),
-          for (final index in const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])
+          for (final index in const <int>[9, 10, 0, 8, 11, 1, 2, 4, 6, 7, 3])
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: ListTile(
