@@ -38,11 +38,6 @@ alter table plp_runtime.plp_bookings
   add column if not exists checked_out_at timestamptz,
   add column if not exists updated_by uuid references auth.users(id) on delete set null;
 
-update plp_runtime.plp_guests
-set normalized_email=lower(trim(email))
-where nullif(trim(email),'') is not null
-  and (normalized_email is null or normalized_email<>lower(trim(email)));
-
 create unique index if not exists plp_guests_normalized_email_uidx
   on plp_runtime.plp_guests ((lower(normalized_email)))
   where normalized_email is not null and trim(normalized_email)<>'';
@@ -239,14 +234,13 @@ begin
   for update;
 
   if guest.id is null then
-    insert into plp_runtime.plp_guests(full_name,email,normalized_email,phone,metadata)
-    values(trim(p_full_name),email_key,email_key,nullif(trim(coalesce(p_phone,'')),''),'{}'::jsonb)
+    insert into plp_runtime.plp_guests(full_name,email,phone,metadata)
+    values(trim(p_full_name),email_key,nullif(trim(coalesce(p_phone,'')),''),'{}'::jsonb)
     returning * into guest;
   else
     update plp_runtime.plp_guests
     set full_name=trim(p_full_name),
         email=email_key,
-        normalized_email=email_key,
         phone=coalesce(nullif(trim(coalesce(p_phone,'')),''),phone),
         updated_at=clock_timestamp()
     where id=guest.id
@@ -507,7 +501,7 @@ begin
   end if;
 
   update plp_runtime.plp_guests
-  set full_name=trim(p_full_name),email=email_key,normalized_email=email_key,
+  set full_name=trim(p_full_name),email=email_key,
       phone=nullif(trim(coalesce(p_phone,'')),''),
       updated_at=clock_timestamp()
   where id=p_guest_id
