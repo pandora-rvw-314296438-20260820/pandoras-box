@@ -65,7 +65,7 @@ test("owner API hosts the server-only self-service provider route", () => {
   assert.match(ownerApi, /hasOwnProperty\.call\(body, "credential"\)/);
   const providerAction = ownerApi.slice(
     ownerApi.indexOf("async function ownerProviderAction"),
-    ownerApi.indexOf("\\nasync function connectionAction"),
+    ownerApi.indexOf("\nasync function connectionAction"),
   );
   const connectGuard = providerAction.slice(
     providerAction.indexOf('if (action === "connect")'),
