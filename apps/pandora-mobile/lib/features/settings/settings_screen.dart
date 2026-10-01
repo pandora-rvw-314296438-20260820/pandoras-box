@@ -93,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             OwnerSignal(
               label: 'Installed build',
               value: widget.installedBuildLabel ??
-                  '${PandoraConfig.releaseLabel} · ${PandoraConfig.artifactClass} · Not a production release',
+                  '${PandoraConfig.releaseLabel} · ${PandoraConfig.artifactClass} · ${PandoraConfig.releaseStateLabel}',
               icon: Icons.science_outlined,
               tone: PandoraStatusTone.informative,
             ),

@@ -15,9 +15,12 @@ void main() {
     final packageVersion = versionMatch!.group(1)!;
 
     expect(PandoraConfig.appVersion, packageVersion);
+    expect(PandoraConfig.productionRelease, isFalse);
     expect(
       PandoraConfig.releaseLabel,
       '${packageVersion.split('+').first} Owner Test',
     );
+    expect(PandoraConfig.artifactClass, 'Owner Test — Android debug signed');
+    expect(PandoraConfig.releaseStateLabel, 'Not a production release');
   });
 }
