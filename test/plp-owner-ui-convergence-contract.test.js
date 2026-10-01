@@ -10,6 +10,9 @@ const shell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
 const migration = read("supabase/migrations/20261001044500_plp_resort_command_center_v1.sql");
 const operationsMigration = read("supabase/migrations/20261001070000_plp_resort_operations_v1.sql");
 const operational = read("apps/pandora-mobile/lib/features/enterprise/plp_resort_operational_screens.dart");
+const plpAuthGate = read("apps/pandora-mobile/lib/features/auth/plp_auth_gate.dart");
+const signIn = read("apps/pandora-mobile/lib/features/auth/sign_in_screen.dart");
+const failClosedTruth = read("supabase/migrations/20261001080000_plp_fail_closed_source_truth_v1.sql");
 
 test("PLP Home is one shared resort workspace, not a second editorial design", () => {
   assert.match(home, /PlpResortWorkspaceScreen/);
@@ -105,4 +108,19 @@ test("PLP Team is one resort workspace and legacy Team & Access is not routed", 
   assert.match(shell, /_openTeamManagement\(bootstrap\)/);
   assert.doesNotMatch(shell, /PlpTeamAccessScreen/);
   assert.doesNotMatch(shell, /plp_team_access_screen\.dart/);
+});
+
+test("PLP authentication is explicitly resort-branded", () => {
+  assert.match(plpAuthGate, /SignInPresentation\.plp/);
+  assert.match(signIn, /Pueblo La Perla/);
+  assert.match(signIn, /PLP BORACAY · LUXURY RESORT/);
+  assert.match(signIn, /allowFacebookSignIn: false/);
+});
+
+test("PLP live business truth fails closed while the source is unavailable", () => {
+  assert.match(failClosedTruth, /liveOperationalDataAvailable/);
+  assert.match(failClosedTruth, /liveBusinessSourceConnected/);
+  assert.match(failClosedTruth, /when not live_operational_data_available then 'unknown'/);
+  assert.match(failClosedTruth, /available'.*case when live_operational_data_available/s);
+  assert.match(failClosedTruth, /bookedValue30dPhp'.*case when live_operational_data_available/s);
 });
