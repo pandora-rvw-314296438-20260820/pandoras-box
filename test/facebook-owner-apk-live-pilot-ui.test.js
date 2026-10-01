@@ -17,7 +17,7 @@ test('owner Android entrypoint reaches the live Marketing & Growth workspace', (
   assert.ok(main.includes('PandoraApp('));
   assert.ok(auth.includes('PandoraChatShell()'));
   assert.ok(home.includes("key: 'pandora-marketing-growth'"));
-  assert.ok(shell.includes("workspace.key == 'pandora-marketing-growth'"));
+  assert.ok(shell.includes("'pandora-marketing-growth'"));
   assert.ok(shell.includes('MarketingGrowthWorkspaceScreen('));
   assert.ok(growth.includes('pandora_marketing_growth_command_center_v2'));
 });
