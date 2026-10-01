@@ -1,0 +1,255 @@
+import { validateProviderManifest } from "../pandora-provider-sdk/index.mjs";
+import { validateConnectionManifest } from "../pandora-connections-core/index.mjs";
+
+const RUNBOOK = "docs/connections/PHILIPPINE_GOVERNMENT_CONNECTIONS.md";
+
+const publicDefinitions = [
+  {
+    providerKey: "ph.psa.openstat",
+    displayName: "PSA OpenSTAT",
+    agency: "Philippine Statistics Authority",
+    authScheme: "public",
+    capabilityKey: "statistics.catalog.read",
+    apiType: "PXWeb REST API",
+    documentationUrl: "https://openstat.psa.gov.ph/API-Documentation",
+    probeUrl: "https://openstat.psa.gov.ph/PXWeb/api/v1/en",
+    providerIdentity: "PSA OpenSTAT PXWeb",
+    credentialMode: "none",
+  },
+  {
+    providerKey: "ph.psa.psgc",
+    displayName: "PSA PSGC",
+    agency: "Philippine Statistics Authority",
+    authScheme: "api_token",
+    capabilityKey: "geography.psgc.read",
+    apiType: "PSGC REST API",
+    documentationUrl: "https://psa.gov.ph/classifications-api/psgc",
+    probeUrl: "https://classification.psa.gov.ph/psgc/Q2_2024/regions",
+    providerIdentity: "PSA Philippine Standard Geographic Code",
+    credentialMode: "vault_query_token",
+  },
+  {
+    providerKey: "ph.phivolcs.hazard_gis",
+    displayName: "PHIVOLCS Hazard GIS",
+    agency: "DOST-PHIVOLCS",
+    authScheme: "public",
+    capabilityKey: "hazard.layer.read",
+    apiType: "ArcGIS REST",
+    documentationUrl: "https://gisweb.phivolcs.dost.gov.ph/arcgis/rest/services/PHIVOLCS/GroundShaking/MapServer/0",
+    probeUrl: "https://gisweb.phivolcs.dost.gov.ph/arcgis/rest/services/PHIVOLCS/GroundShaking/MapServer/0?f=pjson",
+    providerIdentity: "PHIVOLCS Ground Shaking (Deterministic)",
+    credentialMode: "none",
+  },
+  {
+    providerKey: "ph.namria.geoportal",
+    displayName: "NAMRIA Geoportal Philippines",
+    agency: "National Mapping and Resource Information Authority",
+    authScheme: "public",
+    capabilityKey: "geospatial.catalog.read",
+    apiType: "OGC WMS",
+    documentationUrl: "https://www.geoportal.gov.ph/gpresources/HowtoConsumePhilippineGeoportalLayersinQGIS.pdf",
+    probeUrl: "https://geoserver.geoportal.gov.ph/geoserver/ows?service=wms&version=1.1.1&request=GetCapabilities",
+    providerIdentity: "Philippine Geoportal WMS",
+    credentialMode: "none",
+  },
+];
+
+function buildManifest(definition) {
+  return validateProviderManifest({
+    providerKey: definition.providerKey,
+    manifestVersion: "1.0.0",
+    displayName: definition.displayName,
+    authScheme: definition.authScheme,
+    regions: ["PH"],
+    dataResidency: ["provider-managed:PH", "pandora-evidence:policy-controlled"],
+    dataHandling: {
+      classification: "public_government_data",
+      readOnly: true,
+      credentialsServerSideOnly: true,
+      rawResponseLogging: false,
+      bodyDigestOnly: true,
+    },
+    deprecationPolicy: {
+      strategy: "monitor_official_documentation_and_fail_closed",
+      compatibilityWindowDays: 0,
+    },
+    runbookRef: RUNBOOK,
+    escalationRef: "government-provider-request-activation",
+    capabilities: [{
+      capabilityKey: definition.capabilityKey,
+      capabilityVersion: "1.0.0",
+      operationMode: "read",
+      adapterVersion: "1.0.0",
+      evidenceModes: ["provider_readback", "http_status", "sha256_digest"],
+    }],
+    connectionPolicy: {
+      catalogAction: "Request activation",
+      connectedAuthority: "fresh_provider_readback",
+      falseConnectedForbidden: true,
+      credentialMode: definition.credentialMode,
+      leastPrivilege: "read_only",
+    },
+    tenantBinding: {
+      canonicalTenantColumn: "organization_id",
+      canonicalTenantRequestField: "tenantId",
+      requiredRequestFields: ["tenantId", "connectionId", "tenantKey"],
+      trustedRuntimeEvidencePath: "evidence.tenantBinding",
+      mismatchPolicy: "fail_closed",
+      crossTenantCredentialSharing: false,
+      credentialsMayReachDevices: false,
+    },
+    safeReadProbe: {
+      method: "GET",
+      url: definition.probeUrl,
+      documentationUrl: definition.documentationUrl,
+      providerIdentity: definition.providerIdentity,
+      credentialMode: definition.credentialMode,
+    },
+  });
+}
+
+function buildConnectionManifest(definition) {
+  const anonymous = definition.credentialMode === "none";
+  return validateConnectionManifest({
+    schemaVersion: "1.0.0",
+    providerKey: definition.providerKey,
+    manifestVersion: "1.0.0",
+    displayName: definition.displayName,
+    riskClass: anonymous ? "low" : "medium",
+    auth: {
+      // Core v1 has no anonymous auth type. A public safe-read adapter is a
+      // server-side service connection and still cannot become Connected
+      // without a real organization-scoped Live Connections record.
+      type: anonymous ? "service_credential" : "api_key",
+    },
+    scopes: {
+      strategy: "read_first",
+      read: [definition.capabilityKey],
+      write: [],
+    },
+    callback: {
+      webPath: `/connections/callback/${definition.providerKey.replaceAll(".", "-")}`,
+      mobile: {
+        secureBrowser: "custom_tab",
+        returnModes: ["app_link", "universal_link"],
+      },
+    },
+    accountIdentity: {
+      stableSubjectFields: ["providerIdentity"],
+      displayFields: ["providerIdentity"],
+      tenantSelector: true,
+    },
+    health: {
+      safeReadCapability: definition.capabilityKey,
+      maxAgeSeconds: 900,
+      identityReadback: true,
+      scopesReadback: true,
+    },
+    credential: {
+      storage: "server_vault_reference",
+      clientExposure: "forbidden",
+      rotateSupported: !anonymous,
+      revokeSupported: !anonymous,
+    },
+    dataResidency: {
+      enforcement: "tenant_policy",
+      allowedPolicies: ["provider_managed_ph", "pandora_policy_controlled"],
+    },
+    capabilities: [{
+      capabilityKey: definition.capabilityKey,
+      operationMode: "read",
+      requiredScopes: [definition.capabilityKey],
+      evidenceModes: ["provider_readback", "http_status", "sha256_digest"],
+    }],
+  });
+}
+
+export const governmentProviderManifests = Object.freeze(Object.fromEntries(
+  publicDefinitions.map((definition) => [definition.providerKey, buildManifest(definition)]),
+));
+
+export const governmentConnectionManifests = Object.freeze(Object.fromEntries(
+  publicDefinitions.map((definition) => [definition.providerKey, buildConnectionManifest(definition)]),
+));
+
+const requestActivationDefinitions = [
+  ["ph.data_gov", "Open Data Philippines", "Department of Information and Communications Technology", "Public dataset portal; no documented live CKAN/DKAN API verified", "https://data.gov.ph/index/home", "dataset_portal_no_verified_api"],
+  ["ph.dict.egov", "eGovPH / eGov API", "Department of Information and Communications Technology", "Reviewed organization account and scoped credentials required", "https://platforms.e.gov.ph/", "governed_api_gateway"],
+  ["ph.pagasa", "PAGASA Ten-Day Forecast", "DOST-PAGASA", "Documented API requires a token and PAGASA states access is currently limited to government agencies", "https://tenday.pagasa.dost.gov.ph/static/media/api-doc.c9cf6abbaa781437ed96.pdf", "restricted_rest_api"],
+  ["ph.bsp", "BSP Reference Rates", "Bangko Sentral ng Pilipinas", "Reference-rate publications found; no officially documented public API verified", "https://www.bsp.gov.ph/sitepages/statistics/exchangerate.aspx", "web_and_file_publication"],
+  ["ph.philgeps", "PhilGEPS", "Procurement Service - PhilGEPS", "Open-data downloads found; no officially documented public API verified", "https://open.philgeps.gov.ph/", "open_data_downloads_no_verified_api"],
+  ["ph.bir", "Bureau of Internal Revenue", "Bureau of Internal Revenue", "Accreditation or agency agreement required", "https://www.bir.gov.ph/"],
+  ["ph.sec", "Securities and Exchange Commission", "Securities and Exchange Commission", "Accreditation or agency agreement required", "https://www.sec.gov.ph/"],
+  ["ph.lto", "Land Transportation Office", "Land Transportation Office", "Accreditation or agency agreement required", "https://lto.gov.ph/"],
+  ["ph.sss", "Social Security System", "Social Security System", "Accreditation or agency agreement required", "https://www.sss.gov.ph/"],
+  ["ph.philhealth", "PhilHealth", "Philippine Health Insurance Corporation", "Accreditation or agency agreement required", "https://www.philhealth.gov.ph/"],
+  ["ph.pagibig", "Pag-IBIG Fund", "Home Development Mutual Fund", "Accreditation or agency agreement required", "https://www.pagibigfund.gov.ph/"],
+  ["ph.dfa", "Department of Foreign Affairs", "Department of Foreign Affairs", "Accreditation or agency agreement required", "https://dfa.gov.ph/"],
+  ["ph.nbi", "National Bureau of Investigation", "National Bureau of Investigation", "Accreditation or agency agreement required", "https://nbi.gov.ph/"],
+  ["ph.pnp", "Philippine National Police", "Philippine National Police", "Accreditation or agency agreement required", "https://pnp.gov.ph/"],
+];
+
+const publicCatalog = publicDefinitions.map((definition) => Object.freeze({
+  providerKey: definition.providerKey,
+  displayName: definition.displayName,
+  agency: definition.agency,
+  apiType: definition.apiType,
+  officialUrl: definition.documentationUrl,
+  adapterManifest: governmentProviderManifests[definition.providerKey],
+  connectionManifest: governmentConnectionManifests[definition.providerKey],
+  metadata: Object.freeze({
+    family: "government",
+    priority: "P1",
+    connectionMode: "request_activation",
+    catalogAction: "Request activation",
+    publicConnectAllowed: false,
+    liveConnectionStatus: "not_connected",
+    statusAuthority: "fresh_provider_readback_only",
+    credentialMode: definition.credentialMode,
+    tenantBindingRequired: true,
+    canonicalTenantColumn: "organization_id",
+    ui: Object.freeze({
+      surface: "generic_connections_center",
+      customProviderUi: false,
+      primaryAction: "request_activation",
+      primaryLabel: "Request activation",
+    }),
+  }),
+}));
+
+const requestCatalog = requestActivationDefinitions.map(([providerKey, displayName, agency, reason, officialUrl, apiType = "partner_or_unverified"]) => Object.freeze({
+  providerKey,
+  displayName,
+  agency,
+  apiType,
+  officialUrl,
+  adapterManifest: null,
+  connectionManifest: null,
+  metadata: Object.freeze({
+    family: "government",
+    priority: "P1",
+    connectionMode: "request_activation",
+    catalogAction: "Request activation",
+    publicConnectAllowed: false,
+    liveConnectionStatus: "not_connected",
+    activationReason: reason,
+    tenantBindingRequired: true,
+    canonicalTenantColumn: "organization_id",
+    ui: Object.freeze({
+      surface: "generic_connections_center",
+      customProviderUi: false,
+      primaryAction: "request_activation",
+      primaryLabel: "Request activation",
+    }),
+  }),
+}));
+
+export const governmentProviderCatalog = Object.freeze([...publicCatalog, ...requestCatalog]);
+
+export function getGovernmentProvider(providerKey) {
+  return governmentProviderCatalog.find((entry) => entry.providerKey === providerKey) ?? null;
+}
+
+export function listGovernmentProviders() {
+  return [...governmentProviderCatalog];
+}

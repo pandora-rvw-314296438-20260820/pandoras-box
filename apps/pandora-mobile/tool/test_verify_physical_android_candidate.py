@@ -55,6 +55,19 @@ class PhysicalAndroidCandidateVerifierTest(unittest.TestCase):
         with self.assertRaisesRegex(verifier.VerificationError,"exactly one APK signer"):
             verifier.require_expected_production_signer(multi_signing,actual)
 
+    def test_production_manifest_requires_exact_release_signer(self):
+        signer="ab"*32
+        manifest={"artifact_class":"production-candidate","production_signer_verified":"true","signer_sha256":signer}
+        verifier.require_production_manifest(manifest,signer)
+        manifest["production_signer_verified"]="false"
+        with self.assertRaisesRegex(verifier.VerificationError,"production signer verification"):
+            verifier.require_production_manifest(manifest,signer)
+
+    def test_production_manifest_rejects_validation_candidate(self):
+        signer="ab"*32
+        manifest={"artifact_class":"validation-candidate","production_signer_verified":"false","signer_sha256":signer}
+        with self.assertRaisesRegex(verifier.VerificationError,"production-candidate"):
+            verifier.require_production_manifest(manifest,signer)
     def test_installed_version_parser_requires_both_fields(self):
         version_name,version_code=verifier.parse_installed_version("  versionCode=8 minSdk=24 targetSdk=36\n  versionName=0.4.0-rc.3\n")
         self.assertEqual(version_name,"0.4.0-rc.3"); self.assertEqual(version_code,"8")
