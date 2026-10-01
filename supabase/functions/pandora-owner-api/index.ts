@@ -1342,6 +1342,14 @@ async function ownerProviderAction(context: UserContext, body: JsonRecord) {
       !["connect", "health", "test_inference"].includes(action)) {
     throw new Error("CONNECTION_INPUT_INVALID");
   }
+  if (
+    action !== "connect" &&
+    (Object.prototype.hasOwnProperty.call(body, "credential") ||
+      Object.prototype.hasOwnProperty.call(body, "secret") ||
+      Object.prototype.hasOwnProperty.call(body, "token"))
+  ) {
+    throw new Error("CONNECTION_SECRET_INPUT_NOT_ALLOWED");
+  }
   const admin = createOperationalAdminClient();
   const now = new Date().toISOString();
   if (action === "connect") {
@@ -1361,7 +1369,20 @@ async function ownerProviderAction(context: UserContext, body: JsonRecord) {
       p_verified_at: now, p_expires_at: null, p_provider_readback: verified.readback,
     });
     if (committed.error || committed.data?.ok !== true) throw new Error("CONNECTION_COMMIT_FAILED");
-    return { ...committed.data, tenantId: organizationId, credential: undefined };
+    return {
+      ok: true,
+      action: "connect",
+      connectionId: committed.data.connectionId,
+      provider,
+      accountLabel: committed.data.accountLabel,
+      tenantId: organizationId,
+      tenantKey: verified.tenantKey,
+      tenantLabel: verified.tenantLabel,
+      healthy: true,
+      verifiedAt: committed.data.verifiedAt,
+      credentialStored: true,
+      credentialReturned: false,
+    };
   }
 
   const connectionId = textValue(body.connectionId);
@@ -1381,6 +1402,7 @@ async function ownerProviderAction(context: UserContext, body: JsonRecord) {
     throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
   }
   const credential = textValue(runtime.data?.credential);
+  if (!credential) throw new Error("CONNECTION_RUNTIME_UNAVAILABLE");
   const metadata = asRecord(runtime.data?.metadata);
   try {
     const verified = await verifyOwnerProvider(provider, credential, {
@@ -1402,6 +1424,7 @@ async function ownerProviderAction(context: UserContext, body: JsonRecord) {
     return {
       ok: true, connectionId, provider, tenantId: organizationId, tenantKey,
       healthy: true, verifiedAt: health.data.verifiedAt,
+      credentialReturned: false,
       testInference: action === "test_inference" ? "passed" : undefined,
     };
   } catch (error) {
