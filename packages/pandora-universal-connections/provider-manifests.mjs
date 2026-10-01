@@ -7,6 +7,10 @@ function cap(capabilityKey, operationMode = "read", evidenceModes = ["provider_r
   return { capabilityKey, operationMode, evidenceModes };
 }
 
+function requiresPartnerActivation(definition) {
+  return definition.requestActivation === true || definition.riskClass === "regulated";
+}
+
 const definitions = [
   {
     providerKey: "twilio", displayName: "Twilio", family: "communications", priority: "P1",
@@ -221,7 +225,7 @@ function makeAdapterManifest(definition) {
       accountBinding: "required",
     },
     deprecationPolicy: { mode: "explicit_versioned_migration", silentCapabilityRemoval: false },
-    runbookRef: definition.requestActivation
+    runbookRef: requiresPartnerActivation(definition)
       ? `${DOC}#request-activation-providers`
       : `${DOC}#generic-self-service-manifests`,
     escalationRef: `${DOC}#activation-and-escalation`,
@@ -240,13 +244,14 @@ function makeAdapterManifest(definition) {
 
 function makeMetadata(definition) {
   const hasWrite = definition.capabilities.some((item) => item.operationMode === "write");
+  const requestActivation = requiresPartnerActivation(definition);
   return {
     family: definition.family,
     priority: definition.priority,
-    connectionMode: definition.requestActivation ? "request_activation" : "self_service",
+    connectionMode: requestActivation ? "request_activation" : "self_service",
     auth: {
-      type: definition.authType,
-      ...(["oauth2", "oidc"].includes(definition.authType) ? {
+      type: requestActivation ? "partner_activation" : definition.authType,
+      ...(!requestActivation && ["oauth2", "oidc"].includes(definition.authType) ? {
         pkce: { required: true, method: "S256" },
         state: { required: true, ttlSeconds: 300 },
         nonce: { required: true },
@@ -279,8 +284,8 @@ function makeMetadata(definition) {
     credential: {
       storage: "server_vault_reference",
       clientExposure: "forbidden",
-      rotateSupported: !definition.requestActivation,
-      revokeSupported: !definition.requestActivation,
+      rotateSupported: !requestActivation,
+      revokeSupported: !requestActivation,
     },
     dataResidency: {
       enforcement: "tenant_policy",
@@ -292,8 +297,9 @@ function makeMetadata(definition) {
     ui: {
       surface: "generic_connections_center",
       customProviderUi: false,
-      primaryAction: definition.requestActivation ? "request_activation" : "connect",
-      primaryLabel: definition.requestActivation ? "Request activation" : "Connect",
+      primaryAction: requestActivation ? "request_activation" : "connect",
+      primaryLabel: requestActivation ? "Request activation" : "Connect",
+      connectButtonVisible: !requestActivation,
     },
     writePolicy: {
       enabled: hasWrite,
@@ -317,7 +323,7 @@ function makeMetadata(definition) {
       readOnlyFirst: Boolean(definition.sandbox),
       operationClassificationRequired: Boolean(definition.sandbox),
     },
-    activation: definition.requestActivation ? {
+    activation: requestActivation ? {
       mode: "partner_case",
       publicConnectAllowed: false,
       authorityEvidenceRequired: true,

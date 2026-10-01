@@ -162,6 +162,7 @@ async function verifyModel(
     readback: {
       probe: "models.list",
       httpStatus: 200,
+      identityVerified: true,
       model: detail.model,
       modelCount: detail.modelCount,
       testInference: runTest ? "passed" : "not_run",
@@ -276,11 +277,15 @@ Deno.serve(async (req: Request) => {
       model: body.model || runtime.data.metadata?.model,
       runTestInference: action === "test_inference" ? true : body.runTestInference,
     });
-    const health = await admin.rpc("pandora_connection_health_commit_v1", {
+    const health = await admin.rpc("pandora_connection_health_commit_v2", {
       p_organization_id: organizationId,
       p_provider_key: provider,
       p_connection_id: connectionId,
       p_tenant_key: tenantKey,
+      p_provider_subject: verification.subject,
+      p_granted_scopes: verification.scopes,
+      p_granted_capabilities: verification.capabilities,
+      p_provider_readback: verification.readback,
       p_healthy: true,
       p_verified_at: new Date().toISOString(),
       p_failure_code: null,

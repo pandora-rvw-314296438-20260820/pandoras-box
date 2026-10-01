@@ -71,7 +71,7 @@ test("government providers are registered in the canonical universal catalog", (
   }
   assert.equal(getUniversalProviderCatalogEntry("government-regulated").metadata.connectionMode, "request_activation");
   assert.equal(getUniversalProviderCatalogEntry("ph.bir").metadata.connectionMode, "request_activation");
-  assert.equal(getUniversalProviderCatalogEntry("ph.psa.openstat").metadata.connectionMode, "public_safe_read");
+  assert.equal(getUniversalProviderCatalogEntry("ph.psa.openstat").metadata.connectionMode, "request_activation");
 });
 
 test("anonymous safe-read probes validate provider-specific response shapes", async () => {
@@ -183,13 +183,18 @@ test("adapter receipt cannot claim evidence without a passing provider readback"
 
 test("unverified, credentialed, and regulated agencies expose Request activation only", () => {
   const requestOnly = governmentProviderCatalog.filter((entry) => entry.metadata.connectionMode === "request_activation");
-  assert.equal(requestOnly.length, 14);
+  assert.equal(requestOnly.length, governmentProviderCatalog.length);
   for (const entry of requestOnly) {
     assert.equal(entry.metadata.catalogAction, "Request activation");
     assert.equal(entry.metadata.publicConnectAllowed, false);
     assert.equal(entry.metadata.liveConnectionStatus, "not_connected");
-    assert.equal(entry.adapterManifest, null);
+    assert.equal(entry.metadata.ui.primaryAction, "request_activation");
+    assert.equal(entry.metadata.ui.primaryLabel, "Request activation");
+    if (entry.adapterManifest) {
+      assert.equal(entry.adapterManifest.connectionPolicy.catalogAction, "Request activation");
+    }
   }
+  assert.equal(requestOnly.filter((entry) => entry.adapterManifest !== null).length, 4);
   for (const key of ["ph.bir", "ph.sec", "ph.lto", "ph.sss", "ph.philhealth", "ph.pagibig", "ph.dfa", "ph.nbi", "ph.pnp"]) {
     assert.ok(requestOnly.some((entry) => entry.providerKey === key), key);
   }
