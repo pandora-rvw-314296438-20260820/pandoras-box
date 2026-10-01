@@ -223,10 +223,21 @@ Future<void> _mountOwnerShell(WidgetTester tester) async {
 }
 
 Future<void> _openDrawer(WidgetTester tester) async {
-  await tester.tap(find.byKey(const ValueKey('plp-floating-navigation')));
+  final menu = find.byKey(const ValueKey('plp-floating-navigation'));
+  expect(menu, findsOneWidget);
+  await tester.tap(menu);
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 420));
-  expect(find.byKey(const ValueKey('plp-navigation-drawer')), findsOneWidget);
+  await tester.pump(const Duration(milliseconds: 300));
+
+  final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).last);
+  expect(
+    scaffold.isDrawerOpen,
+    isTrue,
+    reason: 'The fixed hamburger must open the actual PLP drawer.',
+  );
+  final drawer = find.byKey(const ValueKey('plp-navigation-drawer'));
+  expect(drawer, findsOneWidget);
+  expect(tester.getRect(drawer).left, greaterThanOrEqualTo(-1));
 }
 
 Future<void> _openSection(WidgetTester tester, String id) async {

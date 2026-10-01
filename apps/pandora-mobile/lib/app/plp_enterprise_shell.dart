@@ -366,12 +366,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   void _openDrawer() {
     _dismissWorkspaceKeyboard();
     _resetDrawerScroll();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _resetDrawerScroll();
-      _scaffoldKey.currentState?.openDrawer();
-    });
-    WidgetsBinding.instance.ensureVisualUpdate();
+    _scaffoldKey.currentState?.openDrawer();
   }
 
   Future<void> _submitCommand([String? preset]) async {
