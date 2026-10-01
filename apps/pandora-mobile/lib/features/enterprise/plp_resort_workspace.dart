@@ -1162,6 +1162,7 @@ class _AttentionList extends StatelessWidget {
 
 class _CompactRow extends StatelessWidget {
   const _CompactRow({
+    super.key,
     required this.title,
     required this.meta,
     this.tone = PlpResortWorkspaceScreen.accent,
@@ -1346,6 +1347,9 @@ class _StayList extends StatelessWidget {
         children: [
           for (final item in items.take(16))
             _CompactRow(
+              key: ValueKey<String>(
+                'plp-stay-' + _recordIdentity(item),
+              ),
               title: _text(item['fullName'], fallback: 'Guest stay'),
               meta: _text(item['accommodationName'], fallback: 'Room') +
                   ' · ' +
@@ -1382,6 +1386,9 @@ class _RoomGrid extends StatelessWidget {
                   child: Material(
                     color: PlpResortWorkspaceScreen.paper,
                     child: InkWell(
+                      key: ValueKey<String>(
+                        'plp-room-' + _recordIdentity(room),
+                      ),
                       onTap: () => onOpen(room),
                       child: Container(
                         height: 106,
@@ -1481,6 +1488,9 @@ class _RequestList extends StatelessWidget {
         children: [
           for (final item in items.take(12))
             _CompactRow(
+              key: ValueKey<String>(
+                'plp-request-' + _recordIdentity(item),
+              ),
               title: _text(item['fullName'], fallback: 'Guest request'),
               meta: _text(
                 item['request'],
@@ -1524,6 +1534,9 @@ class _CapabilityGrid extends StatelessWidget {
                   child: Material(
                     color: PlpResortWorkspaceScreen.paper,
                     child: InkWell(
+                      key: ValueKey<String>(
+                        'plp-capability-' + _capabilityKey(item.label),
+                      ),
                       onTap: item.onTap,
                       child: Container(
                         height: 88,
@@ -2068,6 +2081,150 @@ List<Map<String, Object?>> _clientRecords(
   List<Map<String, Object?>> items,
 ) =>
     items.where((item) => !_isInternalRecord(item)).toList(growable: false);
+
+String _recordIdentity(Map<String, Object?> record) {
+  for (final key in const [
+    'id',
+    'bookingReference',
+    'name',
+    'fullName',
+  ]) {
+    final value = record[key]?.toString().trim();
+    if (value != null && value.isNotEmpty) {
+      return _semanticKey(value);
+    }
+  }
+  return 'record';
+}
+
+String _capabilityKey(String label) => _semanticKey(label);
+
+String _semanticKey(String value) => value
+    .trim()
+    .toLowerCase()
+    .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+    .replaceAll(RegExp(r'^-+|-+
+  final raw = value?.toString().trim() ?? '';
+  if (raw.isEmpty) return '';
+  final normalized = raw
+      .toLowerCase()
+      .replaceAll('-', '_')
+      .replaceAll(RegExp(r'\s+'), '_');
+  const labels = <String, String>{
+    'in_progress': 'In progress',
+    'not_started': 'Not started',
+    'waiting_review': 'Waiting review',
+    'waiting_approval': 'Waiting approval',
+    'checked_in': 'Checked in',
+    'checked_out': 'Checked out',
+    'partially_paid': 'Partially paid',
+  };
+  final mapped = labels[normalized];
+  if (mapped != null) return mapped;
+  return normalized
+      .split('_')
+      .where((part) => part.isNotEmpty)
+      .map((part) => part[0].toUpperCase() + part.substring(1))
+      .join(' ');
+}
+
+String _clientActor(Object? value) {
+  final actor = _text(value, fallback: '');
+  final lower = actor.trim().toLowerCase();
+  if (const {
+    'qa',
+    'mcpmaster',
+    'mcpmaster staging owner',
+    'staging',
+    'staging owner',
+    'alfred qa',
+    'fixture',
+  }.contains(lower)) {
+    return 'Pandora';
+  }
+  return actor;
+}
+
+String _clientSourceMessage(String state) {
+  final normalized = state.toLowerCase();
+  if (const {'healthy', 'current', 'live', 'ready'}.contains(normalized)) {
+    return 'Resort data is current.';
+  }
+  if (normalized == 'cached_offline') {
+    return 'Showing the last verified resort snapshot while live data is unavailable.';
+  }
+  if (normalized == 'not_connected') {
+    return 'Live resort data is not connected yet.';
+  }
+  return 'Some resort data may be delayed. Verified records remain available where possible.';
+}
+
+String _friendlyTimestamp(Object? value) {
+  final raw = value?.toString().trim() ?? '';
+  if (raw.isEmpty) return '';
+  final parsed = DateTime.tryParse(raw)?.toLocal();
+  if (parsed == null) return raw;
+  const months = <String>[
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  final minute = parsed.minute.toString().padLeft(2, '0');
+  return '${months[parsed.month - 1]} ${parsed.day} · '
+      '${parsed.hour.toString().padLeft(2, '0')}:$minute';
+}
+
+int _experienceCount(
+  List<Map<String, Object?>> items,
+  List<String> keywords,
+) {
+  var count = 0;
+  for (final item in items) {
+    final request = _text(item['request'], fallback: '').toLowerCase();
+    if (keywords.any(request.contains)) count += 1;
+  }
+  return count;
+}
+
+Map<String, Object?> _map(Object? value) {
+  if (value is Map<String, Object?>) return value;
+  if (value is Map) {
+    return value.map(
+      (key, item) => MapEntry(key.toString(), item),
+    );
+  }
+  return const <String, Object?>{};
+}
+
+List<Map<String, Object?>> _maps(Object? value) {
+  if (value is! List) return const <Map<String, Object?>>[];
+  return value.map(_map).toList(growable: false);
+}
+
+String _text(Object? value, {String fallback = '—'}) {
+  final normalized = value?.toString().trim();
+  return normalized == null || normalized.isEmpty
+      ? fallback
+      : normalized;
+}
+
+num _number(Object? value, {num fallback = 0}) {
+  if (value is num) return value;
+  return num.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
+String _integer(num value) => value.round().toString();
+
+String _peso(Object? value) {
+  final amount = _number(value).round();
+  final raw = amount.abs().toString();
+  final buffer = StringBuffer();
+  for (var i = 0; i < raw.length; i++) {
+    if (i > 0 && (raw.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(raw[i]);
+  }
+  return (amount < 0 ? '-₱' : '₱') + buffer.toString();
+}
+), '');
 
 String _humanStatus(Object? value) {
   final raw = value?.toString().trim() ?? '';

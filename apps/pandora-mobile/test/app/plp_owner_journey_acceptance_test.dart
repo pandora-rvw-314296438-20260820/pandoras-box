@@ -300,7 +300,10 @@ void main() {
     await _mountOwnerShell(tester);
     await _openSection(tester, 'rooms');
 
-    await _tapVisibleText(tester, 'Housekeeping');
+    await tester.tap(
+      find.byKey(const ValueKey('plp-capability-housekeeping')),
+    );
+    await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('plp-module-housekeeping')),
       findsOneWidget,
@@ -312,7 +315,10 @@ void main() {
     expect(find.byKey(const ValueKey('plp-resort-rooms')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-resort-today')), findsNothing);
 
-    await _tapVisibleText(tester, 'Sunset Suite');
+    await tester.tap(
+      find.byKey(const ValueKey('plp-room-room-sunset')),
+    );
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('plp-record-room')), findsOneWidget);
 
     await tester.binding.handlePopRoute();
@@ -325,7 +331,10 @@ void main() {
     await _mountOwnerShell(tester);
     await _openSection(tester, 'stays');
 
-    await _tapVisibleText(tester, 'Maria Santos');
+    final stay = find.byKey(const ValueKey('plp-stay-stay-maria'));
+    await tester.ensureVisible(stay);
+    await tester.tap(stay);
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('plp-record-stay')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('plp-module-back')));
@@ -366,7 +375,12 @@ void main() {
     for (final section in matrix.entries) {
       for (final module in section.value.entries) {
         await _openSection(tester, section.key);
-        await _tapVisibleText(tester, module.key);
+        final capability = find.byKey(
+          ValueKey<String>('plp-capability-' + module.value),
+        );
+        await tester.ensureVisible(capability);
+        await tester.tap(capability);
+        await tester.pumpAndSettle();
         expect(
           find.byKey(ValueKey<String>('plp-module-' + module.value)),
           findsOneWidget,
