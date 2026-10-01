@@ -169,145 +169,33 @@ class _PlpResortOperationalScreenState
     final category = _spec.taskCategory;
     if (category == null || _creating) return;
 
-    final title = TextEditingController();
-    final note = TextEditingController();
-    final booking = TextEditingController(text: 'PLP');
-    var priority = 'normal';
-
-    final confirmed = await showModalBottomSheet<bool>(
+    final draft = await showModalBottomSheet<_TaskDraft>(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: paper,
       showDragHandle: false,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              20, 20, 20, 20 + MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              Text(
-                'New ' + _spec.singularLabel,
-                style: const TextStyle(
-                  color: ink, fontFamily: 'serif', fontSize: 28,
-                ),
-              ),
-              const SizedBox(height: 18),
-              _FormField(
-                key: const ValueKey('plp-module-task-title'),
-                controller: title,
-                label: 'Task',
-                hint: 'What needs to be done?',
-              ),
-              const SizedBox(height: 10),
-              _FormField(
-                controller: booking,
-                label: 'Room / booking reference',
-                hint: 'Optional context',
-              ),
-              const SizedBox(height: 10),
-              _FormField(
-                controller: note,
-                label: 'Note',
-                hint: 'Operational detail',
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Priority',
-                style: TextStyle(
-                  color: muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final value in const ['normal', 'medium', 'high'])
-                    _PriorityButton(
-                      label: value,
-                      selected: priority == value,
-                      onTap: () => setSheetState(() => priority = value),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  key: const ValueKey('plp-module-create-task'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: ink,
-                    foregroundColor: Colors.white,
-                    shape: const RoundedRectangleBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                  ),
-                  onPressed: () async {
-                    if (title.text.trim().length < 3) return;
-                    FocusScope.of(sheetContext).unfocus();
-                    await WidgetsBinding.instance.endOfFrame;
-                    if (!sheetContext.mounted) return;
-                    Navigator.of(sheetContext, rootNavigator: true).pop(true);
-                  },
-                  child: const Text('Create task'),
-                ),
-              ),
-              const SizedBox(height: 4),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  key: const ValueKey('plp-module-cancel-task'),
-                  onPressed: () async {
-                    FocusScope.of(sheetContext).unfocus();
-                    await WidgetsBinding.instance.endOfFrame;
-                    if (!sheetContext.mounted) return;
-                    Navigator.of(sheetContext, rootNavigator: true).pop(false);
-                  },
-                  child: const Text('Cancel'),
-                ),
-              ),
-              ],
-            ),
-          ),
-        ),
+      builder: (sheetContext) => _TaskFormSheet(
+        singularLabel: _spec.singularLabel,
+        defaultBookingReference: 'PLP',
+        defaultNote: 'Created from the PLP ' + _spec.label + ' workspace.',
       ),
     );
 
-    final titleValue = title.text.trim();
-    final bookingValue =
-        booking.text.trim().isEmpty ? 'PLP' : booking.text.trim();
-    final noteValue = note.text.trim().isEmpty
-        ? 'Created from the PLP ' + _spec.label + ' workspace.'
-        : note.text.trim();
-
-    // The sheet route and any focused EditableText must be fully detached
-    // before its local controllers are disposed.
-    await WidgetsBinding.instance.endOfFrame;
-    title.dispose();
-    note.dispose();
-    booking.dispose();
-
-    if (confirmed != true || !mounted) return;
+    if (draft == null || !mounted) return;
 
     setState(() => _creating = true);
     try {
       final result = await const PlpStaffTaskAction().execute(
-        requestId: 'plp-ui-' + widget.moduleId + '-' +
+        requestId: 'plp-ui-' +
+            widget.moduleId +
+            '-' +
             DateTime.now().microsecondsSinceEpoch.toString(),
         command: PlpStaffTaskCommand(
-          bookingReference: bookingValue,
-          title: titleValue,
-          note: noteValue,
+          bookingReference: draft.bookingReference,
+          title: draft.title,
+          note: draft.note,
           category: category,
-          priority: priority,
+          priority: draft.priority,
         ),
       );
       if (!mounted) return;
@@ -475,6 +363,175 @@ class _PlpResortOperationalScreenState
             ),
     ];
   }
+}
+
+class _TaskDraft {
+  const _TaskDraft({
+    required this.title,
+    required this.bookingReference,
+    required this.note,
+    required this.priority,
+  });
+
+  final String title;
+  final String bookingReference;
+  final String note;
+  final String priority;
+}
+
+class _TaskFormSheet extends StatefulWidget {
+  const _TaskFormSheet({
+    required this.singularLabel,
+    required this.defaultBookingReference,
+    required this.defaultNote,
+  });
+
+  final String singularLabel;
+  final String defaultBookingReference;
+  final String defaultNote;
+
+  @override
+  State<_TaskFormSheet> createState() => _TaskFormSheetState();
+}
+
+class _TaskFormSheetState extends State<_TaskFormSheet> {
+  late final TextEditingController _title;
+  late final TextEditingController _booking;
+  late final TextEditingController _note;
+  String _priority = 'normal';
+
+  @override
+  void initState() {
+    super.initState();
+    _title = TextEditingController();
+    _booking = TextEditingController(text: widget.defaultBookingReference);
+    _note = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _booking.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  void _cancel() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.of(context).pop();
+  }
+
+  void _submit() {
+    final title = _title.text.trim();
+    if (title.length < 3) return;
+    final booking = _booking.text.trim();
+    final note = _note.text.trim();
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.of(context).pop(
+      _TaskDraft(
+        title: title,
+        bookingReference:
+            booking.isEmpty ? widget.defaultBookingReference : booking,
+        note: note.isEmpty ? widget.defaultNote : note,
+        priority: _priority,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'New ' + widget.singularLabel,
+                style: const TextStyle(
+                  color: _PlpResortOperationalScreenState.ink,
+                  fontFamily: 'serif',
+                  fontSize: 28,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _FormField(
+                fieldKey: const ValueKey('plp-module-task-title'),
+                controller: _title,
+                label: 'Task',
+                hint: 'What needs to be done?',
+              ),
+              const SizedBox(height: 10),
+              _FormField(
+                controller: _booking,
+                label: 'Room / booking reference',
+                hint: 'Optional context',
+              ),
+              const SizedBox(height: 10),
+              _FormField(
+                controller: _note,
+                label: 'Note',
+                hint: 'Operational detail',
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Priority',
+                style: TextStyle(
+                  color: _PlpResortOperationalScreenState.muted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final value in const ['normal', 'medium', 'high'])
+                    _PriorityButton(
+                      label: value,
+                      selected: _priority == value,
+                      onTap: () => setState(() => _priority = value),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  key: const ValueKey('plp-module-create-task'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor:
+                        _PlpResortOperationalScreenState.ink,
+                    foregroundColor: Colors.white,
+                    shape: const RoundedRectangleBorder(),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                  onPressed: _submit,
+                  child: const Text('Create task'),
+                ),
+              ),
+              const SizedBox(height: 4),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  key: const ValueKey('plp-module-cancel-task'),
+                  onPressed: _cancel,
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 class PlpResortRecordScreen extends StatelessWidget {
@@ -1250,13 +1307,14 @@ class _DetailRow extends StatelessWidget {
 
 class _FormField extends StatelessWidget {
   const _FormField({
-    super.key,
+    this.fieldKey,
     required this.controller,
     required this.label,
     required this.hint,
     this.maxLines = 1,
   });
 
+  final Key? fieldKey;
   final TextEditingController controller;
   final String label;
   final String hint;
@@ -1264,7 +1322,7 @@ class _FormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextField(
-        key: key,
+        key: fieldKey,
         controller: controller,
         maxLines: maxLines,
         decoration: InputDecoration(
