@@ -61,7 +61,11 @@ test("owner API hosts the server-only self-service provider route", () => {
   assert.match(ownerApi, /textValue\(runtime\.data\?\.connectionId\) !== connectionId/);
   assert.match(ownerApi, /textValue\(runtime\.data\?\.tenantKey\) !== tenantKey/);
   assert.match(ownerApi, /context\.aal !== "aal2"/);
-  assert.match(ownerApi, /credential: undefined/);
+  assert.match(ownerApi, /CONNECTION_SECRET_INPUT_NOT_ALLOWED/);
+  assert.match(ownerApi, /hasOwnProperty\.call\(body, "credential"\)/);
+  assert.match(ownerApi, /credentialStored: true/);
+  assert.match(ownerApi, /credentialReturned: false/);
+  assert.match(ownerApi, /CONNECTION_RUNTIME_UNAVAILABLE/);
   assert.match(ownerApi, /identityVerified: true/);
 });
 
