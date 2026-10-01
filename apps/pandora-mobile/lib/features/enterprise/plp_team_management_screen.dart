@@ -233,9 +233,9 @@ class _PlpTeamManagementScreenState extends State<PlpTeamManagementScreen> {
   Widget build(BuildContext context) {
     final active = _members.where((member) => member.isActive).length;
     final invited = _members.where((member) => member.isInvited).length;
-    return Material(
-      color: _canvas,
-      child: SafeArea(
+    return Scaffold(
+      backgroundColor: _canvas,
+      body: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -619,7 +619,11 @@ class _InviteSheetState extends State<_InviteSheet> {
 
   void _submit() {
     final email = _email.text.trim();
-    if (!RegExp(r'^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$').hasMatch(email)) {
+    final at = email.indexOf('@');
+    final dot = email.lastIndexOf('.');
+    final validEmail =
+        at > 0 && dot > at + 1 && dot < email.length - 1 && !email.contains(' ');
+    if (!validEmail) {
       return;
     }
     Navigator.of(context).pop(

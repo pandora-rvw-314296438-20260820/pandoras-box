@@ -152,7 +152,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Team hides internal identities and exposes one management surface',
+  testWidgets(
+      'Team hides internal identities and exposes one management surface',
       (tester) async {
     final data = fixture();
     data['teamAccess'] = <String, Object?>{
@@ -172,9 +173,12 @@ void main() {
       ],
       'recentActivity': const <Object?>[],
     };
-    await tester.pumpWidget(MaterialApp(home: PlpResortWorkspaceScreen(
-      section: plpResortSectionById('team')!, bootstrap: data,
-      onOpenNavigation: () {}, onRefresh: () {},
+    await tester.pumpWidget(MaterialApp(
+        home: PlpResortWorkspaceScreen(
+      section: plpResortSectionById('team')!,
+      bootstrap: data,
+      onOpenNavigation: () {},
+      onRefresh: () {},
       onOpenTeam: () {},
     )));
     await tester.pumpAndSettle();
@@ -190,22 +194,33 @@ void main() {
     final data = fixture();
     data['sourceHealth'] = <String, Object?>{
       'state': 'stale',
-      'message': 'Demo/staging PLP data. Customer production tenant is not connected.',
+      'message':
+          'Demo/staging PLP data. Customer production tenant is not connected.',
     };
     data['teamAccess'] = <String, Object?>{
       'members': const <Object?>[],
       'recentActivity': <Object?>[
-        <String, Object?>{'title': 'QA transfer', 'actor': 'Alfred QA', 'status': 'in_progress', 'isMock': true},
         <String, Object?>{
-          'title': 'Confirm guest transfer', 'actor': 'Front Desk',
-          'status': 'in_progress', 'category': 'arrival',
+          'title': 'QA transfer',
+          'actor': 'Alfred QA',
+          'status': 'in_progress',
+          'isMock': true
+        },
+        <String, Object?>{
+          'title': 'Confirm guest transfer',
+          'actor': 'Front Desk',
+          'status': 'in_progress',
+          'category': 'arrival',
           'updatedAt': '2026-10-01T06:30:00+08:00',
         },
       ],
     };
-    await tester.pumpWidget(MaterialApp(home: PlpResortWorkspaceScreen(
-      section: plpResortSectionById('activity')!, bootstrap: data,
-      onOpenNavigation: () {}, onRefresh: () {},
+    await tester.pumpWidget(MaterialApp(
+        home: PlpResortWorkspaceScreen(
+      section: plpResortSectionById('activity')!,
+      bootstrap: data,
+      onOpenNavigation: () {},
+      onRefresh: () {},
     )));
     await tester.pumpAndSettle();
     expect(find.textContaining('Demo/staging'), findsNothing);
@@ -217,4 +232,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Home fails closed when the live resort source is not connected',
+      (tester) async {
+    final data = fixture();
+    data['sourceHealth'] = <String, Object?>{
+      'state': 'not_connected',
+      'customerTenantConnected': false,
+      'liveOperationalDataAvailable': false,
+    };
+    await tester.pumpWidget(mount(data));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-metric-rail')), findsNothing);
+    expect(find.text('ROOM PULSE'), findsNothing);
+    expect(find.textContaining('Live occupancy'), findsOneWidget);
+    expect(find.text('RESORT WORKSPACES'), findsOneWidget);
+    expect(find.text('₱0'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('source-dependent workspaces do not manufacture zero truth',
+      (tester) async {
+    final data = fixture();
+    data['sourceHealth'] = <String, Object?>{
+      'state': 'not_connected',
+      'customerTenantActive': true,
+      'customerTenantConnected': true,
+      'liveBusinessSourceConnected': false,
+      'liveOperationalDataAvailable': false,
+    };
+
+    for (final sectionId in <String>['stays', 'rooms', 'guests', 'revenue']) {
+      await tester.pumpWidget(MaterialApp(
+        home: PlpResortWorkspaceScreen(
+          section: plpResortSectionById(sectionId)!,
+          bootstrap: data,
+          onOpenNavigation: () {},
+          onRefresh: () {},
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('plp-metric-rail')), findsNothing);
+      expect(find.textContaining('verified resort source'), findsOneWidget);
+      expect(find.text('₱0'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+  });
 }

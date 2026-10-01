@@ -56,6 +56,17 @@ test('native context retrieval uses fixed mapped project and preserves authority
   assert.deepEqual(f.calls[0].args.p_payload.terms,['memory','router']);
   assert(Object.isFrozen(r.context.advisoryMemory));
 });
+test('approved soft-canon advisory lessons remain advisory and readable',async()=>{
+  const f=await fixture(async(n,a,server)=>{const r=await server(n,a);r.data.context.advisoryMemory[0].canonStatus='soft_canon';return r;});
+  const r=await f.bridge.getTaskContext(scope(),query());
+  assert.equal(r.context.advisoryMemory[0].canonStatus,'soft_canon');
+  assert.equal(r.context.advisoryMemory[0].authorizationEffect,'none');
+  assert.equal(r.authorizationGranted,false);
+});
+test('soft-canon policy memory is still rejected',async()=>{
+  const f=await fixture(async(n,a,server)=>{const r=await server(n,a);r.data.context.policyMemory=[{id:ids[6],recordType:'policy',canonStatus:'soft_canon',knowledgeSchemaVersion:'m5.v1',summary:'Synthetic soft policy.',authorizationEffect:'requires_exact_runtime_scope_validity_revocation_validation',requiresRuntimeAuthorizationValidation:true}];return r;});
+  await assert.rejects(f.bridge.getTaskContext(scope(),query()));
+});
 test('model outcome persists once then requires a separate readback',async()=>{
   const f=await fixture(),r=await f.bridge.proposeOutcome(scope(),outcome());
   assert.equal(r.state,'pending_review');assert.equal(r.deliveryVerified,true);assert.equal(r.canonicalMemoryWritten,false);
@@ -130,8 +141,7 @@ for(const[name,mutate]of invalid)test('outcome rejects '+name+' without any prov
   const f=await fixture(),o=outcome();mutate(o);await assert.rejects(f.bridge.proposeOutcome(scope(),o));assert.equal(f.calls.length,0);
 });
 for(const[name,mutate]of [
-  ['foreign context',r=>{r.context.project.id=ids[8];}],['soft canon',r=>{r.context.advisoryMemory[0].canonStatus='soft_canon';}],
-  ['grant escalation',r=>{r.context.authorization.retrievalDoesNotGrantExecutionAuthority=false;}],
+  ['foreign context',r=>{r.context.project.id=ids[8];}],['grant escalation',r=>{r.context.authorization.retrievalDoesNotGrantExecutionAuthority=false;}],
   ['advisory authority',r=>{r.context.advisoryMemory[0].authorizationEffect='allow';}],
   ['wrong principal',r=>{r.context.authorization.principalKey='other';}],
   ['wrong task',r=>{r.context.task.intent='travel';}],['unsupported shape',r=>{r.context.policyMemory={};}]

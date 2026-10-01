@@ -85,10 +85,11 @@ export class NativeOperationsMemoryClient {
       && Array.isArray(pack.advisoryMemory) && pack.advisoryMemory.length <= 12
       && typeof pack.degradation?.degraded === 'boolean', 'OPS_MEMORY_CONTEXT_SHAPE_INVALID');
     for (const row of [...pack.policyMemory, ...pack.advisoryMemory]) {
-      requireThat(isRecord(row) && UUID.test(row.id) && row.canonStatus === 'hard_canon'
+      requireThat(isRecord(row) && UUID.test(row.id) && ['hard_canon','soft_canon'].includes(row.canonStatus)
         && row.knowledgeSchemaVersion === 'm5.v1', 'OPS_MEMORY_UNAPPROVED_CONTEXT');
     }
     requireThat(pack.policyMemory.every(row => row.recordType === 'policy'
+      && row.canonStatus === 'hard_canon'
       && row.requiresRuntimeAuthorizationValidation === true
       && row.authorizationEffect === 'requires_exact_runtime_scope_validity_revocation_validation'),
     'OPS_MEMORY_POLICY_AUTHORITY_INVALID');

@@ -439,6 +439,24 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<List<PandoraProviderCatalogEntry>> providerCatalog() async {
+    _requireSession();
+    try {
+      final response = await _client.rpc(
+        'pandora_provider_catalog_v1',
+        params: <String, Object?>{'p_organization_id': _organizationId},
+      );
+      if (response is! List) return const <PandoraProviderCatalogEntry>[];
+      return response
+          .map((value) => PandoraProviderCatalogEntry.fromJson(_map(value)))
+          .toList(growable: false);
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not verify the provider catalog right now.',
+      );
+    }
+  }
+
 
   PandoraOperationsEventReader operationsEventReader() => PandoraOperationsEventReader(
     organizationId: _organizationId,
@@ -722,6 +740,99 @@ class PandoraCapabilityAction {
         approval: _optionalText(json['approval']),
       );
 }
+
+class PandoraProviderCatalogEntry {
+  const PandoraProviderCatalogEntry({
+    required this.providerKey,
+    required this.manifestVersion,
+    required this.displayName,
+    required this.lifecycleState,
+    required this.authScheme,
+    required this.regions,
+    required this.dataResidency,
+    required this.capabilities,
+    this.activationState,
+    this.healthState,
+    this.lastVerifiedAt,
+  });
+
+  final String providerKey;
+  final String manifestVersion;
+  final String displayName;
+  final String lifecycleState;
+  final String authScheme;
+  final List<String> regions;
+  final List<String> dataResidency;
+  final String? activationState;
+  final String? healthState;
+  final DateTime? lastVerifiedAt;
+  final List<PandoraProviderCatalogCapability> capabilities;
+
+  bool get isAuthorized => activationState == 'authorized';
+  bool get isHealthy => healthState == 'healthy';
+  bool get isDiscoverable => lifecycleState != 'retired';
+
+  factory PandoraProviderCatalogEntry.fromJson(Map<String, dynamic> json) {
+    final rawCapabilities = json['capabilities'];
+    return PandoraProviderCatalogEntry(
+      providerKey: _text(json['providerKey'], fallback: 'unknown'),
+      manifestVersion: _text(json['manifestVersion'], fallback: 'unknown'),
+      displayName: _text(json['displayName'], fallback: 'Provider'),
+      lifecycleState: _text(json['lifecycleState'], fallback: 'unknown'),
+      authScheme: _text(json['authScheme'], fallback: 'provider managed'),
+      regions: _stringList(json['regions']),
+      dataResidency: _stringList(json['dataResidency']),
+      activationState: _optionalText(json['activationState']),
+      healthState: _optionalText(json['healthState']),
+      lastVerifiedAt: _optionalDate(json['lastVerifiedAt']),
+      capabilities: rawCapabilities is List
+          ? rawCapabilities
+              .map(
+                (value) =>
+                    PandoraProviderCatalogCapability.fromJson(_map(value)),
+              )
+              .toList(growable: false)
+          : const <PandoraProviderCatalogCapability>[],
+    );
+  }
+}
+
+class PandoraProviderCatalogCapability {
+  const PandoraProviderCatalogCapability({
+    required this.capabilityKey,
+    required this.capabilityVersion,
+    required this.operationMode,
+    required this.implementationState,
+    required this.evidenceModes,
+  });
+
+  final String capabilityKey;
+  final String capabilityVersion;
+  final String operationMode;
+  final String implementationState;
+  final List<String> evidenceModes;
+
+  factory PandoraProviderCatalogCapability.fromJson(
+    Map<String, dynamic> json,
+  ) =>
+      PandoraProviderCatalogCapability(
+        capabilityKey: _text(json['capabilityKey'], fallback: 'unknown'),
+        capabilityVersion:
+            _text(json['capabilityVersion'], fallback: 'unknown'),
+        operationMode: _text(json['operationMode'], fallback: 'read'),
+        implementationState:
+            _text(json['implementationState'], fallback: 'unknown'),
+        evidenceModes: _stringList(json['evidenceModes']),
+      );
+}
+
+List<String> _stringList(Object? value) => value is List
+    ? value
+        .whereType<String>()
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false)
+    : const <String>[];
 
 class PandoraProjectContext {
   const PandoraProjectContext({
