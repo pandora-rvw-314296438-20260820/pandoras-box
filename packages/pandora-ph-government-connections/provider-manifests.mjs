@@ -1,4 +1,5 @@
 import { validateProviderManifest } from "../pandora-provider-sdk/index.mjs";
+import { validateConnectionManifest } from "../pandora-connections-core/index.mjs";
 
 const RUNBOOK = "docs/connections/PHILIPPINE_GOVERNMENT_CONNECTIONS.md";
 
@@ -107,8 +108,68 @@ function buildManifest(definition) {
   });
 }
 
+function buildConnectionManifest(definition) {
+  const anonymous = definition.credentialMode === "none";
+  return validateConnectionManifest({
+    schemaVersion: "1.0.0",
+    providerKey: definition.providerKey,
+    manifestVersion: "1.0.0",
+    displayName: definition.displayName,
+    riskClass: anonymous ? "low" : "medium",
+    auth: {
+      // Core v1 has no anonymous auth type. A public safe-read adapter is a
+      // server-side service connection and still cannot become Connected
+      // without a real organization-scoped Live Connections record.
+      type: anonymous ? "service_credential" : "api_key",
+    },
+    scopes: {
+      strategy: "read_first",
+      read: [definition.capabilityKey],
+      write: [],
+    },
+    callback: {
+      webPath: `/connections/callback/${definition.providerKey.replaceAll(".", "-")}`,
+      mobile: {
+        secureBrowser: "custom_tab",
+        returnModes: ["app_link", "universal_link"],
+      },
+    },
+    accountIdentity: {
+      stableSubjectFields: ["providerIdentity"],
+      displayFields: ["providerIdentity"],
+      tenantSelector: true,
+    },
+    health: {
+      safeReadCapability: definition.capabilityKey,
+      maxAgeSeconds: 900,
+      identityReadback: true,
+      scopesReadback: true,
+    },
+    credential: {
+      storage: "server_vault_reference",
+      clientExposure: "forbidden",
+      rotateSupported: !anonymous,
+      revokeSupported: !anonymous,
+    },
+    dataResidency: {
+      enforcement: "tenant_policy",
+      allowedPolicies: ["provider_managed_ph", "pandora_policy_controlled"],
+    },
+    capabilities: [{
+      capabilityKey: definition.capabilityKey,
+      operationMode: "read",
+      requiredScopes: [definition.capabilityKey],
+      evidenceModes: ["provider_readback", "http_status", "sha256_digest"],
+    }],
+  });
+}
+
 export const governmentProviderManifests = Object.freeze(Object.fromEntries(
   publicDefinitions.map((definition) => [definition.providerKey, buildManifest(definition)]),
+));
+
+export const governmentConnectionManifests = Object.freeze(Object.fromEntries(
+  publicDefinitions.map((definition) => [definition.providerKey, buildConnectionManifest(definition)]),
 ));
 
 const requestActivationDefinitions = [
@@ -135,7 +196,10 @@ const publicCatalog = publicDefinitions.map((definition) => Object.freeze({
   apiType: definition.apiType,
   officialUrl: definition.documentationUrl,
   adapterManifest: governmentProviderManifests[definition.providerKey],
+  connectionManifest: governmentConnectionManifests[definition.providerKey],
   metadata: Object.freeze({
+    family: "government",
+    priority: "P1",
     connectionMode: definition.credentialMode === "none" ? "public_safe_read" : "self_service_credential",
     catalogAction: "Connect",
     publicConnectAllowed: true,
@@ -144,6 +208,12 @@ const publicCatalog = publicDefinitions.map((definition) => Object.freeze({
     credentialMode: definition.credentialMode,
     tenantBindingRequired: true,
     canonicalTenantColumn: "organization_id",
+    ui: Object.freeze({
+      surface: "generic_connections_center",
+      customProviderUi: false,
+      primaryAction: "connect",
+      primaryLabel: "Connect",
+    }),
   }),
 }));
 
@@ -154,7 +224,10 @@ const requestCatalog = requestActivationDefinitions.map(([providerKey, displayNa
   apiType,
   officialUrl,
   adapterManifest: null,
+  connectionManifest: null,
   metadata: Object.freeze({
+    family: "government",
+    priority: "P1",
     connectionMode: "request_activation",
     catalogAction: "Request activation",
     publicConnectAllowed: false,
@@ -162,6 +235,12 @@ const requestCatalog = requestActivationDefinitions.map(([providerKey, displayNa
     activationReason: reason,
     tenantBindingRequired: true,
     canonicalTenantColumn: "organization_id",
+    ui: Object.freeze({
+      surface: "generic_connections_center",
+      customProviderUi: false,
+      primaryAction: "request_activation",
+      primaryLabel: "Request activation",
+    }),
   }),
 }));
 

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { buildProviderReceipt, defineProviderAdapter } from "../pandora-provider-sdk/index.mjs";
-import { governmentProviderManifests } from "./provider-manifests.mjs";
+import { governmentConnectionManifests, governmentProviderManifests } from "./provider-manifests.mjs";
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -126,6 +126,7 @@ function validateReadback(providerKey, body) {
 
 export async function runGovernmentSafeReadProbe(providerKey, request = {}, runtime = {}) {
   const manifest = governmentProviderManifests[providerKey];
+  const connectionManifest = governmentConnectionManifests[providerKey];
   if (!manifest) throw new Error("provider_probe_not_allowlisted");
   const tenantBinding = assertTenantBinding(request, runtime, manifest.safeReadProbe.credentialMode);
   const response = await dispatch(manifest, request, runtime);
@@ -139,11 +140,16 @@ export async function runGovernmentSafeReadProbe(providerKey, request = {}, runt
     liveConnectionStatus: "not_connected",
     connectedAuthority: "fresh_provider_readback",
     providerKey,
+    organizationId: tenantBinding.tenantId,
     tenantId: tenantBinding.tenantId,
     connectionId: tenantBinding.connectionId,
     tenantKey: tenantBinding.tenantKey,
     credentialReturned: false,
     providerIdentity: validated.providerIdentity,
+    health: Object.freeze({ state: "healthy" }),
+    grantedScopes: Object.freeze([...connectionManifest.scopes.read]),
+    accountIdentity: Object.freeze({ providerIdentity: validated.providerIdentity }),
+    probe: Object.freeze({ capabilityKey: connectionManifest.health.safeReadCapability, ok: true }),
     safeReadCapability: validated.safeReadCapability,
     resourceCount: validated.resourceCount,
     probeUrl: manifest.safeReadProbe.url,

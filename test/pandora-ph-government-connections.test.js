@@ -3,11 +3,17 @@ import assert from "node:assert/strict";
 
 import {
   createGovernmentActivationRequest,
+  governmentConnectionManifests,
   governmentProviderAdapters,
   governmentProviderCatalog,
   governmentProviderManifests,
   runGovernmentSafeReadProbe,
 } from "../packages/pandora-ph-government-connections/index.mjs";
+import { validateConnectionManifest } from "../packages/pandora-connections-core/index.mjs";
+import {
+  getUniversalProviderCatalogEntry,
+  universalProviderCatalog,
+} from "../packages/pandora-universal-connections/index.mjs";
 
 const fixedClock = () => new Date("2026-10-01T12:30:00.000Z");
 const tenantId = "11111111-1111-4111-8111-111111111111";
@@ -41,6 +47,33 @@ test("public government APIs are SDK manifests with read-only provider-readback 
   }
 });
 
+test("government adapters also satisfy the merged Connection Manifest v1 contract", () => {
+  assert.deepEqual(Object.keys(governmentConnectionManifests).sort(), Object.keys(governmentProviderManifests).sort());
+  for (const [providerKey, manifest] of Object.entries(governmentConnectionManifests)) {
+    const validated = validateConnectionManifest(manifest);
+    assert.equal(validated.providerKey, providerKey);
+    assert.equal(validated.accountIdentity.tenantSelector, true);
+    assert.equal(validated.health.identityReadback, true);
+    assert.equal(validated.health.scopesReadback, true);
+    assert.equal(validated.credential.storage, "server_vault_reference");
+    assert.equal(validated.credential.clientExposure, "forbidden");
+    assert.equal(validated.capabilities.length, 1);
+    assert.equal(validated.capabilities[0].operationMode, "read");
+  }
+  assert.equal(governmentConnectionManifests["ph.psa.psgc"].auth.type, "api_key");
+  assert.equal(governmentConnectionManifests["ph.psa.openstat"].auth.type, "service_credential");
+});
+
+test("government providers are registered in the canonical universal catalog", () => {
+  for (const entry of governmentProviderCatalog) {
+    assert.equal(getUniversalProviderCatalogEntry(entry.providerKey), entry);
+    assert.equal(universalProviderCatalog.includes(entry), true);
+  }
+  assert.equal(getUniversalProviderCatalogEntry("government-regulated").metadata.connectionMode, "request_activation");
+  assert.equal(getUniversalProviderCatalogEntry("ph.bir").metadata.connectionMode, "request_activation");
+  assert.equal(getUniversalProviderCatalogEntry("ph.psa.openstat").metadata.connectionMode, "public_safe_read");
+});
+
 test("anonymous safe-read probes validate provider-specific response shapes", async () => {
   const fixtures = {
     "ph.psa.openstat": response(JSON.stringify([{ dbid: "DB", text: "DB" }])),
@@ -57,9 +90,15 @@ test("anonymous safe-read probes validate provider-specific response shapes", as
     assert.equal(readback.liveConnectionStatus, "not_connected");
     assert.equal(readback.connectedAuthority, "fresh_provider_readback");
     assert.equal(readback.tenantId, tenantId);
+    assert.equal(readback.organizationId, tenantId);
     assert.equal(readback.connectionId, connectionId);
     assert.equal(readback.tenantKey, tenantKey);
     assert.equal(readback.credentialReturned, false);
+    assert.deepEqual(readback.grantedScopes, governmentConnectionManifests[providerKey].scopes.read);
+    assert.equal(readback.health.state, "healthy");
+    assert.equal(readback.accountIdentity.providerIdentity, readback.providerIdentity);
+    assert.equal(readback.probe.capabilityKey, governmentConnectionManifests[providerKey].health.safeReadCapability);
+    assert.equal(readback.probe.ok, true);
     assert.equal(readback.httpStatus, 200);
     assert.match(readback.bodySha256, /^[a-f0-9]{64}$/);
     assert.equal(readback.observedAt, "2026-10-01T12:30:00.000Z");

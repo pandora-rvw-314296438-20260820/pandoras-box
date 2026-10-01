@@ -1,5 +1,6 @@
 export {
   getGovernmentProvider,
+  governmentConnectionManifests,
   governmentProviderCatalog,
   governmentProviderManifests,
   listGovernmentProviders,
