@@ -159,7 +159,7 @@ class _MarketingGrowthWorkspaceScreenState
           'p_action': action,
           'p_request_key': requestKey,
           'p_reason': action == 'stop'
-              ? 'owner paused from Marketing & Growth'
+              ? 'owner stopped from Marketing & Growth'
               : null,
         },
       );
@@ -171,7 +171,7 @@ class _MarketingGrowthWorkspaceScreenState
                 ? 'Pilot prepared and provider-read back.'
                 : action == 'activate'
                     ? 'Pilot activation submitted and verified.'
-                    : 'Pilot paused and kill switch restored.',
+                    : 'Pilot stopped and kill switch restored.',
           ),
         ),
       );
@@ -200,10 +200,10 @@ class _MarketingGrowthWorkspaceScreenState
 
     if (state == 'active') {
       return FilledButton.icon(
-        key: const ValueKey('marketing-growth-pilot-pause'),
+        key: const ValueKey('marketing-growth-pilot-stop'),
         onPressed: _controlBusy ? null : () => _runPilotControl('stop', pilot),
         icon: const Icon(Icons.pause_circle_outline_rounded),
-        label: Text(_controlBusy ? 'Working…' : 'Pause pilot'),
+        label: Text(_controlBusy ? 'Working…' : 'Stop pilot'),
       );
     }
 
@@ -481,7 +481,7 @@ class _MarketingGrowthWorkspaceScreenState
         const SizedBox(height: 14),
         if (!providerCreativeReady && pilotState != 'active')
           const Text(
-            'Prepare and Activate stay disabled until Meta verifies a tracked creative. Pause always remains available for an active pilot.',
+            'Prepare and Activate stay disabled until Meta verifies a tracked creative. Stop always remains available for an active pilot.',
             style: TextStyle(color: _muted, height: 1.4),
           ),
         if (!providerCreativeReady && pilotState != 'active')
