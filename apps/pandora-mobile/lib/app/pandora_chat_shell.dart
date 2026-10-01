@@ -158,7 +158,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       2 => 'needs_you',
       3 => 'more',
       4 => 'activity',
-      5 => 'plugins',
+      5 => 'live_connections',
       6 => 'saved_evidence',
       7 => 'verify_safety',
       8 => 'operations_room',
