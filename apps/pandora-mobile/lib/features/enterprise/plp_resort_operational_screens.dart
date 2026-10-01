@@ -893,9 +893,9 @@ class _ModuleControls extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              TextButton.icon(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final history = TextButton.icon(
                 onPressed: onToggleCompleted,
                 icon: Icon(
                   showCompleted
@@ -904,28 +904,51 @@ class _ModuleControls extends StatelessWidget {
                   size: 17,
                 ),
                 label: Text(showCompleted ? 'Hide completed' : 'Show completed'),
-              ),
-              const Spacer(),
-              if (canCreate)
-                FilledButton.icon(
-                  key: const ValueKey('plp-module-new-task'),
-                  onPressed: creating ? null : onCreate,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _PlpResortOperationalScreenState.ink,
-                    foregroundColor: Colors.white,
-                    shape: const RoundedRectangleBorder(),
-                  ),
-                  icon: creating
-                      ? const SizedBox.square(
-                          dimension: 15,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('New task'),
-                ),
-            ],
+              );
+              final create = canCreate
+                  ? FilledButton.icon(
+                      key: const ValueKey('plp-module-new-task'),
+                      onPressed: creating ? null : onCreate,
+                      style: FilledButton.styleFrom(
+                        backgroundColor:
+                            _PlpResortOperationalScreenState.ink,
+                        foregroundColor: Colors.white,
+                        shape: const RoundedRectangleBorder(),
+                      ),
+                      icon: creating
+                          ? const SizedBox.square(
+                              dimension: 15,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('New task'),
+                    )
+                  : null;
+
+              if (constraints.maxWidth < 420) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(alignment: Alignment.centerLeft, child: history),
+                    if (create != null) ...[
+                      const SizedBox(height: 6),
+                      create,
+                    ],
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  history,
+                  const Spacer(),
+                  if (create != null) create,
+                ],
+              );
+            },
           ),
         ],
       );

@@ -415,11 +415,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('plp-module-new-task')));
     await tester.pumpAndSettle();
     expect(find.text('New housekeeping task'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-module-task-title')), findsOneWidget);
+    final taskTitle = find.descendant(
+      of: find.byKey(const ValueKey('plp-module-task-title')).first,
+      matching: find.byType(TextField),
+    );
+    expect(taskTitle, findsOneWidget);
     expect(find.text('Create task'), findsOneWidget);
 
     await tester.enterText(
-      find.byKey(const ValueKey('plp-module-task-title')),
+      taskTitle,
       'Inspect room before arrival',
     );
     expect(find.text('Inspect room before arrival'), findsOneWidget);
@@ -430,6 +434,27 @@ void main() {
       find.byKey(const ValueKey('plp-module-housekeeping')),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('operational controls remain usable at 320px phone width', (tester) async {
+    await setTestSurface(tester, logicalSize: const Size(320, 700));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlpResortOperationalScreen(
+          moduleId: 'housekeeping',
+          bootstrap: _bootstrap,
+          onBack: () {},
+          onRefresh: () {},
+          onOpenRecord: (_, __) {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('plp-module-search')), findsOneWidget);
+    expect(find.text('Show completed'), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-module-new-task')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
