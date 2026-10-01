@@ -15,15 +15,51 @@ class PlpResortSection {
 }
 
 const plpResortSections = <PlpResortSection>[
-  PlpResortSection(id: 'today', label: 'Today', icon: Icons.wb_sunny_outlined, commandHint: 'Ask what matters today…'),
-  PlpResortSection(id: 'stays', label: 'Stays', icon: Icons.event_available_outlined, commandHint: 'Ask about a stay or arrival…'),
-  PlpResortSection(id: 'rooms', label: 'Rooms', icon: Icons.bed_outlined, commandHint: 'Ask about rooms or housekeeping…'),
-  PlpResortSection(id: 'guests', label: 'Guests', icon: Icons.person_outline_rounded, commandHint: 'Ask about a guest or request…'),
-  PlpResortSection(id: 'operations', label: 'Operations', icon: Icons.hub_outlined, commandHint: 'Ask about resort operations…'),
-  PlpResortSection(id: 'revenue', label: 'Revenue', icon: Icons.insights_outlined, commandHint: 'Ask about revenue or availability…'),
-  PlpResortSection(id: 'experiences', label: 'Experiences', icon: Icons.spa_outlined, commandHint: 'Ask about concierge or experiences…'),
-  PlpResortSection(id: 'team', label: 'Team', icon: Icons.groups_outlined, commandHint: 'Ask about team or access…'),
-  PlpResortSection(id: 'activity', label: 'Activity', icon: Icons.history_rounded, commandHint: 'Ask what changed recently…'),
+  PlpResortSection(
+      id: 'today',
+      label: 'Today',
+      icon: Icons.wb_sunny_outlined,
+      commandHint: 'Ask what matters today…'),
+  PlpResortSection(
+      id: 'stays',
+      label: 'Stays',
+      icon: Icons.event_available_outlined,
+      commandHint: 'Ask about a stay or arrival…'),
+  PlpResortSection(
+      id: 'rooms',
+      label: 'Rooms',
+      icon: Icons.bed_outlined,
+      commandHint: 'Ask about rooms or housekeeping…'),
+  PlpResortSection(
+      id: 'guests',
+      label: 'Guests',
+      icon: Icons.person_outline_rounded,
+      commandHint: 'Ask about a guest or request…'),
+  PlpResortSection(
+      id: 'operations',
+      label: 'Operations',
+      icon: Icons.hub_outlined,
+      commandHint: 'Ask about resort operations…'),
+  PlpResortSection(
+      id: 'revenue',
+      label: 'Revenue',
+      icon: Icons.insights_outlined,
+      commandHint: 'Ask about revenue or availability…'),
+  PlpResortSection(
+      id: 'experiences',
+      label: 'Experiences',
+      icon: Icons.spa_outlined,
+      commandHint: 'Ask about concierge or experiences…'),
+  PlpResortSection(
+      id: 'team',
+      label: 'Team',
+      icon: Icons.groups_outlined,
+      commandHint: 'Ask about team or access…'),
+  PlpResortSection(
+      id: 'activity',
+      label: 'Activity',
+      icon: Icons.history_rounded,
+      commandHint: 'Ask what changed recently…'),
 ];
 
 PlpResortSection? plpResortSectionById(String id) {
@@ -83,7 +119,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       'experiences' => _experiences(),
       'team' => _team(),
       'activity' => _activity(),
-      _ => <Widget>[const _EmptyState('This resort workspace is not available.')],
+      _ => <Widget>[
+          const _EmptyState('This resort workspace is not available.')
+        ],
     };
 
     return Material(
@@ -124,17 +162,93 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     );
   }
 
+  bool get _liveOperationalDataAvailable {
+    final source = _map(bootstrap['sourceHealth']);
+    final explicit = source['liveOperationalDataAvailable'];
+    if (explicit is bool) return explicit;
+    final sourceState =
+        _text(source['state'], fallback: 'unknown').toLowerCase();
+    return const {'healthy', 'current', 'live', 'ready'}.contains(sourceState);
+  }
+
+  List<Widget> _sourceUnavailable({
+    required String eyebrow,
+    required String title,
+    required String detail,
+    bool includeWorkspaceRail = false,
+  }) {
+    final sourceState = _text(
+      _map(bootstrap['sourceHealth'])['state'],
+      fallback: 'unknown',
+    );
+    return [
+      _HeroLine(eyebrow: eyebrow, title: title),
+      const SizedBox(height: 18),
+      _SourceBand(
+        state: sourceState,
+        message: _clientSourceMessage(sourceState),
+      ),
+      const SizedBox(height: 16),
+      _EmptyState(detail),
+      if (includeWorkspaceRail) ...[
+        const SizedBox(height: 28),
+        const _SectionHeader('RESORT WORKSPACES'),
+        const SizedBox(height: 10),
+        _SectionLaunchRail(onOpen: onOpenSection),
+      ],
+    ];
+  }
+
   List<Widget> _today() {
+    if (!_liveOperationalDataAvailable) {
+      return _sourceUnavailable(
+        eyebrow: 'RESORT STATUS',
+        title: 'Today',
+        detail:
+            'Live occupancy, arrivals, room availability, and sales are hidden '
+            'until a verified resort source is connected.',
+        includeWorkspaceRail: true,
+      );
+    }
+
     final today = _map(bootstrap['today']);
     final guest = _map(bootstrap['guestExperience']);
     final command = _map(bootstrap['resortCommandCenter']);
     final pulse = _map(command['roomPulse']);
+    final source = _map(bootstrap['sourceHealth']);
+    final directSourceEmpty =
+        _text(source['sourceProvider'], fallback: '').toLowerCase() ==
+            'pandora_direct' &&
+        _number(pulse['total'], fallback: _number(today['rooms_total'])) == 0;
+    if (directSourceEmpty) {
+      return [
+        const _HeroLine(eyebrow: 'RESORT STATUS', title: 'Today'),
+        const SizedBox(height: 18),
+        _SourceBand(
+          state: _text(source['state'], fallback: 'healthy'),
+          message: _clientSourceMessage(
+            _text(source['state'], fallback: 'healthy'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const _EmptyState(
+          'Pandora Direct is connected and isolated to this resort. '
+          'No customer room or reservation records have been entered yet, '
+          'so Pandora will not invent occupancy, availability, or sales.',
+        ),
+        const SizedBox(height: 28),
+        const _SectionHeader('RESORT WORKSPACES'),
+        const SizedBox(height: 10),
+        _SectionLaunchRail(onOpen: onOpenSection),
+      ];
+    }
     final operations = _map(command['operations']);
     final inHouse = _clientRecords(_maps(guest['inHouse']));
     final arrivals = _clientRecords(_maps(guest['arrivals']));
     final departing = _clientRecords(_maps(guest['departing']));
     final attention = _clientRecords(_maps(guest['attention']));
-    final total = _number(pulse['total'], fallback: _number(today['rooms_total']));
+    final total =
+        _number(pulse['total'], fallback: _number(today['rooms_total']));
     final occupied = _number(
       pulse['occupied'],
       fallback: _number(today['occupied_rooms']),
@@ -226,6 +340,14 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _stays() {
+    if (!_liveOperationalDataAvailable) {
+      return _sourceUnavailable(
+        eyebrow: 'RESERVATIONS & STAYS',
+        title: 'Stays',
+        detail:
+            'Live arrivals, departures, in-house guests, and stays are unavailable until a verified resort source is connected.',
+      );
+    }
     final guest = _map(bootstrap['guestExperience']);
     final command = _map(bootstrap['resortCommandCenter']);
     final stays = _clientRecords(_maps(command['stays']));
@@ -263,6 +385,14 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _rooms() {
+    if (!_liveOperationalDataAvailable) {
+      return _sourceUnavailable(
+        eyebrow: 'PROPERTY OPERATIONS',
+        title: 'Rooms & housekeeping',
+        detail:
+            'Live room occupancy and availability are unavailable until a verified resort source is connected.',
+      );
+    }
     final command = _map(bootstrap['resortCommandCenter']);
     final pulse = _map(command['roomPulse']);
     final rooms = _clientRecords(_maps(command['rooms']));
@@ -339,6 +469,14 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _guests() {
+    if (!_liveOperationalDataAvailable) {
+      return _sourceUnavailable(
+        eyebrow: 'GUEST OPERATIONS',
+        title: 'Guests',
+        detail:
+            'Live guest presence, arrivals, and requests are unavailable until a verified resort source is connected.',
+      );
+    }
     final guest = _map(bootstrap['guestExperience']);
     final command = _map(bootstrap['resortCommandCenter']);
     final inHouse = _clientRecords(_maps(guest['inHouse']));
@@ -406,7 +544,14 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
             'Transfers',
             Icons.airport_shuttle_outlined,
             () => onOpenModule?.call('transfers'),
-            detail: _experienceCount(requests, const ['transfer', 'airport', 'transport', 'pickup', 'dropoff']).toString() + ' requests',
+            detail: _experienceCount(requests, const [
+                  'transfer',
+                  'airport',
+                  'transport',
+                  'pickup',
+                  'dropoff'
+                ]).toString() +
+                ' requests',
           ),
         ],
       ),
@@ -415,6 +560,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
 
   List<Widget> _operations() {
     final command = _map(bootstrap['resortCommandCenter']);
+    final liveSource = _liveOperationalDataAvailable;
     final operations = _map(command['operations']);
     final guest = _map(bootstrap['guestExperience']);
     final attention = _clientRecords(_maps(guest['attention']));
@@ -438,8 +584,10 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           ),
           _Metric(
             'Channel',
-            _integer(_number(operations['channelExceptions'])),
-            'exceptions',
+            liveSource
+                ? _integer(_number(operations['channelExceptions']))
+                : '—',
+            liveSource ? 'exceptions' : 'source unavailable',
           ),
         ],
       ),
@@ -449,7 +597,12 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         action: attention.isNotEmpty ? attention.length.toString() : null,
       ),
       const SizedBox(height: 8),
-      if (attention.isEmpty &&
+      if (attention.isEmpty && !liveSource)
+        const _EmptyState(
+          'No manual work item is open. Channel exceptions cannot be verified '
+          'until a live resort source is connected.',
+        )
+      else if (attention.isEmpty &&
           _number(operations['channelExceptions']) == 0)
         const _ClearState('No operational exception is waiting.')
       else
@@ -490,6 +643,14 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _revenue() {
+    if (!_liveOperationalDataAvailable) {
+      return _sourceUnavailable(
+        eyebrow: 'COMMERCIAL',
+        title: 'Revenue',
+        detail:
+            'Live sales, occupancy, channel, and booking-value metrics are unavailable until a verified resort source is connected.',
+      );
+    }
     final today = _map(bootstrap['today']);
     final command = _map(bootstrap['resortCommandCenter']);
     final finance = _map(command['finance']);
@@ -539,13 +700,15 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
             'Rates',
             Icons.sell_outlined,
             () => onOpenModule?.call('rates'),
-            detail: _integer(_number(today['rooms_available'])) + ' rooms available',
+            detail: _integer(_number(today['rooms_available'])) +
+                ' rooms available',
           ),
           _Capability(
             'Channels',
             Icons.travel_explore_outlined,
             () => onOpenModule?.call('channels'),
-            detail: _integer(_number(operations['channelExceptions'])) + ' exceptions',
+            detail: _integer(_number(operations['channelExceptions'])) +
+                ' exceptions',
           ),
           _Capability(
             'Forecast',
@@ -559,6 +722,33 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _experiences() {
+    if (!_liveOperationalDataAvailable) {
+      return [
+        ..._sourceUnavailable(
+          eyebrow: 'SERVICE DELIVERY',
+          title: 'Guest experiences',
+          detail: 'Live guest requests and preferences are unavailable until a '
+              'verified resort source is connected.',
+        ),
+        const SizedBox(height: 24),
+        _CapabilityGrid(
+          items: [
+            _Capability('Concierge', Icons.support_agent_outlined,
+                () => onOpenModule?.call('concierge')),
+            _Capability('Transfers', Icons.airport_shuttle_outlined,
+                () => onOpenModule?.call('transfers')),
+            _Capability('Dining', Icons.restaurant_outlined,
+                () => onOpenModule?.call('dining')),
+            _Capability('Wellness', Icons.spa_outlined,
+                () => onOpenModule?.call('wellness')),
+            _Capability('Activities', Icons.explore_outlined,
+                () => onOpenModule?.call('activities')),
+            _Capability('Events', Icons.celebration_outlined,
+                () => onOpenModule?.call('events')),
+          ],
+        ),
+      ];
+    }
     final requests = _clientRecords(
       _maps(_map(bootstrap['resortCommandCenter'])['experienceSignals']),
     );
@@ -584,25 +774,48 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
             'Dining',
             Icons.restaurant_outlined,
             () => onOpenModule?.call('dining'),
-            detail: _experienceCount(requests, const ['dining', 'food', 'restaurant', 'breakfast', 'dinner']).toString() + ' requests',
+            detail: _experienceCount(requests, const [
+                  'dining',
+                  'food',
+                  'restaurant',
+                  'breakfast',
+                  'dinner'
+                ]).toString() +
+                ' requests',
           ),
           _Capability(
             'Wellness',
             Icons.spa_outlined,
             () => onOpenModule?.call('wellness'),
-            detail: _experienceCount(requests, const ['spa', 'massage', 'wellness']).toString() + ' requests',
+            detail:
+                _experienceCount(requests, const ['spa', 'massage', 'wellness'])
+                        .toString() +
+                    ' requests',
           ),
           _Capability(
             'Activities',
             Icons.explore_outlined,
             () => onOpenModule?.call('activities'),
-            detail: _experienceCount(requests, const ['activity', 'tour', 'island', 'excursion']).toString() + ' requests',
+            detail: _experienceCount(requests, const [
+                  'activity',
+                  'tour',
+                  'island',
+                  'excursion'
+                ]).toString() +
+                ' requests',
           ),
           _Capability(
             'Events',
             Icons.celebration_outlined,
             () => onOpenModule?.call('events'),
-            detail: _experienceCount(requests, const ['event', 'birthday', 'anniversary', 'wedding', 'celebration']).toString() + ' requests',
+            detail: _experienceCount(requests, const [
+                  'event',
+                  'birthday',
+                  'anniversary',
+                  'wedding',
+                  'celebration'
+                ]).toString() +
+                ' requests',
           ),
         ],
       ),
@@ -1024,9 +1237,8 @@ class _RoomPulse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ratio = total <= 0
-        ? 0.0
-        : (occupied / total).clamp(0.0, 1.0).toDouble();
+    final ratio =
+        total <= 0 ? 0.0 : (occupied / total).clamp(0.0, 1.0).toDouble();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1263,8 +1475,10 @@ class _GuestStrip extends StatelessWidget {
                         fallback: _humanStatus(item['status']),
                       ),
                     ),
-                    _DetailField('Check-in', _text(item['checkIn'], fallback: '')),
-                    _DetailField('Check-out', _text(item['checkOut'], fallback: '')),
+                    _DetailField(
+                        'Check-in', _text(item['checkIn'], fallback: '')),
+                    _DetailField(
+                        'Check-out', _text(item['checkOut'], fallback: '')),
                     _DetailField(
                       'Guests',
                       _text(item['guestCount'], fallback: ''),
@@ -1718,7 +1932,8 @@ class _MemberStrip extends StatelessWidget {
                 context,
                 title: _text(item['displayName'], fallback: 'Team member'),
                 fields: [
-                  _DetailField('Role', _text(item['roleLabel'], fallback: 'Member')),
+                  _DetailField(
+                      'Role', _text(item['roleLabel'], fallback: 'Member')),
                   _DetailField(
                     'Access',
                     _truthy(item['active'])
@@ -1758,7 +1973,8 @@ class _ActivityList extends StatelessWidget {
                   _DetailField('Status', _humanStatus(item['status'])),
                   _DetailField('Category', _humanStatus(item['category'])),
                   _DetailField('Actor', _clientActor(item['actor'])),
-                  _DetailField('Updated', _friendlyTimestamp(item['updatedAt'])),
+                  _DetailField(
+                      'Updated', _friendlyTimestamp(item['updatedAt'])),
                 ],
               ),
             ),
@@ -1822,8 +2038,8 @@ class _SourceBand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final normalized = state.toLowerCase();
-    final healthy = const {'healthy', 'current', 'live', 'ready'}
-        .contains(normalized);
+    final healthy =
+        const {'healthy', 'current', 'live', 'ready'}.contains(normalized);
     final label = healthy
         ? 'Connected'
         : normalized == 'cached_offline'
@@ -2072,10 +2288,8 @@ List<Map<String, Object?>> _clientRecords(
 String _humanStatus(Object? value) {
   final raw = value?.toString().trim() ?? '';
   if (raw.isEmpty) return '';
-  final normalized = raw
-      .toLowerCase()
-      .replaceAll('-', '_')
-      .replaceAll(RegExp(r'\s+'), '_');
+  final normalized =
+      raw.toLowerCase().replaceAll('-', '_').replaceAll(RegExp(r'\s+'), '_');
   const labels = <String, String>{
     'in_progress': 'In progress',
     'not_started': 'Not started',
@@ -2131,8 +2345,18 @@ String _friendlyTimestamp(Object? value) {
   final parsed = DateTime.tryParse(raw)?.toLocal();
   if (parsed == null) return raw;
   const months = <String>[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final minute = parsed.minute.toString().padLeft(2, '0');
   return '${months[parsed.month - 1]} ${parsed.day} · '
@@ -2168,9 +2392,7 @@ List<Map<String, Object?>> _maps(Object? value) {
 
 String _text(Object? value, {String fallback = '—'}) {
   final normalized = value?.toString().trim();
-  return normalized == null || normalized.isEmpty
-      ? fallback
-      : normalized;
+  return normalized == null || normalized.isEmpty ? fallback : normalized;
 }
 
 num _number(Object? value, {num fallback = 0}) {
