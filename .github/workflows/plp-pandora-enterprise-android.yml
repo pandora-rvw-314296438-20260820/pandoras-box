@@ -178,7 +178,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          apk=.plp-android-build/PLP-Pandora-Enterprise-emulator-x86_64.apk
+          apk=.plp-android-build/build/app/outputs/flutter-apk/app-release.apk
           evidence=.plp-android-build/plp-package-evidence
           mkdir -p "$evidence"
 
@@ -284,7 +284,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          apk=.plp-android-build/build/app/outputs/flutter-apk/app-release.apk
+          apk=.plp-android-build/PLP-Pandora-Enterprise-emulator-x86_64.apk
           pkg="$EXPECTED_PACKAGE"
           evidence=.plp-android-build/plp-emulator-evidence
           mkdir -p "$evidence"
