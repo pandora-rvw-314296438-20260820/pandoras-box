@@ -31,6 +31,7 @@ class _MarketingGrowthWorkspaceScreenState
   Map<String, Object?>? _data;
   String? _error;
   bool _loading = true;
+  bool _controlBusy = false;
 
   static const _canvas = Color(0xFF07111B);
   static const _paper = Color(0xFF0D1722);
@@ -65,6 +66,15 @@ class _MarketingGrowthWorkspaceScreenState
 
   bool _bool(Object? value) => value == true || value?.toString() == 'true';
 
+  String _moneyMinor(Object? value, {String currency = 'PHP'}) {
+    final minor = int.tryParse(value?.toString() ?? '');
+    if (minor == null) return 'Unknown';
+    final major = minor / 100;
+    final decimals = major == major.roundToDouble() ? 0 : 2;
+    final amount = major.toStringAsFixed(decimals);
+    return currency == 'PHP' ? '₱$amount' : '$currency $amount';
+  }
+
   Future<void> _load() async {
     if (mounted) {
       setState(() {
@@ -97,6 +107,129 @@ class _MarketingGrowthWorkspaceScreenState
         _loading = false;
       });
     }
+  }
+
+  Future<void> _runPilotControl(
+    String action,
+    Map<String, Object?> pilot,
+  ) async {
+    if (_controlBusy) return;
+
+    if (action == 'activate') {
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Activate bounded Meta pilot?'),
+          content: Text(
+            'This uses the already approved envelope: ' +
+                _moneyMinor(
+                  pilot['dailyBudgetMinor'],
+                  currency: _text(pilot['currency'], fallback: 'PHP'),
+                ) +
+                '/day, ' +
+                _moneyMinor(
+                  pilot['maxSpendMinor'],
+                  currency: _text(pilot['currency'], fallback: 'PHP'),
+                ) +
+                ' maximum, with automatic provider readback and stop controls.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Activate'),
+            ),
+          ],
+        ),
+      );
+      if (approved != true || !mounted) return;
+    }
+
+    setState(() => _controlBusy = true);
+    final requestKey =
+        'owner-growth-' + action + '-' + DateTime.now().microsecondsSinceEpoch.toString();
+    try {
+      await Supabase.instance.client.rpc(
+        'pandora_growth_paid_pilot_owner_control_v1',
+        params: <String, Object?>{
+          'p_organization_id': PandoraConfig.organizationId,
+          'p_action': action,
+          'p_request_key': requestKey,
+          'p_reason': action == 'stop'
+              ? 'owner stopped from Marketing & Growth'
+              : null,
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            action == 'prepare'
+                ? 'Pilot prepared and provider-read back.'
+                : action == 'activate'
+                    ? 'Pilot activation submitted and verified.'
+                    : 'Pilot stopped and kill switch restored.',
+          ),
+        ),
+      );
+      await _load();
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      final creativeBlocked =
+          error.message.contains('PANDORA_GROWTH_OWNER_CONTROL_CREATIVE_NOT_READY');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            creativeBlocked
+                ? 'Tracked Meta creative is not provider-ready yet.'
+                : 'Pilot control could not be completed.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _controlBusy = false);
+    }
+  }
+
+  Widget _pilotControlButton(Map<String, Object?> pilot) {
+    final state = _text(pilot['state'], fallback: 'none').toLowerCase();
+    final creativeReady = _bool(pilot['providerCreativeReady']);
+
+    if (state == 'active') {
+      return FilledButton.icon(
+        key: const ValueKey('marketing-growth-pilot-stop'),
+        onPressed: _controlBusy ? null : () => _runPilotControl('stop', pilot),
+        icon: const Icon(Icons.pause_circle_outline_rounded),
+        label: Text(_controlBusy ? 'Working…' : 'Stop pilot'),
+      );
+    }
+
+    if (state == 'prepared') {
+      return FilledButton.icon(
+        key: const ValueKey('marketing-growth-pilot-activate'),
+        onPressed: _controlBusy || !creativeReady
+            ? null
+            : () => _runPilotControl('activate', pilot),
+        icon: const Icon(Icons.play_circle_outline_rounded),
+        label: Text(_controlBusy ? 'Working…' : 'Activate pilot'),
+      );
+    }
+
+    if (state == 'approved') {
+      return FilledButton.icon(
+        key: const ValueKey('marketing-growth-pilot-prepare'),
+        onPressed: _controlBusy || !creativeReady
+            ? null
+            : () => _runPilotControl('prepare', pilot),
+        icon: const Icon(Icons.fact_check_outlined),
+        label: Text(_controlBusy ? 'Working…' : 'Prepare pilot'),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   void _openPandora() {
@@ -279,10 +412,94 @@ class _MarketingGrowthWorkspaceScreenState
     final daily = _rows(data['businessDaily']);
     final gates = _rows(data['approvalGates']);
     final test = _map(data['testAcceptance']);
+    final connection = _map(data['metaConnection']);
+    final pilot = _map(data['paidPilot']);
     final businessCampaigns =
         campaigns.where((row) => _bool(row['businessKpi'])).toList();
     final latest = daily.isEmpty ? null : daily.first;
+    final pilotCurrency = _text(pilot['currency'], fallback: 'PHP');
+    final pilotState = _text(pilot['state'], fallback: 'Not configured');
+    final deliveryObserved = _bool(pilot['deliveryObserved']);
+    final monitorHealthy = _bool(pilot['monitorHealthy']);
+    final providerCreativeReady = _bool(pilot['providerCreativeReady']);
+    final providerCreativeBlocker =
+        _text(pilot['providerCreativeBlocker'], fallback: 'None');
+    final connected = _bool(connection['connected']);
+    final accounts = _rows(connection['adAccounts']);
+    final accountId =
+        accounts.isEmpty ? 'No verified ad account' : _text(accounts.first['id']);
     return [
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          _metric(
+            'Meta',
+            connected ? 'Connected' : 'Not connected',
+            accountId,
+          ),
+          _metric(
+            'Paid pilot',
+            pilotState,
+            !providerCreativeReady
+                ? 'Launch blocked until tracked creative is verified'
+                : deliveryObserved
+                    ? 'Delivery observed'
+                    : 'Awaiting first delivery',
+          ),
+          _metric(
+            'Pilot spend',
+            _moneyMinor(pilot['spendMinor'], currency: pilotCurrency),
+            _moneyMinor(pilot['maxSpendMinor'], currency: pilotCurrency) +
+                ' ceiling',
+          ),
+          _metric(
+            'Safety monitor',
+            pilotState == 'active' || pilotState == 'prepared'
+                ? (monitorHealthy ? 'Healthy' : 'Check needed')
+                : 'Standby',
+            pilotState == 'active' || pilotState == 'prepared'
+                ? _text(pilot['lastMonitorAt'], fallback: 'No monitor receipt')
+                : 'Automatic checks remain armed for launch',
+          ),
+          _metric(
+            'Tracked creative',
+            providerCreativeReady ? 'Ready' : 'Blocked',
+            providerCreativeReady ? 'Provider verified' : providerCreativeBlocker,
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+      _card('Live pilot controls', [
+        _lineRow(
+          'Daily budget',
+          _moneyMinor(pilot['dailyBudgetMinor'], currency: pilotCurrency),
+        ),
+        _lineRow('Ends', _text(pilot['endAt'])),
+        _lineRow('Campaign', _text(pilot['campaignId'])),
+        _lineRow('Ad set', _text(pilot['adsetId'])),
+        _lineRow('Ad', _text(pilot['adId'])),
+        _lineRow('Tracking campaign', _text(pilot['trackingCampaignSlug'])),
+        _lineRow('Tracked redirect', _text(pilot['trackedRedirect'])),
+        _lineRow(
+          'Impressions',
+          _text(pilot['impressions'], fallback: 'Not observed'),
+        ),
+        _lineRow('Clicks', _text(pilot['clicks'], fallback: 'Not observed')),
+        const SizedBox(height: 14),
+        if (!providerCreativeReady && pilotState != 'active')
+          const Text(
+            'Prepare and Activate stay disabled until Meta verifies a tracked creative. Stop always remains available for an active pilot.',
+            style: TextStyle(color: _muted, height: 1.4),
+          ),
+        if (!providerCreativeReady && pilotState != 'active')
+          const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _pilotControlButton(pilot),
+        ),
+      ]),
+      const SizedBox(height: 14),
       Wrap(
         spacing: 10,
         runSpacing: 10,
@@ -293,9 +510,15 @@ class _MarketingGrowthWorkspaceScreenState
               latest == null ? 'No verified business row yet' : _text(latest['day'])),
           _metric('Latest sales', latest == null ? 'Unknown' : _text(latest['sales']),
               latest == null ? 'No verified outcome row yet' : 'Business traffic only'),
-          _metric('Needs approval',
-              gates.where((row) => row['state'] != 'approved').length.toString(),
-              'Spend and client gates stay explicit'),
+          _metric(
+            'Needs approval',
+            gates
+                .where((row) =>
+                    row['state'] != 'approved' && row['state'] != 'granted')
+                .length
+                .toString(),
+            'Only unresolved gates',
+          ),
         ],
       ),
       const SizedBox(height: 16),
@@ -492,9 +715,11 @@ class _MarketingGrowthWorkspaceScreenState
     return [
       _lineRow('Dashboard', _bool(authority['readOnly']) ? 'Read-only' : 'Unknown'),
       _lineRow('Owner/admin only', _bool(authority['ownerAdminOnly']) ? 'Yes' : 'Unknown'),
+      _lineRow('Meta connection', _bool(authority['metaConnected']) ? 'Connected' : 'Not connected'),
       _lineRow('Staff access', _bool(authority['staffAccess']) ? 'Granted' : 'Not granted'),
-      _lineRow('Campaign mutation', _bool(authority['campaignMutationGranted']) ? 'Granted' : 'Not granted'),
-      _lineRow('Spend', _bool(authority['spendAuthorized']) ? 'Authorized' : 'Not authorized'),
+      _lineRow('General campaign mutation', _bool(authority['campaignMutationGranted']) ? 'Granted' : 'Not granted'),
+      _lineRow('Bounded pilot mutation', _bool(authority['boundedCampaignMutationGranted']) ? 'Granted' : 'Not granted'),
+      _lineRow('Pilot spend', _bool(authority['spendAuthorized']) ? 'Authorized' : 'Not authorized'),
       _lineRow('Publishing', _bool(authority['publishingAuthorized']) ? 'Authorized' : 'Not authorized'),
       _lineRow('Exports', _bool(authority['exportsAllowed']) ? 'Allowed' : 'Disabled'),
       _lineRow('Raw PII', _bool(authority['rawPiiVisible']) ? 'Visible' : 'Hidden'),
