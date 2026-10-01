@@ -2045,16 +2045,22 @@ bool _truthy(Object? value) {
 
 bool _isInternalRecord(Map<String, Object?> item) {
   if (_truthy(item['isMock'])) return true;
-  final text = <Object?>[
+  final identities = <Object?>[
     item['displayName'],
     item['fullName'],
     item['actor'],
     item['source'],
-  ].whereType<Object>().join(' ').toLowerCase();
-  return text.contains('mcpmaster') ||
-      text.contains('staging owner') ||
-      text.contains('alfred qa') ||
-      text.contains('fixture');
+  ].whereType<Object>().map(
+        (value) => value.toString().trim().toLowerCase(),
+      );
+  return identities.any(
+    (identity) => const {
+      'mcpmaster',
+      'staging owner',
+      'alfred qa',
+      'fixture',
+    }.contains(identity),
+  );
 }
 
 List<Map<String, Object?>> _clientRecords(
@@ -2089,11 +2095,15 @@ String _humanStatus(Object? value) {
 
 String _clientActor(Object? value) {
   final actor = _text(value, fallback: '');
-  final lower = actor.toLowerCase();
-  if (lower.contains('qa') ||
-      lower.contains('mcpmaster') ||
-      lower.contains('staging') ||
-      lower.contains('fixture')) {
+  final lower = actor.trim().toLowerCase();
+  if (const {
+    'qa',
+    'mcpmaster',
+    'staging',
+    'staging owner',
+    'alfred qa',
+    'fixture',
+  }.contains(lower)) {
     return 'Pandora';
   }
   return actor;
