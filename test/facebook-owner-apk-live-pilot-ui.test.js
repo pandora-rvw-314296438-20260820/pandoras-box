@@ -11,14 +11,15 @@ const plpShell = readFileSync('apps/pandora-mobile/lib/app/plp_enterprise_shell.
 const projection = readFileSync('supabase/migrations/20260930233508_pandora_growth_live_pilot_projection_v1.sql','utf8');
 const businessAttribution = readFileSync('supabase/migrations/20260930235134_pandora_meta_paid_pilot_business_attribution_v1.sql','utf8');
 const tracking = readFileSync('src/pandora-tracking-http.js','utf8');
+const ownerControls = readFileSync('supabase/migrations/20261001001911_pandora_growth_owner_pilot_controls_v1.sql','utf8');
 
 test('owner Android entrypoint reaches the live Marketing & Growth workspace', () => {
-  assert.match(main,/PandoraApp\\(/);
-  assert.match(auth,/PandoraChatShell\\(\\)/);
-  assert.match(home,/key: 'pandora-marketing-growth'/);
-  assert.match(shell,/workspace\\.key ==\\s*'pandora-marketing-growth'/);
-  assert.match(shell,/MarketingGrowthWorkspaceScreen\\(/);
-  assert.match(growth,/pandora_marketing_growth_command_center_v2/);
+  assert.ok(main.includes('PandoraApp('));
+  assert.ok(auth.includes('PandoraChatShell()'));
+  assert.ok(home.includes("key: 'pandora-marketing-growth'"));
+  assert.ok(shell.includes("workspace.key == 'pandora-marketing-growth'"));
+  assert.ok(shell.includes('MarketingGrowthWorkspaceScreen('));
+  assert.ok(growth.includes('pandora_marketing_growth_command_center_v2'));
 });
 
 test('owner Growth UI surfaces Meta connection and live paid-pilot evidence', () => {
@@ -69,6 +70,25 @@ test('live Meta IDs belong to the business campaign, not the historical test cam
   assert.match(readiness,/providerCreativeReady/);
   assert.match(readiness,/providerCreativeBlocker/);
   assert.match(readiness,/meta_app_development_mode/);
+});
+
+test('owner Growth page exposes only bounded owner pilot lifecycle controls', () => {
+  assert.ok(growth.includes('pandora_growth_paid_pilot_owner_control_v1'));
+  assert.ok(growth.includes('marketing-growth-pilot-prepare'));
+  assert.ok(growth.includes('marketing-growth-pilot-activate'));
+  assert.ok(growth.includes('marketing-growth-pilot-stop'));
+  assert.ok(growth.includes('Tracked Meta creative is not provider-ready yet'));
+  assert.equal(growth.includes('budget TextField'), false);
+
+  assert.ok(ownerControls.includes("v_role is distinct from 'owner'"));
+  assert.ok(ownerControls.includes("v_action not in ('prepare','activate','stop')"));
+  assert.ok(ownerControls.includes('a.max_spend_minor<>500000'));
+  assert.ok(ownerControls.includes('a.daily_budget_minor<>40000'));
+  assert.ok(ownerControls.includes('a.duration_seconds<>604800'));
+  assert.ok(ownerControls.includes('provider_creative_ready'));
+  assert.ok(ownerControls.includes('PANDORA_GROWTH_OWNER_CONTROL_CREATIVE_NOT_READY'));
+  assert.equal(ownerControls.includes('p_budget'), false);
+  assert.equal(ownerControls.includes('p_target_id'), false);
 });
 
 test('PLP client APK remains isolated from Pandora owner Facebook marketing', () => {
