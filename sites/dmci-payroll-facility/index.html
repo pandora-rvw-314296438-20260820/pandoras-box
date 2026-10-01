@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#08110f" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="description" content="Proposed institutional funding architecture for a DMCI employee payroll loan program." />
+  <title>DMCI Employee Payroll Credit Facility</title>
+  <style>
+    :root{
+      --ink:#0d1714;
+      --ink-2:#16221e;
+      --panel:#111c19;
+      --panel-2:#172520;
+      --cream:#f5f1e8;
+      --paper:#fbf8f1;
+      --muted:#a8b4ae;
+      --muted-dark:#5d6964;
+      --line:rgba(255,255,255,.12);
+      --line-dark:rgba(13,23,20,.13);
+      --mint:#bfe6cd;
+      --mint-2:#dff1e5;
+      --gold:#bca36a;
+      --white:#ffffff;
+      --danger:#e5a8a0;
+      --radius:24px;
+      --max:1180px;
+      --shadow:0 22px 70px rgba(6,14,11,.16);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
+    a{color:inherit;text-decoration:none}
+    button,input{font:inherit}
+    .shell{max-width:var(--max);margin:0 auto;padding:0 28px}
+    .nav{position:sticky;top:0;z-index:30;background:rgba(251,248,241,.92);backdrop-filter:blur(18px);border-bottom:1px solid rgba(13,23,20,.08)}
+    .nav-inner{height:78px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+    .brand{display:flex;align-items:center;gap:13px;font-weight:700;letter-spacing:-.02em}
+    .brand-mark{width:38px;height:38px;border-radius:12px;background:var(--ink);color:var(--cream);display:grid;place-items:center;font-family:Georgia,serif;font-size:20px;border:1px solid rgba(188,163,106,.45)}
+    .brand small{display:block;color:var(--muted-dark);font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;margin-top:1px}
+    .nav-links{display:flex;gap:24px;align-items:center;color:#38433f;font-size:13px}
+    .nav-cta{padding:11px 16px;border-radius:999px;background:var(--ink);color:white;font-weight:700}
+
+    .hero{background:var(--ink);color:var(--cream);position:relative;overflow:hidden}
+    .hero:before{content:"";position:absolute;inset:-30% 45% auto -25%;height:560px;background:radial-gradient(circle,rgba(191,230,205,.12),transparent 66%);pointer-events:none}
+    .hero:after{content:"";position:absolute;right:-180px;bottom:-210px;width:560px;height:560px;border:1px solid rgba(191,230,205,.13);border-radius:50%;box-shadow:0 0 0 58px rgba(191,230,205,.025),0 0 0 116px rgba(191,230,205,.018);pointer-events:none}
+    .hero-grid{min-height:720px;padding:92px 0 76px;display:grid;grid-template-columns:1.08fr .92fr;gap:64px;align-items:center;position:relative;z-index:2}
+    .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:20px}
+    .hero h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:clamp(54px,7vw,92px);line-height:.95;letter-spacing:-.055em;margin:0 0 28px;max-width:760px}
+    .hero h1 em{font-style:normal;color:var(--mint)}
+    .hero-copy{font-size:18px;color:#c6d0cb;max-width:650px;line-height:1.7;margin:0 0 34px}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:999px;border:1px solid transparent;font-weight:800;font-size:13px;letter-spacing:.01em;cursor:pointer}
+    .btn-primary{background:var(--mint);color:var(--ink)}
+    .btn-secondary{border-color:rgba(255,255,255,.22);color:#edf3f0;background:rgba(255,255,255,.035)}
+    .micro-note{margin-top:22px;color:#93a39c;font-size:12px;max-width:590px}
+
+    .hero-card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.13);border-radius:28px;padding:26px;box-shadow:0 35px 90px rgba(0,0,0,.22);backdrop-filter:blur(8px)}
+    .hero-card-top{display:flex;align-items:start;justify-content:space-between;gap:18px;margin-bottom:30px}
+    .hero-card-label{font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:#90a199;font-weight:800}
+    .status{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#cce9d5;background:rgba(191,230,205,.08);border:1px solid rgba(191,230,205,.18);padding:7px 10px;border-radius:999px}
+    .status-dot{width:6px;height:6px;background:var(--mint);border-radius:50%}
+    .facility-value{font-family:Georgia,serif;font-size:56px;line-height:1;margin:7px 0 5px;letter-spacing:-.045em}
+    .facility-sub{color:#8fa098;font-size:12px}
+    .meter{height:8px;background:rgba(255,255,255,.09);border-radius:999px;overflow:hidden;margin:27px 0 12px}
+    .meter span{display:block;height:100%;width:33.3%;background:linear-gradient(90deg,var(--mint),#d9c999);border-radius:inherit}
+    .meter-row{display:flex;justify-content:space-between;color:#91a198;font-size:11px;margin-bottom:26px}
+    .metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .metric{border-top:1px solid rgba(255,255,255,.12);padding-top:16px;min-width:0}
+    .metric b{display:block;font-size:21px;color:#f6f2e8;margin-bottom:3px}
+    .metric span{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#82948b}
+
+    .trust{border-bottom:1px solid var(--line-dark);background:#f9f5ed}
+    .trust-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+    .trust-item{padding:24px 20px;border-right:1px solid var(--line-dark)}
+    .trust-item:first-child{padding-left:0}.trust-item:last-child{border-right:0}
+    .trust-item b{font-size:13px}.trust-item span{display:block;color:var(--muted-dark);font-size:11px;margin-top:2px}
+
+    section{padding:100px 0}
+    .section-kicker{font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:#7a6843;font-weight:800;margin-bottom:14px}
+    .section-title{font-family:Georgia,serif;font-size:clamp(40px,5vw,66px);font-weight:500;letter-spacing:-.045em;line-height:1.02;margin:0;max-width:820px}
+    .section-lede{font-size:16px;color:var(--muted-dark);line-height:1.7;max-width:730px;margin:22px 0 0}
+.flow-section{background:#0b1512;color:var(--cream)}
+    .flow-section .section-lede{color:#9eaaa4}
+    .flow-wrap{margin-top:54px;border:1px solid rgba(255,255,255,.12);border-radius:28px;padding:34px;background:rgba(255,255,255,.025)}
+    .flow-track{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;align-items:stretch;position:relative}
+    .flow-track:before{content:"";position:absolute;left:9%;right:9%;top:50%;height:1px;background:linear-gradient(90deg,rgba(191,230,205,.16),rgba(191,230,205,.72),rgba(191,230,205,.16));z-index:0}
+    .node{position:relative;z-index:1;background:#12201b;border:1px solid rgba(255,255,255,.13);border-radius:18px;padding:18px;min-height:142px}
+    .node-index{width:26px;height:26px;border-radius:8px;background:#d9eee0;color:#14221d;display:grid;place-items:center;font-size:11px;font-weight:900;margin-bottom:24px}
+    .node h3{font-size:14px;margin:0 0 5px}.node p{margin:0;color:#87988f;font-size:11px;line-height:1.5}
+    .repay-loop{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:14px;margin-top:28px;padding-top:28px;border-top:1px solid rgba(255,255,255,.1)}
+    .repay-chip{padding:14px 16px;border-radius:14px;background:rgba(191,230,205,.07);border:1px solid rgba(191,230,205,.14);font-size:12px;color:#dcebe1}
+    .arrow{color:#7aa58a;font-size:20px;text-align:center}
+    .flow-caption{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-top:20px;color:#819289;font-size:11px}
+
+    .roles{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:44px}
+    .role{padding:22px 18px;border:1px solid var(--line-dark);border-radius:20px;background:#fffdfa}
+    .role .role-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+    .role-icon{width:36px;height:36px;border-radius:12px;background:var(--ink);color:var(--mint);display:grid;place-items:center;font-weight:900}
+    .role-tag{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#7b857f}
+    .role h3{margin:0 0 8px;font-size:15px}.role p{margin:0;color:var(--muted-dark);font-size:12px;line-height:1.6}
+
+    .scenario{background:#efe9dc}
+    .scenario-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:54px;align-items:start;margin-top:48px}
+    .calc{background:#fffdfa;border:1px solid rgba(13,23,20,.09);border-radius:26px;padding:28px;box-shadow:var(--shadow)}
+    .calc-row{margin-bottom:24px}.calc-row:last-child{margin-bottom:0}
+    .calc-label{display:flex;justify-content:space-between;gap:20px;align-items:baseline;margin-bottom:11px;font-size:12px;color:#4b5752}
+    .calc-label b{color:var(--ink);font-size:14px}
+    input[type="range"]{width:100%;accent-color:#18372d}
+    .results{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+    .result{background:#14211d;color:#f4f0e6;border-radius:18px;padding:18px;min-height:110px}
+    .result.alt{background:#dfece3;color:#14211d}
+    .result span{display:block;text-transform:uppercase;letter-spacing:.12em;font-size:9px;opacity:.62;margin-bottom:8px}
+    .result strong{font-size:28px;letter-spacing:-.035em;display:block;line-height:1.1}
+    .result small{display:block;margin-top:7px;font-size:10px;opacity:.65}
+    .scenario-copy{padding-top:10px}.scenario-copy h3{font-family:Georgia,serif;font-size:34px;font-weight:500;letter-spacing:-.035em;margin:0 0 18px}.scenario-copy p{color:#59645f;line-height:1.75;margin:0 0 22px}
+    .bullet{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-top:1px solid rgba(13,23,20,.11);font-size:13px}.bullet .dot{width:7px;height:7px;border-radius:50%;background:#315847;margin-top:7px;flex:0 0 auto}
+
+    .experience-grid{display:grid;grid-template-columns:.86fr 1.14fr;gap:72px;align-items:center;margin-top:54px}
+    .phone{max-width:350px;margin:0 auto;background:#0f1b17;border:1px solid #1e312a;border-radius:42px;padding:12px;box-shadow:0 26px 70px rgba(6,18,13,.24)}
+    .phone-screen{background:#f7f4ec;border-radius:32px;min-height:612px;padding:22px;color:var(--ink);position:relative;overflow:hidden}
+    .phone-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px;font-size:11px;color:#65706a}.avatar{width:28px;height:28px;background:#18372d;color:#e9f2ec;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:800}
+    .phone-kicker{text-transform:uppercase;letter-spacing:.14em;color:#8a764c;font-size:9px;font-weight:800}.phone h3{font-family:Georgia,serif;font-size:34px;font-weight:500;line-height:1.02;margin:8px 0 7px;letter-spacing:-.04em}.phone .sub{font-size:11px;color:#68736d;margin-bottom:24px}
+    .loan-box{background:#13221d;color:#f8f4ea;border-radius:20px;padding:20px;margin-bottom:18px}.loan-box span{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#8ca198}.loan-box strong{font-family:Georgia,serif;display:block;font-size:36px;margin:6px 0 3px}.loan-box small{color:#9fb0a8;font-size:10px}
+    .choice{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid rgba(13,23,20,.1);font-size:11px}.choice b{font-size:12px}.phone-button{margin-top:24px;background:#17352b;color:white;padding:14px 16px;border-radius:999px;text-align:center;font-size:11px;font-weight:800}.phone-note{text-align:center;color:#7a847e;font-size:9px;margin-top:12px}
+    .journey{display:grid;gap:0}.journey-step{display:grid;grid-template-columns:42px 1fr;gap:15px;padding:18px 0;border-bottom:1px solid var(--line-dark)}.journey-step:last-child{border-bottom:0}.journey-num{width:34px;height:34px;border-radius:50%;border:1px solid #c6d0ca;display:grid;place-items:center;font-size:11px;font-weight:800}.journey-step h4{margin:0 0 5px;font-size:14px}.journey-step p{margin:0;color:var(--muted-dark);font-size:12px;line-height:1.55}
+
+    .risk{background:#f7f2e8}
+    .risk-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:44px}
+    .risk-card{border:1px solid var(--line-dark);border-radius:20px;padding:22px;background:#fbf8f1;display:grid;grid-template-columns:42px 1fr;gap:14px}.risk-icon{width:38px;height:38px;border-radius:12px;background:#1b2b25;color:#f1eadb;display:grid;place-items:center;font-size:14px}.risk-card h3{font-size:14px;margin:1px 0 6px}.risk-card p{font-size:12px;color:var(--muted-dark);margin:0;line-height:1.65}
+
+    .final{background:#0a1411;color:var(--cream);padding:96px 0}
+    .final-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:60px;align-items:end}
+    .final h2{font-family:Georgia,serif;font-weight:500;font-size:clamp(44px,6vw,78px);letter-spacing:-.05em;line-height:.98;margin:0}.final h2 span{color:var(--mint)}
+    .final p{color:#9eaaa4;font-size:14px;line-height:1.7;margin:0 0 20px}
+    .disclosure{padding-top:22px;border-top:1px solid rgba(255,255,255,.12);font-size:10px;color:#72827a;line-height:1.7}
+    footer{background:#07100d;color:#798981;border-top:1px solid rgba(255,255,255,.08)}
+    .footer-row{min-height:88px;display:flex;justify-content:space-between;align-items:center;gap:20px;font-size:10px;letter-spacing:.04em}
+
+    @media (max-width:980px){
+      .hero-grid,.scenario-grid,.experience-grid,.final-grid{grid-template-columns:1fr;gap:44px}
+      .hero-grid{min-height:auto;padding:70px 0}
+      .hero-card{max-width:620px}
+      .roles{grid-template-columns:repeat(2,1fr)}
+      .flow-track{grid-template-columns:1fr 1fr}.flow-track:before{display:none}.node:last-child{grid-column:1/-1}
+      .repay-loop{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}
+      .phone{margin-left:0}
+    }
+    @media (max-width:720px){
+      .shell{padding:0 18px}.nav-inner{height:68px}.nav-links a:not(.nav-cta){display:none}.briefing-inner{grid-template-columns:1fr;gap:14px;padding:22px 0}.briefing-button{width:100%}.video-modal{padding:10px}.video-dialog{border-radius:18px}
+      .hero h1{font-size:52px}.hero-copy{font-size:16px}.hero-grid{padding:58px 0 54px}.facility-value{font-size:46px}
+      .trust-row{grid-template-columns:1fr 1fr}.trust-item{border-right:1px solid var(--line-dark);border-bottom:1px solid var(--line-dark);padding:18px 16px}.trust-item:nth-child(2n){border-right:0}.trust-item:nth-last-child(-n+2){border-bottom:0}.trust-item:first-child{padding-left:16px}
+      section{padding:72px 0}.section-title{font-size:42px}.flow-wrap{padding:20px}.flow-track,.roles,.risk-grid{grid-template-columns:1fr}.node:last-child{grid-column:auto}.results{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr 1fr}.metric:last-child{grid-column:1/-1}
+      .experience-grid{gap:42px}.phone{max-width:100%}.final{padding:72px 0}.footer-row{align-items:flex-start;flex-direction:column;justify-content:center;padding:22px 0}
+    }
+    @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="shell nav-inner">
+      <a class="brand" href="#top" aria-label="DMCI Employee Payroll Credit Facility home">
+        <div class="brand-mark">D</div>
+        <div>Employee Credit Facility<small>Proposed institutional structure</small></div>
+      </a>
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#structure">Structure</a>
+        <a href="#economics">Economics</a>
+        <a href="#controls">Risk controls</a>
+        <a class="nav-cta" href="#discussion">Funding view</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="shell hero-grid">
+        <div>
+          <div class="eyebrow">DMCI employee payroll loan concept · Philippines</div>
+          <h1>Institutional capital, deployed <em>one approved loan at a time.</em></h1>
+          <p class="hero-copy">A proposed digital payroll-lending architecture for approximately 2,000 employees—designed so DMCI and the technology service provider do not need to receive or warehouse a large lump sum of capital.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#structure">View capital flow</a>
+            <a class="btn btn-secondary" href="#economics">Model the portfolio</a>
+          </div>
+          <div class="micro-note">Illustrative proposal only. Facility size, eligibility, pricing, documentation and legal structure remain subject to lender, funder, employer and regulatory review.</div>
+        </div>
+
+        <aside class="hero-card" aria-label="Illustrative facility snapshot">
+          <div class="hero-card-top">
+            <div>
+              <div class="hero-card-label">Illustrative committed facility</div>
+              <div class="facility-value">₱30.0M</div>
+              <div class="facility-sub">Capital available for qualifying employee loans</div>
+            </div>
+            <div class="status"><span class="status-dot"></span> Revolving structure</div>
+          </div>
+          <div class="meter" aria-hidden="true"><span></span></div>
+          <div class="meter-row"><span>₱10.0M deployed</span><span>₱20.0M available</span></div>
+          <div class="metric-grid">
+            <div class="metric"><b>2,000</b><span>Potential employees</span></div>
+            <div class="metric"><b>Loan-level</b><span>Capital drawdown</span></div>
+            <div class="metric"><b>Payroll</b><span>Collection channel</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <div class="trust">
+      <div class="shell trust-row">
+        <div class="trust-item"><b>Capital stays controlled</b><span>No required lump-sum transfer to the TSP</span></div>
+        <div class="trust-item"><b>Eligibility is verified</b><span>Employment and payroll data can inform underwriting</span></div>
+        <div class="trust-item"><b>Loans are individually funded</b><span>Only approved loans consume committed capital</span></div>
+        <div class="trust-item"><b>Principal can revolve</b><span>Repayment can restore capacity under the facility terms</span></div>
+      </div>
+    </div>
+    <section class="flow-section" id="structure">
+      <div class="shell">
+        <div class="section-kicker">Capital architecture</div>
+        <h2 class="section-title">Keep the funder, lender, employer and technology roles clean.</h2>
+        <p class="section-lede">The model separates capital custody from digital orchestration. The TSP can run the experience and the lender can originate the credit without either party needing to sit on the entire committed facility.</p>
+
+        <div class="flow-wrap">
+          <div class="flow-track" aria-label="Funding flow">
+            <article class="node"><div class="node-index">01</div><h3>Capital provider</h3><p>Commits institutional capacity under agreed eligibility and portfolio rules.</p></article>
+            <article class="node"><div class="node-index">02</div><h3>Controlled facility</h3><p>Funds remain in a bank, custodial or legally appropriate controlled structure.</p></article>
+            <article class="node"><div class="node-index">03</div><h3>Licensed originator</h3><p>Performs regulated lending functions, contracts, disclosures and servicing.</p></article>
+            <article class="node"><div class="node-index">04</div><h3>Digital orchestration</h3><p>TSP coordinates verification, rules, signatures, instructions, ledger and reconciliation.</p></article>
+            <article class="node"><div class="node-index">05</div><h3>Employee borrower</h3><p>Receives only the approved individual loan amount into the authorized payout account.</p></article>
+          </div>
+
+          <div class="repay-loop" aria-label="Repayment flow">
+            <div class="repay-chip"><strong>Employee salary</strong><br>Regular compensation source</div>
+            <div class="arrow">→</div>
+            <div class="repay-chip"><strong>Authorized payroll deduction</strong><br>DMCI payroll collection while applicable</div>
+            <div class="arrow">→</div>
+            <div class="repay-chip"><strong>Settlement → lender → funder</strong><br>Collections reduce outstanding principal and may restore facility capacity</div>
+          </div>
+          <div class="flow-caption"><span>Funding direction →</span><span>Repayment direction returns through the controlled collection structure.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell">
+        <div class="section-kicker">Role clarity</div>
+        <h2 class="section-title">A legitimate institutional structure starts with clear boundaries.</h2>
+        <div class="roles">
+          <article class="role"><div class="role-top"><div class="role-icon">D</div><div class="role-tag">Employer</div></div><h3>DMCI</h3><p>Employment verification, approved payroll deductions, remittance and employment-status updates. No guarantee is assumed unless separately documented.</p></article>
+          <article class="role"><div class="role-top"><div class="role-icon">T</div><div class="role-tag">Technology</div></div><h3>TSP</h3><p>Application UX, orchestration, integrations, rules, ledger, audit trail, reconciliation, dashboards and exception handling.</p></article>
+          <article class="role"><div class="role-top"><div class="role-icon">L</div><div class="role-tag">Origination</div></div><h3>Licensed lender</h3><p>Loan origination, lending contracts, disclosures, regulatory obligations, servicing and collections under the final legal structure.</p></article>
+          <article class="role"><div class="role-top"><div class="role-icon">F</div><div class="role-tag">Capital</div></div><h3>Funder</h3><p>Provides committed capital and takes the agreed portfolio economics and risk subject to facility eligibility and covenants.</p></article>
+          <article class="role"><div class="role-top"><div class="role-icon">B</div><div class="role-tag">Settlement</div></div><h3>Bank / payments</h3><p>Controlled disbursement and collection accounts, transaction settlement and traceable money movement.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="scenario" id="economics">
+      <div class="shell">
+        <div class="section-kicker">Illustrative portfolio model</div>
+        <h2 class="section-title">2,000 employees does not mean 2,000 loans on day one.</h2>
+        <p class="section-lede">The facility can start smaller and expand with verified utilization and repayment behavior. Use the controls below to see how participation and average loan size change deployed capital.</p>
+
+        <div class="scenario-grid">
+          <div class="calc" aria-label="Illustrative portfolio calculator">
+            <div class="calc-row">
+              <div class="calc-label"><span>Employee participation</span><b id="participationLabel">30%</b></div>
+              <input id="participation" type="range" min="10" max="100" step="5" value="30" aria-label="Employee participation percentage" />
+            </div>
+            <div class="calc-row">
+              <div class="calc-label"><span>Average approved loan</span><b id="loanLabel">₱30,000</b></div>
+              <input id="loanAmount" type="range" min="10000" max="100000" step="5000" value="30000" aria-label="Average approved loan amount" />
+            </div>
+            <div class="calc-row">
+              <div class="calc-label"><span>Illustrative facility limit</span><b id="facilityLabel">₱30M</b></div>
+              <input id="facility" type="range" min="10000000" max="100000000" step="5000000" value="30000000" aria-label="Illustrative facility limit" />
+            </div>
+            <div class="results" aria-live="polite">
+              <div class="result"><span>Participating borrowers</span><strong id="borrowers">600</strong><small>of 2,000 employees</small></div>
+              <div class="result alt"><span>Illustrative deployed book</span><strong id="book">₱18.0M</strong><small>participation × average loan</small></div>
+              <div class="result"><span>Facility headroom</span><strong id="headroom">₱12.0M</strong><small id="headroomNote">40% remaining</small></div>
+              <div class="result alt"><span>All-employee theoretical book</span><strong id="theoretical">₱60.0M</strong><small>not an assumed launch balance</small></div>
+            </div>
+          </div>
+
+          <div class="scenario-copy">
+            <h3>Capital is committed before it is consumed.</h3>
+            <p>If the agreed facility were ₱30 million and a qualifying employee were approved for ₱30,000, only that loan-level amount would need to be deployed for the transaction. The remaining committed capacity stays available for future eligible loans.</p>
+            <div class="bullet"><span class="dot"></span><div><strong>Committed capital</strong><br>Maximum capacity available under the financing agreement.</div></div>
+            <div class="bullet"><span class="dot"></span><div><strong>Deployed capital</strong><br>Capital actually used to fund originated employee loans.</div></div>
+            <div class="bullet"><span class="dot"></span><div><strong>Outstanding principal</strong><br>Principal still owed across active employee loans.</div></div>
+            <div class="bullet"><span class="dot"></span><div><strong>Available capacity</strong><br>Undrawn or restored capacity available for future qualifying loans.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell">
+        <div class="section-kicker">Borrower experience</div>
+        <h2 class="section-title">The complexity stays behind the screen.</h2>
+        <p class="section-lede">To the employee, the experience can feel like a modern digital lending app. Behind it sits employer verification, lender controls, funding instructions and reconciliation.</p>
+
+        <div class="experience-grid">
+          <div class="phone" aria-label="Illustrative employee mobile application">
+            <div class="phone-screen">
+              <div class="phone-head"><span>Employee Finance</span><span class="avatar">JD</span></div>
+              <div class="phone-kicker">Your available credit</div>
+              <h3>Choose what you need.</h3>
+              <div class="sub">Illustrative employee eligibility view</div>
+              <div class="loan-box"><span>Selected amount</span><strong>₱24,000</strong><small>Within an illustrative ₱30,000 available limit</small></div>
+              <div class="choice"><span>Repayment term</span><b>6 months</b></div>
+              <div class="choice"><span>Collection method</span><b>Payroll deduction</b></div>
+              <div class="choice"><span>Disbursement</span><b>Authorized account</b></div>
+              <div class="choice"><span>Full disclosure</span><b>Shown before consent</b></div>
+              <div class="phone-button">Review loan terms</div>
+              <div class="phone-note">No interest rate is shown because pricing has not been agreed.</div>
+            </div>
+          </div>
+
+          <div class="journey">
+            <div class="journey-step"><div class="journey-num">01</div><div><h4>Verify identity and employment</h4><p>KYC, employer status, tenure and other permitted information enter the eligibility workflow.</p></div></div>
+            <div class="journey-step"><div class="journey-num">02</div><div><h4>Calculate available credit</h4><p>Salary, existing deductions, lending policy and repayment capacity determine the maximum eligible amount.</p></div></div>
+            <div class="journey-step"><div class="journey-num">03</div><div><h4>Show the full repayment terms</h4><p>The employee sees amount, tenor, charges, total repayment, deduction schedule and required disclosures before consent.</p></div></div>
+            <div class="journey-step"><div class="journey-num">04</div><div><h4>Approve, sign and fund</h4><p>After lender approval and electronic documentation, the platform issues the loan-level funding instruction.</p></div></div>
+            <div class="journey-step"><div class="journey-num">05</div><div><h4>Collect and reconcile</h4><p>Authorized payroll deductions are remitted through the agreed collection route and reconciled to each loan account.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="risk" id="controls">
+      <div class="shell">
+        <div class="section-kicker">Risk and control</div>
+        <h2 class="section-title">Payroll deduction improves collection. It does not erase credit risk.</h2>
+        <p class="section-lede">Under the contemplated payroll-deduction-only structure, employee credit risk remains with the lending/funding structure unless additional protection is separately negotiated.</p>
+
+        <div class="risk-grid">
+          <article class="risk-card"><div class="risk-icon">↗</div><div><h3>Employment separation</h3><p>Resignation, termination or extended unpaid leave can interrupt salary deductions. The lender needs a direct repayment and collections process after separation.</p></div></article>
+          <article class="risk-card"><div class="risk-icon">₱</div><div><h3>Payroll sufficiency</h3><p>Salary may become insufficient for the scheduled deduction. Rules should define affordability, prioritization, exception handling and borrower notification.</p></div></article>
+          <article class="risk-card"><div class="risk-icon">✓</div><div><h3>Fraud and eligibility</h3><p>Identity, employment, account and application fraud require verification controls, audit trails and review paths for exceptions.</p></div></article>
+          <article class="risk-card"><div class="risk-icon">◎</div><div><h3>Employer concentration</h3><p>Even with many borrowers, the portfolio is concentrated around one employer and should be assessed accordingly by the capital provider.</p></div></article>
+          <article class="risk-card"><div class="risk-icon">↻</div><div><h3>Operational resilience</h3><p>Payroll files, bank settlement, duplicate instructions, reconciliation and system downtime require idempotency, exception queues and traceable recovery.</p></div></article>
+          <article class="risk-card"><div class="risk-icon">§</div><div><h3>Regulatory structure</h3><p>Lending, disclosures, data privacy, electronic transactions and wage-deduction requirements must be validated in the final Philippine legal and compliance design.</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="final" id="discussion">
+      <div class="shell final-grid">
+        <div>
+          <div class="section-kicker">Funding proposition</div>
+          <h2>Not a ₱30M transfer.<br><span>A controlled lending infrastructure.</span></h2>
+        </div>
+        <div>
+          <p>The institutional opportunity is to provide capital against a defined employee-lending program where each qualifying loan is verified, documented, funded and tracked individually—and where collections can flow back through an authorized payroll mechanism.</p>
+          <a class="btn btn-primary" href="#structure">Review the structure again</a>
+          <div class="disclosure">Independent concept proposal for discussion purposes. This page is not a DMCI corporate website and does not represent a commitment, guarantee, approved lending product, investment offer or legal conclusion. Final implementation requires appropriate licensed entities, agreements, employee authorizations and Philippine legal, regulatory, tax, accounting, privacy and labor review.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="video-modal" id="videoModal" hidden role="dialog" aria-modal="true" aria-labelledby="videoTitle">
+    <div class="video-dialog">
+      <div class="video-dialog-head"><strong id="videoTitle">DMCI Employee Payroll Credit Facility · Investor Briefing</strong><button class="video-close" id="videoClose" type="button" aria-label="Close video">×</button></div>
+      <video class="video-player" id="briefingVideo" controls playsinline preload="metadata" src="https://d2jqrm6oza8nb6.cloudfront.net/datasets/3fd3b1f2-45ec-4ec3-8643-77427346ff9f.mp4?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiYjY4ZDk5MDFkODU0OWRkMSIsImJ1Y2tldCI6InJ1bndheS1kYXRhc2V0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDkyNTA1N30.J0xCz_z03cYPJeugc6_zOzbTBQKjH8-vyLQbdIo76N0"></video>
+      <div class="video-caption">10:30 concept walkthrough · Illustrative proposal for discussion purposes.</div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="shell footer-row">
+      <span>DMCI Employee Payroll Credit Facility · Concept Architecture</span>
+      <span>Illustrative figures only · No rate or return assumptions</span>
+    </div>
+  </footer>
+
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const participation = document.getElementById('participation');
+      const loan = document.getElementById('loanAmount');
+      const facility = document.getElementById('facility');
+      const php = new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:0});
+      const short = (value) => value >= 1e6 ? `₱${(value/1e6).toFixed(value%1e6===0?0:1)}M` : php.format(value);
+      const update = () => {
+        const p = Math.max(10,Math.min(100,Number(participation.value)||30));
+        const l = Math.max(10000,Math.min(100000,Number(loan.value)||30000));
+        const f = Math.max(10000000,Math.min(100000000,Number(facility.value)||30000000));
+        const borrowers = Math.round(2000*p/100);
+        const book = borrowers*l;
+        const theoretical = 2000*l;
+        const headroom = Math.max(0,f-book);
+        const remainingPct = Math.max(0,Math.round((headroom/f)*100));
+        document.getElementById('participationLabel').textContent = `${p}%`;
+        document.getElementById('loanLabel').textContent = php.format(l);
+        document.getElementById('facilityLabel').textContent = short(f);
+        document.getElementById('borrowers').textContent = new Intl.NumberFormat('en-PH').format(borrowers);
+        document.getElementById('book').textContent = short(book);
+        document.getElementById('headroom').textContent = short(headroom);
+        document.getElementById('headroomNote').textContent = book > f ? `${short(book-f)} above facility` : `${remainingPct}% remaining`;
+        document.getElementById('theoretical').textContent = short(theoretical);
+      };
+      [participation,loan,facility].forEach(el=>el.addEventListener('input',update));
+      update();
+      const modal=document.getElementById('videoModal');
+      const player=document.getElementById('briefingVideo');
+      const close=document.getElementById('videoClose');
+      const openVideo=()=>{modal.hidden=false;document.body.style.overflow='hidden';setTimeout(()=>player.play().catch(()=>{}),80)};
+      const closeVideo=()=>{player.pause();modal.hidden=true;document.body.style.overflow='';};
+      document.querySelectorAll('.js-open-video').forEach(btn=>btn.addEventListener('click',openVideo));
+      close.addEventListener('click',closeVideo);
+      modal.addEventListener('click',e=>{if(e.target===modal)closeVideo()});
+      document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)closeVideo()});
+      root.classList.add('js');
+    })();
+  </script>
+</body>
+</html>
