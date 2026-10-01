@@ -103,3 +103,13 @@ test('internal Enterprise context is sanitized before persistence, API response,
   assert.match(askPandoraScreen, /_sanitizeVisiblePandoraText/);
   assert.match(askPandoraScreen, /bounded enterprise page context:/i);
 });
+
+
+test('owner-facing Pandora injects canonical M5 Memory through the server workload boundary', () => {
+  assert.match(edge, /https:\/\/mcpmaster\.vercel\.app\/api\/operations-memory/);
+  assert.match(edge, /combinedTrustedContext\(req,c\.admin,c\.organizationId,i\.projectId,effectiveInitial\)/);
+  assert.match(edge, /Use relevant prior failure lessons, procedures, outcomes, and provider evidence to avoid repeating known mistakes/);
+  assert.match(edge, /canonicalMemoryItemIds/);
+  assert.match(edge, /retrievalDoesNotGrantExecutionAuthority===true/);
+  assert.doesNotMatch(edge, /x-pandora-vercel-oidc|getVercelOidcToken|resolveVercelWorkloadToken/);
+});
