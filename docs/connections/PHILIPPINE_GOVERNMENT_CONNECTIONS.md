@@ -2,7 +2,7 @@
 
 This Lane B package adds Philippine government providers through Provider SDK manifests and generic adapters. It adds no provider-specific UI. Catalog presence never means connected: a safe read produces provider-readback evidence only, and the tenant-bound Live Connections runtime remains the UI status authority.
 
-Pandora `organization_id` is the canonical external-client `tenantId`. Every probe and activation action requires an explicit `tenantId`, `connectionId`, and provider-account `tenantKey`, plus the same tuple in trusted runtime evidence. A missing or mismatched field fails closed. PSGC additionally requires the trusted runtime's Vault reference to equal the request's opaque reference. Credentials cannot be shared across organizations, returned in receipts, or sent to browser/mobile devices.
+Pandora `organization_id` is the canonical external-client `tenantId`. Every probe and activation action requires an explicit `tenantId`, `connectionId`, and provider-account `tenantKey`, plus the same tuple in trusted runtime evidence. This includes the pre-onboarding Request-activation action; an external payload cannot self-assert its tenant. A missing or mismatched field fails closed. PSGC additionally requires the trusted runtime's Vault reference to equal the request's opaque reference. Credentials cannot be shared across organizations, returned in receipts, or sent to browser/mobile devices.
 
 ## Implemented public interfaces
 

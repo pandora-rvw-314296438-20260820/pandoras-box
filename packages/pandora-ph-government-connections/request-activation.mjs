@@ -26,7 +26,7 @@ function assertNoCredentialMaterial(value) {
   }
 }
 
-export function createGovernmentActivationRequest(input) {
+export function createGovernmentActivationRequest(input, runtime = {}) {
   if (!input || Array.isArray(input) || typeof input !== "object") throw new TypeError("activation request must be an object");
   const unexpected = Object.keys(input).filter((key) => !ALLOWED_FIELDS.has(key));
   if (unexpected.length) throw new Error(`activation_request_contains_forbidden_fields:${unexpected.join(",")}`);
@@ -41,6 +41,11 @@ export function createGovernmentActivationRequest(input) {
     throw new Error("CONNECTION_IDENTITY_INVALID");
   }
   if (tenantId !== organizationId) {
+    throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
+  }
+  const trusted = runtime?.tenantBinding || runtime?.evidence?.tenantBinding;
+  if (!trusted || trusted.organizationId !== organizationId || trusted.tenantId !== tenantId ||
+      trusted.connectionId !== connectionId || trusted.tenantKey !== tenantKey) {
     throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
   }
   const requestedAt = requireText(input.requestedAt, "requestedAt");

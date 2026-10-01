@@ -173,19 +173,33 @@ test("activation workflow rejects credential-shaped fields and never marks Conne
     requestedUseCase: "Read-only government service integration",
     jurisdiction: "PH",
     requestedAt: "2026-10-01T12:30:00.000Z",
-  });
+  }, { tenantBinding });
   assert.equal(activation.catalogAction, "Request activation");
   assert.equal(activation.liveConnectionStatus, "not_connected");
   assert.equal(activation.tenantId, tenantId);
   assert.equal(activation.connectionId, connectionId);
   assert.equal(activation.tenantKey, tenantKey);
   assert.equal(activation.credentialReturned, false);
-  assert.throws(() => createGovernmentActivationRequest({ ...activation, password: "forbidden" }), /forbidden_fields/);
+  assert.throws(() => createGovernmentActivationRequest({ ...activation, password: "forbidden" }, { tenantBinding }), /forbidden_fields/);
   assert.throws(() => createGovernmentActivationRequest({
     requestId: "activate-egov-cross-tenant",
     providerKey: "ph.dict.egov",
     organizationId: tenantId,
     tenantId: "33333333-3333-4333-8333-333333333333",
+    connectionId,
+    tenantKey,
+    requesterRef: "user-1",
+    contactEmail: "athena@example.invalid",
+    legalEntityName: "Pandora",
+    requestedUseCase: "Read-only government service integration",
+    jurisdiction: "PH",
+    requestedAt: "2026-10-01T12:30:00.000Z",
+  }, { tenantBinding }), /CONNECTION_ACCOUNT_TENANT_MISMATCH/);
+  assert.throws(() => createGovernmentActivationRequest({
+    requestId: "activate-egov-untrusted",
+    providerKey: "ph.dict.egov",
+    organizationId: tenantId,
+    tenantId,
     connectionId,
     tenantKey,
     requesterRef: "user-1",
