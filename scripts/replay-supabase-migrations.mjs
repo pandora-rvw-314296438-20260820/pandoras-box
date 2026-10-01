@@ -128,7 +128,7 @@ function portableSql(filename, source) {
 
     const assertStartMarker = 'do ' + dollar + 'assert' + dollar;
     const assertEndMarker = dollar + 'assert' + dollar + ';';
-    const assertStart = transformed.indexOf(assertStartMarker, patchStart);
+    const assertStart = transformed.indexOf(assertStartMarker);
     const assertEnd = transformed.indexOf(assertEndMarker, assertStart);
     assert.ok(
       assertStart >= 0 && assertEnd > assertStart,
