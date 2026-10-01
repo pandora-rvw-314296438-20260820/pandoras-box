@@ -48,6 +48,45 @@ export function listProviderEntries({ family, priority, connectionMode } = {}) {
     && (!connectionMode || entry.metadata.connectionMode === connectionMode));
 }
 
+export function buildProviderCatalogView(providerKey, readinessEvidence = {}) {
+  const entry = getProviderEntry(providerKey);
+  if (!entry) throw new TypeError("unknown_provider");
+  if (!readinessEvidence || Array.isArray(readinessEvidence) || typeof readinessEvidence !== "object") {
+    throw new TypeError("readiness_evidence_must_be_an_object");
+  }
+  const allowedEvidenceFields = new Set(["serverConfigurationPresent", "source"]);
+  const unexpectedFields = Object.keys(readinessEvidence).filter((field) => !allowedEvidenceFields.has(field));
+  if (unexpectedFields.length > 0) {
+    throw new TypeError(`unexpected_readiness_evidence:${unexpectedFields.sort().join(",")}`);
+  }
+
+  if (entry.metadata.connectionMode === "request_activation") {
+    return Object.freeze({
+      providerKey,
+      catalogState: "request_activation",
+      primaryAction: "request_activation",
+      primaryLabel: "Request activation",
+      connectButtonVisible: false,
+      blockedReason: "partner_activation_required",
+      connectionStatus: "not_connected",
+      statusAuthority: "live_connections_runtime",
+    });
+  }
+
+  const serverConfigured = readinessEvidence.serverConfigurationPresent === true
+    && readinessEvidence.source === entry.metadata.readiness.serverConfigurationAuthority;
+  return Object.freeze({
+    providerKey,
+    catalogState: serverConfigured ? "available_to_connect" : "implemented_awaiting_credential",
+    primaryAction: serverConfigured ? "connect" : null,
+    primaryLabel: serverConfigured ? "Connect" : "Awaiting credentials",
+    connectButtonVisible: serverConfigured,
+    blockedReason: serverConfigured ? null : entry.metadata.readiness.blockedReason,
+    connectionStatus: "not_connected",
+    statusAuthority: "live_connections_runtime",
+  });
+}
+
 export {
   getProviderConnectionManifest,
   providerConnectionManifests,

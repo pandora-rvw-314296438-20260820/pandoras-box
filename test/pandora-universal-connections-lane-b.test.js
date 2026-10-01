@@ -9,6 +9,7 @@ const modules = Promise.all([
 ]);
 
 const requestActivationKeys = [
+  "maya", "xero", "quickbooks", "grab", "lalamove", "docusign", "enterprise-idp",
   "pldt-enterprise", "smart", "globe", "dito", "ubivelox-philippines", "government-regulated",
 ];
 const organizationId = "11111111-1111-4111-8111-111111111111";
@@ -34,6 +35,7 @@ test("Lane B registers every requested P1/P2 provider through Provider SDK manif
     assert.equal(entry.metadata.health.identityReadback, true);
     assert.equal(entry.metadata.health.scopesReadback, true);
     assert.equal(entry.metadata.health.noCredentialOnlyConnectedState, true);
+    assert.equal(entry.metadata.readiness.connectEnabledByDefault, false);
     assert.deepEqual(entry.metadata.tenantBinding.requiredRequestFields, ["tenantId", "connectionId", "tenantKey"]);
     assert.equal(entry.metadata.tenantBinding.canonicalTenantColumn, "organization_id");
     assert.equal(entry.metadata.tenantBinding.mismatchPolicy, "fail_closed");
@@ -48,6 +50,35 @@ test("Lane B registers every requested P1/P2 provider through Provider SDK manif
     "enterprise-idp", "device-pairing", "local-ai", "custom-openapi", "mcp", "file-sftp-email",
     ...requestActivationKeys,
   ]) assert.equal(keys.has(key), true, `missing ${key}`);
+});
+
+test("credential-dependent catalog entries fail closed until server configuration exists", async () => {
+  const [{ buildProviderCatalogView, providerEntries }] = await modules;
+  for (const entry of providerEntries.filter((item) => item.metadata.connectionMode === "self_service")) {
+    assert.equal(entry.metadata.readiness.defaultCatalogState, "implemented_awaiting_credential");
+    const blocked = buildProviderCatalogView(entry.providerKey);
+    assert.deepEqual(blocked, {
+      providerKey: entry.providerKey,
+      catalogState: "implemented_awaiting_credential",
+      primaryAction: null,
+      primaryLabel: "Awaiting credentials",
+      connectButtonVisible: false,
+      blockedReason: "server_configuration_missing",
+      connectionStatus: "not_connected",
+      statusAuthority: "live_connections_runtime",
+    });
+    const ready = buildProviderCatalogView(entry.providerKey, {
+      serverConfigurationPresent: true,
+      source: "server_runtime_config_registry",
+    });
+    assert.equal(ready.catalogState, "available_to_connect");
+    assert.equal(ready.connectButtonVisible, true);
+    assert.equal(ready.connectionStatus, "not_connected");
+  }
+  assert.throws(
+    () => buildProviderCatalogView("twilio", { accessToken: "forbidden" }),
+    /unexpected_readiness_evidence:accessToken/,
+  );
 });
 
 test("OAuth and OIDC metadata requires PKCE S256, state, nonce and mobile secure return", async () => {
@@ -185,4 +216,3 @@ test("custom connectors are sandboxed and read-only first", async () => {
     assert.equal(policy.operationClassificationRequired, true);
   }
 });
-
