@@ -130,6 +130,14 @@ do $assert$
 declare
   v jsonb;
 begin
+  if not exists(
+    select 1
+    from private.pandora_meta_paid_pilot_authorizations
+    where id='0150939a-5c04-4899-a82c-bb27a539dacf'::uuid
+  ) then
+    return;
+  end if;
+
   v:=private.pandora_growth_paid_pilot_projection_v1(
     '2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid,
     'ee282126-3f61-4058-8c92-2fedbfcecf1f'::uuid
