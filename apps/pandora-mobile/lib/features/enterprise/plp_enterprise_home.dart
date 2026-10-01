@@ -8,15 +8,17 @@ class PlpEnterpriseHome extends StatelessWidget {
     required this.bootstrap,
     this.onOpenNavigation,
     required this.onRefresh,
-    required this.onAskAlfred,
     this.onOpenSection,
+    this.onOpenModule,
+    this.onOpenRecord,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback? onOpenNavigation;
   final VoidCallback onRefresh;
-  final VoidCallback onAskAlfred;
   final ValueChanged<String>? onOpenSection;
+  final ValueChanged<String>? onOpenModule;
+  final void Function(String kind, Map<String, Object?> record)? onOpenRecord;
 
   @override
   Widget build(BuildContext context) => PlpResortWorkspaceScreen(
@@ -25,7 +27,8 @@ class PlpEnterpriseHome extends StatelessWidget {
         bootstrap: bootstrap,
         onOpenNavigation: onOpenNavigation ?? () {},
         onRefresh: onRefresh,
-        onAskPandora: (_) => onAskAlfred(),
         onOpenSection: onOpenSection,
+        onOpenModule: onOpenModule,
+        onOpenRecord: onOpenRecord,
       );
 }
