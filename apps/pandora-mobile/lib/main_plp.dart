@@ -6,15 +6,12 @@ import 'app/pandora_runtime_bootstrap.dart';
 import 'app/plp_enterprise_app.dart';
 import 'core/local/pandora_local_store.dart';
 import 'core/security/mobile_auth_storage.dart';
+import 'core/security/pandora_session_storage.dart';
 import 'pandora_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
-  await PandoraMobileAuthStorage.clearLegacyPersistedSession(
-    PandoraConfig.supabaseUrl,
-  );
 
   final localStore = await openPandoraLocalStore();
   await localStore.purgeExpired(DateTime.now().toUtc());
@@ -22,8 +19,8 @@ Future<void> main() async {
   await Supabase.initialize(
     url: PandoraConfig.supabaseUrl,
     publishableKey: PandoraConfig.supabasePublishableKey,
-    authOptions: const FlutterAuthClientOptions(
-      localStorage: EmptyLocalStorage(),
+    authOptions: pandoraAuthClientOptions(
+      localStorage: PandoraSecureAuthStorage(PandoraConfig.supabaseUrl),
     ),
   );
 

@@ -497,7 +497,22 @@ class _TeamTab extends StatelessWidget {
               for (var index = 0; index < members.length; index++) ...[
                 InkWell(
                   key: ValueKey<String>(
-                    'plp-team-member-${members[index]['id']}',
+                    'plp-team-member-' +
+                        (
+                          members[index]['id']?.toString().trim().isNotEmpty == true
+                              ? members[index]['id'].toString()
+                              : [
+                                  textFor(
+                                    members[index]['displayName'],
+                                    fallback: 'member',
+                                  ),
+                                  textFor(
+                                    members[index]['accessRole'],
+                                    fallback: 'role',
+                                  ),
+                                  index.toString(),
+                                ].join('|')
+                        ),
                   ),
                   onTap: onManageTeam,
                   child: _TeamMemberRow(
