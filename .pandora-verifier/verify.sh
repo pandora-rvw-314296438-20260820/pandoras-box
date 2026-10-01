@@ -14,7 +14,9 @@ EXPECTED_APP_VERSION="0.4.0-rc.14+21"
 EXPECTED_PACKAGE="com.banataosystems.pandora.plp"
 EXPECTED_LABEL="PLP Pandora Enterprise"
 LLAMA_CPP_SHA="44be98f057e9f9902a8ee12630e181c7f8ec2953"
-LOCAL_MODEL_SHA256="626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d"
+LOCAL_MODEL_NAME="Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+LOCAL_MODEL_SHA256="1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6"
+EXPECTED_PRODUCTION_SIGNER_SHA256="ba4c1df95b0f0858bb510dab90b412dd18724205f5ff3dfbb7c7c56c9931202e"
 APK_FILENAME="PLP-Pandora-Enterprise.apk"
 ANDROID_CMDLINE_REV="11076708"
 
@@ -123,16 +125,56 @@ flutter test --reporter expanded   test/core/local_ai/plp_local_router_test.dart
 
 test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
 
-flutter build apk --release   --target=lib/main_plp.dart   --target-platform=android-arm64   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"   --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"   | tee "$OUT/flutter-build.log"
+BUILD_ARTIFACT_CLASS="Owner Test — Android debug signed"
+if [[ "${PANDORA_PLP_PRODUCTION_SIGNING:-false}" == "true" ]]; then
+  BUILD_ARTIFACT_CLASS="PLP production-signed candidate"
+fi
 
-APK="$BUILD/build/app/outputs/flutter-apk/app-release.apk"
-test -f "$APK"
+flutter build apk --release   --target=lib/main_plp.dart   --target-platform=android-arm64   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"   --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"   --dart-define=PANDORA_ARTIFACT_CLASS="$BUILD_ARTIFACT_CLASS"   | tee "$OUT/flutter-build.log"
+
+RAW_APK="$BUILD/build/app/outputs/flutter-apk/app-release.apk"
+test -f "$RAW_APK"
 AAPT="$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt"
 APKSIGNER="$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner"
+ZIPALIGN="$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign"
+APK="$RAW_APK"
+ARTIFACT_CLASS="validation-candidate"
+PRODUCTION_SIGNER_VERIFIED="false"
+
+if [[ "${PANDORA_PLP_PRODUCTION_SIGNING:-false}" == "true" ]]; then
+  : "${PANDORA_PLP_RELEASE_KEYSTORE_B64:?missing production keystore}"
+  : "${PANDORA_PLP_RELEASE_KEYSTORE_PASSWORD:?missing production keystore password}"
+  : "${PANDORA_PLP_RELEASE_CERT_SHA256:?missing production signer digest}"
+  test "${PANDORA_PLP_RELEASE_CERT_SHA256,,}" = "$EXPECTED_PRODUCTION_SIGNER_SHA256"
+  command -v zip >/dev/null
+  umask 077
+  KEYSTORE="$TOOLS/plp-release.p12"
+  UNSIGNED_APK="$BUILD/build/app/outputs/flutter-apk/app-release-unsigned.apk"
+  ALIGNED_APK="$BUILD/build/app/outputs/flutter-apk/app-release-aligned.apk"
+  SIGNED_APK="$BUILD/build/app/outputs/flutter-apk/app-release-production.apk"
+  printf '%s' "$PANDORA_PLP_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+  test -s "$KEYSTORE"
+  cp "$RAW_APK" "$UNSIGNED_APK"
+  zip -q -d "$UNSIGNED_APK" 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' >/dev/null 2>&1 || true
+  "$ZIPALIGN" -p -f 4 "$UNSIGNED_APK" "$ALIGNED_APK"
+  "$APKSIGNER" sign --out "$SIGNED_APK" --ks "$KEYSTORE" --ks-type PKCS12 --ks-pass env:PANDORA_PLP_RELEASE_KEYSTORE_PASSWORD --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true "$ALIGNED_APK"
+  rm -f "$KEYSTORE"
+  APK="$SIGNED_APK"
+  ARTIFACT_CLASS="production-candidate"
+  PRODUCTION_SIGNER_VERIFIED="true"
+fi
 
 "$AAPT" dump badging "$APK" > "$OUT/badging.txt"
 "$AAPT" dump permissions "$APK" > "$OUT/permissions.txt"
 "$APKSIGNER" verify --verbose --print-certs "$APK" > "$OUT/signing.txt"
+SIGNER_SHA="$(grep -m1 'Signer #1 certificate SHA-256 digest:' "$OUT/signing.txt" | sed -E 's/.*digest:[[:space:]]*//; s/://g' | tr '[:upper:]' '[:lower:]')"
+test -n "$SIGNER_SHA"
+if [[ "$PRODUCTION_SIGNER_VERIFIED" == "true" ]]; then
+  test "$SIGNER_SHA" = "$EXPECTED_PRODUCTION_SIGNER_SHA256"
+  test "$(grep -Ec '^Signer #[0-9]+ certificate SHA-256 digest:' "$OUT/signing.txt")" = "1"
+  ! grep -Eiq 'Android Debug|CN=Android Debug' "$OUT/signing.txt"
+  grep -Eq 'Verified using v2 scheme .*: true|Verified using v3 scheme .*: true' "$OUT/signing.txt"
+fi
 unzip -l "$APK" > "$OUT/apk-files.txt"
 
 grep -Fq "package: name='$EXPECTED_PACKAGE'" "$OUT/badging.txt"
@@ -167,6 +209,7 @@ android_package=$EXPECTED_PACKAGE
 application_label=$EXPECTED_LABEL
 dart_entrypoint=lib/main_plp.dart
 llama_cpp_sha=$LLAMA_CPP_SHA
+accepted_local_model_name=$LOCAL_MODEL_NAME
 accepted_local_model_sha256=$LOCAL_MODEL_SHA256
 local_ai_model_bundled=false
 android_platform=android-36
@@ -175,6 +218,10 @@ android_ndk=29.0.13113456
 cmake_version=3.31.6
 target_abi=arm64-v8a
 build_mode=release
+artifact_class=$ARTIFACT_CLASS
+production_release=false
+production_signer_verified=$PRODUCTION_SIGNER_VERIFIED
+signer_sha256=$SIGNER_SHA
 apk_filename=$APK_FILENAME
 apk_sha256=$APK_SHA
 apk_size_bytes=$APK_SIZE
