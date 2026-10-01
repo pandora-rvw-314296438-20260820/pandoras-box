@@ -2,6 +2,10 @@ import {
   providerEntries as unboundProviderEntries,
 } from "./provider-manifests.mjs";
 import {
+  getProviderConnectionManifest,
+  providerConnectionManifests,
+} from "./connection-manifests.mjs";
+import {
   governmentConnectionManifests,
   governmentProviderAdapters,
   governmentProviderCatalog,
@@ -22,6 +26,7 @@ const exactTenantBindingPolicy = Object.freeze({
 
 export const providerEntries = Object.freeze(unboundProviderEntries.map((entry) => Object.freeze({
   ...entry,
+  connectionManifest: providerConnectionManifests[entry.providerKey],
   metadata: Object.freeze({
     ...entry.metadata,
     tenantBinding: exactTenantBindingPolicy,
@@ -42,6 +47,11 @@ export function listProviderEntries({ family, priority, connectionMode } = {}) {
     && (!priority || entry.metadata.priority === priority)
     && (!connectionMode || entry.metadata.connectionMode === connectionMode));
 }
+
+export {
+  getProviderConnectionManifest,
+  providerConnectionManifests,
+};
 
 export {
   PARTNER_ACTIVATION_STATES,
@@ -80,6 +90,7 @@ export function listUniversalProviderCatalogEntries({ family, priority, connecti
 }
 
 export const connectionManifestCatalog = Object.freeze({
+  generic: providerConnectionManifests,
   government: governmentConnectionManifests,
 });
 
