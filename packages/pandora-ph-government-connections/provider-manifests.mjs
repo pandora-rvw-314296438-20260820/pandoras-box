@@ -88,6 +88,15 @@ function buildManifest(definition) {
       credentialMode: definition.credentialMode,
       leastPrivilege: "read_only",
     },
+    tenantBinding: {
+      canonicalTenantColumn: "organization_id",
+      canonicalTenantRequestField: "tenantId",
+      requiredRequestFields: ["tenantId", "connectionId", "tenantKey"],
+      trustedRuntimeEvidencePath: "evidence.tenantBinding",
+      mismatchPolicy: "fail_closed",
+      crossTenantCredentialSharing: false,
+      credentialsMayReachDevices: false,
+    },
     safeReadProbe: {
       method: "GET",
       url: definition.probeUrl,
@@ -133,6 +142,8 @@ const publicCatalog = publicDefinitions.map((definition) => Object.freeze({
     liveConnectionStatus: "not_connected",
     statusAuthority: "fresh_provider_readback_only",
     credentialMode: definition.credentialMode,
+    tenantBindingRequired: true,
+    canonicalTenantColumn: "organization_id",
   }),
 }));
 
@@ -149,6 +160,8 @@ const requestCatalog = requestActivationDefinitions.map(([providerKey, displayNa
     publicConnectAllowed: false,
     liveConnectionStatus: "not_connected",
     activationReason: reason,
+    tenantBindingRequired: true,
+    canonicalTenantColumn: "organization_id",
   }),
 }));
 

@@ -1,10 +1,12 @@
 {
   "evidenceSchemaVersion": 1,
-  "evidenceBoundary": "Point-in-time safe reads from official provider endpoints; this file is not an enduring Live Connections status assertion.",
+  "evidenceBoundary": "Point-in-time safe reads from official provider endpoints. These reads predate a tenant-bound Live Connections record and therefore do not assert Connected.",
   "readbacks": [
     {
       "providerKey": "ph.psa.openstat",
-      "status": "connected_verified",
+      "status": "provider_readback_verified",
+      "liveConnectionStatus": "not_connected",
+      "tenantBinding": "NOT VERIFIED",
       "probeUrl": "https://openstat.psa.gov.ph/PXWeb/api/v1/en",
       "httpStatus": 200,
       "contentType": "application/json; charset=utf-8",
@@ -16,7 +18,9 @@
     },
     {
       "providerKey": "ph.phivolcs.hazard_gis",
-      "status": "connected_verified",
+      "status": "provider_readback_verified",
+      "liveConnectionStatus": "not_connected",
+      "tenantBinding": "NOT VERIFIED",
       "probeUrl": "https://gisweb.phivolcs.dost.gov.ph/arcgis/rest/services/PHIVOLCS/GroundShaking/MapServer/0?f=pjson",
       "httpStatus": 200,
       "contentType": "text/plain;charset=utf-8",
@@ -28,7 +32,9 @@
     },
     {
       "providerKey": "ph.namria.geoportal",
-      "status": "connected_verified",
+      "status": "provider_readback_verified",
+      "liveConnectionStatus": "not_connected",
+      "tenantBinding": "NOT VERIFIED",
       "probeUrl": "https://geoserver.geoportal.gov.ph/geoserver/ows?service=wms&version=1.1.1&request=GetCapabilities",
       "httpStatus": 200,
       "contentType": "application/vnd.ogc.wms_xml",

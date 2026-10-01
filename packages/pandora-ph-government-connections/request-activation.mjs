@@ -2,8 +2,12 @@ import { getGovernmentProvider } from "./provider-manifests.mjs";
 
 const ALLOWED_FIELDS = new Set([
   "requestId", "providerKey", "organizationId", "requesterRef", "contactEmail",
-  "legalEntityName", "requestedUseCase", "jurisdiction", "requestedAt",
+  "tenantId", "connectionId", "tenantKey", "legalEntityName", "requestedUseCase",
+  "jurisdiction", "requestedAt",
 ]);
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TENANT_KEY = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,319}$/;
 
 function requireText(value, label) {
   if (typeof value !== "string" || value.trim().length === 0) throw new TypeError(`${label} required`);
@@ -29,13 +33,26 @@ export function createGovernmentActivationRequest(input) {
   assertNoCredentialMaterial(input);
   const provider = getGovernmentProvider(requireText(input.providerKey, "providerKey"));
   if (!provider || provider.metadata.connectionMode !== "request_activation") throw new Error("provider_does_not_use_request_activation");
+  const organizationId = requireText(input.organizationId, "organizationId");
+  const tenantId = requireText(input.tenantId, "tenantId");
+  const connectionId = requireText(input.connectionId, "connectionId");
+  const tenantKey = requireText(input.tenantKey, "tenantKey");
+  if (!UUID.test(organizationId) || !UUID.test(tenantId) || !UUID.test(connectionId) || !TENANT_KEY.test(tenantKey)) {
+    throw new Error("CONNECTION_IDENTITY_INVALID");
+  }
+  if (tenantId !== organizationId) {
+    throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
+  }
   const requestedAt = requireText(input.requestedAt, "requestedAt");
   if (!Number.isFinite(Date.parse(requestedAt))) throw new TypeError("requestedAt invalid");
   return Object.freeze({
     schemaVersion: 1,
     requestId: requireText(input.requestId, "requestId"),
     providerKey: provider.providerKey,
-    organizationId: requireText(input.organizationId, "organizationId"),
+    organizationId,
+    tenantId,
+    connectionId,
+    tenantKey,
     requesterRef: requireText(input.requesterRef, "requesterRef"),
     contactEmail: requireText(input.contactEmail, "contactEmail"),
     legalEntityName: requireText(input.legalEntityName, "legalEntityName"),
@@ -44,6 +61,7 @@ export function createGovernmentActivationRequest(input) {
     state: "requested",
     catalogAction: "Request activation",
     liveConnectionStatus: "not_connected",
+    credentialReturned: false,
     requestedAt: new Date(requestedAt).toISOString(),
   });
 }

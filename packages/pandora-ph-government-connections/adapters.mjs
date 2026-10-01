@@ -3,6 +3,8 @@ import { buildProviderReceipt, defineProviderAdapter } from "../pandora-provider
 import { governmentProviderManifests } from "./provider-manifests.mjs";
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TENANT_KEY = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,319}$/;
 
 function header(response, name) {
   if (response?.headers?.get) return response.headers.get(name);
@@ -50,6 +52,25 @@ function assertContentType(providerKey, response) {
 
 function assertVaultReference(value) {
   if (typeof value !== "string" || !/^vault:\/\/[a-zA-Z0-9/_-]+$/.test(value)) throw new Error("vault_credential_reference_required");
+}
+
+function assertTenantBinding(request, runtime, credentialMode) {
+  const tenantId = typeof request.tenantId === "string" ? request.tenantId.trim() : "";
+  const organizationId = typeof request.organizationId === "string" ? request.organizationId.trim() : "";
+  const connectionId = typeof request.connectionId === "string" ? request.connectionId.trim() : "";
+  const tenantKey = typeof request.tenantKey === "string" ? request.tenantKey.trim() : "";
+  const trusted = runtime?.tenantBinding || runtime?.evidence?.tenantBinding;
+  if (!UUID.test(tenantId) || !UUID.test(organizationId) || !UUID.test(connectionId) || !TENANT_KEY.test(tenantKey)) {
+    throw new Error("CONNECTION_IDENTITY_INVALID");
+  }
+  if (organizationId !== tenantId || !trusted || trusted.tenantId !== tenantId || trusted.organizationId !== tenantId ||
+      trusted.connectionId !== connectionId || trusted.tenantKey !== tenantKey) {
+    throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
+  }
+  if (credentialMode === "vault_query_token" && trusted.vaultCredentialRef !== request.credentialRef) {
+    throw new Error("CONNECTION_VAULT_TENANT_MISMATCH");
+  }
+  return Object.freeze({ tenantId, connectionId, tenantKey });
 }
 
 async function dispatch(manifest, request, runtime) {
@@ -106,6 +127,7 @@ function validateReadback(providerKey, body) {
 export async function runGovernmentSafeReadProbe(providerKey, request = {}, runtime = {}) {
   const manifest = governmentProviderManifests[providerKey];
   if (!manifest) throw new Error("provider_probe_not_allowlisted");
+  const tenantBinding = assertTenantBinding(request, runtime, manifest.safeReadProbe.credentialMode);
   const response = await dispatch(manifest, request, runtime);
   if (!Number.isInteger(response?.status) || response.status !== 200) throw new Error(`provider_probe_http_${response?.status ?? "unknown"}`);
   assertContentType(providerKey, response);
@@ -113,9 +135,14 @@ export async function runGovernmentSafeReadProbe(providerKey, request = {}, runt
   const validated = validateReadback(providerKey, body);
   const observedAt = (runtime.clock ? runtime.clock() : new Date()).toISOString();
   return Object.freeze({
-    connectionStatus: "connected_verified",
+    verificationState: "provider_readback_verified",
+    liveConnectionStatus: "not_connected",
     connectedAuthority: "fresh_provider_readback",
     providerKey,
+    tenantId: tenantBinding.tenantId,
+    connectionId: tenantBinding.connectionId,
+    tenantKey: tenantBinding.tenantKey,
+    credentialReturned: false,
     providerIdentity: validated.providerIdentity,
     safeReadCapability: validated.safeReadCapability,
     resourceCount: validated.resourceCount,

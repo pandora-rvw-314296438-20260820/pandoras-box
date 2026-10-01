@@ -1,6 +1,8 @@
 # Philippine government connections
 
-This Lane B package adds Philippine government providers through Provider SDK manifests and generic adapters. It adds no provider-specific UI. Catalog presence never means connected: only a fresh, validated provider readback can produce a `connected_verified` receipt, and the Live Connections runtime remains the UI status authority.
+This Lane B package adds Philippine government providers through Provider SDK manifests and generic adapters. It adds no provider-specific UI. Catalog presence never means connected: a safe read produces provider-readback evidence only, and the tenant-bound Live Connections runtime remains the UI status authority.
+
+Pandora `organization_id` is the canonical external-client `tenantId`. Every probe and activation action requires an explicit `tenantId`, `connectionId`, and provider-account `tenantKey`, plus the same tuple in trusted runtime evidence. A missing or mismatched field fails closed. PSGC additionally requires the trusted runtime's Vault reference to equal the request's opaque reference. Credentials cannot be shared across organizations, returned in receipts, or sent to browser/mobile devices.
 
 ## Implemented public interfaces
 
@@ -13,7 +15,7 @@ This Lane B package adds Philippine government providers through Provider SDK ma
 
 Every safe-read adapter uses an exact allowlisted HTTPS URL, GET only, redirect refusal, a response-size ceiling, content-shape validation, a SHA-256 body digest, and no raw-body logging. A 200 response alone is insufficient. PSGC intentionally fails unless a trusted server-side transport receives a `vault://` credential reference; the token is never placed in application code or returned evidence.
 
-Point-in-time provider evidence from October 1, 2026 is recorded in `docs/connections/evidence/PHILIPPINE_GOVERNMENT_READBACK_2026-10-01.json`. The snapshot verifies OpenSTAT, PHIVOLCS, and NAMRIA. It deliberately marks PSGC unverified because no PSA-issued token was available.
+Point-in-time provider evidence from October 1, 2026 is recorded in `docs/connections/evidence/PHILIPPINE_GOVERNMENT_READBACK_2026-10-01.json`. The snapshot verifies the public endpoint response shapes for OpenSTAT, PHIVOLCS, and NAMRIA. It does not assert a tenant-bound Live Connection. PSGC remains unverified because no PSA-issued token was available.
 
 ## Request activation only
 
