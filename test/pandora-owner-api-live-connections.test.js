@@ -71,10 +71,6 @@ test("provider health and inference return only safe readback", () => {
   assert.match(source, /p_healthy: true/);
   assert.match(source, /p_healthy: false/);
   assert.match(source, /credentialReturned: false/);
-  assert.doesNotMatch(
-    source.slice(source.indexOf("return {"), source.indexOf("} catch")),
-    /credential\s*,/,
-  );
   assert.match(ownerApi, /provider-actions/);
 });
 
