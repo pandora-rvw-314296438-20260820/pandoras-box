@@ -26,7 +26,14 @@ import 'pandora_dependencies.dart';
 import 'plp_navigation_drawer.dart';
 
 class PlpEnterpriseShell extends StatefulWidget {
-  const PlpEnterpriseShell({super.key});
+  const PlpEnterpriseShell({
+    super.key,
+    this.bootstrapOverride,
+  });
+
+  /// Acceptance tests may provide a verified bootstrap fixture. Production
+  /// does not pass this and still loads from the authenticated PLP RPCs.
+  final Map<String, Object?>? bootstrapOverride;
 
   @override
   State<PlpEnterpriseShell> createState() => _PlpEnterpriseShellState();
@@ -71,6 +78,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final List<int> _surfaceHistory = <int>[];
   Widget? _routedTool;
   String? _routedToolKey;
+  final List<({String key, Widget tool})> _routedToolHistory =
+      <({String key, Widget tool})>[];
   bool _commandBusy = false;
   String? _commandReply;
   List<PlpRecentChatItem> _recentChats = const <PlpRecentChatItem>[];
@@ -109,6 +118,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   Future<Map<String, Object?>> _loadBootstrap() async {
+    final override = widget.bootstrapOverride;
+    if (override != null) {
+      return Map<String, Object?>.from(override);
+    }
     final localStore = PandoraDependencies.of(context).localStore;
     final cache =
         localStore == null ? null : PandoraLocalStateCache(localStore);
@@ -259,6 +272,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       _index = index;
       _routedTool = null;
       _routedToolKey = null;
+      _routedToolHistory.clear();
       _commandReply = null;
     });
   }
@@ -296,8 +310,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     return false;
   }
 
-  void _openTool(String key, Widget tool) {
+  void _openTool(
+    String key,
+    Widget tool, {
+    bool replaceHistory = false,
+  }) {
     setState(() {
+      if (replaceHistory) {
+        _routedToolHistory.clear();
+      } else if (_routedTool != null && _routedToolKey != null) {
+        _routedToolHistory.add((
+          key: _routedToolKey!,
+          tool: _routedTool!,
+        ));
+      }
       _routedToolKey = key;
       _routedTool = tool;
     });
@@ -307,8 +333,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     if (_routedTool == null) return;
     final closedKey = _routedToolKey;
     setState(() {
-      _routedTool = null;
-      _routedToolKey = null;
+      if (_routedToolHistory.isNotEmpty) {
+        final previous = _routedToolHistory.removeLast();
+        _routedToolKey = previous.key;
+        _routedTool = previous.tool;
+      } else {
+        _routedTool = null;
+        _routedToolKey = null;
+      }
     });
     if (closedKey == 'team-management') {
       _refresh();
@@ -433,9 +465,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       };
 
   String? get _drawerSelection {
-    final toolKey = _routedToolKey;
-    if (toolKey != null && toolKey.startsWith('resort:')) {
-      return toolKey.substring('resort:'.length);
+    final activeKeys = <String?>[
+      _routedToolKey,
+      for (final route in _routedToolHistory.reversed) route.key,
+    ];
+    for (final toolKey in activeKeys) {
+      if (toolKey != null && toolKey.startsWith('resort:')) {
+        return toolKey.substring('resort:'.length);
+      }
     }
     for (final entry in _surfaceByDestination.entries) {
       if (entry.value == _index) return entry.key;
@@ -445,9 +482,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   void _openResortRecord(
     String kind,
-    Map<String, Object?> record, {
-    String? returnModule,
-  }) {
+    Map<String, Object?> record,
+  ) {
     final id = record['id']?.toString() ??
         record['bookingReference']?.toString() ??
         record['name']?.toString() ??
@@ -457,9 +493,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       PlpResortRecordScreen(
         kind: kind,
         record: record,
-        onBack: returnModule == null
-            ? _closeTool
-            : () => _openResortModule(returnModule),
+        onBack: _closeTool,
       ),
     );
   }
@@ -473,16 +507,15 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         bootstrap: bootstrap,
         onBack: _closeTool,
         onRefresh: _refresh,
-        onOpenRecord: (kind, record) => _openResortRecord(
-          kind,
-          record,
-          returnModule: moduleId,
-        ),
+        onOpenRecord: (kind, record) => _openResortRecord(kind, record),
       ),
     );
   }
 
-  void _openResortSection(String destination) {
+  void _openResortSection(
+    String destination, {
+    bool replaceHistory = false,
+  }) {
     if (destination == 'today' || destination == 'home') {
       _openHome();
       return;
@@ -510,13 +543,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         onOpenTeam: () => _open(7),
         onOpenActivity: () => _open(10),
       ),
+      replaceHistory: replaceHistory,
     );
   }
 
   void _selectDrawerDestination(String destination) {
     if (plpResortSectionById(destination) != null) {
       _closeDrawer();
-      _openResortSection(destination);
+      _openResortSection(destination, replaceHistory: true);
       return;
     }
     final target = _surfaceByDestination[destination];

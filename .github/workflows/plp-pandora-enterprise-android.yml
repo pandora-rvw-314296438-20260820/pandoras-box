@@ -19,7 +19,7 @@ jobs:
   verify-plp-android:
     name: Exact source / PLP native Android
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 80
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       FLUTTER_VERSION: '3.47.0'
@@ -164,7 +164,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/features/enterprise/plp_resort_operational_screens_test.dart             test/features/enterprise/plp_guests_screen_test.dart             test/features/enterprise/plp_workspace_layout_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart             test/app/plp_navigation_drawer_test.dart
+          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/app/plp_owner_journey_acceptance_test.dart             test/features/enterprise/plp_resort_operational_screens_test.dart             test/features/enterprise/plp_guests_screen_test.dart             test/features/enterprise/plp_workspace_layout_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart             test/app/plp_navigation_drawer_test.dart
 
       - name: Build exact PLP native APK
         working-directory: .plp-android-build
@@ -206,6 +206,164 @@ jobs:
             echo 'Unexpected sensitive Android permission detected.' >&2
             exit 1
           fi
+
+      - name: Install Android emulator system image
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            'emulator' \
+            'system-images;android-35;google_apis;x86_64'
+
+      - name: Boot exact-APK acceptance emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -e /dev/kvm ]]; then
+            sudo chmod 666 /dev/kvm
+            accel='-accel on'
+          else
+            accel='-accel off'
+          fi
+
+          echo no | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" \
+            create avd \
+            --force \
+            --name plp-owner-acceptance \
+            --package 'system-images;android-35;google_apis;x86_64' \
+            --device 'pixel_7'
+
+          nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
+            -avd plp-owner-acceptance \
+            -no-window \
+            -noaudio \
+            -no-boot-anim \
+            -no-snapshot \
+            -gpu swiftshader_indirect \
+            $accel \
+            > .plp-android-build/emulator.log 2>&1 &
+
+          adb wait-for-device
+          deadline=$((SECONDS + 420))
+          until [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]; do
+            if (( SECONDS >= deadline )); then
+              cat .plp-android-build/emulator.log >&2
+              exit 41
+            fi
+            sleep 2
+          done
+
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+
+      - name: Exercise installed PLP APK lifecycle and unauthenticated client flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=.plp-android-build/build/app/outputs/flutter-apk/app-release.apk
+          pkg="$EXPECTED_PACKAGE"
+          evidence=.plp-android-build/plp-emulator-evidence
+          mkdir -p "$evidence"
+
+          adb install -r "$apk"
+          adb logcat -c
+          adb shell am force-stop "$pkg"
+          adb shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
+          sleep 4
+
+          pid="$(adb shell pidof "$pkg" | tr -d '\r')"
+          test -n "$pid"
+          adb shell dumpsys activity activities > "$evidence/activity-launch.txt"
+          grep -Fq "$pkg" "$evidence/activity-launch.txt"
+
+          adb shell uiautomator dump /sdcard/plp-window.xml >/dev/null
+          adb pull /sdcard/plp-window.xml "$evidence/sign-in.xml" >/dev/null
+          grep -Fq 'Email' "$evidence/sign-in.xml"
+          grep -Fq 'Password' "$evidence/sign-in.xml"
+          grep -Fq 'Sign in' "$evidence/sign-in.xml"
+          adb exec-out screencap -p > "$evidence/sign-in.png"
+
+          # Empty-submit validation on the actual installed APK.
+          read -r tap_x tap_y < <(python3 - "$evidence/sign-in.xml" <<'PY'
+          import re, sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          for node in root.iter('node'):
+              if node.attrib.get('text') == 'Sign in':
+                  bounds = node.attrib.get('bounds', '')
+                  m = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', bounds)
+                  if m:
+                      x1,y1,x2,y2 = map(int,m.groups())
+                      print((x1+x2)//2, (y1+y2)//2)
+                      raise SystemExit(0)
+          raise SystemExit('Sign in semantics node was not tappable')
+          PY
+          )
+          adb shell input tap "$tap_x" "$tap_y"
+          sleep 1
+          adb shell uiautomator dump /sdcard/plp-validation.xml >/dev/null
+          adb pull /sdcard/plp-validation.xml "$evidence/validation.xml" >/dev/null
+          grep -Fq 'Enter your email.' "$evidence/validation.xml"
+          grep -Fq 'Enter your password.' "$evidence/validation.xml"
+
+          # Background/foreground and rotations must not crash the process.
+          adb shell input keyevent KEYCODE_HOME
+          sleep 1
+          adb shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
+          sleep 2
+          test -n "$(adb shell pidof "$pkg" | tr -d '\r')"
+
+          adb shell settings put system accelerometer_rotation 0
+          for rotation in 1 0 3 0; do
+            adb shell settings put system user_rotation "$rotation"
+            sleep 1
+            test -n "$(adb shell pidof "$pkg" | tr -d '\r')"
+          done
+
+          # Process death is expected to return to sign-in because PLP sessions
+          # are intentionally memory-only today. Record that product behavior.
+          adb shell am force-stop "$pkg"
+          adb shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
+          sleep 3
+          adb shell uiautomator dump /sdcard/plp-restart.xml >/dev/null
+          adb pull /sdcard/plp-restart.xml "$evidence/restart.xml" >/dev/null
+          grep -Fq 'Sign in' "$evidence/restart.xml"
+
+          adb shell dumpsys package "$pkg" > "$evidence/package.txt"
+          if grep -Eq 'android.permission.(CALL_PHONE|SEND_SMS|READ_CONTACTS|READ_CALENDAR|WRITE_CALENDAR|POST_NOTIFICATIONS): granted=true' "$evidence/package.txt"; then
+            echo 'Dangerous PLP runtime permission was granted without an owner action.' >&2
+            exit 42
+          fi
+
+          adb logcat -d -b crash > "$evidence/crash-buffer.txt" || true
+          if grep -Fq "$pkg" "$evidence/crash-buffer.txt"; then
+            cat "$evidence/crash-buffer.txt" >&2
+            exit 43
+          fi
+
+          {
+            echo "source_sha=$SOURCE_SHA"
+            echo "package=$pkg"
+            echo "emulator_api=35"
+            echo "launch_verified=true"
+            echo "sign_in_semantics_verified=true"
+            echo "empty_submit_validation_verified=true"
+            echo "background_foreground_verified=true"
+            echo "rotation_verified=true"
+            echo "process_restart_verified=true"
+            echo "memory_only_session_behavior_observed=true"
+            echo "unexpected_runtime_permission_grant=false"
+            echo "crash_buffer_clear=true"
+          } > "$evidence/acceptance.txt"
+
+      - name: Upload installed-app acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: plp-installed-app-acceptance-${{ env.SOURCE_SHA }}
+          path: .plp-android-build/plp-emulator-evidence
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Bind exact APK evidence
         shell: bash
