@@ -173,7 +173,7 @@ create or replace function public.pandora_intelligence_thread_model_selection_se
 language plpgsql
 security definer
 set search_path='pg_catalog','private','public','auth','pg_temp'
-as $
+as $$
 declare
   v_user_id uuid := auth.uid();
   v_row private.pandora_intelligence_thread_routing_state%rowtype;
@@ -245,7 +245,7 @@ begin
     )
   );
 end;
-$;
+$$;
 revoke all on function public.pandora_intelligence_thread_model_selection_set_v1(uuid,uuid,text,text,text,text,text) from public,anon;
 grant execute on function public.pandora_intelligence_thread_model_selection_set_v1(uuid,uuid,text,text,text,text,text) to authenticated,service_role;
 
@@ -254,7 +254,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path='pg_catalog','private','public','pg_temp'
-as $
+as $$
 declare
   v_row private.pandora_bedrock_reasoning_catalog%rowtype;
 begin
@@ -280,7 +280,7 @@ begin
     'region',v_row.region
   );
 end;
-$;
+$$;
 revoke all on function public.pandora_bedrock_chat_route_v1(text) from public,anon,authenticated;
 grant execute on function public.pandora_bedrock_chat_route_v1(text) to service_role;
 
