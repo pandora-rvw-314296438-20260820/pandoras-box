@@ -38,7 +38,9 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(
           find.descendant(
-            of: primaryDrawer,
+            of: find.byKey(
+              const ValueKey<String>('pandora-primary-navigation-drawer'),
+            ),
             matching: find.widgetWithText(ListTile, 'Pandora'),
           ),
         );
