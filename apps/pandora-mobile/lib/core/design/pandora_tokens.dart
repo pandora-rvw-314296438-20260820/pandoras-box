@@ -1,5 +1,36 @@
 import 'package:flutter/material.dart';
 
+/// Shared semantic colours for every Pandora owner/operator surface.
+///
+/// Product red is deliberately limited to brand identity and critical states.
+/// Routine actions use [action] so colour meaning remains consistent.
+abstract final class PandoraColorTokens {
+  static const brand = Color(0xFFEF4349);
+  static const action = Color(0xFF7C83FF);
+  static const actionHover = Color(0xFF9297FF);
+  static const onAction = Color(0xFF0C0D16);
+  static const actionLight = Color(0xFF4C55C9);
+  static const onActionLight = Color(0xFFFFFFFF);
+
+  static const graphiteCanvas = Color(0xFF101116);
+  static const graphiteSurface = Color(0xFF191B22);
+  static const graphiteSurfaceSoft = Color(0xFF20232B);
+  static const graphiteText = Color(0xFFF7F7F8);
+  static const graphiteMuted = Color(0xFFB3B6C0);
+  static const graphiteOutline = Color(0xFF30333D);
+
+  static const porcelainCanvas = Color(0xFFF6F5F2);
+  static const porcelainSurface = Color(0xFFFFFFFF);
+  static const porcelainSurfaceSoft = Color(0xFFF0F0F4);
+  static const porcelainText = Color(0xFF17181D);
+  static const porcelainMuted = Color(0xFF5F636D);
+  static const porcelainOutline = Color(0xFFD9DAE2);
+
+  static const verifiedDark = Color(0xFF67D7A3);
+  static const attentionDark = Color(0xFFFFC46B);
+  static const criticalDark = Color(0xFFFF817A);
+}
+
 abstract final class PandoraSpacing {
   static const double xxs = 4;
   static const double xs = 8;
@@ -34,6 +65,22 @@ abstract final class PandoraSize {
   static const double signInMark = 112;
   static const double contentMaxWidth = 720;
   static const double wideBreakpoint = 840;
+}
+
+abstract final class PandoraMotion {
+  static const Duration fast = Duration(milliseconds: 120);
+  static const Duration standard = Duration(milliseconds: 180);
+  static const Duration slow = Duration(milliseconds: 260);
+}
+
+abstract final class PandoraElevation {
+  static const List<BoxShadow> card = [
+    BoxShadow(
+      color: Color(0x29000000),
+      blurRadius: 24,
+      offset: Offset(0, 8),
+    ),
+  ];
 }
 
 @immutable
@@ -75,7 +122,7 @@ class PandoraPalette extends ThemeExtension<PandoraPalette> {
   final Color outlineSoft;
 
   static const porcelain = PandoraPalette(
-    canvas: Color(0xFFF6F5F2),
+    canvas: PandoraColorTokens.porcelainCanvas,
     verified: Color(0xFF0B6B45),
     onVerified: Color(0xFFFFFFFF),
     attention: Color(0xFF9A5A00),
@@ -84,24 +131,24 @@ class PandoraPalette extends ThemeExtension<PandoraPalette> {
     onCritical: Color(0xFFFFFFFF),
     informative: Color(0xFF3F51B5),
     onInformative: Color(0xFFFFFFFF),
-    subtleSurface: Color(0xFFF1F2F6),
-    strongSurface: Color(0xFFFFFFFF),
-    outlineSoft: Color(0xFFD9DAE2),
+    subtleSurface: PandoraColorTokens.porcelainSurfaceSoft,
+    strongSurface: PandoraColorTokens.porcelainSurface,
+    outlineSoft: PandoraColorTokens.porcelainOutline,
   );
 
   static const graphite = PandoraPalette(
-    canvas: Color(0xFF121317),
-    verified: Color(0xFF67D7A3),
+    canvas: PandoraColorTokens.graphiteCanvas,
+    verified: PandoraColorTokens.verifiedDark,
     onVerified: Color(0xFF052216),
-    attention: Color(0xFFFFB95C),
+    attention: PandoraColorTokens.attentionDark,
     onAttention: Color(0xFF2A1700),
-    critical: Color(0xFFFFB4AB),
+    critical: PandoraColorTokens.criticalDark,
     onCritical: Color(0xFF690005),
     informative: Color(0xFFBEC2FF),
     onInformative: Color(0xFF20255D),
-    subtleSurface: Color(0xFF1A1B20),
-    strongSurface: Color(0xFF222329),
-    outlineSoft: Color(0xFF3B3C44),
+    subtleSurface: PandoraColorTokens.graphiteSurfaceSoft,
+    strongSurface: PandoraColorTokens.graphiteSurface,
+    outlineSoft: PandoraColorTokens.graphiteOutline,
   );
 
   @override

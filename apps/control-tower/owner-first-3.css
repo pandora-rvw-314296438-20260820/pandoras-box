@@ -3,7 +3,7 @@
 .owner-decision-actions .owner-button { flex: 1; }
 
 .owner-button {
-  min-height: 46px;
+  min-height: var(--owner-control-min);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -16,15 +16,15 @@
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
-  transition: transform .16s ease, background-color .16s ease, border-color .16s ease, opacity .16s ease;
+  transition: transform var(--owner-motion-fast) var(--owner-ease), background-color var(--owner-motion-fast) var(--owner-ease), border-color var(--owner-motion-fast) var(--owner-ease), opacity var(--owner-motion-fast) var(--owner-ease);
 }
 .owner-button:hover { transform: translateY(-1px); }
 .owner-button:active { transform: scale(.985); }
-.owner-button.primary { background: linear-gradient(135deg, var(--owner-red), var(--owner-red-strong)); color: #fff; box-shadow: 0 10px 26px rgba(217,30,43,.22); }
-.owner-button.primary:hover { background: linear-gradient(135deg, #f24a4a, #df2734); }
+.owner-button.primary { background: var(--owner-action); color: var(--owner-on-action); box-shadow: none; }
+.owner-button.primary:hover { background: var(--owner-action-hover); }
 .owner-button.secondary { border-color: var(--owner-line-strong); background: var(--owner-surface-soft); }
 .owner-button.danger { background: var(--owner-danger); color: #fff; }
-.owner-button.compact { min-height: 40px; padding: 8px 13px; border-radius: 13px; font-size: 12px; }
+.owner-button.compact { min-height: 44px; padding: 8px 13px; border-radius: 13px; font-size: 12px; }
 .owner-button:disabled { opacity: .48; cursor: not-allowed; transform: none; }
 .owner-button-icon { width: 17px; height: 17px; }
 

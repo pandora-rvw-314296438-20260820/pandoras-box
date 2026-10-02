@@ -31,7 +31,7 @@ android themed window underlay (@color/pandora_canvas)
 | Mode | Resource | Dart token |
 |---|---|---|
 | Light | `values/colors.xml` `#FFF6F5F2` | `PandoraPalette.porcelain.canvas` |
-| Dark | `values-night/colors.xml` `#FF121317` | `PandoraPalette.graphite.canvas` |
+| Dark | `values-night/colors.xml` `#FF101116` | `PandoraPalette.graphite.canvas` |
 
 `test/platform/android_canvas_parity_test.dart` fails the build if these drift,
 so the OS underlay and the Flutter theme cannot silently disagree.
