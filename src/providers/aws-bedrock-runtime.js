@@ -31,8 +31,24 @@ function xmlText(xml, tag) {
   return match ? match[1] : "";
 }
 
-function encodeModelPath(modelId) {
-  return `/model/${encodeURIComponent(modelId)}/converse`;
+function rfc3986PathSegment(value) {
+  return encodeURIComponent(String(value)).replace(/[!'()*]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
+function canonicalAwsPath(path) {
+  if (typeof path !== "string" || !path.startsWith("/")) {
+    throw new Error("AWS_BEDROCK_PATH_INVALID");
+  }
+  return path
+    .split("/")
+    .map((segment, index) => (index === 0 ? "" : rfc3986PathSegment(segment)))
+    .join("/");
+}
+
+function modelPath(modelId) {
+  return `/model/${String(modelId)}/converse`;
 }
 
 function runtimeConfig(environment = process.env) {
@@ -96,7 +112,7 @@ function signBedrockRequest({
   if (region !== BEDROCK_REGION) throw new Error("AWS_BEDROCK_REGION_DENIED");
   const service = "bedrock";
   const host = `bedrock-runtime.${region}.amazonaws.com`;
-  const path = encodeModelPath(modelId);
+  const path = modelPath(modelId);
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
   const dateStamp = amzDate.slice(0, 8);
   const payload = JSON.stringify(body);
@@ -109,7 +125,7 @@ function signBedrockRequest({
   const signedHeaders = "content-type;host;x-amz-date;x-amz-security-token";
   const canonicalRequest = [
     "POST",
-    path,
+    canonicalAwsPath(path),
     "",
     canonicalHeaders,
     signedHeaders,
@@ -335,6 +351,7 @@ module.exports = {
   BEDROCK_ROLE_ARN,
   BEDROCK_REGION,
   runtimeConfig,
+  canonicalAwsPath,
   assumeRoleWithVercelOidc,
   signBedrockRequest,
   converseWithBedrock,
