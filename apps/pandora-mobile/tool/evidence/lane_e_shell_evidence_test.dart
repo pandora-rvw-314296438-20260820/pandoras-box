@@ -250,6 +250,12 @@ void main() {
         (businessClearance.padding as EdgeInsets).bottom,
         greaterThanOrEqualTo(68),
       );
+      expect(
+        find.byType(Divider),
+        findsNothing,
+        reason:
+            'the resting Lane E top bar must not render a horizontal divider',
+      );
 
       final fixedNavigationTop = tester.getTopLeft(navigation).dy;
       final fixedComposerBottom = tester.getRect(composerDock).bottom;
