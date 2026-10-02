@@ -29,8 +29,10 @@ test("catalog is fail-closed until bounded runtime verification passes",()=>{
   assert.match(migration,/not_present_in_live_aws_catalog/);
 });
 test("phone local AI is an explicit opt-in and defaults OFF",()=>{
-  assert.match(local,/bool usePhoneAi = false/);
-  assert.match(local,/if \(!usePhoneAi\) return _record\(false, 'phone_ai_disabled'\)/);
+  assert.match(local,/class PandoraLocalAiPreference/);
+  assert.match(local,/static bool _enabled = false/);
+  assert.match(local,/preferences\.getBool\(storageKey\) \?\? false/);
+  assert.match(local,/if \(!await PandoraLocalAiPreference\.load\(\)\)/);
 });
 
 test("owner-approved probe cycle cannot silently become recurring spend",()=>{
