@@ -12,7 +12,7 @@ test('team administration is classified before calendar and local AI pre-routers
   assert.match(ask, /final teamAdministrationTurn\s*=\s*_teamAdministrationPending\s*\|\|/s);
   assert.match(ask, /final calendarParse = teamAdministrationTurn\s*\?\s*null\s*:\s*PandoraCalendarCommand\.tryParse/s);
   assert.match(ask, /final deviceCommunication = teamAdministrationTurn\s*\?\s*null/s);
-  assert.match(ask, /if \(!teamAdministrationTurn && await _trySubmitLocalAi\(objective\)\)/);
+  assert.match(ask, /if \(!teamAdministrationTurn &&[\s\S]*_trySubmitLocalAi\(objective, forceLocal: forceLocal\)\)/);
 });
 
 test('multi-turn team clarification remains on the governed cloud lane', () => {
