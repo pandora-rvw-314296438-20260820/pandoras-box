@@ -54,6 +54,10 @@ jobs:
           flutter test --no-pub --update-goldens --reporter expanded \
             test/goldens/owner_screens_visual_evidence_test.dart \
             --plain-name "captures reasoning_picker_obsidian_390x844"
+          cp build/owner-screen-evidence/model_picker_obsidian_390x844.png \
+            test/goldens/owner_screens/model_picker_obsidian_390x844.png
+          cp build/owner-screen-evidence/reasoning_picker_obsidian_390x844.png \
+            test/goldens/owner_screens/reasoning_picker_obsidian_390x844.png
           test -s test/goldens/owner_screens/obsidian_chat_shell_390x844.png
           test -s test/goldens/owner_screens/obsidian_chat_empty_390x844.png
           test -s test/goldens/owner_screens/model_picker_obsidian_390x844.png
