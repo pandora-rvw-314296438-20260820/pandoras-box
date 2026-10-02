@@ -2,6 +2,15 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto
 import { resolveVercelWorkloadToken } from "../src/runtime/vercel-workload-identity.js";
 import releasePolicy from "../src/runtime/operations-source-release-policy.cjs";
 const { canContinueSourceBuilding } = releasePolicy;
+const bedrockRuntime = require("../src/providers/aws-bedrock-runtime.js") as {
+  BEDROCK_ROLE_ARN:string; BEDROCK_REGION:string;
+  assumeRoleWithVercelOidc:(input:Record<string,unknown>)=>Promise<Record<string,string>>;
+  converseWithBedrockTarget:(input:Record<string,unknown>)=>Promise<any>;
+};
+const bedrockCatalog = require("../src/providers/aws-bedrock-catalog-sync.js") as {
+  discoverBedrockCatalog:(input:Record<string,unknown>)=>Promise<any[]>;
+  applyProbeResult:(row:any,probe:any)=>any;
+};
 
 export const config = { api: { bodyParser: false }, maxDuration: 300 };
 
@@ -532,7 +541,25 @@ function cronAuthorized(request: any) {
   return timingSafeEqual(Buffer.from(authorization), Buffer.from(expected));
 }
 
-function signedWake(request: any) {
+async function readSignedWakeBody(request:any) {
+  const chunks:Buffer[]=[];let size=0;
+  for await (const chunk of request) {
+    const value=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk);
+    size+=value.length;if(size>256)throw new Error("OPS_NATIVE_WAKE_DENIED");
+    chunks.push(value);
+  }
+  const raw=Buffer.concat(chunks).toString("utf8")||"{}";
+  let parsed:any;try{parsed=JSON.parse(raw);}catch{throw new Error("OPS_NATIVE_WAKE_DENIED");}
+  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("OPS_NATIVE_WAKE_DENIED");
+  const keys=Object.keys(parsed);
+  if(keys.length===0)return{action:"",signatureBody:"{}"};
+  if(keys.length===1&&keys[0]==="action"&&parsed.action==="bedrock_catalog_sync"){
+    return{action:"bedrock_catalog_sync",signatureBody:'{"action":"bedrock_catalog_sync"}'};
+  }
+  throw new Error("OPS_NATIVE_WAKE_DENIED");
+}
+
+function signedWake(request: any, signatureBody = "{}") {
   const secret = String(process.env.PANDORA_OPS_WAKE_HMAC_SECRET || "");
   const timestamp = String(request.headers["x-pandora-wake-timestamp"] || "");
   const nonce = String(request.headers["x-pandora-wake-nonce"] || "");
@@ -541,10 +568,71 @@ function signedWake(request: any) {
   if (!/^\d{10}$/.test(timestamp) || !/^[0-9a-f-]{36}$/i.test(nonce) || !/^[0-9a-f]{64}$/.test(signature)) return null;
   const issuedAt = Number(timestamp);
   if (!Number.isSafeInteger(issuedAt) || Math.abs(Math.floor(Date.now() / 1000) - issuedAt) > 90) return null;
-  const message = `${timestamp}\n${nonce}\nPOST\n/api/operations-native-worker\n{}`;
+  const message = `${timestamp}\n${nonce}\nPOST\n/api/operations-native-worker\n${signatureBody}`;
   const expected = createHmac("sha256", secret).update(message).digest("hex");
   if (expected.length !== signature.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
   return { nonce, issuedAt };
+}
+
+async function bedrockMapLimit(items:any[],limit:number,fn:(item:any,index:number)=>Promise<any>) {
+  const output=new Array(items.length);let cursor=0;
+  async function run(){while(cursor<items.length){const index=cursor++;output[index]=await fn(items[index],index);}}
+  await Promise.all(Array.from({length:Math.min(limit,items.length||1)},run));return output;
+}
+function bedrockProbeCode(error:any) {
+  const status=Number(error?.status||0),detail=String(error?.awsCode||"").toLowerCase();
+  if(status===403||/access denied|not authorized|not available for account/.test(detail))return"access_denied";
+  if(status===429||/throttl/.test(detail))return"throttled";
+  if(status===400||/validation|unsupported|invalid/.test(detail))return"invalid_or_unsupported";
+  if(/timeout|abort/.test(String(error?.name||"")+" "+String(error?.message||"")))return"timeout";
+  return"provider_unavailable";
+}
+function bedrockUsage(value:unknown){const n=Number(value||0);return Number.isSafeInteger(n)&&n>=0?n:0;}
+function bedrockProbeMaxTokens(modelId:unknown){return String(modelId||"")==="moonshotai.kimi-k3"?16:1;}
+async function runBedrockCatalogSync(oidc:string) {
+  const claim=await control(oidc,{action:"bedrock_catalog_sync_claim"});
+  if(!claim||claim.mode!=="execute"||typeof claim.syncId!=="string")return{ok:true,state:claim?.mode||"busy",probed:0};
+  const syncId=claim.syncId;
+  try{
+    const credentials=await bedrockRuntime.assumeRoleWithVercelOidc({
+      roleArn:bedrockRuntime.BEDROCK_ROLE_ARN,webIdentityToken:oidc,fetchFn:globalThis.fetch,
+    });
+    const observedAt=new Date().toISOString();
+    const discovered=await bedrockCatalog.discoverBedrockCatalog({
+      credentials,fetchFn:globalThis.fetch,region:bedrockRuntime.BEDROCK_REGION,observedAt,
+    });
+    const conversational=discovered.filter((row:any)=>
+      Array.isArray(row.workflowScopes)&&row.workflowScopes.includes("conversation")&&
+      typeof row.invocationTarget==="string"&&row.invocationTarget&&
+      ["ACTIVE","LEGACY"].includes(String(row.lifecycleStatus||"")));
+    const probes=await bedrockMapLimit(conversational,8,async(row:any)=>{
+      const started=Date.now();
+      try{
+        const value=await bedrockRuntime.converseWithBedrockTarget({
+          modelId:row.modelId,invocationTarget:row.invocationTarget,providerName:row.providerName,
+          prompt: "OK", maxTokens: bedrockProbeMaxTokens(row.modelId), temperature: null, credentials, fetchFn: globalThis.fetch, timeoutMs: 20000,
+        });
+        const usage=value?.usage||{};
+        return{modelId:row.modelId,invocationTarget:row.invocationTarget,ok:true,
+          inputTokens:bedrockUsage(usage.inputTokens),outputTokens:bedrockUsage(usage.outputTokens),
+          totalTokens:bedrockUsage(usage.totalTokens)||bedrockUsage(usage.inputTokens)+bedrockUsage(usage.outputTokens),
+          providerRequestId:value?.providerRequestId||null,observedAt:new Date().toISOString(),latencyMs:Date.now()-started};
+      }catch(error:any){
+        return{modelId:row.modelId,invocationTarget:row.invocationTarget,ok:false,errorCode:bedrockProbeCode(error),
+          inputTokens:0,outputTokens:0,totalTokens:0,providerRequestId:null,observedAt:new Date().toISOString(),latencyMs:Date.now()-started};
+      }
+    });
+    const byId=new Map(probes.map((item:any)=>[item.modelId,item]));
+    const rows=discovered.map((row:any)=>byId.has(row.modelId)?bedrockCatalog.applyProbeResult(row,byId.get(row.modelId)):row);
+    const applied=await control(oidc,{action:"bedrock_catalog_sync_apply",
+      syncId,region:bedrockRuntime.BEDROCK_REGION,observedAt,models:rows,
+    },120000);
+    return{ok:true,syncId,state:"verified",discovered:rows.length,conversational:conversational.length,probed:probes.length,
+      routable:rows.filter((row:any)=>row.routable===true).length,retired:Number(applied?.retired||0),probes};
+  }catch(error:any){
+    try{await control(oidc,{action:"bedrock_catalog_sync_fail",syncId,reason:String(error?.message||"BEDROCK_SYNC_FAILED").slice(0,160)});}catch{}
+    throw error;
+  }
 }
 
 function receiptRef(dispatchId: string, taskId: string, generation: number) {
@@ -955,14 +1043,18 @@ export default async function operationsNativeWorker(request: any, response: any
   let tokenSha256 = "";
   let signed: { nonce: string; issuedAt: number } | null = null;
   let manualWake = false;
+  let signedAction = "";
   if (isCronWake) {
     const declared = Number(request.headers["content-length"] || "0");
     if (!Number.isSafeInteger(declared) || declared !== 0 || !cronAuthorized(request)) {
       return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
     }
   } else {
-    signed = signedWake(request);
+    const wakeBody = await readSignedWakeBody(request);
+    signedAction = wakeBody.action;
+    signed = signedWake(request, wakeBody.signatureBody);
     if (!signed) {
+      if (signedAction) return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
       const authorization = String(request.headers.authorization || "");
       const match = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]{32,512})$/);
       if (!match) return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_DENIED" });
@@ -992,6 +1084,10 @@ export default async function operationsNativeWorker(request: any, response: any
       if (consumed !== true) {
         return send(response, 401, { ok: false, code: "OPS_NATIVE_WAKE_REPLAY_DENIED" });
       }
+    }
+
+    if (signedAction === "bedrock_catalog_sync") {
+      return send(response, 200, await runBedrockCatalogSync(oidc));
     }
 
     const memory = await memoryContextCanary(oidc);

@@ -90,6 +90,9 @@ type ControlRpc =
   | "pandora_ops_reasoning_rdp_verify_parent_v1"
   | "pandora_ops_register_rdp_artemis_verifier_v1"
   | "pandora_ops_reasoning_rdp_queue_memory_v1"
+  | "pandora_bedrock_catalog_sync_claim_v1"
+  | "pandora_apply_bedrock_catalog_sync_v2"
+  | "pandora_bedrock_catalog_sync_fail_v1"
   | "pandora_claim_growth_learning_delivery_v1"
   | "pandora_ack_growth_learning_delivery_v1";
 
@@ -127,6 +130,9 @@ type ControlAction =
   | "operations_verification_accept"
   | "operations_final_acceptance_readback"
   | "operations_wake_nonce_consume"
+  | "bedrock_catalog_sync_claim"
+  | "bedrock_catalog_sync_apply"
+  | "bedrock_catalog_sync_fail"
   | "operations_generic_source_candidate"
   | "operations_generic_source_execute"
   | "operations_generic_source_release_step"
@@ -534,6 +540,47 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
         p_nonce: nonce,
         p_issued_at: issuedAt,
       },
+    };
+  }
+
+  if (input.action === "bedrock_catalog_sync_claim") {
+    return {
+      action: "bedrock_catalog_sync_claim",
+      rpc: "pandora_bedrock_catalog_sync_claim_v1",
+      responseKey: "operations",
+      params: {},
+    };
+  }
+
+  if (input.action === "bedrock_catalog_sync_apply") {
+    const syncId = requiredUuid(input, "syncId");
+    const region = requiredString(input, "region");
+    const observedAt = requiredString(input, "observedAt");
+    const models = Array.isArray(input.models) ? input.models : undefined;
+    if (!syncId || region !== "us-east-1" || !observedAt || !Number.isFinite(Date.parse(observedAt))
+        || !models || models.length < 1 || models.length > 500) return undefined;
+    return {
+      action: "bedrock_catalog_sync_apply",
+      rpc: "pandora_apply_bedrock_catalog_sync_v2",
+      responseKey: "operations",
+      params: {
+        p_sync_id: syncId,
+        p_region: region,
+        p_observed_at: observedAt,
+        p_models: models,
+      },
+    };
+  }
+
+  if (input.action === "bedrock_catalog_sync_fail") {
+    const syncId = requiredUuid(input, "syncId");
+    const reason = requiredString(input, "reason");
+    if (!syncId || !reason || reason.length > 160) return undefined;
+    return {
+      action: "bedrock_catalog_sync_fail",
+      rpc: "pandora_bedrock_catalog_sync_fail_v1",
+      responseKey: "operations",
+      params: { p_sync_id: syncId, p_reason: reason },
     };
   }
 
