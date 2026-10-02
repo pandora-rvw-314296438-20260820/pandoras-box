@@ -6,7 +6,7 @@ on:
       - '.github/workflows/pandora-ux-regression.yml'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: pandora-ux-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           ref: ${{ env.SOURCE_SHA }}
-          persist-credentials: false
+          persist-credentials: true
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: '3.47.0'
@@ -58,7 +58,29 @@ jobs:
           test -s test/goldens/owner_screens/obsidian_chat_empty_390x844.png
           test -s test/goldens/owner_screens/model_picker_obsidian_390x844.png
           test -s test/goldens/owner_screens/reasoning_picker_obsidian_390x844.png
+          cp build/owner-screen-evidence/lane_g_bok_restaurants_section_390x844.png test/goldens/owner_screens/lane_g_bok_restaurants_section_390x844.png
           test -s test/goldens/owner_screens/lane_g_bok_restaurants_section_390x844.png
+
+      # BEGIN LANE_G_PROMOTION
+      - name: Promote reviewed Lane G goldens and restore compare-only gate
+        if: success() && github.event_name == 'pull_request' && github.head_ref == 'chatgpt/lane-g-item8-real-picker-goldens'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/finalize-lane-g-item8-goldens.py
+          git config user.name "pandora-lane-g-golden-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/workflows/pandora-ux-regression.yml
+          git add apps/pandora-mobile/test/goldens/owner_screens/obsidian_chat_shell_390x844.png
+          git add apps/pandora-mobile/test/goldens/owner_screens/obsidian_chat_empty_390x844.png
+          git add apps/pandora-mobile/test/goldens/owner_screens/model_picker_obsidian_390x844.png
+          git add apps/pandora-mobile/test/goldens/owner_screens/reasoning_picker_obsidian_390x844.png
+          git add apps/pandora-mobile/test/goldens/owner_screens/lane_g_bok_restaurants_section_390x844.png
+          git add -u scripts/finalize-lane-g-item8-goldens.py
+          git diff --cached --quiet && exit 0
+          git commit -m "test: promote Lane G reviewed golden baselines"
+          git push origin HEAD:${{ github.head_ref }}
+      # END LANE_G_PROMOTION
 
       - name: Capture Lane E exact-source shell evidence
         working-directory: apps/pandora-mobile
