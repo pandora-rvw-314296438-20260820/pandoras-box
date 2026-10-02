@@ -117,6 +117,14 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
       connection.name.toLowerCase().contains('vercel');
 
   ConnectionCardState _stateFor(ConnectionSummary connection) {
+    final explicitStatus = connection.status.trim().toLowerCase();
+    if (explicitStatus == 'verified') return ConnectionCardState.verified;
+    if (explicitStatus == 'partial') return ConnectionCardState.partial;
+    if (explicitStatus == 'not connected') {
+      return ConnectionCardState.notConnected;
+    }
+    if (explicitStatus == 'error') return ConnectionCardState.error;
+
     final providerState = synthesizeConnectionCardState(
       state: connection.state,
       rawStatus: connection.status,
