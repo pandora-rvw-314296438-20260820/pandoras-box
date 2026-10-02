@@ -33,7 +33,9 @@ test("mobile provider marketplace reads the governed Universal catalog", () => {
   assert.match(catalog, /Universal provider marketplace/);
   assert.match(catalog, /Availability never means connected/);
   assert.match(catalog, /provider-backed readback/);
-  assert.match(catalog, /AskPandoraScreen/);
+  assert.doesNotMatch(catalog, /AskPandoraScreen/);
+  assert.match(catalog, /PandoraSharedConversationScope/);
+  assert.match(catalog, /shared\.submitPrompt\(prompt, selectedObject: selected\)/);
 });
 
 test("catalog-only discovery never claims a provider is connected", () => {

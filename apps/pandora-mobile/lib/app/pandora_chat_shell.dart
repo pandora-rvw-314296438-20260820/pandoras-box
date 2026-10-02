@@ -623,7 +623,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               onActivity: () => _select(4),
               onMore: () => _select(3),
             ),
-          10 => const EnterpriseVisionScreen(),
+          10 => EnterpriseVisionScreen(),
           11 => ProviderEcosystemScreen(
               onOpenConnections: () => _select(5),
             ),

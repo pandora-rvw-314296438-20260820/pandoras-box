@@ -21,15 +21,16 @@ test("growth command center is tenant-scoped read-only owner/admin truth",()=>{
   assert.doesNotMatch(sql,/access_token|refresh_token|user_token|page_token/);
 });
 
-test("growth workspace exposes real sections and persistent Pandora chat",()=>{
+test("growth workspace exposes real sections under the shared Pandora composer",()=>{
   for(const key of [
-    "marketing-growth-command-bar","marketing-growth-open-approvals",
-    "pandora_marketing_growth_command_center_v2","Message Pandora about Marketing & Growth"
+    "marketing-growth-open-approvals",
+    "pandora_marketing_growth_command_center_v2"
   ]) assert.ok(screen.includes(key), key);
-  assert.match(screen,/AskPandoraScreen\(/);
+  assert.doesNotMatch(screen,/AskPandoraScreen|marketing-growth-command-bar|Message Pandora about Marketing & Growth/);
   assert.match(screen,/test traffic never becomes a business KPI/i);
   assert.match(shell,/MarketingGrowthWorkspaceScreen\(/);
   assert.match(shell,/workspace\.key ==\s*'pandora-marketing-growth'/);
+  assert.match(shell,/PandoraSharedConversationScope/);
 });
 
 test("growth UI makes unknown and authority boundaries explicit",()=>{
