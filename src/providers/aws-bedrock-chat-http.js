@@ -1,13 +1,17 @@
 "use strict";
 const crypto=require("node:crypto");
-const {loadOperatorPublicConfig}=require("../operator-public-config.js");
 const {resolveVercelWorkloadToken}=require("../runtime/vercel-workload-identity.js");
 const {converseWithBedrockTarget}=require("./aws-bedrock-runtime.js");
 const MAX_BODY_BYTES=4096;
+const CONTROL_URL="https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control";
 function sha(value){return crypto.createHash("sha256").update(value,"utf8").digest("hex")}
-async function rpc(base,key,name,body){
-  const r=await fetch(base+"/rest/v1/rpc/"+name,{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify(body),redirect:"error"});
-  const raw=await r.text();if(!r.ok)throw Error("BEDROCK_CHAT_TICKET_CLAIM_FAILED");return raw?JSON.parse(raw):null;
+async function claimTicket(tokenSha256,{fetchFn=globalThis.fetch,resolveWorkloadToken=resolveVercelWorkloadToken}={}){
+  const oidc=await resolveWorkloadToken();if(!oidc)throw Error("BEDROCK_CHAT_WORKLOAD_IDENTITY_UNAVAILABLE");
+  const r=await fetchFn(CONTROL_URL,{method:"POST",headers:{authorization:"Bearer "+oidc,"content-type":"application/json","accept":"application/json"},body:JSON.stringify({action:"bedrock_chat_ticket_claim",tokenSha256}),redirect:"error"});
+  const raw=await r.text();if(!r.ok)throw Error("BEDROCK_CHAT_TICKET_CLAIM_FAILED");
+  let payload;try{payload=raw?JSON.parse(raw):{}}catch{throw Error("BEDROCK_CHAT_TICKET_CLAIM_FAILED")}
+  if(payload?.ok!==true||!payload.operations||typeof payload.operations!=="object"||Array.isArray(payload.operations))throw Error("BEDROCK_CHAT_TICKET_CLAIM_FAILED");
+  return{claim:payload.operations,oidc};
 }
 async function readBody(req){
   let bytes=0,raw="";for await(const chunk of req){const b=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk);bytes+=b.length;if(bytes>MAX_BODY_BYTES)throw Error("BODY_TOO_LARGE");raw+=b.toString("utf8")}
@@ -23,14 +27,12 @@ async function handleBedrockChat(req,res){
   try{
     const body=await readBody(req),ticket=body&&typeof body.ticket==="string"?body.ticket:"";
     if(Object.keys(body||{}).some(k=>k!=="ticket")||ticket.length<32||ticket.length>256)return res.status(404).json({ok:false,error:"BEDROCK_CHAT_DENIED"});
-    const settings=loadOperatorPublicConfig(process.env),service=process.env["SUPABASE_"+"SERVICE_ROLE_KEY"]||"";
-    if(!service)throw Error("BEDROCK_CHAT_SERVER_CONFIGURATION_UNAVAILABLE");
-    const claim=await rpc(settings.supabaseUrl,service,"pandora_claim_bedrock_chat_ticket_v1",{p_token_sha256:sha(ticket)});
+    const claimed=await claimTicket(sha(ticket)),claim=claimed.claim;
     const modelId=typeof claim&&claim&&typeof claim.modelId==="string"?claim.modelId:"",invocationTarget=claim&&typeof claim.invocationTarget==="string"?claim.invocationTarget:"",providerName=claim&&typeof claim.providerName==="string"?claim.providerName:null,requestBody=claim&&claim.requestBody;
     if(!modelId||!invocationTarget||!requestBody||typeof requestBody!=="object"||Array.isArray(requestBody))throw Error("BEDROCK_CHAT_TICKET_INVALID");
     const parts=Array.isArray(requestBody.parts)?requestBody.parts:null,system=typeof requestBody.system==="string"?requestBody.system:"",maxTokens=Number(requestBody.maxTokens);
     if(!parts||parts.length<1||parts.length>64||!Number.isSafeInteger(maxTokens)||maxTokens<1||maxTokens>8192||system.length>100000)throw Error("BEDROCK_CHAT_REQUEST_INVALID");
-    const resolveWorkloadToken=()=>process.env.VERCEL==="1"?resolveVercelWorkloadToken():Promise.resolve(undefined);
+    const resolveWorkloadToken=()=>Promise.resolve(claimed.oidc);
     try{
       const result=await converseWithBedrockTarget({modelId,invocationTarget,providerName,parts,system,maxTokens,temperature:null,resolveWorkloadToken});
       return res.status(200).json({status:200,ok:true,body:{model:result.modelId,text:result.text,usage:result.usage||{},providerRequestId:result.providerRequestId||null}});
@@ -40,4 +42,4 @@ async function handleBedrockChat(req,res){
     return res.status(503).json({status:503,ok:false,error:{kind:"provider_unavailable",retryable:true}});
   }
 }
-module.exports={handleBedrockChat,envelope};
+module.exports={handleBedrockChat,envelope,claimTicket};

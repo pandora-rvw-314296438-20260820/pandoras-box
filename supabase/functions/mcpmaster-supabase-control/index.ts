@@ -91,6 +91,7 @@ type ControlRpc =
   | "pandora_ops_register_rdp_artemis_verifier_v1"
   | "pandora_ops_reasoning_rdp_queue_memory_v1"
   | "pandora_bedrock_catalog_sync_claim_v1"
+  | "pandora_claim_bedrock_chat_ticket_v1"
   | "pandora_apply_bedrock_catalog_sync_v2"
   | "pandora_bedrock_catalog_sync_fail_v1"
   | "pandora_claim_growth_learning_delivery_v1"
@@ -131,6 +132,7 @@ type ControlAction =
   | "operations_final_acceptance_readback"
   | "operations_wake_nonce_consume"
   | "bedrock_catalog_sync_claim"
+  | "bedrock_chat_ticket_claim"
   | "bedrock_catalog_sync_apply"
   | "bedrock_catalog_sync_fail"
   | "operations_generic_source_candidate"
@@ -157,6 +159,7 @@ interface ControlRoute {
   action: ControlAction;
   rpc: ControlRpc;
   params: Record<string, unknown>;
+  includeOrganization?: boolean;
   responseKey:
     | "accounts"
     | "security"
@@ -253,6 +256,7 @@ async function fetchRpc(
   key: string,
   rpcName: ControlRpc,
   params: Record<string, unknown>,
+  includeOrganization = true,
 ): Promise<unknown | undefined> {
   const rpcResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/${rpcName}`, {
     method: "POST",
@@ -261,10 +265,10 @@ async function fetchRpc(
       authorization: `Bearer ${key}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({
+    body: JSON.stringify(includeOrganization ? {
       p_organization_id: CONTROL_ORGANIZATION_ID,
       ...params,
-    }),
+    } : params),
     redirect: "error",
   });
 
@@ -540,6 +544,18 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
         p_nonce: nonce,
         p_issued_at: issuedAt,
       },
+    };
+  }
+
+  if (input.action === "bedrock_chat_ticket_claim") {
+    const tokenSha256 = requiredString(input, "tokenSha256");
+    if (!tokenSha256 || !/^[0-9a-f]{64}$/.test(tokenSha256)) return undefined;
+    return {
+      action: "bedrock_chat_ticket_claim",
+      rpc: "pandora_claim_bedrock_chat_ticket_v1",
+      responseKey: "operations",
+      params: { p_token_sha256: tokenSha256 },
+      includeOrganization: false,
     };
   }
 
@@ -971,7 +987,7 @@ Deno.serve(async (request: Request) => {
   if (!supabaseUrl || !key) return response(503, { ok: false, error: "control_database_not_configured" });
 
   try {
-    const payload = await fetchRpc(supabaseUrl, key, route.rpc, route.params);
+    const payload = await fetchRpc(supabaseUrl, key, route.rpc, route.params, route.includeOrganization !== false);
     if (payload === undefined) return response(502, { ok: false, error: "control_operation_unavailable" });
 
     if (route.responseKey === "accounts") {
