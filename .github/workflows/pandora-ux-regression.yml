@@ -37,7 +37,7 @@ jobs:
           flutter analyze --no-pub lib/features/enterprise/enterprise_workspace_home.dart test/features/enterprise/enterprise_workspace_navigation_test.dart
           flutter test --no-pub --reporter expanded test/features/enterprise/enterprise_workspace_navigation_test.dart test/app/pandora_chat_navigation_test.dart test/app/plp_navigation_drawer_test.dart test/app/plp_command_dock_keyboard_test.dart test/app/plp_owner_journey_acceptance_test.dart test/features/simple/pandora_picker_tap_through_test.dart
 
-      - name: Verify committed Lane E and picker goldens
+      - name: Refresh reviewed Lane G goldens for artifact promotion
         working-directory: apps/pandora-mobile
         shell: bash
         run: |
@@ -46,16 +46,19 @@ jobs:
             obsidian_chat_shell_390x844 \
             obsidian_chat_empty_390x844 \
             model_picker_obsidian_390x844 \
-            reasoning_picker_obsidian_390x844
+            reasoning_picker_obsidian_390x844 \
+            lane_g_bok_restaurants_section_390x844
           do
             flutter test --no-pub --reporter expanded \
               test/goldens/owner_screens_visual_evidence_test.dart \
-              --plain-name "captures $case_name"
+              --plain-name "captures $case_name" \
+              --update-goldens
           done
           test -s test/goldens/owner_screens/obsidian_chat_shell_390x844.png
           test -s test/goldens/owner_screens/obsidian_chat_empty_390x844.png
           test -s test/goldens/owner_screens/model_picker_obsidian_390x844.png
           test -s test/goldens/owner_screens/reasoning_picker_obsidian_390x844.png
+          test -s test/goldens/owner_screens/lane_g_bok_restaurants_section_390x844.png
 
       - name: Capture Lane E exact-source shell evidence
         working-directory: apps/pandora-mobile
@@ -93,5 +96,6 @@ jobs:
             apps/pandora-mobile/test/goldens/owner_screens/obsidian_chat_empty_390x844.png
             apps/pandora-mobile/test/goldens/owner_screens/model_picker_obsidian_390x844.png
             apps/pandora-mobile/test/goldens/owner_screens/reasoning_picker_obsidian_390x844.png
+            apps/pandora-mobile/test/goldens/owner_screens/lane_g_bok_restaurants_section_390x844.png
           if-no-files-found: error
           retention-days: 7
