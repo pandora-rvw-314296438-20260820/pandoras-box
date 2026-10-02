@@ -1,3 +1,7 @@
+import 'package:flutter/material.dart';
+
+import '../../core/data/pandora_intelligence_api.dart';
+
 const String pandoraLocalDeviceProvider = 'local_device';
 const String pandoraLocalDeviceModel = 'qwen-device';
 
@@ -5,10 +9,6 @@ bool isPandoraLocalDeviceSelection(PandoraChatModelSelection selection) =>
     selection.selection == 'manual' &&
     selection.provider == pandoraLocalDeviceProvider &&
     selection.model == pandoraLocalDeviceModel;
-
-import 'package:flutter/material.dart';
-
-import '../../core/data/pandora_intelligence_api.dart';
 
 class PandoraComposerModelControls extends StatelessWidget {
   const PandoraComposerModelControls({
