@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260927110738
+-- Name: operations_model_rdp_bridge_v1
+-- Original SQL SHA-256: 07981467d1b9b4ba8480385dc3779a3761d6827097a919b5acbb7f64d8ab28b1
+-- Original statement count: 1
+-- Provider SQL bytes: 50095
+-- Canonical executable authority: supabase/migrations/20260927093535_operations_model_rdp_bridge_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

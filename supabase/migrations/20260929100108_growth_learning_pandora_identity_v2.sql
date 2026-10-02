@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929100108
+-- Name: growth_learning_pandora_identity_v2
+-- Original SQL SHA-256: c23f179140ab86502e37d519d93ee49fa782f0886cb42fb4b4175a6d07efcaec
+-- Original statement count: 1
+-- Provider SQL bytes: 17846
+-- Canonical executable authority: supabase/migrations/20260929122600_growth_learning_pandora_identity_v2.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

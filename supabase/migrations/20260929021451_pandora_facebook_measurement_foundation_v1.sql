@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929021451
+-- Name: pandora_facebook_measurement_foundation_v1
+-- Original SQL SHA-256: bb76b492c34c00416496de956eb9bf5c10370f1273973fe0ee9ea71efe38999f
+-- Original statement count: 1
+-- Provider SQL bytes: 44059
+-- Canonical executable authority: supabase/migrations/20260929070000_pandora_facebook_measurement_foundation_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

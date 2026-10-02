@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20261002115959
+-- Name: pandora_bedrock_control_trigger_v1
+-- Original SQL SHA-256: c1ad72f9c556ca597ed52f644f843ec18ae7a4dfcba1828250b5acf1c0e6f214
+-- Original statement count: 1
+-- Provider SQL bytes: 2024
+-- Canonical executable authority: supabase/migrations/20261002120500_pandora_bedrock_control_trigger_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

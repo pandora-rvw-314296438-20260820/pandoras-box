@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260930235216
+-- Name: plp_resort_operations_v1
+-- Original SQL SHA-256: 938733856902778577a20df391825f18acda7833000801d16c40d96fc799a169
+-- Original statement count: 1
+-- Provider SQL bytes: 4582
+-- Canonical executable authority: supabase/migrations/20261001070000_plp_resort_operations_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

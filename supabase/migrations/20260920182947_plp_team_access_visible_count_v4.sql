@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260920182947
+-- Name: plp_team_access_visible_count_v4
+-- Original SQL SHA-256: 6ae05e1f2a369d7b3833c2364d851f82eac46fa6d3c14aedbeaa059e22b7a552
+-- Original statement count: 1
+-- Provider SQL bytes: 11663
+-- Canonical executable authority: supabase/migrations/20260921103500_plp_team_access_visible_count_v4.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

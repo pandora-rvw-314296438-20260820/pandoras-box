@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929005215
+-- Name: pandora_learning_outbox_fencing_v2
+-- Original SQL SHA-256: 755a6db6a5ead1a395a330d63d3feee691f31904727a2a79bb3805d1d237dfe7
+-- Original statement count: 1
+-- Provider SQL bytes: 14455
+-- Canonical executable authority: supabase/migrations/20260929013000_pandora_learning_outbox_fencing_v2.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

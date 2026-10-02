@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260918023659
+-- Name: pandora_direct_capability_provider_fallback_v1
+-- Original SQL SHA-256: 40adfab6df9e90d98c74ad1629a69e724b096d2746c0499d9f0b77b3e6bc47a1
+-- Original statement count: 1
+-- Provider SQL bytes: 3302
+-- Canonical executable authority: supabase/migrations/20260918024500_pandora_direct_capability_provider_fallback_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

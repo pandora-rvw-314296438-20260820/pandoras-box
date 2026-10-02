@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929050221
+-- Name: facebook_controlled_capi_acceptance_v1
+-- Original SQL SHA-256: a45385588fa4947d3c2dc244164f5af0fd632e2e570b7b1f2ac50c54cc96e001
+-- Original statement count: 1
+-- Provider SQL bytes: 7228
+-- Canonical executable authority: supabase/migrations/20260929121500_facebook_controlled_capi_acceptance_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20261001151811
+-- Name: pandora_public_safe_read_secret_false_allowlist_v1
+-- Original SQL SHA-256: 814006bb52ec6f2d1fd609fefc5b3668c38d62cdb251c2eb526cccec9dcd1198
+-- Original statement count: 1
+-- Provider SQL bytes: 7979
+-- Canonical executable authority: supabase/migrations/20261001150414_pandora_public_safe_read_secret_false_allowlist_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

@@ -1,0 +1,1808 @@
+{
+  "schemaVersion": 1,
+  "projectRef": "jcyqixttuebxqqfkjonq",
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+  "mode": "remote_history_source_reconciliation",
+  "observedMainSha": "5d83f670605858be1c156eed91ac9dd4439ec9c7",
+  "remoteMigrationCount": 791,
+  "sourceMigrationCountBefore": 746,
+  "remoteOnlyCount": 179,
+  "historyReceiptCount": 127,
+  "sameNameHistoryReceiptCount": 81,
+  "protectedProviderHistoryReceiptCount": 46,
+  "providerExactExecutableCount": 52,
+  "providerHistoryMutated": false,
+  "productionLiveSchemaReplayed": false,
+  "entries": [
+    {
+      "version": "20260916114325",
+      "name": "r058_publication_abort_recovery",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260916110444_r058_publication_abort_recovery.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 3247,
+      "originalSqlSha256": "b37325b7e483b5528017756eb1e789d6ed96133117cad64e7fa85303d68658ba",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917011731",
+      "name": "pandora_enterprise_large_private_repo_transport_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 4160,
+      "originalSqlSha256": "935311fb4ba169b336403dced0b5a0e52bed4c1e7753379ca2c2e79d40d3b54f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917012814",
+      "name": "pandora_enterprise_e2e_invoke_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1855,
+      "originalSqlSha256": "6c6d4ded78833dbb9c17ebf5ec1b8d051b4332e314295b83c461893e15245719",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917021537",
+      "name": "enterprise_repo_runtime_material_and_staging_20260917",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 3620,
+      "originalSqlSha256": "63611cea96e7db55afdef4857bb2fc29c5e85388601381fb46e31aecfa361681",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917023444",
+      "name": "cleanup_enterprise_repo_e2e_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 259,
+      "originalSqlSha256": "86aaef3b3e9ec71844942a933eed15a8649b71384d396e3683a4fa24ef7d2451",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917052204",
+      "name": "pandora_ci_rescue_native_queue_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 13377,
+      "originalSqlSha256": "43cf146e3a5a1cd44b8cc24e8a63085f6e6fbaca6dbb7c7105f57ee7b5551392",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917055637",
+      "name": "pandora_chat_github_connection_verification_v14",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 11895,
+      "originalSqlSha256": "714d38f545839676d0ea7500c92c94639bbf7c0b7d0b67a83d38acac6db23a96",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917063136",
+      "name": "pandora_chat_github_connection_and_redesign_routing_v14",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 15476,
+      "originalSqlSha256": "56d92d9629973dfab3eea6599356b9c63d5de747d534efd3826fa0111d324c62",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917064821",
+      "name": "enterprise_direct_github_plp_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 2864,
+      "originalSqlSha256": "2a3db0c1843280a612555646800e13e46976ae782a808a76a812c15fd0c1ea86",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917085206",
+      "name": "pandora_direct_plp_github_code_lane",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 16978,
+      "originalSqlSha256": "74be5ceb03cf293d2eb288d45df498beed81b4778d9dad0f2ef4d22d559dbe58",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917085514",
+      "name": "pandora_direct_github_activity_truth",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 1954,
+      "originalSqlSha256": "533d56883850ac91eee4f7660301213bdb651ca8cfd52b432762fc6773069569",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917091024",
+      "name": "plp_preview_deployer_one_time_auth_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1205,
+      "originalSqlSha256": "00897e3320695445c33dc0767df0feae4bb044ec8a2844626c01372267785219",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917091402",
+      "name": "plp_preview_invoke_wrapper_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1536,
+      "originalSqlSha256": "310e86a1dc95a1e5abe4363af01e86bdee7e9ab283d8115d4ab7bbb5b0224d92",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917094133",
+      "name": "cleanup_plp_preview_invoker_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 146,
+      "originalSqlSha256": "18a1274783f30144e7abfe7c475bc47b9c61230bf0837a1a03f80aa7328d8648",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917094429",
+      "name": "plp_bodyless_vercel_promote_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1294,
+      "originalSqlSha256": "0573ed61775036c06d3fc0c179373b0fb8aec40a71287a6c2ab652cb6a4b6c75",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917094607",
+      "name": "cleanup_plp_bodyless_promote_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 62,
+      "originalSqlSha256": "4adce0992fb58ec9b7ddbadee67ebe9598850c7f5f1eff3dad3b38bd144346eb",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917100135",
+      "name": "plp_env_metadata_probe_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1631,
+      "originalSqlSha256": "e7bad9069e11265cc3e3220bfb687bf0ce00ace8bc3c01918d001eb3faded06a",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917100216",
+      "name": "cleanup_plp_env_metadata_probe_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 67,
+      "originalSqlSha256": "a74d501bc5b44034ea7193c8c6fae6b7af0a18770de57bc15aa592f2940a4990",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917100246",
+      "name": "plp_supabase_account_inventory_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1779,
+      "originalSqlSha256": "2c8a2e01f8aa9e4dfc2c2f242d5fb9cdd7c6a1cf19b8bb7c01bd15117f8138b2",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917100341",
+      "name": "plp_restore_backend_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1051,
+      "originalSqlSha256": "f1353f5616f1e474f3fbd5004a0ab989c3912cb57b54eb395f21e75df78ec5b3",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917100416",
+      "name": "cleanup_plp_supabase_discovery_20260917",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 144,
+      "originalSqlSha256": "0cdcbd0286183decb25b00dde92ebcf5a1bf8adbf23e9bd221f4f7e71a97e6e5",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917102225",
+      "name": "temporary_plp_runtime_rest_verifier",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 2401,
+      "originalSqlSha256": "bad99eceed36b7df09d84a79c8f5cd0a640fa120fa6cc168691ef421fecf2e8a",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917102323",
+      "name": "temporary_publish_plp_schema_support",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 5629,
+      "originalSqlSha256": "77eca5fc77e2617a90631b4e29e2d8ea4adb4b217d12f6f99e6089d0a3611c71",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917102359",
+      "name": "temporary_gate_plp_pr5_merge",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 4461,
+      "originalSqlSha256": "1aa869cbb5c798603a76265d79c5473495bf4798c13738f3dc0d26e5bf923762",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917102447",
+      "name": "create_temporary_plp_staff_secret",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 394,
+      "originalSqlSha256": "a12dd7a062f85e8db34c3deae35abf2249f3e264c137c017fda40627fe81914c",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917102628",
+      "name": "cleanup_temporary_plp_helpers_before_oidc_bridge",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 275,
+      "originalSqlSha256": "922981fc82828dde26b85a779306009fe6f68f28af2fb637dd47c506a51324ed",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917102638",
+      "name": "record_plp_temp_backend_metadata",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 403,
+      "originalSqlSha256": "83cdd1945d611097fc75cb308b1910a8016a68e1ba6b8c6375ac48058f06b12f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917102834",
+      "name": "temporary_publish_plp_oidc_gateway_client",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 6558,
+      "originalSqlSha256": "6d12042b7573808b9c7ec0e76e2c89538100ec7bed49527289265daca69bfd2a",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917103002",
+      "name": "temporary_gate_plp_pr6_merge",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 4626,
+      "originalSqlSha256": "9f2568c7bdddf42659888f151b4b47771777921795eba34dceb4aae2e5f646a6",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917103147",
+      "name": "create_plp_oidc_deploy_run_secret",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 384,
+      "originalSqlSha256": "8e85efd4a260e3b85c35925903d634946eaae5b6c751e961f7e75f5ad19662e3",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917103237",
+      "name": "temporary_invoke_plp_oidc_deployer",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1444,
+      "originalSqlSha256": "8fd215533ec6f363261a09e0c50ebc3545eb3aded4bed02b2456656076eec66e",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917103501",
+      "name": "create_pandora_staging_registry_core_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 8449,
+      "originalSqlSha256": "97d476a363b23d99d0e66369a0fdfb798570d3632bee318ae2eb86ce89773a2c",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917103534",
+      "name": "create_pandora_staging_registry_rpcs_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 12347,
+      "originalSqlSha256": "c33cc7428cb7fb590a1b1e717ab163ba882cafa513a7cffe8b1808b81619d139",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917103550",
+      "name": "create_pandora_staging_github_fallback_lane_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 1972,
+      "originalSqlSha256": "87a3d1673a43e54e5247f46b562e3416f127740e7450411009ea7f0f2ba99d78",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917103630",
+      "name": "refine_pandora_staging_two_phase_v2",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 7725,
+      "originalSqlSha256": "f89396d5be4f408fd8506eefe3ec34a18e82e4aa7381f760832cdb803da3b2af",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917103651",
+      "name": "temporary_test_plp_oidc_gateway",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 2682,
+      "originalSqlSha256": "22cc3b0cbfc03ea554ff4a9f6e36ef7a8dfd37d3cd1a3012df47bd692a0736a6",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917103748",
+      "name": "cleanup_plp_temporary_deployment_helpers",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 378,
+      "originalSqlSha256": "74158a8c396f52c606d34657edbcded10ecbb498d522b17be6bd79f6546831ea",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917104217",
+      "name": "index_pandora_staging_project_org_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 114,
+      "originalSqlSha256": "e9c6a5f6efd89fa1f6d4e9ad0b1d238b9f8d7aaad5d18f55da37632bca04b579",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917110632",
+      "name": "pandora_enterprise_business_overview_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 8458,
+      "originalSqlSha256": "115ddfa773d7ea6d64ce13070eac8f3fa8d9802c1af9c834df6bfda593d55185",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917115427",
+      "name": "enterprise_plp_runtime_projection_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 12021,
+      "originalSqlSha256": "0bd8345df4edd17f9a0ec9040bd74629464c717dbce779643315f7d9f2676166",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917131027",
+      "name": "temporary_publish_plp_oidc_runtime_fix",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 6323,
+      "originalSqlSha256": "a506256da4229b85ef2a2ae148949ac47dad639ac4d6d8f13f21bb14c0629a01",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917131101",
+      "name": "temporary_gate_plp_pr7_merge",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 5077,
+      "originalSqlSha256": "17a0bb71e24676c4e97111c436ee68192c0434726aafb4f57db4ef44241ad9b2",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917131137",
+      "name": "create_plp_final_deploy_secret",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 333,
+      "originalSqlSha256": "1ff5dbc5b8e982c6248304ca24c936ebfac03507078d9ebb0c148b49b2555d62",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917131309",
+      "name": "temporary_invoke_plp_final_deployer",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1447,
+      "originalSqlSha256": "b8164417f6093f18828cd8da2330de740c2e9f850720bed9fe8e2ed14bdd9028",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917131551",
+      "name": "cleanup_plp_final_temporary_helpers",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 283,
+      "originalSqlSha256": "030d89e22afaf73121a3553c19fac609c36cd500ba2e31b167c1871fc9251d61",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917141949",
+      "name": "fix_enterprise_plp_snapshot_transaction_timestamp",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 699,
+      "originalSqlSha256": "fb0979249d05cbcdace52086f4de61fba060044df8d183a93d3b04f73e6606f8",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917143652",
+      "name": "create_plp_staff_identity_mapping",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 858,
+      "originalSqlSha256": "d982d9d5f7112ce7e81a0d96694bc56224c5cbc45317323831761e26748ba829",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917172137",
+      "name": "lock_plp_staff_identity_role_map",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 376,
+      "originalSqlSha256": "0915eeeb39974251430639a3c023cffb9184efc9c4fed5016f0056ba98cc24c1",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917172501",
+      "name": "temporary_open_plp_staff_auth_pr",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 2194,
+      "originalSqlSha256": "a3c49b3dcca9fc5e8d2d858243637e244f9ce54c2153163178fffaeb7f5a3350",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917172545",
+      "name": "temporary_gate_plp_pr8",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 4387,
+      "originalSqlSha256": "e59fc48a1a6a8d43ad2e07f2d4b4f65bd47ffbe3121875e10e568d4629a4a142",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917172703",
+      "name": "create_plp_staff_auth_preview_run_secret",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 351,
+      "originalSqlSha256": "e7045cc904bf0dca2722fdf0f9d25cb767fbf8ce8df29f32979c1f1aeffa6d78",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917172732",
+      "name": "temporary_invoke_plp_staff_auth_preview",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1408,
+      "originalSqlSha256": "6a6870b6d43cf4d5a0233af6026f5cf76e7ff065a7cb849e30f8431e71cfbee9",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917172836",
+      "name": "cleanup_plp_staff_auth_preview_deployer",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 149,
+      "originalSqlSha256": "fea02b9842c4c15de3545de16ba59618d59f03632b6a57190a5cde4ce80d8457",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917173048",
+      "name": "create_plp_staff_auth_preview2_run_secret",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 345,
+      "originalSqlSha256": "39adf5c26c76829825e7d1918035756015c283874cd3155cdf232225d05acddc",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917173117",
+      "name": "temporary_invoke_plp_staff_auth_preview2",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1398,
+      "originalSqlSha256": "15e0debd6a9a45aeec88d0e63c04997302b5f08e4b5a2bb6e066ee9494eb9216",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917173230",
+      "name": "cleanup_plp_staff_auth_preview2_deployer",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 151,
+      "originalSqlSha256": "718e983a585683288425df6afe81987bcfb4137ba01a4225dc1d53b263fe5815",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917173300",
+      "name": "create_plp_staff_auth_acceptance_run_secret",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 346,
+      "originalSqlSha256": "51e1aa730c449811ca628113b214cf29f67b17c4925e0afb47e60fdc8094a869",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260917173339",
+      "name": "temporary_invoke_plp_staff_auth_acceptance",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1406,
+      "originalSqlSha256": "3cc79f4fa4030ae5a692d0ba005200ece78e8b8002acec28edba84c0706a9d7f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918023224",
+      "name": "pandora_direct_capability_runtime_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260918023000_pandora_direct_capability_runtime_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 24742,
+      "originalSqlSha256": "562f5f29026f8f509c08d0225d11376972085970ac33e5da50479e06e607a978",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918023659",
+      "name": "pandora_direct_capability_provider_fallback_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260918024500_pandora_direct_capability_provider_fallback_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 3302,
+      "originalSqlSha256": "40adfab6df9e90d98c74ad1629a69e724b096d2746c0499d9f0b77b3e6bc47a1",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918024254",
+      "name": "pandora_native_project_registry_surface_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260918031500_pandora_native_project_registry_surface_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 4925,
+      "originalSqlSha256": "bf5980b84e145bcdd3ad5be2225e3323a45c4d6e86d7793e0846ae5aebe7d75f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918033740",
+      "name": "pandora_native_capability_registry_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260918033800_pandora_native_capability_registry_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 28374,
+      "originalSqlSha256": "63a9b372ac7ae1f8378cd9d89ac6bdb7efc78da533955973fc2104e6ba8cba61",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918052447",
+      "name": "pandora_intelligence_model_catalog_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 4991,
+      "originalSqlSha256": "869f7785878f59ac83d0e78e9cc839f630d26824541e2e8a149888525c4c33d6",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918054154",
+      "name": "eurofish_enterprise_isolation_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 22248,
+      "originalSqlSha256": "e7fac457a571dc2a820daa593f9295ca84905488cd4cab452f5c2c3ccc991e87",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918054248",
+      "name": "eurofish_memory_namespace_alignment_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 2820,
+      "originalSqlSha256": "0f5132f19c5e1ed05e9f9bc9b6229dfcafd0df7a42280458793a4f68192a404f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918054602",
+      "name": "eurofish_private_rpc_grant_hardening_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 362,
+      "originalSqlSha256": "72bc39c8da3abb7649acffb61ab4fee9caec0f922eb24c030f95b48d74535702",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918061631",
+      "name": "pandora_enterprise_member_mutation_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 6472,
+      "originalSqlSha256": "9e90ec2fbb384227230505b50ed14e9e0132ad6e6acfeb2b7130e8556d157656",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918062745",
+      "name": "eurofish_provider_github_broker_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 3111,
+      "originalSqlSha256": "7ec273bb1597939102e1596caf5c397250be992895e511ba5f73c1e2564bd4a3",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918062907",
+      "name": "eurofish_memory_and_repo_provider_brokers_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 6593,
+      "originalSqlSha256": "07521a404476f32ce194f26b31f71f8205a0c3dd97e1b2e0bde14c0e1a67f9fa",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918084627",
+      "name": "pandora_enterprise_vercel_build_events_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 2093,
+      "originalSqlSha256": "ade337d6c91d526326e51cc38ff019e99ccb0ef763c49109b1e4e1878149b790",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918090916",
+      "name": "eurofish_github_ci_read_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 1633,
+      "originalSqlSha256": "94822e8c591735114601de46bbda3a3c8b07484ccabcbdbab707829b2afabf7c",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918091300",
+      "name": "eurofish_ci_dispatch_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 1120,
+      "originalSqlSha256": "aa69872279e2aef3aedebb04f41ce7481fa6d7247bdaedf0945fc6de0151ac81",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918091342",
+      "name": "eurofish_github_run_read_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 1085,
+      "originalSqlSha256": "2a1963364369cb9e60e382f03dd50a61322f6d1f6c76196beada1ddd12330cd1",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918091433",
+      "name": "eurofish_ci_rerun_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 1339,
+      "originalSqlSha256": "525a407adc8085a543c996adada7d392e2bce44592c0a248df6f950a851b6fb6",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260918091509",
+      "name": "eurofish_ci_rerun_empty_body_fix_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 1142,
+      "originalSqlSha256": "e476607e4032a34a1f8d29ce69c5f94572bccd302f48728a259a1e341cac4239",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260919014004",
+      "name": "pandora_rdp_memory_github_transport_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 3021,
+      "originalSqlSha256": "b5dec3deee93b9339ac84fe59aa9deeafa187801d5f678de07eeaa4fffd135c9",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260919015014",
+      "name": "plp_verified_learning_outbox_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 4949,
+      "originalSqlSha256": "d252053dce30d5ee8961bfc63db127c7d77d2537695debaf7c1e4f82eff27965",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260919041316",
+      "name": "plp_verified_learning_outbox_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 4949,
+      "originalSqlSha256": "d252053dce30d5ee8961bfc63db127c7d77d2537695debaf7c1e4f82eff27965",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260919051348",
+      "name": "plp_learning_drain_scheduler_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 1025,
+      "originalSqlSha256": "c0eb57cf99d1cae41dcdd7c0811431f2adaf4f60eac38c33f912a12120e172f9",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260919080527",
+      "name": "enterprise_vision_intelligence_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 23775,
+      "originalSqlSha256": "61e7bc1767a51f18d30dd49407195190f0f85f50e459e515d7de3ccf6577b438",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920031512",
+      "name": "pandora_qwen3_apk_fresh_redirect",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1629,
+      "originalSqlSha256": "428aa7f9b0f834ff5df804b2abe0b159fae158efcb1b9974cc888c782d84ae9d",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920180336",
+      "name": "plp_guest_experience_bootstrap_v2",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260920180000_plp_guest_experience_bootstrap_v2.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 8102,
+      "originalSqlSha256": "6313537eb4c09bfddc65c74b3baa08bc2527fdb7e220832b125432f93bffd7a4",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920180412",
+      "name": "phone_local_ai_turn_telemetry_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260920180430_phone_local_ai_turn_telemetry_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 3560,
+      "originalSqlSha256": "fdfe3bc3621d2f005fb96f088eb688eca8a721fa3bd18e5544667cb8ef115726",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920182650",
+      "name": "plp_team_access_bootstrap_v3",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260921102000_plp_team_access_bootstrap_v3.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 11603,
+      "originalSqlSha256": "86d01a8fd82135be8579c18fa8a352b938fbb2a4f44aa770dbe2aa4a36c4757a",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920182947",
+      "name": "plp_team_access_visible_count_v4",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260921103500_plp_team_access_visible_count_v4.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 11663,
+      "originalSqlSha256": "6ae05e1f2a369d7b3833c2364d851f82eac46fa6d3c14aedbeaa059e22b7a552",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920195726",
+      "name": "pandora_gemini_vault_key_pool_rotation_20260921",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 5129,
+      "originalSqlSha256": "077ad8c2b99a825a38bd1f276ff47b8596bc7f6435b8d6cdfa8fbb0962a73cf2",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920200153",
+      "name": "temporary_gemini_vault_key_probe_20260921",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 2312,
+      "originalSqlSha256": "2c08aed1c98ac82d52754477898674f029c4a683cd26fbfd843c3e0ae27ad48e",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920200220",
+      "name": "remove_temporary_gemini_vault_key_probe_20260921",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 88,
+      "originalSqlSha256": "cf90d904d2c3cab5d3d26f4bf08d815474cf288bed0396940ae1d7cea1a5109d",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920201211",
+      "name": "restrict_ai_routes_qwen_kimi_999_gemini_20260921",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 3769,
+      "originalSqlSha256": "1c5fa0bda1f3945c1bb174493b1361a5dca6dd38e3bf94c92ab91a27a6fa5d45",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920201259",
+      "name": "restrict_all_gemini_runtime_to_999_account_20260921",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 3458,
+      "originalSqlSha256": "bfb744157d3f0edde2d7ed9632aff59bcd1c75ad7bd2787d8249c4aaeca27b79",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260920203331",
+      "name": "plp_realtime_resort_updates_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260921112000_plp_realtime_resort_updates_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 6111,
+      "originalSqlSha256": "769fb3e80bf1e8f598785766621608ce7989c0eb259e91fcdff9600f47c0143e",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260921002728",
+      "name": "openrouter_provider_failover_v4",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260921121500_openrouter_provider_failover_v4.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 11035,
+      "originalSqlSha256": "b75686d3bb06b90e3846b7e8ac4d544aa9ac36763baaaf94e35d0dfcc301e9b5",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260922102401",
+      "name": "pandora_user_admin_member_updates_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260922102500_pandora_user_admin_member_updates_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 6769,
+      "originalSqlSha256": "aa1896dddee3777d4723b3cb748c085062911b5e49a17618fa149f5e6fc051d2",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260924201351",
+      "name": "eurofish_authenticated_surface_hardening_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 4558,
+      "originalSqlSha256": "fb4f44c6b8883b1751d5cf7204b7b0268f253ec0528ee87479e7cf0e21cf4d3a",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260924202033",
+      "name": "coordinator_generation_check_identity_fix_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 10513,
+      "originalSqlSha256": "b9035fc279bb1b5ebae7589ae36425a1dd17c56776f208650a8881bb7e009f57",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260924204958",
+      "name": "plp_bootstrap_source_truth_v6",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260923183500_plp_bootstrap_source_truth_v6.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 12610,
+      "originalSqlSha256": "f25078648c91c8e7156a68d55664746fd8f2ed1747fabbd433f09c9c8b88f439",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260924234643",
+      "name": "pandora_meta_oauth_marketing_read_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260925061000_pandora_meta_oauth_marketing_read_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 19655,
+      "originalSqlSha256": "fb924a566825a0f5660a7721c9a60002a2ca949718f258952e09983e7b25672d",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260924234649",
+      "name": "pandora_meta_native_capability_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260925063000_pandora_meta_native_capability_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 27894,
+      "originalSqlSha256": "916d61a2c2d1db366cb44533b1b1973df6ebbd97f9c3cbc8e331079e533a9143",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925001411",
+      "name": "pandora_tax_compliance_foundation_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260925010000_pandora_tax_compliance_foundation_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 39972,
+      "originalSqlSha256": "e5246a3a1a88f040fbf26c285c746e75dbf1d114d5c57e774b5eb65676e524c0",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925001422",
+      "name": "pandora_meta_oauth_vercel_callback_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260925070000_pandora_meta_oauth_vercel_callback_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 3156,
+      "originalSqlSha256": "09177583c60605ec5517967da49939a19a225793358e0d691531c960e3e54bb1",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925004132",
+      "name": "pandora_tax_evidence_inbox_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260925073000_pandora_tax_evidence_inbox_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 32808,
+      "originalSqlSha256": "bac551446b70c5b311526115403883711f23007a7ee12627773d12f8896372fa",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925020039",
+      "name": "pandora_tax_operating_core_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260925090000_pandora_tax_operating_core_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 121430,
+      "originalSqlSha256": "cb07fd01d051db99a0756d57536eedf43da910c38eb1dc630bd78541a9feeae6",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925104709",
+      "name": "plp_site_studio_core_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 12661,
+      "originalSqlSha256": "db8641a5cc1487ccb63ad862153923a80ba73b06eb078e25437d47c88bb88495",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925111522",
+      "name": "pandora_plp_studio_candidate_ledger_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 2586,
+      "originalSqlSha256": "0065caf76fe62cec373bb9f7672a2fcc0952eb632a8de1e190b8cd0e61ef9767",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925111536",
+      "name": "disable_plp_direct_main_ai_edits_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 1815,
+      "originalSqlSha256": "89e8344576d1b530836242e9be01f16962d40ccb76064611ab52a3ec82d2f1a2",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925111801",
+      "name": "pandora_plp_studio_candidate_compiler_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 16450,
+      "originalSqlSha256": "587e719625f0a9045c3b015347d8ee7aa702361e5a39d33bb08722408644fc57",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925113002",
+      "name": "pandora_plp_studio_preview_bindings_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1464,
+      "originalSqlSha256": "f2344223ea22c98ae8a6abc80fcaf16d611ed30542e83d4e16347e85a1405654",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925113121",
+      "name": "pandora_plp_studio_preview_binding_proxy_url_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 494,
+      "originalSqlSha256": "1874ecaaa720b80bd5e5f2dd436fc3c443b9e76e69b5a1b48c8d864fc40f5167",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260925165043",
+      "name": "pandora_coordinator_aborted_publication_chain_v3",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260925163700_pandora_coordinator_aborted_publication_chain_v3.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 7159,
+      "originalSqlSha256": "fbd68549b944969e4c3df8e83e4e3e1f6519bb1ef405e02f2f765ce40fd74419",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260926081711",
+      "name": "operations_vercel_cron_wake_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260926044500_operations_vercel_cron_wake_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 8004,
+      "originalSqlSha256": "51c9e63e68a9e6018b82a6ccc305c8154f7ec384a989eb1cb4746c987199444f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260926141512",
+      "name": "pandora_meta_business_login_config_id_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260926121500_pandora_meta_business_login_config_id_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 3339,
+      "originalSqlSha256": "383ce576b3944faa413206e1af2e8c4880f5df8d0cfbe59bb5ca4d054a99675b",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927021055",
+      "name": "operations_generic_source_worker_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260926142630_operations_generic_source_worker_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 31974,
+      "originalSqlSha256": "003aa06fd9eab6e5ab9d679b1f1ee6ffcee732d190a17df16c0d513ba4ef3697",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927032623",
+      "name": "operations_source_release_fail_closed_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260927020000_operations_source_release_fail_closed_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 5370,
+      "originalSqlSha256": "0b3307ec44dd70cb9562bf6a770630e3786254f27d75ef3239157c6051493800",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927042035",
+      "name": "bootstrap_direct_source_exact_path_priority_20260927",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 823,
+      "originalSqlSha256": "5d35369c3835c9344d8a85822f386503add3c046e8236cea847fffe3cb495c7b",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927042349",
+      "name": "bootstrap_direct_source_kimi_false_positive_redaction_20260927",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 828,
+      "originalSqlSha256": "97a9ea0697e5d23da4833fd73f8ca7e5956d3347fe7b3520e5961ab97103e0ab",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927042934",
+      "name": "facebook_first_party_event_contract_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260927041500_facebook_first_party_event_contract_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 1801,
+      "originalSqlSha256": "70f1933df4823424bb74f47f9779b59c69598e2569f062e543423557710d9c4d",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927044007",
+      "name": "bootstrap_direct_source_exact_named_path_access_20260927",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 768,
+      "originalSqlSha256": "ed4c651251b56d187653abd6d7314c118ea4d130eca917b8d080ce506362c181",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927044416",
+      "name": "bootstrap_direct_source_exact_named_extension_bypass_20260927",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 688,
+      "originalSqlSha256": "077b2c783329244400336c203175fb0e6a78e2fa3571bdb003eedac9bf7c03e3",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927044547",
+      "name": "bootstrap_direct_source_bearer_fixture_redaction_20260927",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 959,
+      "originalSqlSha256": "098aa639bbfc1842dc5affe9eb036a0d6fe733c69f64dfb07c9d2d40207a71b8",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927052607",
+      "name": "operations_rdp_worker_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260927050137_operations_rdp_worker_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 3905,
+      "originalSqlSha256": "a16d94da49f899f5490e82f7d01c7616b8ee4b537888e48a4d26222f5d9588c5",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927080647",
+      "name": "operations_reasoning_fleet_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260927070752_operations_reasoning_fleet_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 28502,
+      "originalSqlSha256": "a25ccd408250c1fe1ba206f652a21a6ac6d6ffe25b197e22c4eb8ca7b6bbfc02",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927082711",
+      "name": "bedrock_provider_hold_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260927081217_bedrock_provider_hold_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 3923,
+      "originalSqlSha256": "29e8cbd051456eb3999d3b1197928e293ec93f0b3745adddfea730e0614d16d3",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927102008",
+      "name": "pandora_meta_readiness_projection_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260927043500_pandora_meta_readiness_projection_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 11169,
+      "originalSqlSha256": "2702ef36833f97569b2c2c121617e9fe2ad91b23eab99440ad49a69092d88d08",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927110738",
+      "name": "operations_model_rdp_bridge_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260927093535_operations_model_rdp_bridge_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 50095,
+      "originalSqlSha256": "07981467d1b9b4ba8480385dc3779a3761d6827097a919b5acbb7f64d8ab28b1",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260927110744",
+      "name": "operations_chatgpt_direct_ingress_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260927105500_operations_chatgpt_direct_ingress_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 27038,
+      "originalSqlSha256": "a8b2b65b146c24a456bc50bda892bfa3400c6bf69fe62a2810c58b7965fe7b35",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260928075531",
+      "name": "operations_external_success_reconciliation_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260928031824_operations_external_success_reconciliation_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 19569,
+      "originalSqlSha256": "72bddf633b5e2cf20314919dc703d21595e0caef91afab35fec79c18d02db6f9",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260928075537",
+      "name": "operations_private_rls_hardening_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260928072000_operations_private_rls_hardening_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 1437,
+      "originalSqlSha256": "060bcb9bbf6309d4f04280de47994a26a89eb21df7a2f4f2e2a511e66d752b25",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260928121636",
+      "name": "operations_source_release_receipt_selection_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260927170700_operations_source_release_receipt_selection_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 6244,
+      "originalSqlSha256": "07ba0c4ca91b9423cf792f35cdbd645f0a78b04f62ee970bbc39cb60b5dc76bd",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260928200644",
+      "name": "operations_external_success_stale_base_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260928080500_operations_external_success_stale_base_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 17459,
+      "originalSqlSha256": "41479f547f01e2a2b80db410336c47bb8b7f229fbb2f8510c0f9e50703e9da60",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260928230530",
+      "name": "operations_merged_release_reconciliation_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260928190000_operations_merged_release_reconciliation_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 59607,
+      "originalSqlSha256": "e2790a9cd2bb3652efca923670ea089363de2b6c39dcbd99983f7b1fa2711ae2",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929005202",
+      "name": "pandora_meta_plugin_runtime_v4_bridge",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260928203000_pandora_meta_plugin_runtime_v4_bridge.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 8069,
+      "originalSqlSha256": "01a1720dd913a93134c8bc47401dc19f23fa3e3f046e0540a3c304b12dd58541",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929005209",
+      "name": "pandora_meta_existing_grants_health_refresh",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260928210000_pandora_meta_existing_grants_health_refresh.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 27533,
+      "originalSqlSha256": "5f0f3fc158a231c846d84256c0084c2119144e5addad229f9bcbe64a24cded4e",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929005215",
+      "name": "pandora_learning_outbox_fencing_v2",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929013000_pandora_learning_outbox_fencing_v2.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 14455,
+      "originalSqlSha256": "755a6db6a5ead1a395a330d63d3feee691f31904727a2a79bb3805d1d237dfe7",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929005222",
+      "name": "pandora_tracking_minimization_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929014500_pandora_tracking_minimization_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 2525,
+      "originalSqlSha256": "7ba8ec0346ed3d1c92115dc7ac89f13d7701a70438b5de624c352bca15d2dc1f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929005230",
+      "name": "pandora_meta_runtime_secret_expiry_fail_closed_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929023000_pandora_meta_runtime_secret_expiry_fail_closed_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 2771,
+      "originalSqlSha256": "485ef7f66fade881d2ea948d007a04a194cb01ce28426ae861ca7afa1cb3f88a",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929005237",
+      "name": "growth_learning_outbox_delivery_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929040000_growth_learning_outbox_delivery_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 35145,
+      "originalSqlSha256": "a5c7dcf55688c149ec7bdd4118422d861f881c3207ecea263f727e87f5f0e94c",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929014014",
+      "name": "pandora_meta_disconnect_local_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929044500_pandora_meta_disconnect_local_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 5751,
+      "originalSqlSha256": "abeb40794f8a10ea8c05cbc30a8ba232eaac5d50e3ea40df002689ced1951c87",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929021429",
+      "name": "pandora_facebook_measurement_foundation_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929070000_pandora_facebook_measurement_foundation_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 44059,
+      "originalSqlSha256": "bb76b492c34c00416496de956eb9bf5c10370f1273973fe0ee9ea71efe38999f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929021451",
+      "name": "pandora_facebook_measurement_foundation_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929070000_pandora_facebook_measurement_foundation_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 44059,
+      "originalSqlSha256": "bb76b492c34c00416496de956eb9bf5c10370f1273973fe0ee9ea71efe38999f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929040419",
+      "name": "growth_test_traffic_truth_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929104000_growth_test_traffic_truth_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 10076,
+      "originalSqlSha256": "38baf651b6f9d7c8bf559bdc57ce3a16dcebbccc258a71136e83047054686b16",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929040530",
+      "name": "growth_test_traffic_truth_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929104000_growth_test_traffic_truth_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 10076,
+      "originalSqlSha256": "38baf651b6f9d7c8bf559bdc57ce3a16dcebbccc258a71136e83047054686b16",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929041356",
+      "name": "operations_provider_verified_source_adoption_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929121000_operations_provider_verified_source_adoption_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 12826,
+      "originalSqlSha256": "4908e25b3ec598afe70052a7c4e99ae2a11863b4d0adc6ecb878190a48fa84aa",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929041536",
+      "name": "operations_provider_source_adoption_merge_binding_fix_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929121600_operations_provider_source_adoption_merge_binding_fix_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 11728,
+      "originalSqlSha256": "938fe8f33c4ba4504f34419b2db30c49b3c057e18bd27282b34cba6164132a0f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929044932",
+      "name": "marketing_growth_command_center_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929123000_marketing_growth_command_center_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 7536,
+      "originalSqlSha256": "7a5f710af13b79f05a45b2f4c9c457a589d82428252024785e9b7866a6ab6a09",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929050221",
+      "name": "facebook_controlled_capi_acceptance_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929121500_facebook_controlled_capi_acceptance_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 7228,
+      "originalSqlSha256": "a45385588fa4947d3c2dc244164f5af0fd632e2e570b7b1f2ac50c54cc96e001",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929060252",
+      "name": "facebook_g2_audit_acceptance_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929134500_facebook_g2_audit_acceptance_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 8052,
+      "originalSqlSha256": "d7ec724210bc34fe395ff6eb4fb4f10400a9e478f3dea7a76bf13e4c3d972708",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929100101",
+      "name": "growth_learning_native_delivery_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929122500_growth_learning_native_delivery_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 11547,
+      "originalSqlSha256": "d638e0297399a09664fac7d2bb46fa10b9e41b62503ab3d33939418a5577c14f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929100108",
+      "name": "growth_learning_pandora_identity_v2",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929122600_growth_learning_pandora_identity_v2.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 17846,
+      "originalSqlSha256": "c23f179140ab86502e37d519d93ee49fa782f0886cb42fb4b4175a6d07efcaec",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929110013",
+      "name": "plp_resort_operating_manifest_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 3330,
+      "originalSqlSha256": "34df9ddadff7f2649fde31b5679890278799d4ae64d0f04d7d1b0c770316ed22",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929190731",
+      "name": "growth_experiment_evaluator_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929150000_growth_experiment_evaluator_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 13350,
+      "originalSqlSha256": "d1662edda3032caf7a0480c6afe46979fb9c927a60ba191bbee1780ec5d45c3b",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929192027",
+      "name": "marketing_growth_direct_workspace_v2",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260930012000_marketing_growth_direct_workspace_v2.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 17638,
+      "originalSqlSha256": "4ff6d6c026f6bfb869d2e81334ac04c483e472cff7b0b34ca0f716d39708be8b",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260929210115",
+      "name": "meta_zero_delivery_action_broker_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260929143000_meta_zero_delivery_action_broker_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 20803,
+      "originalSqlSha256": "16ed54b40931b9c2e81961962318e93f4e499928281d860c17d28a129e0f086d",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260930040608",
+      "name": "pandora_universal_core_foundation_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260930100000_pandora_universal_core_foundation_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 34399,
+      "originalSqlSha256": "374507b6c11ff1b6554002366a1b012aaf4c35e0302cf818f9ca67dbb7d893f6",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260930044344",
+      "name": "pandora_universal_core_registry_rls_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260930101500_pandora_universal_core_registry_rls_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 935,
+      "originalSqlSha256": "ee0a4336aeed508595f7e12f73129e7d8600662577780e50dea52019b1ce6400",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260930065306",
+      "name": "pandora_universal_core_compatibility_activation_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260930110000_pandora_universal_core_compatibility_activation_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 37638,
+      "originalSqlSha256": "e36f4f3ef17d20866903aa2c095383359c184eaba98869a82615f840ced09560",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260930065313",
+      "name": "pandora_capability_provider_activation_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260930111000_pandora_capability_provider_activation_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 51105,
+      "originalSqlSha256": "e04abf86d54dd5d85f664c3e4514adc80d7a0fb82d8206f04184ae1985b9f00f",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260930065324",
+      "name": "pandora_industry_packs_onboarding_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260930112000_pandora_industry_packs_onboarding_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 45982,
+      "originalSqlSha256": "f382712420cb29e8e7eba390fe7eb84ad2e55a259959bc69e64715cc06008b52",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260930114627",
+      "name": "pandora_consent_enforcement_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260930113000_pandora_consent_enforcement_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 16740,
+      "originalSqlSha256": "abe295fae11ce4f86e711afa136af10ac9cc9d61dc214267e17a8b5413aab345",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260930144310",
+      "name": "pandora_universal_closeout_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20260930114000_pandora_universal_closeout_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 21510,
+      "originalSqlSha256": "039abefa5046298938e7ecd727e618252ec9671a6a7a7950af8aac88344f190b",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260930211707",
+      "name": "plp_resort_command_center_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001044500_plp_resort_command_center_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 9559,
+      "originalSqlSha256": "7d5a6a9f5b8f8f675ac4f20754d1cd9a9d9a35136f30f90ce661edf41c0b5cd8",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20260930235216",
+      "name": "plp_resort_operations_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001070000_plp_resort_operations_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 4582,
+      "originalSqlSha256": "938733856902778577a20df391825f18acda7833000801d16c40d96fc799a169",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001001525",
+      "name": "plp_resort_operations_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001070000_plp_resort_operations_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 4581,
+      "originalSqlSha256": "25895aa77498b7fb59e603a69ca2f0ce03e3a539a5508a69c1987fdaa6d2c82e",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001064636",
+      "name": "pandora_dmci_public_media_signed_upload_v1",
+      "replayMode": "provider_exact_executable",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_durable_source_authority_recovered",
+      "providerSqlBytes": 4784,
+      "originalSqlSha256": "3136b9618d26a2e60b55481a44dbe0814a291a3b6f633b2e8cbff478df31d4b2",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001133304",
+      "name": "pandora_connections_lane_a_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001130000_pandora_connections_lane_a_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 59459,
+      "originalSqlSha256": "f7e9935a59f6cfd05b2029d194708d0df64a02a2b0f813d3f5da34227897302c",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001135901",
+      "name": "pandora_connections_public_execute_hardening",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001133930_pandora_connections_public_execute_hardening.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 881,
+      "originalSqlSha256": "1db1f92f9862965f71201639a5d7f11ef2bec8bfa791c3690e4282ca73c1f797",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001135940",
+      "name": "pandora_connections_public_execute_hardening",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001133930_pandora_connections_public_execute_hardening.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 1102,
+      "originalSqlSha256": "282f62d8fba82b334d8d93c051a2470f9d1bc8fb28da9b15c9510ffe073551df",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001140145",
+      "name": "pandora_connections_lane_a_v1_source_reconcile",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 59459,
+      "originalSqlSha256": "f7e9935a59f6cfd05b2029d194708d0df64a02a2b0f813d3f5da34227897302c",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001140158",
+      "name": "pandora_connections_public_execute_hardening_source_reconcile",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": null,
+      "reconciliation": "provider_only_temporary_or_dependency_sensitive_history_only",
+      "providerSqlBytes": 1103,
+      "originalSqlSha256": "a78bb295fd4fecb9da5f452a34b5545fbcd572f23440a4ad0604aadd6befe263",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001142120",
+      "name": "pandora_connections_public_execute_hardening",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001133930_pandora_connections_public_execute_hardening.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 1103,
+      "originalSqlSha256": "a78bb295fd4fecb9da5f452a34b5545fbcd572f23440a4ad0604aadd6befe263",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001143709",
+      "name": "pandora_google_workspace_oidc_verification_v2",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001140500_pandora_google_workspace_oidc_verification_v2.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 10128,
+      "originalSqlSha256": "ec8d0c7d98a24eb2a48e8e47c220afbbd7ca1130e6759a404e5add31f8c288ac",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001143713",
+      "name": "pandora_connections_provider_readback_hardening_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001143000_pandora_connections_provider_readback_hardening_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 18953,
+      "originalSqlSha256": "0277afbc1879c6202de809888cd75ce567d4b2cb4142906815b3f2c2591c5d8b",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001143716",
+      "name": "pandora_connection_write_step_up_hardening_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001144500_pandora_connection_write_step_up_hardening_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 9655,
+      "originalSqlSha256": "25b6888e1a81c760df7370e838559bf75271fb08db8e6afedf9cfe78bece73df",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001145904",
+      "name": "pandora_ph_government_public_connections",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001140843_pandora_ph_government_public_connections.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 13980,
+      "originalSqlSha256": "c8bd40beff29dc70a75da518c4e7be05ecc2353d0f40b8e1b87f0eee39c4c579",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261001151811",
+      "name": "pandora_public_safe_read_secret_false_allowlist_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261001150414_pandora_public_safe_read_secret_false_allowlist_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 7979,
+      "originalSqlSha256": "814006bb52ec6f2d1fd609fefc5b3668c38d62cdb251c2eb526cccec9dcd1198",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261002104041",
+      "name": "pandora_connection_verification_observations_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261002103500_pandora_connection_verification_observations_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 2119,
+      "originalSqlSha256": "af619aeebf8a202610956bb5ae9d97cf614cdcf95fba96a82941fd200cc67139",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261002104333",
+      "name": "pandora_connection_verify_vault_no_spend_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261002104500_pandora_connection_verify_vault_no_spend_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 14001,
+      "originalSqlSha256": "2395e00c0f4ad5a82e69349ef4bf0206cd22a894e585d6f4f4a35886f141718b",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261002114025",
+      "name": "pandora_bedrock_catalog_sync_v2",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261002112500_pandora_bedrock_catalog_sync_v2.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 13604,
+      "originalSqlSha256": "9233f585e26701d3bf7fbd232de1ba8b416e284f94a65809276cd200666afad0",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261002115959",
+      "name": "pandora_bedrock_control_trigger_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261002120500_pandora_bedrock_control_trigger_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 2024,
+      "originalSqlSha256": "c1ad72f9c556ca597ed52f644f843ec18ae7a4dfcba1828250b5acf1c0e6f214",
+      "originalStatementCount": 1
+    },
+    {
+      "version": "20261002131717",
+      "name": "pandora_bedrock_sync_preserve_runtime_v1",
+      "replayMode": "history_receipt_noop",
+      "canonicalPath": "supabase/migrations/20261002124000_pandora_bedrock_sync_preserve_runtime_v1.sql",
+      "reconciliation": "same_name_canonical_authority_preserved_without_replay",
+      "providerSqlBytes": 8172,
+      "originalSqlSha256": "0be5b86397a174a3f7e49cef21dc1e32a88b193ae8881102d1b8a1a283f2c45b",
+      "originalStatementCount": 1
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929040419
+-- Name: growth_test_traffic_truth_v1
+-- Original SQL SHA-256: 38baf651b6f9d7c8bf559bdc57ce3a16dcebbccc258a71136e83047054686b16
+-- Original statement count: 1
+-- Provider SQL bytes: 10076
+-- Canonical executable authority: supabase/migrations/20260929104000_growth_test_traffic_truth_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

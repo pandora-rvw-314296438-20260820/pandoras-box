@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260925001422
+-- Name: pandora_meta_oauth_vercel_callback_v1
+-- Original SQL SHA-256: 09177583c60605ec5517967da49939a19a225793358e0d691531c960e3e54bb1
+-- Original statement count: 1
+-- Provider SQL bytes: 3156
+-- Canonical executable authority: supabase/migrations/20260925070000_pandora_meta_oauth_vercel_callback_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

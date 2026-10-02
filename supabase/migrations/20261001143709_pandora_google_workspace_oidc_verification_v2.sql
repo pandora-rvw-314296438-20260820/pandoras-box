@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20261001143709
+-- Name: pandora_google_workspace_oidc_verification_v2
+-- Original SQL SHA-256: ec8d0c7d98a24eb2a48e8e47c220afbbd7ca1130e6759a404e5add31f8c288ac
+-- Original statement count: 1
+-- Provider SQL bytes: 10128
+-- Canonical executable authority: supabase/migrations/20261001140500_pandora_google_workspace_oidc_verification_v2.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

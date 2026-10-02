@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260921002728
+-- Name: openrouter_provider_failover_v4
+-- Original SQL SHA-256: b75686d3bb06b90e3846b7e8ac4d544aa9ac36763baaaf94e35d0dfcc301e9b5
+-- Original statement count: 1
+-- Provider SQL bytes: 11035
+-- Canonical executable authority: supabase/migrations/20260921121500_openrouter_provider_failover_v4.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

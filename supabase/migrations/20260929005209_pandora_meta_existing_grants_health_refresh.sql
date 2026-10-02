@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929005209
+-- Name: pandora_meta_existing_grants_health_refresh
+-- Original SQL SHA-256: 5f0f3fc158a231c846d84256c0084c2119144e5addad229f9bcbe64a24cded4e
+-- Original statement count: 1
+-- Provider SQL bytes: 27533
+-- Canonical executable authority: supabase/migrations/20260928210000_pandora_meta_existing_grants_health_refresh.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;

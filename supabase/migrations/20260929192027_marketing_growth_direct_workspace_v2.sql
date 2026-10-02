@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929192027
+-- Name: marketing_growth_direct_workspace_v2
+-- Original SQL SHA-256: 4ff6d6c026f6bfb869d2e81334ac04c483e472cff7b0b34ca0f716d39708be8b
+-- Original statement count: 1
+-- Provider SQL bytes: 17638
+-- Canonical executable authority: supabase/migrations/20260930012000_marketing_growth_direct_workspace_v2.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live, duplicate, retired, temporary, or security-sensitive SQL.
+select 1;
