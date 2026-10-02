@@ -2,7 +2,6 @@
 import {Readable} from 'node:stream';
 import {loadOperatorPublicConfig} from '../src/operator-public-config.js';
 import {resolveVercelWorkloadToken} from '../src/runtime/vercel-workload-identity.js';
-import {createVercelInferenceRuntime} from '../packages/pandora-operations-inference/vercel-runtime.mjs';
 import bedrockControl from '../src/providers/aws-bedrock-control-http.js';
 const {handleBedrockModelControl}=bedrockControl as unknown as {handleBedrockModelControl:(req:any,res:any)=>Promise<any>};
 export const config={api:{bodyParser:false},maxDuration:180};
@@ -18,6 +17,7 @@ export default async function operationsInference(req:any,res:any){
    return res.status(404).json({error:'INFERENCE_ROUTE_DENIED',taskComplete:false});
   }
   if(operation==='bedrock-control') return await handleBedrockModelControl(req,res);
+  const {createVercelInferenceRuntime}=await import('../packages/pandora-operations-inference/vercel-runtime.mjs');
   const settings=loadOperatorPublicConfig(process.env);
   // A deployment without the existing Box server credential cannot impersonate one.
   const handler=createVercelInferenceRuntime({supabaseUrl:settings.supabaseUrl,
