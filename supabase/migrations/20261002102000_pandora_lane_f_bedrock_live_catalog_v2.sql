@@ -65,13 +65,14 @@ insert into private.pandora_bedrock_catalog_sync_state(singleton) values(true) o
 alter table private.pandora_bedrock_catalog_sync_state enable row level security;
 revoke all on private.pandora_bedrock_catalog_sync_state from public,anon,authenticated,service_role;
 
-create or replace function public.pandora_bedrock_catalog_sync_claim_v1()
+create or replace function public.pandora_bedrock_catalog_sync_claim_v1(p_organization_id uuid)
 returns jsonb
 language plpgsql security definer set search_path to 'pg_catalog','private','public'
 as $$
 declare v_row private.pandora_bedrock_catalog_sync_state%rowtype;v_id uuid:=gen_random_uuid();
 begin
   if coalesce(auth.role(),'')<>'service_role' then raise exception 'SERVICE_ROLE_REQUIRED' using errcode='42501'; end if;
+  if p_organization_id is distinct from '2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid then raise exception 'ORGANIZATION_SCOPE_DENIED' using errcode='42501'; end if;
   select * into strict v_row from private.pandora_bedrock_catalog_sync_state where singleton=true for update;
   if v_row.state='running' and v_row.started_at>clock_timestamp()-interval '20 minutes' then
     return jsonb_build_object('mode','busy','syncId',v_row.active_sync_id,'startedAt',v_row.started_at);
@@ -81,11 +82,11 @@ begin
     where singleton=true;
   return jsonb_build_object('mode','execute','syncId',v_id);
 end;$$;
-revoke all on function public.pandora_bedrock_catalog_sync_claim_v1() from public,anon,authenticated;
-grant execute on function public.pandora_bedrock_catalog_sync_claim_v1() to service_role;
+revoke all on function public.pandora_bedrock_catalog_sync_claim_v1(uuid) from public,anon,authenticated;
+grant execute on function public.pandora_bedrock_catalog_sync_claim_v1(uuid) to service_role;
 
 create or replace function public.pandora_apply_bedrock_catalog_sync_v2(
-  p_sync_id uuid,p_region text,p_observed_at timestamptz,p_models jsonb
+  p_organization_id uuid,p_sync_id uuid,p_region text,p_observed_at timestamptz,p_models jsonb
 ) returns jsonb
 language plpgsql security definer
 set search_path to 'pg_catalog','private','public'
@@ -100,6 +101,7 @@ declare
   v_risk integer;v_in bigint;v_out bigint;v_total bigint;v_request_id text;v_probe_error text;
 begin
   if coalesce(auth.role(),'')<>'service_role' then raise exception 'SERVICE_ROLE_REQUIRED' using errcode='42501'; end if;
+  if p_organization_id is distinct from '2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid then raise exception 'ORGANIZATION_SCOPE_DENIED' using errcode='42501'; end if;
   if p_sync_id is null or p_region<>'us-east-1' or p_observed_at is null or jsonb_typeof(p_models)<>'array'
      or jsonb_array_length(p_models)<1 or jsonb_array_length(p_models)>500 then
     raise exception 'BEDROCK_SYNC_INPUT_INVALID' using errcode='22023';
@@ -193,22 +195,23 @@ begin
     where singleton=true and active_sync_id=p_sync_id;
   return jsonb_build_object('ok',true,'syncId',p_sync_id,'models',v_count,'retired',v_retired,'routable',v_routable_count);
 end;$$;
-revoke all on function public.pandora_apply_bedrock_catalog_sync_v2(uuid,text,timestamptz,jsonb) from public,anon,authenticated;
-grant execute on function public.pandora_apply_bedrock_catalog_sync_v2(uuid,text,timestamptz,jsonb) to service_role;
+revoke all on function public.pandora_apply_bedrock_catalog_sync_v2(uuid,uuid,text,timestamptz,jsonb) from public,anon,authenticated;
+grant execute on function public.pandora_apply_bedrock_catalog_sync_v2(uuid,uuid,text,timestamptz,jsonb) to service_role;
 
-create or replace function public.pandora_bedrock_catalog_sync_fail_v1(p_sync_id uuid,p_reason text)
+create or replace function public.pandora_bedrock_catalog_sync_fail_v1(p_organization_id uuid,p_sync_id uuid,p_reason text)
 returns boolean
 language plpgsql security definer set search_path to 'pg_catalog','private','public'
 as $$
 begin
   if coalesce(auth.role(),'')<>'service_role' then raise exception 'SERVICE_ROLE_REQUIRED' using errcode='42501'; end if;
+  if p_organization_id is distinct from '2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid then raise exception 'ORGANIZATION_SCOPE_DENIED' using errcode='42501'; end if;
   update private.pandora_bedrock_catalog_sync_state
     set state='failed',completed_at=clock_timestamp(),last_error=left(coalesce(p_reason,'BEDROCK_SYNC_FAILED'),160),updated_at=clock_timestamp()
     where singleton=true and active_sync_id=p_sync_id and state='running';
   return found;
 end;$$;
-revoke all on function public.pandora_bedrock_catalog_sync_fail_v1(uuid,text) from public,anon,authenticated;
-grant execute on function public.pandora_bedrock_catalog_sync_fail_v1(uuid,text) to service_role;
+revoke all on function public.pandora_bedrock_catalog_sync_fail_v1(uuid,uuid,text) from public,anon,authenticated;
+grant execute on function public.pandora_bedrock_catalog_sync_fail_v1(uuid,uuid,text) to service_role;
 
 create or replace function public.pandora_list_conversational_models_v1()
 returns table(

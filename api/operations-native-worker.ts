@@ -574,18 +574,6 @@ function signedWake(request: any, signatureBody = "{}") {
   return { nonce, issuedAt };
 }
 
-async function bedrockSyncRpc(name:string,body:Json) {
-  const service=String(process.env.SUPABASE_SERVICE_ROLE_KEY||"");
-  if(service.length<40)throw new Error("BEDROCK_SYNC_SUPABASE_UNAVAILABLE");
-  const response=await fetch(`https://jcyqixttuebxqqfkjonq.supabase.co/rest/v1/rpc/${name}`,{
-    method:"POST",
-    headers:{apikey:service,authorization:`Bearer ${service}`,"content-type":"application/json"},
-    body:JSON.stringify(body),redirect:"error",signal:AbortSignal.timeout(15000),
-  });
-  const raw=await response.text();let payload:any=null;try{payload=raw?JSON.parse(raw):null;}catch{}
-  if(!response.ok)throw Object.assign(new Error("BEDROCK_SYNC_SUPABASE_RPC_FAILED"),{status:response.status});
-  return payload;
-}
 async function bedrockMapLimit(items:any[],limit:number,fn:(item:any,index:number)=>Promise<any>) {
   const output=new Array(items.length);let cursor=0;
   async function run(){while(cursor<items.length){const index=cursor++;output[index]=await fn(items[index],index);}}
@@ -601,7 +589,7 @@ function bedrockProbeCode(error:any) {
 }
 function bedrockUsage(value:unknown){const n=Number(value||0);return Number.isSafeInteger(n)&&n>=0?n:0;}
 async function runBedrockCatalogSync(oidc:string) {
-  const claim=await bedrockSyncRpc("pandora_bedrock_catalog_sync_claim_v1",{});
+  const claim=await control(oidc,{action:"bedrock_catalog_sync_claim"});
   if(!claim||claim.mode!=="execute"||typeof claim.syncId!=="string")return{ok:true,state:claim?.mode||"busy",probed:0};
   const syncId=claim.syncId;
   try{
@@ -635,13 +623,13 @@ async function runBedrockCatalogSync(oidc:string) {
     });
     const byId=new Map(probes.map((item:any)=>[item.modelId,item]));
     const rows=discovered.map((row:any)=>byId.has(row.modelId)?bedrockCatalog.applyProbeResult(row,byId.get(row.modelId)):row);
-    const applied=await bedrockSyncRpc("pandora_apply_bedrock_catalog_sync_v2",{
-      p_sync_id:syncId,p_region:bedrockRuntime.BEDROCK_REGION,p_observed_at:observedAt,p_models:rows,
-    });
+    const applied=await control(oidc,{action:"bedrock_catalog_sync_apply",
+      syncId,region:bedrockRuntime.BEDROCK_REGION,observedAt,models:rows,
+    },120000);
     return{ok:true,syncId,state:"verified",discovered:rows.length,conversational:conversational.length,probed:probes.length,
       routable:rows.filter((row:any)=>row.routable===true).length,retired:Number(applied?.retired||0),probes};
   }catch(error:any){
-    try{await bedrockSyncRpc("pandora_bedrock_catalog_sync_fail_v1",{p_sync_id:syncId,p_reason:String(error?.message||"BEDROCK_SYNC_FAILED").slice(0,160)});}catch{}
+    try{await control(oidc,{action:"bedrock_catalog_sync_fail",syncId,reason:String(error?.message||"BEDROCK_SYNC_FAILED").slice(0,160)});}catch{}
     throw error;
   }
 }

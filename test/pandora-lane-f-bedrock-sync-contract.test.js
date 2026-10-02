@@ -9,7 +9,7 @@ const local=fs.readFileSync("apps/pandora-mobile/lib/core/local_ai/pandora_local
 test("Bedrock sync uses only Vercel workload identity plus the dedicated role",()=>{
   assert.match(route,/resolveVercelWorkloadToken/);
   assert.match(route,/assumeRoleWithVercelOidc/);
-  assert.doesNotMatch(route,/AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|Github_supabase/);
+  assert.doesNotMatch(route,/AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|Github_supabase|SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(route,/signedAction === "bedrock_catalog_sync"/);
 });
 test("runtime probe is exactly one minimal Converse call per conversational candidate",()=>{
@@ -37,4 +37,10 @@ test("owner-approved probe cycle cannot silently become recurring spend",()=>{
 test("Bedrock sync reuses the existing Vercel function budget",()=>{
   assert.match(route,/export default async function operationsNativeWorker/);
   assert.doesNotMatch(route,/\/api\/bedrock-model-catalog-sync/);
+});
+
+test("Bedrock catalog mutations stay behind the existing Vercel-OIDC control bridge",()=>{
+  const control=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/index.ts","utf8");
+  for(const action of ["bedrock_catalog_sync_claim","bedrock_catalog_sync_apply","bedrock_catalog_sync_fail"]) assert.match(control,new RegExp(action));
+  assert.match(migration,/ORGANIZATION_SCOPE_DENIED/);
 });
