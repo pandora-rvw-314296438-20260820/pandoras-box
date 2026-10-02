@@ -1,7 +1,7 @@
 "use strict";
 
 const crypto = require("node:crypto");
-const { BEDROCK_REGION, BEDROCK_ROLE_ARN, assumeRoleWithVercelOidc } = require("./aws-bedrock-runtime.js");
+const { BEDROCK_REGION, BEDROCK_ROLE_ARN, assumeRoleWithVercelOidc, canonicalAwsPath } = require("./aws-bedrock-runtime.js");
 const { buildBedrockProbePlan, minimalBedrockProbeBody, normalizeBedrockCatalogSnapshot } = require("./aws-bedrock-catalog-sync.js");
 
 function hmac(key, value, encoding) { return crypto.createHmac("sha256", key).update(value, "utf8").digest(encoding); }
@@ -15,7 +15,7 @@ function signAwsRequest({ service, region, host, method, path, query = {}, body 
   const signedNames = Object.keys(headers).sort();
   const canonicalHeaders = signedNames.map((k) => `${k}:${headers[k]}\n`).join("");
   const signedHeaders = signedNames.join(";");
-  const request = [method, path, canonicalQuery(query), canonicalHeaders, signedHeaders, payloadHash].join("\n");
+  const request = [method, canonicalAwsPath(path), canonicalQuery(query), canonicalHeaders, signedHeaders, payloadHash].join("\n");
   const scope = `${dateStamp}/${region}/${service}/aws4_request`;
   const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, sha256(request)].join("\n");
   const kDate = hmac(Buffer.from(`AWS4${credentials.secretAccessKey}`, "utf8"), dateStamp), kRegion = hmac(kDate, region), kService = hmac(kRegion, service), kSigning = hmac(kService, "aws4_request");
@@ -60,7 +60,7 @@ async function fetchBedrockCatalogTruth({ fetchFn = globalThis.fetch, resolveWor
   }
   const availabilityPairs = await mapLimit(models, 8, async (model) => {
     try {
-      const result = await signedJson({ service:"bedrock", region, host, method:"GET", path:`/foundation-model-availability/${rfc3986(model.modelId)}`, credentials, fetchFn, now });
+      const result = await signedJson({ service:"bedrock", region, host, method:"GET", path:`/foundation-model-availability/${model.modelId}`, credentials, fetchFn, now });
       return [model.modelId, result.json];
     } catch (error) {
       return [model.modelId, { agreementAvailability:{status:"ERROR",errorMessage:error.awsCode || error.message}, authorizationStatus:"UNKNOWN", entitlementAvailability:"UNKNOWN", regionAvailability:"UNKNOWN" }];
@@ -74,7 +74,7 @@ async function probeBedrockCatalog({ snapshot, fetchFn = globalThis.fetch, resol
     const attemptedAt = new Date().toISOString();
     if (!model.invocationTarget) return { modelId:model.modelId, invocationTarget:null, success:false, httpStatus:null, reason:"invocation_target_unresolved", attemptedAt, inputTokens:0, outputTokens:0, totalTokens:0 };
     try {
-      const result = await signedJson({ service:"bedrock", region, host, method:"POST", path:`/model/${rfc3986(model.invocationTarget)}/converse`, body, credentials, fetchFn, now });
+      const result = await signedJson({ service:"bedrock", region, host, method:"POST", path:`/model/${model.invocationTarget}/converse`, body, credentials, fetchFn, now });
       const usage = result.json?.usage || {};
       return { modelId:model.modelId, invocationTarget:model.invocationTarget, success:true, httpStatus:result.response.status, reason:null, attemptedAt, inputTokens:Number(usage.inputTokens || 0), outputTokens:Number(usage.outputTokens || 0), totalTokens:Number(usage.totalTokens || (Number(usage.inputTokens || 0)+Number(usage.outputTokens || 0))), providerRequestId:result.response.headers?.get?.("x-amzn-requestid") || null };
     } catch (error) {

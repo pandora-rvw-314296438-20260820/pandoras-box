@@ -80,6 +80,32 @@ test("Bedrock SigV4 request is scoped to approved runtime endpoint", () => {
   assert.equal("x-amz-access-key" in signed.headers, false);
 });
 
+
+test("Bedrock SigV4 canonicalizes colon-bearing model IDs exactly once", () => {
+  const signed = signBedrockRequest({
+    region: "us-east-1",
+    modelId: "amazon.nova-lite-v1:0",
+    body: {
+      messages: [{ role: "user", content: [{ text: "ping" }] }],
+      inferenceConfig: { maxTokens: 16, temperature: 0 },
+    },
+    credentials: {
+      accessKeyId: "ASIATEST",
+      secretAccessKey: "secret",
+      sessionToken: "session",
+    },
+    now: new Date("2026-09-12T10:00:00Z"),
+  });
+  assert.equal(
+    signed.url,
+    "https://bedrock-runtime.us-east-1.amazonaws.com/model/amazon.nova-lite-v1:0/converse",
+  );
+  assert.match(
+    signed.headers.authorization,
+    /Signature=d0f0f3eff13dd6128fa6b6785b30a7e48cdd09c73109fe943e9f82ea39998bd1$/,
+  );
+});
+
 test("Bedrock health fails closed when workload identity is unavailable", async () => {
   let fetchCalls = 0;
   const probe = createBedrockHealthProbe(
