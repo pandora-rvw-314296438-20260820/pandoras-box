@@ -160,4 +160,97 @@ $$;
 revoke all on function public.pandora_intelligence_thread_model_selection_v1(uuid,uuid) from public,anon;
 grant execute on function public.pandora_intelligence_thread_model_selection_v1(uuid,uuid) to authenticated,service_role;
 
+create or replace function public.pandora_intelligence_thread_model_selection_set_v1(
+  p_organization_id uuid,
+  p_thread_id uuid,
+  p_selection_mode text,
+  p_requested_provider text,
+  p_requested_model text,
+  p_fallback_mode text,
+  p_reasoning_mode text
+) returns jsonb
+language plpgsql
+security definer
+set search_path='pg_catalog','private','public','auth','pg_temp'
+as $
+declare
+  v_user_id uuid := auth.uid();
+  v_result jsonb;
+begin
+  if v_user_id is null then raise exception 'SIGN_IN_REQUIRED' using errcode='42501'; end if;
+  if not exists (
+    select 1 from public.memberships m
+    where m.organization_id=p_organization_id and m.user_id=v_user_id and m.status='active'
+  ) then raise exception 'ORGANIZATION_ACCESS_REQUIRED' using errcode='42501'; end if;
+  if not exists (
+    select 1 from public.pandora_intelligence_threads t
+    where t.id=p_thread_id and t.organization_id=p_organization_id and t.status='active'
+  ) then raise exception 'THREAD_NOT_FOUND' using errcode='P0002'; end if;
+  if p_selection_mode not in ('auto','manual')
+     or p_fallback_mode not in ('strict','allow_fallback')
+     or p_reasoning_mode not in ('auto','fast','deep')
+  then raise exception 'INVALID_MODEL_SELECTION' using errcode='22023'; end if;
+  if p_selection_mode='manual' then
+    if p_requested_provider is distinct from 'bedrock'
+       or not exists (
+         select 1 from private.pandora_bedrock_reasoning_catalog c
+         where c.model_id=p_requested_model
+           and c.conversational=true and c.present_in_latest_sync=true
+           and c.lifecycle_status='ACTIVE'
+           and c.agreement_status='AVAILABLE'
+           and c.authorization_status='AUTHORIZED'
+           and c.entitlement_status='AVAILABLE'
+           and c.region_availability='AVAILABLE'
+           and c.routable=true
+           and c.runtime_verification_status='passed'
+       )
+    then raise exception 'MANUAL_MODEL_UNAVAILABLE' using errcode='22023'; end if;
+  end if;
+  v_result := private.pandora_set_intelligence_thread_model_selection_v1(
+    p_thread_id,p_organization_id,p_selection_mode,
+    case when p_selection_mode='manual' then p_requested_provider else null end,
+    case when p_selection_mode='manual' then p_requested_model else null end,
+    p_fallback_mode,p_reasoning_mode
+  );
+  return jsonb_build_object('ok',true,'selection',v_result);
+end;
+$;
+revoke all on function public.pandora_intelligence_thread_model_selection_set_v1(uuid,uuid,text,text,text,text,text) from public,anon;
+grant execute on function public.pandora_intelligence_thread_model_selection_set_v1(uuid,uuid,text,text,text,text,text) to authenticated,service_role;
+
+create or replace function public.pandora_bedrock_chat_route_v1(p_model_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path='pg_catalog','private','public','pg_temp'
+as $
+declare
+  v_row private.pandora_bedrock_reasoning_catalog%rowtype;
+begin
+  if session_user not in ('postgres','service_role','supabase_admin')
+     and coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role','')<>'service_role'
+  then raise exception 'SERVICE_ROLE_REQUIRED' using errcode='42501'; end if;
+  select * into v_row
+  from private.pandora_bedrock_reasoning_catalog c
+  where c.model_id=p_model_id
+    and c.conversational=true and c.present_in_latest_sync=true
+    and c.lifecycle_status='ACTIVE'
+    and c.agreement_status='AVAILABLE'
+    and c.authorization_status='AUTHORIZED'
+    and c.entitlement_status='AVAILABLE'
+    and c.region_availability='AVAILABLE'
+    and c.routable=true
+    and c.runtime_verification_status='passed';
+  if not found then raise exception 'MANUAL_MODEL_UNAVAILABLE' using errcode='22023'; end if;
+  return jsonb_build_object(
+    'modelId',v_row.model_id,
+    'providerName',v_row.provider_name,
+    'invocationTarget',v_row.invocation_target,
+    'region',v_row.region
+  );
+end;
+$;
+revoke all on function public.pandora_bedrock_chat_route_v1(text) from public,anon,authenticated;
+grant execute on function public.pandora_bedrock_chat_route_v1(text) to service_role;
+
 commit;

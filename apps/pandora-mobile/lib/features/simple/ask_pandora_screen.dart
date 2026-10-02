@@ -1730,6 +1730,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         _modelSelection = selected;
         _error = null;
       });
+      final threadId = _threadId;
+      if (threadId != null) {
+        await intelligence.saveThreadModelState(
+          threadId: threadId,
+          selection: _modelSelection,
+          reasoningMode: _reasoningMode,
+        );
+      }
       _scheduleOverlayMeasure();
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
@@ -1753,6 +1761,19 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _reasoningMode = selected;
       _error = null;
     });
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    final threadId = _threadId;
+    if (intelligence != null && threadId != null) {
+      try {
+        await intelligence.saveThreadModelState(
+          threadId: threadId,
+          selection: _modelSelection,
+          reasoningMode: _reasoningMode,
+        );
+      } on PandoraIntelligenceException catch (error) {
+        if (mounted) setState(() => _error = error.message);
+      }
+    }
     _scheduleOverlayMeasure();
   }
 

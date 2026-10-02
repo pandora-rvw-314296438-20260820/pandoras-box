@@ -497,6 +497,37 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<void> saveThreadModelState({
+    required String threadId,
+    required PandoraChatModelSelection selection,
+    required PandoraIntelligenceMode reasoningMode,
+  }) async {
+    _requireSession();
+    try {
+      final response = await _client.rpc(
+        'pandora_intelligence_thread_model_selection_set_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_thread_id': threadId,
+          'p_selection_mode': selection.selection,
+          'p_requested_provider': selection.provider,
+          'p_requested_model': selection.model,
+          'p_fallback_mode': selection.fallbackMode,
+          'p_reasoning_mode': reasoningMode.name,
+        },
+      );
+      if (_map(response)['ok'] != true) {
+        throw const PandoraIntelligenceException(
+          'Pandora could not save the model settings for this conversation.',
+        );
+      }
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not save the model settings for this conversation.',
+      );
+    }
+  }
+
   PandoraOperationsEventReader operationsEventReader() => PandoraOperationsEventReader(
     organizationId: _organizationId,
     readSession: () {
