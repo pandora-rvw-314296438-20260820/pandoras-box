@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/activity/pandora_activity_projection.dart';
 import 'package:pandora_mobile/core/data/pandora_activity_history_api.dart';
+import 'package:pandora_mobile/core/data/pandora_intelligence_api.dart';
 import 'package:pandora_mobile/core/data/pandora_repository.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
@@ -174,6 +176,7 @@ class _VisualCase {
     this.textScaler = TextScaler.noScaling,
     this.failing = false,
     this.pending = false,
+    this.interact,
   });
 
   final String name;
@@ -183,6 +186,39 @@ class _VisualCase {
   final TextScaler textScaler;
   final bool failing;
   final bool pending;
+  final Future<void> Function(WidgetTester tester)? interact;
+}
+
+class _FixtureIntelligenceApi extends PandoraIntelligenceApi {
+  _FixtureIntelligenceApi()
+      : super(
+          client: SupabaseClient(
+            'https://example.supabase.co',
+            'visual-evidence-test-key',
+          ),
+          organizationId: 'org-pandora',
+        );
+
+  @override
+  Future<List<PandoraIntelligenceThread>> recentThreads({int limit = 30}) async {
+    final now = DateTime.utc(2026, 10, 2, 8);
+    return <PandoraIntelligenceThread>[
+      PandoraIntelligenceThread(
+        id: 'thread-visual-1',
+        title: 'Prepare the owner release and verify every provider',
+        status: 'active',
+        lastMessageAt: now.subtract(const Duration(minutes: 4)),
+        createdAt: now.subtract(const Duration(hours: 2)),
+      ),
+      PandoraIntelligenceThread(
+        id: 'thread-visual-2',
+        title: 'Audit the mobile experience before the next build',
+        status: 'active',
+        lastMessageAt: now.subtract(const Duration(hours: 1)),
+        createdAt: now.subtract(const Duration(days: 1)),
+      ),
+    ].take(limit).toList(growable: false);
+  }
 }
 
 class _FixtureActivityHistorySource implements PandoraActivityHistorySource {
@@ -497,6 +533,7 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
         auth: const FakeAuth(),
         repository: repository,
         activityHistory: _FixtureActivityHistorySource(),
+        intelligence: _FixtureIntelligenceApi(),
         diagnostics: DiagnosticsStore(),
         child: testApp(
           themeMode: visual.themeMode,
@@ -515,6 +552,12 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
       await tester.pump(frame);
     }
     await _waitForRenderedPandoraMark(tester, visual.name);
+    if (visual.interact != null) {
+      await visual.interact!(tester);
+      for (final frame in _renderFrames) {
+        await tester.pump(frame);
+      }
+    }
     frameworkException = tester.takeException();
 
     final boundary = tester.renderObject<RenderRepaintBoundary>(
@@ -675,6 +718,53 @@ void main() {
       name: 'obsidian_chat_empty_390x844',
       build: () => const AskPandoraScreen(),
       themeMode: ThemeMode.dark,
+    ),
+    _VisualCase(
+      name: 'lane_d_primary_nav_drawer_390x844',
+      build: () => const PandoraChatShell(),
+      themeMode: ThemeMode.dark,
+      interact: (tester) async {
+        await tester.tap(
+          find.byKey(const ValueKey<String>('pandora-side-panel-open')).first,
+        );
+        await tester.pump(const Duration(milliseconds: 320));
+      },
+    ),
+    _VisualCase(
+      name: 'lane_d_recent_chats_drawer_390x844',
+      build: () => const PandoraChatShell(),
+      themeMode: ThemeMode.dark,
+      interact: (tester) async {
+        await tester.tap(
+          find.byKey(const ValueKey<String>('pandora-side-panel-open')).first,
+        );
+        await tester.pump(const Duration(milliseconds: 260));
+        await tester.tap(find.text('Pandora').last);
+        await tester.pump(const Duration(milliseconds: 260));
+        await tester.tap(
+          find.byKey(const ValueKey<String>('pandora-recent-chats')).first,
+        );
+        await tester.pump(const Duration(milliseconds: 320));
+      },
+    ),
+    _VisualCase(
+      name: 'lane_d_recent_chats_ellipsis_390x844',
+      build: () => const PandoraChatShell(),
+      themeMode: ThemeMode.dark,
+      interact: (tester) async {
+        await tester.tap(
+          find.byKey(const ValueKey<String>('pandora-side-panel-open')).first,
+        );
+        await tester.pump(const Duration(milliseconds: 260));
+        await tester.tap(find.text('Pandora').last);
+        await tester.pump(const Duration(milliseconds: 260));
+        await tester.tap(
+          find.byKey(const ValueKey<String>('pandora-recent-chats')).first,
+        );
+        await tester.pump(const Duration(milliseconds: 320));
+        await tester.tap(find.byTooltip('Conversation options').first);
+        await tester.pump(const Duration(milliseconds: 320));
+      },
     ),
     _VisualCase(
       name: 'obsidian_projects_grid_390x844',
