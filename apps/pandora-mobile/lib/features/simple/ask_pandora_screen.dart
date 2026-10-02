@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../app/pandora_conversation_layer.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/activity/pandora_activity_presentation_policy.dart';
 import '../../core/activity/pandora_activity_projection.dart';
@@ -1661,7 +1662,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         _threadId != null || _messages.isNotEmpty || _pendingMessage != null;
     final headerHeight =
         conversationActive ? (_headerHeight > 0 ? _headerHeight : 56.0) : 0.0;
-    final composerHeight = _composerHeight > 0 ? _composerHeight : 68.0;
+    final composerHeight = _composerHeight > 0
+        ? _composerHeight
+        : PandoraConversationLayer.compactComposerHeight;
     final viewportHeight = media.size.height > keyboardInset
         ? media.size.height - keyboardInset
         : 0.0;
@@ -2381,9 +2384,11 @@ class _Composer extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-        top: false,
-        child: ClipRect(
+  Widget build(BuildContext context) => ColoredBox(
+        color: compact ? const Color(0xFF050505) : Colors.transparent,
+        child: SafeArea(
+          top: false,
+          child: ClipRect(
           child: BackdropFilter(
             filter: ui.ImageFilter.blur(
               sigmaX: compact ? 0 : 14,
@@ -2391,11 +2396,16 @@ class _Composer extends StatelessWidget {
             ),
             child: Container(
               key: const ValueKey<String>('ask-pandora-composer-dock'),
+              constraints: compact
+                  ? const BoxConstraints(
+                      minHeight: PandoraConversationLayer.compactComposerHeight,
+                    )
+                  : null,
               padding: compact
                   ? const EdgeInsets.fromLTRB(12, 2, 8, 6)
                   : const EdgeInsets.fromLTRB(14, 8, 14, 12),
               decoration: compact
-                  ? const BoxDecoration(color: Colors.transparent)
+                  ? const BoxDecoration(color: Color(0xFF050505))
                   : BoxDecoration(
                       color:
                           PandoraSimpleColors.canvas.withValues(alpha: .88),
@@ -2749,6 +2759,7 @@ class _Composer extends StatelessWidget {
                 ],
               ),
             ),
+          ),
           ),
         ),
       );

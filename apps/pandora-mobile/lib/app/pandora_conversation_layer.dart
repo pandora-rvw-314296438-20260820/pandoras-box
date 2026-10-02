@@ -11,16 +11,35 @@ class PandoraConversationLayer extends StatelessWidget {
     required this.conversation,
   });
 
+  /// Resting shell composer height before the device safe-area inset.
+  /// Business surfaces reserve this exact vertical lane so their final controls
+  /// can scroll fully above Pandora instead of rendering underneath it.
+  static const double compactComposerHeight = 68;
+
   final Widget businessWorkspace;
   final Widget conversation;
 
   @override
-  Widget build(BuildContext context) => Stack(
-        fit: StackFit.expand,
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(child: businessWorkspace),
-          Positioned.fill(child: conversation),
-        ],
-      );
+  Widget build(BuildContext context) {
+    final safeAreaBottom = MediaQuery.viewPaddingOf(context).bottom;
+    final businessBottomInset = compactComposerHeight + safeAreaBottom;
+    return Stack(
+      fit: StackFit.expand,
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: Padding(
+            key: const ValueKey<String>('pandora-business-composer-clearance'),
+            padding: EdgeInsets.only(bottom: businessBottomInset),
+            child: MediaQuery.removePadding(
+              context: context,
+              removeBottom: true,
+              child: businessWorkspace,
+            ),
+          ),
+        ),
+        Positioned.fill(child: conversation),
+      ],
+    );
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
+import 'package:pandora_mobile/app/pandora_conversation_layer.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
@@ -322,6 +323,33 @@ void main() {
     expect(field.maxLines, 5);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'global composer has an opaque Obsidian backdrop and business safe clearance',
+    (tester) async {
+      await mount(tester, const Size(390, 844));
+
+      final dock = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('ask-pandora-composer-dock')),
+      );
+      final dockDecoration = dock.decoration as BoxDecoration;
+      expect(dockDecoration.color, const Color(0xFF050505));
+      expect(dock.constraints?.minHeight,
+          PandoraConversationLayer.compactComposerHeight);
+
+      final clearance = tester.widget<Padding>(
+        find.byKey(
+          const ValueKey<String>('pandora-business-composer-clearance'),
+        ),
+      );
+      final edgeInsets = clearance.padding as EdgeInsets;
+      expect(
+        edgeInsets.bottom,
+        PandoraConversationLayer.compactComposerHeight,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('recent chats opens only as the right-side drawer',
       (tester) async {

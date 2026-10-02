@@ -234,6 +234,22 @@ void main() {
         findsNothing,
         reason: 'bare shell composer has no filled capsule control',
       );
+      final dockWidget = tester.widget<Container>(composerDock);
+      final dockDecoration = dockWidget.decoration as BoxDecoration;
+      expect(
+        dockDecoration.color,
+        const Color(0xFF050505),
+        reason: 'scrolling business content must never show through the composer',
+      );
+      final businessClearance = tester.widget<Padding>(
+        find.byKey(
+          const ValueKey<String>('pandora-business-composer-clearance'),
+        ),
+      );
+      expect(
+        (businessClearance.padding as EdgeInsets).bottom,
+        greaterThanOrEqualTo(68),
+      );
 
       final fixedNavigationTop = tester.getTopLeft(navigation).dy;
       final fixedComposerBottom = tester.getRect(composerDock).bottom;
@@ -292,7 +308,7 @@ void main() {
       final scrollState = tester.state<ScrollableState>(scrollable);
       expect(scrollState.position.maxScrollExtent, greaterThan(500));
       final beforeScroll = scrollState.position.pixels;
-      await tester.drag(workspaceList, const Offset(0, -520));
+      scrollState.position.jumpTo(scrollState.position.maxScrollExtent);
       await tester.pumpAndSettle();
       expect(scrollState.position.pixels, greaterThan(beforeScroll));
       expect(
@@ -302,6 +318,15 @@ void main() {
       expect(
         tester.getRect(composerDock).bottom,
         closeTo(fixedComposerBottom, 0.1),
+      );
+      final lastBusinessControl = find.byKey(
+        const ValueKey<String>('workspace-tax-quick-bok'),
+      );
+      expect(lastBusinessControl, findsOneWidget);
+      expect(
+        tester.getRect(lastBusinessControl).bottom,
+        lessThanOrEqualTo(tester.getRect(composerDock).top - 4),
+        reason: 'the final business control must scroll fully clear of Pandora',
       );
       await _capture(tester, '04-long-page-scrolled-under-composer');
 
