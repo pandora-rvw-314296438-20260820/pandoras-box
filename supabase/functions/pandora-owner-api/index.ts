@@ -1750,6 +1750,55 @@ async function verifyMetaConnection(
   }
 }
 
+async function verifyBrokerConnection(
+  context: UserContext,
+  item: JsonRecord,
+  provider: string,
+) {
+  const advanced = asRecord(item.advanced);
+  const connectionId = textValue(
+    advanced.accountId,
+    textValue(item.id),
+  );
+  const tenantKey = textValue(advanced.tenantKey);
+  if (!PROVIDER_UUID.test(connectionId) || !PROVIDER_TENANT.test(tenantKey)) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const brokerResponse = await providerFetch(
+    `${SUPABASE_URL}/functions/v1/pandora-connections-broker`,
+    {
+      method: "POST",
+      headers: {
+        authorization: context.authorization,
+        apikey: SUPABASE_ANON_KEY,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        action: "health",
+        provider,
+        organizationId: context.organizationId,
+        tenantId: context.organizationId,
+        connectionId,
+        tenantKey,
+      }),
+    },
+  );
+  const result = await providerJson(brokerResponse);
+  if (
+    !brokerResponse.ok ||
+    result.ok !== true ||
+    textValue(result.provider).toLowerCase() !== provider ||
+    result.healthy !== true ||
+    textValue(result.connectionId) !== connectionId ||
+    textValue(result.tenantId) !== context.organizationId ||
+    textValue(result.tenantKey) !== tenantKey
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+}
+
 async function connectionAction(
   context: UserContext,
   connectionId: string,
@@ -1792,6 +1841,8 @@ async function connectionAction(
       await verifyVercelConnection(context, connectionId);
     } else if (normalizedProvider === "meta") {
       await verifyMetaConnection(context, connectionId);
+    } else if (SELF_SERVICE_PROVIDERS.has(normalizedProvider)) {
+      await verifyBrokerConnection(context, item, normalizedProvider);
     } else {
       throw new Error("CONNECTION_TEST_UNSUPPORTED");
     }
