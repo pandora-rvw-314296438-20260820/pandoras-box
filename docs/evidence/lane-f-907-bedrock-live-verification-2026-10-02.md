@@ -136,6 +136,10 @@ Failed/rejected requests had no metered model tokens:
 - `apps/pandora-mobile/test/core/local_ai/pandora_local_ai_router_test.dart` asserts phone AI is OFF by default.
 - `apps/pandora-mobile/test/core/local_ai/plp_local_router_test.dart` asserts the Ask Pandora screen does not force `usePhoneAi: true`.
 
+## Exact-SHA CI trigger note
+
+The initial Git Database fast-forward did not fan out the normal pull-request workflows. This evidence-only Contents API commit was made through the same Vault-backed GitHub transport to produce a normal PR synchronize event; it does not alter runtime behavior.
+
 ## Cost-source note
 
 AWS Bedrock Price List / official Bedrock pricing was used for token rates. CloudWatch was used for exact token quantities. Immediate per-request billed USD is not emitted by Converse; invoice/CUR posting remains a later billing readback.
