@@ -10,6 +10,12 @@ const migrationPath = join(
   'migrations',
   '20260928210000_pandora_meta_existing_grants_health_refresh.sql',
 );
+const vaultCompatMigrationPath = join(
+  root,
+  'supabase',
+  'migrations',
+  '20261002113405_pandora_meta_vault_lock_compat_v1.sql',
+);
 const ownerApiPath = join(
   root,
   'supabase',
@@ -18,6 +24,7 @@ const ownerApiPath = join(
   'index.ts',
 );
 const migration = await readFile(migrationPath, 'utf8');
+const vaultCompatMigration = await readFile(vaultCompatMigrationPath, 'utf8');
 const ownerApi = await readFile(ownerApiPath, 'utf8');
 const verifierSection = migration.slice(
   migration.indexOf(
@@ -27,11 +34,11 @@ const verifierSection = migration.slice(
     'revoke all on function public.pandora_verify_meta_connection_20260906(',
   ),
 );
-const finalizerSection = migration.slice(
-  migration.indexOf(
-    'create or replace function private.pandora_meta_health_finalize_v1(',
+const finalizerSection = vaultCompatMigration.slice(
+  vaultCompatMigration.indexOf(
+    'CREATE OR REPLACE FUNCTION private.pandora_meta_health_finalize_v1(',
   ),
-  migration.indexOf(
+  vaultCompatMigration.indexOf(
     'revoke all on function private.pandora_meta_health_finalize_v1(',
   ),
 );
@@ -372,6 +379,7 @@ async function fixture() {
     ],
   );
   await db.exec(migration);
+  await db.exec(vaultCompatMigration);
 
   const invoke = async (organizationId = org, installationId = installation) => (
     await db.query(
@@ -1222,16 +1230,21 @@ test('service-only ACL, owner API compatibility and no-grant source boundary rem
   );
   assert.doesNotMatch(verifierSection, /for update/i);
   assert.match(
-    migration,
-    /pandora_meta_health_finalize_v1[\s\S]*for share[\s\S]*for update/,
+    vaultCompatMigration,
+    /lock table vault\.secrets in share mode;[\s\S]*for share[\s\S]*for update/i,
+  );
+  assert.doesNotMatch(
+    finalizerSection,
+    /from vault\.secrets[\s\S]{0,120}for share/i,
+  );
+  assert.doesNotMatch(
+    vaultCompatMigration,
+    /grant\s+update[\s\S]{0,200}vault\.secrets/i,
   );
   assert.doesNotMatch(finalizerSection, /extensions\.http\s*\(/);
   const lockOrder = [
     finalizerSection.indexOf(
-      'where id = v_expected_user_secret_id',
-    ),
-    finalizerSection.indexOf(
-      'where id = v_expected_page_secret_id',
+      'lock table vault.secrets in share mode',
     ),
     finalizerSection.indexOf(
       'from private.pandora_meta_page_tokens',
