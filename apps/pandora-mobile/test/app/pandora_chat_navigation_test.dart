@@ -325,17 +325,52 @@ void main() {
   });
 
   testWidgets(
-    'global composer has an opaque Obsidian backdrop and business safe clearance',
+    'global composer has an opaque backdrop and reserves composer plus safe area',
     (tester) async {
-      await mount(tester, const Size(390, 844));
-
-      final dock = tester.widget<Container>(
-        find.byKey(const ValueKey<String>('ask-pandora-composer-dock')),
+      await setTestSurface(tester, logicalSize: const Size(390, 844));
+      await tester.pumpWidget(
+        testApp(
+          child: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(390, 844),
+              padding: EdgeInsets.only(bottom: 24),
+              viewPadding: EdgeInsets.only(bottom: 24),
+            ),
+            child: PandoraDependencies(
+              auth: const FakeAuth(),
+              repository: FakeRepository(),
+              diagnostics: DiagnosticsStore(),
+              child: PandoraConversationLayer(
+                businessWorkspace: const ColoredBox(
+                  key: ValueKey<String>('business-clearance-fixture'),
+                  color: Color(0xFF07111B),
+                ),
+                conversation: const AskPandoraScreen(shellOverlay: true),
+              ),
+            ),
+          ),
+        ),
       );
+      await tester.pumpAndSettle();
+
+      final dockFinder =
+          find.byKey(const ValueKey<String>('ask-pandora-composer-dock'));
+      final dock = tester.widget<Container>(dockFinder);
       final dockDecoration = dock.decoration as BoxDecoration;
       expect(dockDecoration.color, const Color(0xFF050505));
-      expect(dock.constraints?.minHeight,
-          PandoraConversationLayer.compactComposerHeight);
+      expect(
+        dock.constraints?.minHeight,
+        PandoraConversationLayer.compactComposerHeight,
+      );
+
+      final opaqueBackdrop = find.ancestor(
+        of: dockFinder,
+        matching: find.byType(ColoredBox),
+      ).first;
+      expect(
+        tester.widget<ColoredBox>(opaqueBackdrop).color,
+        const Color(0xFF050505),
+      );
 
       final clearance = tester.widget<Padding>(
         find.byKey(
@@ -345,7 +380,15 @@ void main() {
       final edgeInsets = clearance.padding as EdgeInsets;
       expect(
         edgeInsets.bottom,
-        PandoraConversationLayer.compactComposerHeight,
+        PandoraConversationLayer.compactComposerHeight + 24,
+      );
+      expect(
+        tester.getRect(
+          find.byKey(const ValueKey<String>('business-clearance-fixture')),
+        ).bottom,
+        lessThanOrEqualTo(
+          844 - PandoraConversationLayer.compactComposerHeight - 24,
+        ),
       );
       expect(tester.takeException(), isNull);
     },

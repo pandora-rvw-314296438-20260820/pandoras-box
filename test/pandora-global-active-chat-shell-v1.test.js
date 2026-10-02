@@ -23,7 +23,11 @@ test('main business shell mounts one app-level Pandora conversation', () => {
   assert.match(shell, /PandoraConversationLayer\(/);
   assert.match(shell, /shellOverlay:\s*true/);
   assert.equal((shell.match(/AskPandoraScreen\(/g) ?? []).length, 1);
-  assert.match(layer, /Positioned\.fill\(child: businessWorkspace\)/);
+  assert.match(layer, /compactComposerHeight = 68/);
+  assert.match(layer, /MediaQuery\.viewPaddingOf\(context\)\.bottom/);
+  assert.match(layer, /pandora-business-composer-clearance/);
+  assert.match(layer, /EdgeInsets\.only\(bottom: businessBottomInset\)/);
+  assert.match(layer, /removeBottom:\s*true/);
   assert.match(layer, /Positioned\.fill\(child: conversation\)/);
 });
 
@@ -45,7 +49,8 @@ test('shell mode keeps a compact keyboard-aware composer with one voice/send act
   assert.match(chat, /bottom:\s*keyboardInset,[\s\S]*?key:\s*_composerKey/);
   assert.match(chat, /compact:\s*true/);
   assert.match(chat, /Message Pandora…/);
-  assert.match(chat, /color:\s*compact \? Colors\.transparent/);
+  assert.match(chat, /color:\s*compact \? const Color\(0xFF050505\) : Colors\.transparent/);
+  assert.match(chat, /compact[\s\S]*?BoxDecoration\(color: Color\(0xFF050505\)\)/);
   assert.match(chat, /border:\s*compact[\s\S]*?\? null/);
   assert.match(chat, /fontSize:\s*compact \? 15\.5 : 16/);
   assert.match(chat, /final voiceReady =\s*compact && !submitting && empty/);
