@@ -398,7 +398,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey<String>('pandora-shell-empty-mark')),
+        find.byKey(const ValueKey<String>('pandora-logo-only-landing')),
         findsOneWidget,
       );
       expect(find.text('What can I help with?'), findsNothing);

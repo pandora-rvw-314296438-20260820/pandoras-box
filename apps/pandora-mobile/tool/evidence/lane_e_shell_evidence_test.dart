@@ -219,11 +219,13 @@ void main() {
         findsNothing,
       );
       expect(
-        find.byKey(const ValueKey<String>('pandora-logo-only-landing')),
-        findsOneWidget,
+        find.descendant(
+          of: composerDock,
+          matching: find.byType(FilledButton),
+        ),
+        findsNothing,
+        reason: 'bare shell composer has no filled capsule control',
       );
-      expect(find.byType(FilledButton), findsNothing,
-          reason: 'bare shell composer has no filled capsule control');
 
       final fixedNavigationTop = tester.getTopLeft(navigation).dy;
       final fixedComposerBottom = tester.getRect(composerDock).bottom;
