@@ -19,7 +19,7 @@ test("PLP embedded mode suppresses its legacy scaffold and command dock",()=>{
   assert.doesNotMatch(embedded,/PlpCommandDock|AskPandoraScreen/);
 });
 test("Euro-Fish embedded sections render provider-backed operational content instead of a chat screen",()=>{
-  assert.match(euro,/_EurofishOperationalSection/);assert.match(euro,/widget.embedded \? _body\(\)/);
+  assert.match(euro,/_EurofishOperationalSection/);assert.match(euro,/widget\.embedded\s*\?\s*_body\(\)/);
   assert.match(euro,/Provider-backed data is unavailable for this section/);
 });
 test("BOK section is a real fail-closed operational page, not an empty box",()=>{
