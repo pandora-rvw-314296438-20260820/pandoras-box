@@ -340,12 +340,15 @@ void main() {
               auth: const FakeAuth(),
               repository: FakeRepository(),
               diagnostics: DiagnosticsStore(),
-              child: PandoraConversationLayer(
-                businessWorkspace: const ColoredBox(
-                  key: ValueKey<String>('business-clearance-fixture'),
-                  color: Color(0xFF07111B),
+              child: Material(
+                color: const Color(0xFF000000),
+                child: PandoraConversationLayer(
+                  businessWorkspace: const ColoredBox(
+                    key: ValueKey<String>('business-clearance-fixture'),
+                    color: Color(0xFF07111B),
+                  ),
+                  conversation: const AskPandoraScreen(shellOverlay: true),
                 ),
-                conversation: const AskPandoraScreen(shellOverlay: true),
               ),
             ),
           ),
