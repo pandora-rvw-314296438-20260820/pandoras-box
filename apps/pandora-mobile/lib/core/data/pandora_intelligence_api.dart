@@ -278,6 +278,7 @@ class PandoraIntelligenceApi {
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
+    PandoraChatModelSelection? modelSelection,
   }) async {
     _requireSession();
     final activity = PandoraActivityStreamApi(
@@ -297,6 +298,7 @@ class PandoraIntelligenceApi {
       textAttachment: textAttachment,
       imageAttachment: imageAttachment,
       mode: mode,
+      modelSelection: modelSelection,
       activityJobId: jobId,
     );
     return PandoraIntelligenceExecution(
@@ -314,6 +316,7 @@ class PandoraIntelligenceApi {
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
+    PandoraChatModelSelection? modelSelection,
     String? activityJobId,
   }) async {
     _requireSession();
@@ -365,6 +368,8 @@ class PandoraIntelligenceApi {
           if (enterpriseContext != null) 'enterpriseContext': enterpriseContext,
           if (activityJobId != null) 'activityJobId': activityJobId,
           'mode': mode.name,
+          if (modelSelection != null)
+            'modelSelection': modelSelection.toJson(),
           if (attachments.isNotEmpty) 'attachments': attachments,
         },
       );
@@ -457,6 +462,71 @@ class PandoraIntelligenceApi {
     }
   }
 
+
+
+  Future<PandoraIntelligenceModelCatalog> modelCatalog() async {
+    _requireSession();
+    try {
+      final response = await _client.rpc(
+        'pandora_intelligence_model_catalog_v1',
+        params: <String, Object?>{'p_organization_id': _organizationId},
+      );
+      return PandoraIntelligenceModelCatalog.fromJson(_map(response));
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not load the verified model catalog right now.',
+      );
+    }
+  }
+
+  Future<PandoraThreadModelState> threadModelState(String threadId) async {
+    _requireSession();
+    try {
+      final response = await _client.rpc(
+        'pandora_intelligence_thread_model_selection_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_thread_id': threadId,
+        },
+      );
+      return PandoraThreadModelState.fromJson(_map(response));
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not load the saved model settings for this conversation.',
+      );
+    }
+  }
+
+  Future<void> saveThreadModelState({
+    required String threadId,
+    required PandoraChatModelSelection selection,
+    required PandoraIntelligenceMode reasoningMode,
+  }) async {
+    _requireSession();
+    try {
+      final response = await _client.rpc(
+        'pandora_intelligence_thread_model_selection_set_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_thread_id': threadId,
+          'p_selection_mode': selection.selection,
+          'p_requested_provider': selection.provider,
+          'p_requested_model': selection.model,
+          'p_fallback_mode': selection.fallbackMode,
+          'p_reasoning_mode': reasoningMode.name,
+        },
+      );
+      if (_map(response)['ok'] != true) {
+        throw const PandoraIntelligenceException(
+          'Pandora could not save the model settings for this conversation.',
+        );
+      }
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not save the model settings for this conversation.',
+      );
+    }
+  }
 
   PandoraOperationsEventReader operationsEventReader() => PandoraOperationsEventReader(
     organizationId: _organizationId,
@@ -617,6 +687,215 @@ class PandoraIntelligenceApi {
 }
 
 enum PandoraIntelligenceMode { auto, fast, deep }
+
+class PandoraChatModelSelection {
+  const PandoraChatModelSelection.auto()
+      : selection = 'auto',
+        provider = null,
+        model = null,
+        label = 'Auto',
+        fallbackMode = 'allow_fallback';
+
+  const PandoraChatModelSelection.manual({
+    required this.provider,
+    required this.model,
+    required this.label,
+    this.fallbackMode = 'allow_fallback',
+  }) : selection = 'manual';
+
+  final String selection;
+  final String? provider;
+  final String? model;
+  final String label;
+  final String fallbackMode;
+
+  bool get isAuto => selection == 'auto';
+
+  PandoraChatModelSelection withLabel(String value) => isAuto
+      ? const PandoraChatModelSelection.auto()
+      : PandoraChatModelSelection.manual(
+          provider: provider!,
+          model: model!,
+          label: value,
+          fallbackMode: fallbackMode,
+        );
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'selection': selection,
+        'provider': provider,
+        'model': model,
+        'fallbackMode': fallbackMode,
+      };
+}
+
+class PandoraIntelligenceModelCatalog {
+  const PandoraIntelligenceModelCatalog({
+    required this.models,
+    this.observedAt,
+    this.contractVersion,
+  });
+
+  final List<PandoraIntelligenceModelCatalogEntry> models;
+  final DateTime? observedAt;
+  final String? contractVersion;
+
+  factory PandoraIntelligenceModelCatalog.fromJson(Map<String, dynamic> json) {
+    final rawModels = json['models'];
+    return PandoraIntelligenceModelCatalog(
+      contractVersion: _optionalText(json['contractVersion']),
+      observedAt: _optionalDate(json['observedAt']),
+      models: rawModels is List
+          ? rawModels
+              .map(
+                (value) =>
+                    PandoraIntelligenceModelCatalogEntry.fromJson(_map(value)),
+              )
+              .toList(growable: false)
+          : const <PandoraIntelligenceModelCatalogEntry>[],
+    );
+  }
+
+  PandoraIntelligenceModelCatalogEntry? find(
+    String? provider,
+    String? model,
+  ) {
+    if (provider == null || model == null) return null;
+    for (final entry in models) {
+      if (entry.provider == provider && entry.model == model) return entry;
+    }
+    return null;
+  }
+}
+
+class PandoraIntelligenceModelCatalogEntry {
+  const PandoraIntelligenceModelCatalogEntry({
+    required this.provider,
+    required this.model,
+    required this.label,
+    required this.providerLabel,
+    required this.available,
+    required this.state,
+    required this.routable,
+    required this.runtimeVerificationStatus,
+    this.unavailableReason,
+  });
+
+  const PandoraIntelligenceModelCatalogEntry.auto()
+      : provider = 'auto',
+        model = 'auto',
+        label = 'Auto',
+        providerLabel = 'Pandora',
+        available = true,
+        state = 'ready',
+        routable = true,
+        runtimeVerificationStatus = 'passed',
+        unavailableReason = null;
+
+  final String provider;
+  final String model;
+  final String label;
+  final String providerLabel;
+  final bool available;
+  final String state;
+  final bool routable;
+  final String runtimeVerificationStatus;
+  final String? unavailableReason;
+
+  bool get isAuto => provider == 'auto' && model == 'auto';
+
+  PandoraChatModelSelection get selection => isAuto
+      ? const PandoraChatModelSelection.auto()
+      : PandoraChatModelSelection.manual(
+          provider: provider,
+          model: model,
+          label: label,
+        );
+
+  factory PandoraIntelligenceModelCatalogEntry.fromJson(
+    Map<String, dynamic> json,
+  ) =>
+      PandoraIntelligenceModelCatalogEntry(
+        provider: _text(json['provider'], fallback: 'unknown'),
+        model: _text(json['model'], fallback: 'unknown'),
+        label: _text(json['label'], fallback: 'Model'),
+        providerLabel: _text(json['providerLabel'], fallback: 'Provider'),
+        available: json['available'] == true,
+        state: _text(json['state'], fallback: 'unavailable'),
+        routable: json['routable'] == true,
+        runtimeVerificationStatus:
+            _text(json['runtimeVerificationStatus'], fallback: 'unknown'),
+        unavailableReason: _optionalText(json['unavailableReason']),
+      );
+}
+
+class PandoraThreadModelState {
+  const PandoraThreadModelState({
+    required this.selection,
+    required this.reasoningMode,
+    this.executedProvider,
+    this.executedModel,
+  });
+
+  final PandoraChatModelSelection selection;
+  final PandoraIntelligenceMode reasoningMode;
+  final String? executedProvider;
+  final String? executedModel;
+
+  factory PandoraThreadModelState.fromJson(Map<String, dynamic> json) {
+    final selectionMode = _text(json['selectionMode'], fallback: 'auto');
+    final reasoning = _text(json['reasoningMode'], fallback: 'auto');
+    return PandoraThreadModelState(
+      selection: selectionMode == 'manual'
+          ? PandoraChatModelSelection.manual(
+              provider: _text(json['requestedProvider'], fallback: 'unknown'),
+              model: _text(json['requestedModel'], fallback: 'unknown'),
+              label: _text(json['requestedModel'], fallback: 'Model'),
+              fallbackMode:
+                  _text(json['fallbackMode'], fallback: 'allow_fallback'),
+            )
+          : const PandoraChatModelSelection.auto(),
+      reasoningMode: switch (reasoning) {
+        'fast' => PandoraIntelligenceMode.fast,
+        'deep' => PandoraIntelligenceMode.deep,
+        _ => PandoraIntelligenceMode.auto,
+      },
+      executedProvider: _optionalText(json['executedProvider']),
+      executedModel: _optionalText(json['executedModel']),
+    );
+  }
+}
+
+class PandoraIntelligenceRouting {
+  const PandoraIntelligenceRouting({
+    required this.requestedSelection,
+    this.requestedProvider,
+    this.requestedModel,
+    this.executedProvider,
+    this.executedModel,
+    this.fallbackReason,
+    this.fallbackUsed = false,
+  });
+
+  final String requestedSelection;
+  final String? requestedProvider;
+  final String? requestedModel;
+  final String? executedProvider;
+  final String? executedModel;
+  final String? fallbackReason;
+  final bool fallbackUsed;
+
+  factory PandoraIntelligenceRouting.fromJson(Map<String, dynamic> json) =>
+      PandoraIntelligenceRouting(
+        requestedSelection:
+            _text(json['requestedSelection'], fallback: 'auto'),
+        requestedProvider: _optionalText(json['requestedProvider']),
+        requestedModel: _optionalText(json['requestedModel']),
+        executedProvider: _optionalText(json['executedProvider']),
+        executedModel: _optionalText(json['executedModel']),
+        fallbackReason: _optionalText(json['fallbackReason']),
+        fallbackUsed: json['fallbackUsed'] == true,
+      );
+}
 
 class PandoraCapabilityRegistry {
   const PandoraCapabilityRegistry({
@@ -947,6 +1226,7 @@ class PandoraIntelligenceTurn {
     this.conversationLane,
     this.handoff,
     this.authorizationUrl,
+    this.routing,
   });
 
   final String threadId;
@@ -958,9 +1238,11 @@ class PandoraIntelligenceTurn {
   final String? conversationLane;
   final PandoraIntelligenceHandoff? handoff;
   final Uri? authorizationUrl;
+  final PandoraIntelligenceRouting? routing;
 
   factory PandoraIntelligenceTurn.fromJson(Map<String, dynamic> json) {
     final handoffJson = _map(json['handoff']);
+    final routingJson = _map(json['routing']);
     final providerReadback = _map(json['providerReadback']);
     final authorization = _map(providerReadback['authorization']);
     return PandoraIntelligenceTurn(
@@ -980,6 +1262,9 @@ class PandoraIntelligenceTurn {
           : null,
       authorizationUrl:
           _trustedProviderAuthorizationUri(authorization['authorizationUrl']),
+      routing: routingJson.isEmpty
+          ? null
+          : PandoraIntelligenceRouting.fromJson(routingJson),
     );
   }
 }
