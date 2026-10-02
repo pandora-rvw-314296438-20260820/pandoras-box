@@ -109,8 +109,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   PandoraChatModelSelection _modelSelection =
       const PandoraChatModelSelection.auto();
   PandoraIntelligenceMode _reasoningMode = PandoraIntelligenceMode.auto;
-  List<PandoraChatModelOption> _modelOptions =
-      const <PandoraChatModelOption>[];
   String _modelLabel = 'Auto';
 
   @override
@@ -1601,7 +1599,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     try {
       final snapshot = await intelligence.modelPicker(threadId: _threadId);
       if (!mounted) return;
-      _modelOptions = snapshot.models;
       final selected = await showModalBottomSheet<PandoraChatModelSelection>(
         context: context,
         backgroundColor: const Color(0xFF0B0B0C),
@@ -1684,12 +1681,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         _outcomeUnknown = false;
         _submissionKey = null;
         if (picker != null) {
-          _modelOptions = picker.models;
           _modelSelection = picker.selection;
           _reasoningMode = picker.reasoningMode;
           _modelLabel = picker.labelFor(picker.selection);
         } else {
-          _modelOptions = const <PandoraChatModelOption>[];
           _modelSelection = const PandoraChatModelSelection.auto();
           _reasoningMode = PandoraIntelligenceMode.auto;
           _modelLabel = 'Auto';
