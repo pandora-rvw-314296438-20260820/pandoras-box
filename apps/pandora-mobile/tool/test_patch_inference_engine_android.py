@@ -14,6 +14,11 @@ class PatchInferenceEngineAndroidTest(unittest.TestCase):
         implementation = """
 import dalvik.annotation.optimization.FastNative
 
+    private var _readyForSystemPrompt = false
+
+                System.loadLibrary("ai-chat")
+                init(nativeLibDir)
+
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load native library", e)
                 throw e
@@ -107,8 +112,18 @@ import dalvik.annotation.optimization.FastNative
         self.assertIn('code $result; " +', patched)
         self.assertIn("nativeRuntimeDiagnostics()", patched)
         self.assertIn("override fun runtimeDiagnostics(): String", patched)
-        self.assertIn("override fun requestCancel() = requestCancelNative()", patched)
-        self.assertIn("override fun clearCancelRequest() = clearCancelNative()", patched)
+        self.assertIn("@Volatile\n    private var nativeReady = false", patched)
+        self.assertIn('System.loadLibrary("ai-chat")\n                nativeReady = true', patched)
+        self.assertIn(
+            "override fun requestCancel() {\n        if (nativeReady) requestCancelNative()\n    }",
+            patched,
+        )
+        self.assertIn(
+            "override fun clearCancelRequest() {\n        if (nativeReady) clearCancelNative()\n    }",
+            patched,
+        )
+        self.assertNotIn("override fun requestCancel() = requestCancelNative()", patched)
+        self.assertNotIn("override fun clearCancelRequest() = clearCancelNative()", patched)
         self.assertIn("requestCancelNative()", patched)
         self.assertIn("clearCancelNative()", patched)
         self.assertIn("Unloading native resources after error...", patched)
