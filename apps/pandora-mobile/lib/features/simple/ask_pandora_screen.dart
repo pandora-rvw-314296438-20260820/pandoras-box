@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:flutter/foundation.dart';
@@ -1763,7 +1764,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   }
 }
 
-enum _ChatOverflowAction { newChat, searchChats, more }
+enum _ChatOverflowAction { newChat, more }
 
 class _ChatHeader extends StatelessWidget {
   const _ChatHeader({
@@ -1788,6 +1789,14 @@ class _ChatHeader extends StatelessWidget {
   Widget build(BuildContext context) => PandoraPageHeader(
         title: '',
         actions: [
+          if (onSearchChats != null)
+            IconButton(
+              key: const ValueKey<String>('pandora-recent-chats'),
+              tooltip: 'Recent chats',
+              onPressed: onSearchChats,
+              icon: const Icon(Icons.history_rounded),
+              color: PandoraSimpleColors.ink,
+            ),
           if (!active)
             IconButton(
               key: const ValueKey<String>('pandora-temporary-chat'),
@@ -1807,9 +1816,6 @@ class _ChatHeader extends StatelessWidget {
                   case _ChatOverflowAction.newChat:
                     onNewChat();
                     break;
-                  case _ChatOverflowAction.searchChats:
-                    onSearchChats?.call();
-                    break;
                   case _ChatOverflowAction.more:
                     onMore?.call();
                     break;
@@ -1827,18 +1833,6 @@ class _ChatHeader extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (onSearchChats != null)
-                  const PopupMenuItem<_ChatOverflowAction>(
-                    key: ValueKey<String>('pandora-chat-menu-search'),
-                    value: _ChatOverflowAction.searchChats,
-                    child: Row(
-                      children: [
-                        Icon(Icons.search_rounded, size: 20),
-                        SizedBox(width: 12),
-                        Text('Search chats'),
-                      ],
-                    ),
-                  ),
                 if (onMore != null)
                   const PopupMenuItem<_ChatOverflowAction>(
                     key: ValueKey<String>('pandora-chat-menu-more'),
@@ -1877,7 +1871,7 @@ class _EmptyConversation extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const PandoraMark(size: 54, color: Colors.white),
+                const PandoraMark(size: 40, color: Colors.white),
                 const SizedBox(height: 18),
                 const Text(
                   'What can I help with?',
@@ -1941,7 +1935,7 @@ class _ObsidianSuggestion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: const Color(0x990F0F0F),
+        color: const Color(0x0DFFFFFF),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: PandoraSimpleColors.line),
@@ -2364,10 +2358,26 @@ class _Composer extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SafeArea(
         top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-          color: PandoraSimpleColors.canvas,
-          child: Column(
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: Container(
+              key: const ValueKey<String>('ask-pandora-composer-dock'),
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+              decoration: BoxDecoration(
+                color: PandoraSimpleColors.canvas.withValues(alpha: .88),
+                border: const Border(
+                  top: BorderSide(color: Color(0x14FFFFFF)),
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x66000000),
+                    blurRadius: 18,
+                    offset: Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -2657,7 +2667,9 @@ class _Composer extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       );
