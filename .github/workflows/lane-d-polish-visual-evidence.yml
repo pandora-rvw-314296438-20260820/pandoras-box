@@ -34,16 +34,17 @@ jobs:
           flutter pub get --enforce-lockfile
           flutter test --update-goldens test/goldens/owner_screens_visual_evidence_test.dart --plain-name "captures obsidian_chat_shell_390x844"
           test -s build/owner-screen-evidence/obsidian_chat_shell_390x844.png
-          mkdir -p test/goldens/owner_screens ../../../docs/visual-evidence/lane-d/pr-902
+          mkdir -p test/goldens/owner_screens ../../docs/visual-evidence/lane-d/pr-902
           cp build/owner-screen-evidence/obsidian_chat_shell_390x844.png test/goldens/owner_screens/obsidian_chat_shell_390x844.png
-          cp build/owner-screen-evidence/obsidian_chat_shell_390x844.png ../../../docs/visual-evidence/lane-d/pr-902/after.png
+          cp build/owner-screen-evidence/obsidian_chat_shell_390x844.png ../../docs/visual-evidence/lane-d/pr-902/after.png
       - name: Render before evidence from main
         working-directory: before-main/apps/pandora-mobile
         run: |
           set -euo pipefail
           flutter pub get --enforce-lockfile
-          flutter test test/goldens/owner_screens_visual_evidence_test.dart --plain-name "captures obsidian_chat_shell_390x844"
+          flutter test --update-goldens test/goldens/owner_screens_visual_evidence_test.dart --plain-name "captures obsidian_chat_shell_390x844"
           test -s build/owner-screen-evidence/obsidian_chat_shell_390x844.png
+          mkdir -p "$GITHUB_WORKSPACE/docs/visual-evidence/lane-d/pr-902"
           cp build/owner-screen-evidence/obsidian_chat_shell_390x844.png "$GITHUB_WORKSPACE/docs/visual-evidence/lane-d/pr-902/before.png"
       - name: Commit visual evidence
         run: |
