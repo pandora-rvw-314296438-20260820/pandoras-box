@@ -8,7 +8,9 @@ const {
 } = require("./aws-bedrock-runtime.js");
 
 const CONTROL_SOURCE = "aws:bedrock:us-east-1:live-control-plane";
-const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/;\nconst SPECIALIZED_PATTERN = /(embed|embedding|rerank|safeguard|guard|sonic|voxtral|pegasus|image|canvas|reel|video|upscale|background|erase|recolor|outpaint|inpaint|search)/i;\nconst SERVERLESS_TYPES = new Set(["ON_DEMAND", "INFERENCE_PROFILE"]);
+const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/;
+const SPECIALIZED_PATTERN = /(embed|embedding|rerank|safeguard|guard|sonic|voxtral|pegasus|image|canvas|reel|video|upscale|background|erase|recolor|outpaint|inpaint|search)/i;
+const SERVERLESS_TYPES = new Set(["ON_DEMAND", "INFERENCE_PROFILE"]);
 
 function record(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -209,7 +211,7 @@ function isConversationalBedrockModel(summary) {
     inputs.includes("TEXT") &&
     outputs.includes("TEXT") &&
     types.some((item) => SERVERLESS_TYPES.has(item)) &&
-    !SPECIALIZED_PATTERN.test(\`\${modelId} \${modelName}\`) &&
+    !SPECIALIZED_PATTERN.test(`${modelId} ${modelName}`) &&
     workflowScopes(summary).includes("conversation");
 }
 function snapshotCapabilityClasses(summary, conversational) {
@@ -226,19 +228,19 @@ function snapshotCapabilityClasses(summary, conversational) {
 }
 function preProbeState(entry) {
   if (entry.lifecycleStatus !== "ACTIVE") {
-    return { state: "retired", reason: \`lifecycle_\${entry.lifecycleStatus.toLowerCase() || "unknown"}\` };
+    return { state: "retired", reason: `lifecycle_${entry.lifecycleStatus.toLowerCase() || "unknown"}` };
   }
   if (entry.authorizationStatus !== "AUTHORIZED") {
-    return { state: "discovered", reason: \`authorization_\${entry.authorizationStatus.toLowerCase() || "unknown"}\` };
+    return { state: "discovered", reason: `authorization_${entry.authorizationStatus.toLowerCase() || "unknown"}` };
   }
   if (entry.agreementStatus !== "AVAILABLE") {
-    return { state: "authorized", reason: \`agreement_\${entry.agreementStatus.toLowerCase() || "unknown"}\` };
+    return { state: "authorized", reason: `agreement_${entry.agreementStatus.toLowerCase() || "unknown"}` };
   }
   if (entry.entitlementStatus !== "AVAILABLE") {
-    return { state: "authorized", reason: \`entitlement_\${entry.entitlementStatus.toLowerCase() || "unknown"}\` };
+    return { state: "authorized", reason: `entitlement_${entry.entitlementStatus.toLowerCase() || "unknown"}` };
   }
   if (entry.regionAvailability !== "AVAILABLE") {
-    return { state: "entitled", reason: \`region_\${entry.regionAvailability.toLowerCase() || "unknown"}\` };
+    return { state: "entitled", reason: `region_${entry.regionAvailability.toLowerCase() || "unknown"}` };
   }
   if (!entry.invocationTarget) return { state: "region_available", reason: "invocation_target_unresolved" };
   return { state: "region_available", reason: "runtime_probe_required" };
@@ -282,7 +284,7 @@ function normalizeBedrockCatalogSnapshot({
       conversational,
       capabilityClasses: snapshotCapabilityClasses(summary, conversational),
       observedAt,
-      sourceRef: \`aws:bedrock:\${region}:list-foundation-models+list-inference-profiles+get-foundation-model-availability\`,
+      sourceRef: `aws:bedrock:${region}:list-foundation-models+list-inference-profiles+get-foundation-model-availability`,
     };
     const stage = preProbeState(entry);
     return Object.freeze({ ...entry, preProbeState: stage.state, preProbeReason: stage.reason });
@@ -290,7 +292,7 @@ function normalizeBedrockCatalogSnapshot({
   return Object.freeze({
     region,
     observedAt,
-    source: \`aws:bedrock:\${region}:live-catalog-v2\`,
+    source: `aws:bedrock:${region}:live-catalog-v2`,
     models: Object.freeze(models),
   });
 }
