@@ -67,11 +67,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   // cancel a healthy on-device decode at the old 30-second wall.
   static const _localInferenceIdleTimeout = Duration(seconds: 120);
 
-  static const _suggestions = <String>[
-    'What can you do for me now?',
-    'Check my GitHub for failing CI',
-    'What needs my attention?',
-  ];
 
   final TextEditingController _objective = TextEditingController();
   final FocusNode _objectiveFocus = FocusNode();
@@ -1547,14 +1542,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     });
   }
 
-  void _useSuggestion(String value) {
-    if (_outcomeUnknown || _submitting) return;
-    _objective.text = value;
-    _objective.selection = TextSelection.collapsed(offset: value.length);
-    _objectiveFocus.requestFocus();
-    setState(() => _error = null);
-  }
-
   void newChat() {
     if (_submitting) return;
     final priorCharacter = _characterContext;
@@ -1671,9 +1658,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final keyboardInset = media.viewInsets.bottom;
     final topInset = media.padding.top;
     final headerHeight = _headerHeight > 0 ? _headerHeight : 56.0;
-    final composerHeight = _composerHeight > 0
-        ? _composerHeight
-        : (widget.shellOverlay ? 68.0 : 88.0);
+    final composerHeight = _composerHeight > 0 ? _composerHeight : 68.0;
     final viewportHeight = media.size.height > keyboardInset
         ? media.size.height - keyboardInset
         : 0.0;
@@ -1697,13 +1682,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         : _messages.isEmpty && _pendingMessage == null
             ? Padding(
                 padding: conversationPadding,
-                child: widget.shellOverlay
-                    ? const _ShellEmptyConversation()
-                    : _EmptyConversation(
-                        suggestions: _suggestions,
-                        onSuggestion: _useSuggestion,
-                        disabled: _outcomeUnknown || _submitting,
-                      ),
+                child: const _EmptyConversation(),
               )
             : _Conversation(
                 threadIdentity: _threadId ?? 'local-chat',
@@ -1884,6 +1863,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 error: _error,
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
+                compact: true,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                   _scheduleOverlayMeasure();
@@ -1999,135 +1979,15 @@ class _ChatHeader extends StatelessWidget {
       );
 }
 
-class _ShellEmptyConversation extends StatelessWidget {
-  const _ShellEmptyConversation();
+class _EmptyConversation extends StatelessWidget {
+  const _EmptyConversation();
 
   @override
   Widget build(BuildContext context) => const Center(
         child: PandoraMark(
-          key: ValueKey<String>('pandora-shell-empty-mark'),
+          key: ValueKey<String>('pandora-logo-only-landing'),
           size: 28,
           color: Colors.white,
-        ),
-      );
-}
-
-class _EmptyConversation extends StatelessWidget {
-  const _EmptyConversation({
-    required this.suggestions,
-    required this.onSuggestion,
-    required this.disabled,
-  });
-
-  final List<String> suggestions;
-  final ValueChanged<String> onSuggestion;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 42),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const PandoraMark(size: 40, color: Colors.white),
-                const SizedBox(height: 18),
-                const Text(
-                  'What can I help with?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -.35,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: const Text(
-                    'Ask a question, describe a change, or tell Pandora what you want to build.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: PandoraSimpleColors.muted,
-                      fontSize: 14,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 30),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  child: Column(
-                    children: [
-                      for (var index = 0;
-                          index < suggestions.length;
-                          index++) ...[
-                        _ObsidianSuggestion(
-                          label: suggestions[index],
-                          enabled: !disabled,
-                          onPressed: () => onSuggestion(suggestions[index]),
-                        ),
-                        if (index != suggestions.length - 1)
-                          const SizedBox(height: 12),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
-class _ObsidianSuggestion extends StatelessWidget {
-  const _ObsidianSuggestion({
-    required this.label,
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: const Color(0x0DFFFFFF),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: PandoraSimpleColors.line),
-        ),
-        child: InkWell(
-          onTap: enabled ? onPressed : null,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: enabled
-                          ? const Color(0xFFE2E2E2)
-                          : PandoraSimpleColors.muted,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 17,
-                  color: Color(0xFF555555),
-                ),
-              ],
-            ),
-          ),
         ),
       );
 }
@@ -2838,28 +2698,27 @@ class _Composer extends StatelessWidget {
                               compact && !submitting && empty;
                           final cancelReady = submitting && empty;
                           return SizedBox.square(
-                            dimension: compact ? 40 : 44,
-                            child: FilledButton(
+                            dimension: compact ? 36 : 40,
+                            child: IconButton(
                               key: const ValueKey<String>(
                                   'ask' '-pandora-submit'),
+                              tooltip: voiceReady
+                                  ? 'Voice input'
+                                  : (cancelReady ? 'Stop' : 'Send'),
+                              padding: EdgeInsets.zero,
                               onPressed: disabled
                                   ? null
                                   : (voiceReady ? onDictate : onSubmit),
-                              style: FilledButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                backgroundColor: Colors.white,
-                                disabledBackgroundColor:
-                                    const Color(0xFF1F1F1F),
-                                shape: const CircleBorder(),
-                              ),
-                              child: Icon(
+                              icon: Icon(
                                 voiceReady
                                     ? Icons.mic_none_rounded
                                     : cancelReady
                                         ? Icons.stop_rounded
                                         : Icons.arrow_upward_rounded,
-                                color: Colors.black,
-                                size: compact ? 21 : 22,
+                                color: disabled
+                                    ? PandoraSimpleColors.muted
+                                    : PandoraSimpleColors.ink,
+                                size: compact ? 20 : 21,
                               ),
                             ),
                           );

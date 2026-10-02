@@ -50,17 +50,20 @@ test('shell mode keeps a compact keyboard-aware composer with one voice/send act
   assert.match(chat, /fontSize:\s*compact \? 15\.5 : 16/);
   assert.match(chat, /final voiceReady =\s*compact && !submitting && empty/);
   assert.match(chat, /voiceReady \? onDictate : onSubmit/);
+  assert.match(chat, /tooltip: voiceReady[\s\S]*?'Voice input'[\s\S]*?'Send'/);
+  assert.doesNotMatch(chat, /backgroundColor:\s*Colors\.white/);
 });
 
-test('shell empty state is only the small Pandora mark', () => {
-  const start = chat.indexOf('class _ShellEmptyConversation');
-  const end = chat.indexOf('class _EmptyConversation', start);
-  assert.ok(start >= 0 && end > start);
-  const empty = chat.slice(start, end);
-  assert.match(empty, /pandora-shell-empty-mark/);
-  assert.match(empty, /size:\s*28/);
-  assert.doesNotMatch(empty, /What can I help with|suggestion|subtitle/i);
+test('empty landing is globally logo-only with no legacy prompt or suggestion UI', () => {
+  assert.match(chat, /class _EmptyConversation/);
+  assert.match(chat, /pandora-logo-only-landing/);
+  assert.match(chat, /size:\s*28/);
+  assert.doesNotMatch(
+    chat,
+    /What can I help with|Ask a question, describe a change|_suggestions|_ObsidianSuggestion/,
+  );
 });
+
 
 test('history expands after engagement and minimizes without unmounting the conversation', () => {
   assert.match(chat, /if \(widget\.shellOverlay\) _shellHistoryExpanded = true/);

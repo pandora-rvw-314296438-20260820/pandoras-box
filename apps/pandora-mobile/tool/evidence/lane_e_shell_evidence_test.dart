@@ -212,6 +212,18 @@ void main() {
       expect(navigation, findsOneWidget);
       expect(workspaceList, findsOneWidget);
       expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
+      expect(find.text('What can I help with?'), findsNothing,
+          reason: 'legacy empty-state copy is absent');
+      expect(
+        find.text('Ask a question, describe a change, or tell Pandora what you want to build.'),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('pandora-logo-only-landing')),
+        findsOneWidget,
+      );
+      expect(find.byType(FilledButton), findsNothing,
+          reason: 'bare shell composer has no filled capsule control');
 
       final fixedNavigationTop = tester.getTopLeft(navigation).dy;
       final fixedComposerBottom = tester.getRect(composerDock).bottom;
