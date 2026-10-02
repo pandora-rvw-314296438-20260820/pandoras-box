@@ -5,11 +5,12 @@ const helper=fs.readFileSync("supabase/functions/pandora-intelligence-chat/bedro
 const api=fs.readFileSync("api/operations-inference.ts","utf8");
 const bridge=fs.readFileSync("src/providers/aws-bedrock-chat-http.js","utf8");
 const sql=fs.readFileSync("supabase/migrations/20261003033000_pandora_bedrock_chat_bridge_v1.sql","utf8");
+const issueSql=fs.readFileSync("supabase/migrations/20261003064200_pandora_bedrock_chat_ticket_issue_v2.sql","utf8");
 test("manual and Auto chat routes admit provider-verified Bedrock models",()=>{
   assert.match(edge,/bedrockRoutingConfig/);assert.match(edge,/provider:"bedrock"/);assert.match(edge,/provider==="bedrock"/);
   assert.match(edge,/requestedProvider:effectiveSelection.provider/);assert.match(edge,/requestedModel:effectiveSelection.model/);
   assert.match(edge,/executedProvider:result.provider/);assert.match(edge,/executedModel:result.model/);
-  assert.match(edge,/fallbackMode==="strict"\?false/);assert.match(helper,/pandora_bedrock_chat_request_v1/);
+  assert.match(edge,/fallbackMode==="strict"\?false/);assert.match(helper,/pandora_issue_bedrock_chat_ticket_v1/);
   assert.match(sql,/c.routable=true/);assert.match(sql,/c.runtime_verification_status='passed'/);assert.match(sql,/c.lifecycle_status='ACTIVE'/);
 });
 test("Bedrock execution stays behind one-time ticket and existing Vercel OIDC signer",()=>{
@@ -34,4 +35,18 @@ test("Bedrock ticket claim uses Vercel OIDC control gateway instead of Vercel Su
   assert.match(control,/pandora_claim_bedrock_chat_ticket_v1/);
   assert.match(control,/includeOrganization:\s*false/);
   assert.match(control,/route\.includeOrganization !== false/);
+});
+
+
+test("Bedrock ticket issuance commits before the external OIDC claim",()=>{
+  assert.match(helper,/pandora_issue_bedrock_chat_ticket_v1/);
+  assert.match(helper,/BEDROCK_CHAT_URL/);
+  assert.match(helper,/fetch\(BEDROCK_CHAT_URL/);
+  assert.doesNotMatch(helper,/pandora_bedrock_chat_request_v1/);
+  assert.match(issueSql,/create or replace function public\.pandora_issue_bedrock_chat_ticket_v1/);
+  assert.match(issueSql,/insert into private\.pandora_bedrock_chat_tickets/);
+  assert.match(issueSql,/jsonb_build_object\('ticket',v_token/);
+  assert.doesNotMatch(issueSql,/extensions\.http|mcpmaster\.vercel\.app/);
+  assert.match(issueSql,/revoke all on function public\.pandora_issue_bedrock_chat_ticket_v1\(text,jsonb\) from public,anon,authenticated/);
+  assert.match(issueSql,/grant execute on function public\.pandora_issue_bedrock_chat_ticket_v1\(text,jsonb\) to service_role/);
 });
