@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 /// Routine actions use [action] so colour meaning remains consistent.
 abstract final class PandoraColorTokens {
   static const brand = Color(0xFFEF4349);
-  static const action = Color(0xFF7C83FF);
-  static const actionHover = Color(0xFF9297FF);
-  static const onAction = Color(0xFF0C0D16);
-  static const actionLight = Color(0xFF4C55C9);
+  // Warm neutral Pandora action colours. Keep Material controls out of the
+  // old indigo family so dialogs, menus and selection states stay on-brand.
+  static const action = Color(0xFFE8E1D5);
+  static const actionHover = Color(0xFFF7F2E9);
+  static const onAction = Color(0xFF17140F);
+  static const actionLight = Color(0xFF24211D);
   static const onActionLight = Color(0xFFFFFFFF);
 
   static const graphiteCanvas = Color(0xFF101116);
@@ -129,7 +131,7 @@ class PandoraPalette extends ThemeExtension<PandoraPalette> {
     onAttention: Color(0xFFFFFFFF),
     critical: Color(0xFFB3261E),
     onCritical: Color(0xFFFFFFFF),
-    informative: Color(0xFF3F51B5),
+    informative: Color(0xFF465047),
     onInformative: Color(0xFFFFFFFF),
     subtleSurface: PandoraColorTokens.porcelainSurfaceSoft,
     strongSurface: PandoraColorTokens.porcelainSurface,
@@ -144,8 +146,8 @@ class PandoraPalette extends ThemeExtension<PandoraPalette> {
     onAttention: Color(0xFF2A1700),
     critical: PandoraColorTokens.criticalDark,
     onCritical: Color(0xFF690005),
-    informative: Color(0xFFBEC2FF),
-    onInformative: Color(0xFF20255D),
+    informative: Color(0xFFD8C7A4),
+    onInformative: Color(0xFF2A2115),
     subtleSurface: PandoraColorTokens.graphiteSurfaceSoft,
     strongSurface: PandoraColorTokens.graphiteSurface,
     outlineSoft: PandoraColorTokens.graphiteOutline,
