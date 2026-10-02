@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260917103550
+-- Name: create_pandora_staging_github_fallback_lane_v1
+-- Original SQL SHA-256: 87a3d1673a43e54e5247f46b562e3416f127740e7450411009ea7f0f2ba99d78
+-- Original statement count: 1
+-- Provider SQL bytes: 1972
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

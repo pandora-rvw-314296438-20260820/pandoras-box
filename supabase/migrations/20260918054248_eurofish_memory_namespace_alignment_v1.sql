@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260918054248
+-- Name: eurofish_memory_namespace_alignment_v1
+-- Original SQL SHA-256: 0f5132f19c5e1ed05e9f9bc9b6229dfcafd0df7a42280458793a4f68192a404f
+-- Original statement count: 1
+-- Provider SQL bytes: 2820
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

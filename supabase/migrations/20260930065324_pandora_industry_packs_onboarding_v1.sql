@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260930065324
+-- Name: pandora_industry_packs_onboarding_v1
+-- Original SQL SHA-256: f382712420cb29e8e7eba390fe7eb84ad2e55a259959bc69e64715cc06008b52
+-- Original statement count: 1
+-- Provider SQL bytes: 45982
+-- Canonical executable authority: supabase/migrations/20260930112000_pandora_industry_packs_onboarding_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

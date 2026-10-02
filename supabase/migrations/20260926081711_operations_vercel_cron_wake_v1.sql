@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260926081711
+-- Name: operations_vercel_cron_wake_v1
+-- Original SQL SHA-256: 51c9e63e68a9e6018b82a6ccc305c8154f7ec384a989eb1cb4746c987199444f
+-- Original statement count: 1
+-- Provider SQL bytes: 8004
+-- Canonical executable authority: supabase/migrations/20260926044500_operations_vercel_cron_wake_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

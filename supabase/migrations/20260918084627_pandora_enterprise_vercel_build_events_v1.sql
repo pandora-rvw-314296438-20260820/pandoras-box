@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260918084627
+-- Name: pandora_enterprise_vercel_build_events_v1
+-- Original SQL SHA-256: ade337d6c91d526326e51cc38ff019e99ccb0ef763c49109b1e4e1878149b790
+-- Original statement count: 1
+-- Provider SQL bytes: 2093
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

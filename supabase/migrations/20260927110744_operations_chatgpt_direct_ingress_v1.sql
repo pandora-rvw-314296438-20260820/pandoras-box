@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260927110744
+-- Name: operations_chatgpt_direct_ingress_v1
+-- Original SQL SHA-256: a8b2b65b146c24a456bc50bda892bfa3400c6bf69fe62a2810c58b7965fe7b35
+-- Original statement count: 1
+-- Provider SQL bytes: 27038
+-- Canonical executable authority: supabase/migrations/20260927105500_operations_chatgpt_direct_ingress_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

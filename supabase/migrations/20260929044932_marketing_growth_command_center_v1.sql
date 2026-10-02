@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929044932
+-- Name: marketing_growth_command_center_v1
+-- Original SQL SHA-256: 7a5f710af13b79f05a45b2f4c9c457a589d82428252024785e9b7866a6ab6a09
+-- Original statement count: 1
+-- Provider SQL bytes: 7536
+-- Canonical executable authority: supabase/migrations/20260929123000_marketing_growth_command_center_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

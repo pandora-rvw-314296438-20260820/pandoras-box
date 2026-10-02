@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260920031512
+-- Name: pandora_qwen3_apk_fresh_redirect
+-- Original SQL SHA-256: 428aa7f9b0f834ff5df804b2abe0b159fae158efcb1b9974cc888c782d84ae9d
+-- Original statement count: 1
+-- Provider SQL bytes: 1629
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

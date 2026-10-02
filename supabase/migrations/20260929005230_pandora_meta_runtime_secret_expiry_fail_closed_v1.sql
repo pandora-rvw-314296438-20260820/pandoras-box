@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929005230
+-- Name: pandora_meta_runtime_secret_expiry_fail_closed_v1
+-- Original SQL SHA-256: 485ef7f66fade881d2ea948d007a04a194cb01ce28426ae861ca7afa1cb3f88a
+-- Original statement count: 1
+-- Provider SQL bytes: 2771
+-- Canonical executable authority: supabase/migrations/20260929023000_pandora_meta_runtime_secret_expiry_fail_closed_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

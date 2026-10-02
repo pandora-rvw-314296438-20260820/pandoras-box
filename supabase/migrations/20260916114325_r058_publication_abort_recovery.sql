@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260916114325
+-- Name: r058_publication_abort_recovery
+-- Original SQL SHA-256: b37325b7e483b5528017756eb1e789d6ed96133117cad64e7fa85303d68658ba
+-- Original statement count: 1
+-- Provider SQL bytes: 3247
+-- Canonical executable authority: supabase/migrations/20260916110444_r058_publication_abort_recovery.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

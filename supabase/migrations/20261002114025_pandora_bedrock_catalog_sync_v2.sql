@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20261002114025
+-- Name: pandora_bedrock_catalog_sync_v2
+-- Original SQL SHA-256: 9233f585e26701d3bf7fbd232de1ba8b416e284f94a65809276cd200666afad0
+-- Original statement count: 1
+-- Provider SQL bytes: 13604
+-- Canonical executable authority: supabase/migrations/20261002112500_pandora_bedrock_catalog_sync_v2.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

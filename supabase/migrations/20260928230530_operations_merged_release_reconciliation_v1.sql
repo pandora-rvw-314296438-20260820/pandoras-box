@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260928230530
+-- Name: operations_merged_release_reconciliation_v1
+-- Original SQL SHA-256: e2790a9cd2bb3652efca923670ea089363de2b6c39dcbd99983f7b1fa2711ae2
+-- Original statement count: 1
+-- Provider SQL bytes: 59607
+-- Canonical executable authority: supabase/migrations/20260928190000_operations_merged_release_reconciliation_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

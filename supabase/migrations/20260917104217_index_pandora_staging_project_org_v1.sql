@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260917104217
+-- Name: index_pandora_staging_project_org_v1
+-- Original SQL SHA-256: e9c6a5f6efd89fa1f6d4e9ad0b1d238b9f8d7aaad5d18f55da37632bca04b579
+-- Original statement count: 1
+-- Provider SQL bytes: 114
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

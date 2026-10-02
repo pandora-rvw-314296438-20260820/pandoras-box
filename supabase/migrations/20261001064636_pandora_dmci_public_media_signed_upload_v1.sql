@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20261001064636
+-- Name: pandora_dmci_public_media_signed_upload_v1
+-- Original SQL SHA-256: 3136b9618d26a2e60b55481a44dbe0814a291a3b6f633b2e8cbff478df31d4b2
+-- Original statement count: 1
+-- Provider SQL bytes: 4784
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

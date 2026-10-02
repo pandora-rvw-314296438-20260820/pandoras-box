@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929014014
+-- Name: pandora_meta_disconnect_local_v1
+-- Original SQL SHA-256: abeb40794f8a10ea8c05cbc30a8ba232eaac5d50e3ea40df002689ced1951c87
+-- Original statement count: 1
+-- Provider SQL bytes: 5751
+-- Canonical executable authority: supabase/migrations/20260929044500_pandora_meta_disconnect_local_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

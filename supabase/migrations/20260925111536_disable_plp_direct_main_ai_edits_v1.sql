@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260925111536
+-- Name: disable_plp_direct_main_ai_edits_v1
+-- Original SQL SHA-256: 89e8344576d1b530836242e9be01f16962d40ccb76064611ab52a3ec82d2f1a2
+-- Original statement count: 1
+-- Provider SQL bytes: 1815
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

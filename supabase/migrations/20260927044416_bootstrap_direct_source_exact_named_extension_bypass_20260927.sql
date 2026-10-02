@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260927044416
+-- Name: bootstrap_direct_source_exact_named_extension_bypass_20260927
+-- Original SQL SHA-256: 077b2c783329244400336c203175fb0e6a78e2fa3571bdb003eedac9bf7c03e3
+-- Original statement count: 1
+-- Provider SQL bytes: 688
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

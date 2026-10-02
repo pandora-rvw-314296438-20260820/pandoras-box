@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260925111522
+-- Name: pandora_plp_studio_candidate_ledger_v1
+-- Original SQL SHA-256: 0065caf76fe62cec373bb9f7672a2fcc0952eb632a8de1e190b8cd0e61ef9767
+-- Original statement count: 1
+-- Provider SQL bytes: 2586
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20261002104333
+-- Name: pandora_connection_verify_vault_no_spend_v1
+-- Original SQL SHA-256: 2395e00c0f4ad5a82e69349ef4bf0206cd22a894e585d6f4f4a35886f141718b
+-- Original statement count: 1
+-- Provider SQL bytes: 14001
+-- Canonical executable authority: supabase/migrations/20261002104500_pandora_connection_verify_vault_no_spend_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

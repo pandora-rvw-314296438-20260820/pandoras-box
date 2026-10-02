@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929110013
+-- Name: plp_resort_operating_manifest_v1
+-- Original SQL SHA-256: 34df9ddadff7f2649fde31b5679890278799d4ae64d0f04d7d1b0c770316ed22
+-- Original statement count: 1
+-- Provider SQL bytes: 3330
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

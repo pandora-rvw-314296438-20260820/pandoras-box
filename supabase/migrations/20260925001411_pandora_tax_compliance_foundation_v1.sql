@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260925001411
+-- Name: pandora_tax_compliance_foundation_v1
+-- Original SQL SHA-256: e5246a3a1a88f040fbf26c285c746e75dbf1d114d5c57e774b5eb65676e524c0
+-- Original statement count: 1
+-- Provider SQL bytes: 39972
+-- Canonical executable authority: supabase/migrations/20260925010000_pandora_tax_compliance_foundation_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

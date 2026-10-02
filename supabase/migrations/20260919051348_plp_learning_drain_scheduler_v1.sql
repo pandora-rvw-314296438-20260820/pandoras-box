@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260919051348
+-- Name: plp_learning_drain_scheduler_v1
+-- Original SQL SHA-256: c0eb57cf99d1cae41dcdd7c0811431f2adaf4f60eac38c33f912a12120e172f9
+-- Original statement count: 1
+-- Provider SQL bytes: 1025
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260924202033
+-- Name: coordinator_generation_check_identity_fix_v1
+-- Original SQL SHA-256: b9035fc279bb1b5ebae7589ae36425a1dd17c56776f208650a8881bb7e009f57
+-- Original statement count: 1
+-- Provider SQL bytes: 10513
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;
