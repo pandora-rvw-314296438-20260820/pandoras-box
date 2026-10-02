@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/data/eurofish_workspace_api.dart';
+import '../approvals/approvals_screen.dart';
+import '../settings/settings_screen.dart';
+import '../simple/more_screen.dart';
 import 'enterprise_workspace_home.dart';
 import 'plp_resort_workspace.dart';
 
@@ -19,6 +22,14 @@ class SharedEnterpriseWorkspaceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    switch (selection.section.routeSlug) {
+      case 'needs-you':
+        return const ApprovalsScreen();
+      case 'settings':
+        return const SettingsScreen();
+      case 'system-developer':
+        return const MoreScreen();
+    }
     switch (selection.workspace.key) {
       case 'plp-boracay':
         return _PlpSharedWorkspace(
@@ -97,7 +108,6 @@ class _PlpSharedWorkspaceState extends State<_PlpSharedWorkspace> {
   String get _sectionId {
     switch (widget.selection.section.routeSlug) {
       case 'operations':
-      case 'needs-you':
         return 'operations';
       case 'guests':
         return 'guests';
