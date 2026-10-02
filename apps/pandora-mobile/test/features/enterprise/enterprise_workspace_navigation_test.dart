@@ -39,7 +39,14 @@ void main() {
       testWidgets('Owners header and names stay readable at $width / $scale', (tester) async {
         await mount(tester, width: width, scale: scale);
         expect(tester.takeException(), isNull);
-        expect(find.text('Pandora'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey<String>('workspace-home-navigation')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey<String>('workspace-home-title')),
+          findsNothing,
+        );
         for (final workspace in enterpriseWorkspaces) {
           final text = tester.renderObject<RenderParagraph>(find.text(workspace.name));
           expect(text.didExceedMaxLines, isFalse, reason: workspace.name);
