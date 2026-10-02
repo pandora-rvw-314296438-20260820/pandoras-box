@@ -104,7 +104,10 @@ test("shell boots to Home and preserves Operations Room", () => {
   assert.match(shell, /final Set<int> _visited = <int>\{9\};/);
   assert.match(shell, /int _index = 9;/);
   assert.match(shell, /9 => EnterpriseWorkspaceHome\(/);
-  assert.match(shell, /8 => PandoraOperationsRoomScreen\(onHome: \(\) => _select\(9\)\)/);
+  assert.match(
+    shell,
+    /8 => PandoraOperationsRoomScreen\([\s\S]*?onHome: \(\) => _select\(9\),[\s\S]*?globalConversation:\s*true/,
+  );
 });
 
 test("workspace scope is passed to Ask Pandora without visible message injection", () => {

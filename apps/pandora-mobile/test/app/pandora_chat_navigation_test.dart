@@ -343,6 +343,8 @@ void main() {
     await mount(tester, const Size(390, 800));
     final openRecentChats =
         tester.widget<IconButton>(recentChats).onPressed!;
+    final openPrimaryNavigation =
+        tester.widget<PandoraMenuButton>(menu).onPressed;
 
     await tester.tap(menu);
     await tester.pumpAndSettle();
@@ -354,13 +356,50 @@ void main() {
     expect(primaryDrawer, findsNothing);
     expect(recentDrawer, findsOneWidget);
 
-    final menuButton = tester.widget<PandoraMenuButton>(
-      find.byKey(const ValueKey<String>('pandora-side-panel-open')),
-    );
-    menuButton.onPressed();
+    openPrimaryNavigation();
     await tester.pumpAndSettle();
     expect(primaryDrawer, findsOneWidget);
     expect(recentDrawer, findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('empty shell is logo-only and the resting composer is bare',
+      (tester) async {
+    await mount(tester, const Size(390, 800));
+    final conversationState = tester.state<AskPandoraScreenState>(
+      find.byType(AskPandoraScreen),
+    );
+    conversationState.showHistory();
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('pandora-shell-empty-mark')),
+      findsOneWidget,
+    );
+    expect(find.text('What can I help with?'), findsNothing);
+    expect(find.text('What can you do for me now?'), findsNothing);
+    expect(find.text('Check my GitHub for failing CI'), findsNothing);
+    expect(find.text('What needs my attention?'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-plus')),
+      findsNothing,
+    );
+
+    final composer = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey<String>('ask-pandora-composer')),
+    );
+    final decoration = composer.decoration as BoxDecoration;
+    expect(decoration.color, Colors.transparent);
+    expect(decoration.border, isNull);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-plus')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -396,20 +435,10 @@ void main() {
     );
     expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
 
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+    await conversationState.submitExternalPrompt(
       'Start this conversation',
+      requestFocus: false,
     );
-    await tester.pump();
-    final action = find.byKey(const ValueKey<String>('ask-pandora-submit'));
-    expect(
-      find.descendant(
-        of: action,
-        matching: find.byIcon(Icons.arrow_upward_rounded),
-      ),
-      findsOneWidget,
-    );
-    await tester.tap(action);
     await tester.pumpAndSettle();
 
     expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);

@@ -45,10 +45,21 @@ test('shell mode keeps a compact keyboard-aware composer with one voice/send act
   assert.match(chat, /bottom:\s*keyboardInset,[\s\S]*?key:\s*_composerKey/);
   assert.match(chat, /compact:\s*true/);
   assert.match(chat, /Message Pandora…/);
-  assert.match(chat, /Color\(0xFF171717\)/);
+  assert.match(chat, /color:\s*compact \? Colors\.transparent/);
+  assert.match(chat, /border:\s*compact[\s\S]*?\? null/);
   assert.match(chat, /fontSize:\s*compact \? 15\.5 : 16/);
   assert.match(chat, /final voiceReady =\s*compact && !submitting && empty/);
   assert.match(chat, /voiceReady \? onDictate : onSubmit/);
+});
+
+test('shell empty state is only the small Pandora mark', () => {
+  const start = chat.indexOf('class _ShellEmptyConversation');
+  const end = chat.indexOf('class _EmptyConversation', start);
+  assert.ok(start >= 0 && end > start);
+  const empty = chat.slice(start, end);
+  assert.match(empty, /pandora-shell-empty-mark/);
+  assert.match(empty, /size:\s*28/);
+  assert.doesNotMatch(empty, /What can I help with|suggestion|subtitle/i);
 });
 
 test('history expands after engagement and minimizes without unmounting the conversation', () => {

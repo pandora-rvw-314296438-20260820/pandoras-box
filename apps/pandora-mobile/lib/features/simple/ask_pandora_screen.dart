@@ -1697,11 +1697,13 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         : _messages.isEmpty && _pendingMessage == null
             ? Padding(
                 padding: conversationPadding,
-                child: _EmptyConversation(
-                  suggestions: _suggestions,
-                  onSuggestion: _useSuggestion,
-                  disabled: _outcomeUnknown || _submitting,
-                ),
+                child: widget.shellOverlay
+                    ? const _ShellEmptyConversation()
+                    : _EmptyConversation(
+                        suggestions: _suggestions,
+                        onSuggestion: _useSuggestion,
+                        disabled: _outcomeUnknown || _submitting,
+                      ),
               )
             : _Conversation(
                 threadIdentity: _threadId ?? 'local-chat',
@@ -1994,6 +1996,19 @@ class _ChatHeader extends StatelessWidget {
               ],
             ),
         ],
+      );
+}
+
+class _ShellEmptyConversation extends StatelessWidget {
+  const _ShellEmptyConversation();
+
+  @override
+  Widget build(BuildContext context) => const Center(
+        child: PandoraMark(
+          key: ValueKey<String>('pandora-shell-empty-mark'),
+          size: 28,
+          color: Colors.white,
+        ),
       );
 }
 
@@ -2508,11 +2523,14 @@ class _Composer extends StatelessWidget {
         top: false,
         child: ClipRect(
           child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            filter: ui.ImageFilter.blur(
+              sigmaX: compact ? 0 : 14,
+              sigmaY: compact ? 0 : 14,
+            ),
             child: Container(
               key: const ValueKey<String>('ask-pandora-composer-dock'),
               padding: compact
-                  ? const EdgeInsets.fromLTRB(10, 4, 10, 8)
+                  ? const EdgeInsets.fromLTRB(12, 2, 8, 6)
                   : const EdgeInsets.fromLTRB(14, 8, 14, 12),
               decoration: compact
                   ? const BoxDecoration(color: Colors.transparent)
@@ -2637,15 +2655,11 @@ class _Composer extends StatelessWidget {
               DecoratedBox(
                 key: const ValueKey<String>('ask' '-pandora-composer'),
                 decoration: BoxDecoration(
-                  color: compact
-                      ? const Color(0xFF171717)
-                      : PandoraSimpleColors.surface,
-                  borderRadius: BorderRadius.circular(compact ? 28 : 30),
-                  border: Border.all(
-                    color: compact
-                        ? const Color(0xFF343434)
-                        : PandoraSimpleColors.line,
-                  ),
+                  color: compact ? Colors.transparent : PandoraSimpleColors.surface,
+                  borderRadius: BorderRadius.circular(compact ? 0 : 30),
+                  border: compact
+                      ? null
+                      : Border.all(color: PandoraSimpleColors.line),
                   boxShadow: compact
                       ? const <BoxShadow>[]
                       : const [
@@ -2658,12 +2672,17 @@ class _Composer extends StatelessWidget {
                 ),
                 child: Padding(
                   padding: compact
-                      ? const EdgeInsets.all(5)
+                      ? const EdgeInsets.symmetric(horizontal: 2, vertical: 2)
                       : const EdgeInsets.fromLTRB(6, 6, 6, 6),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      MenuAnchor(
+                      ListenableBuilder(
+                        listenable: focusNode,
+                        builder: (context, child) =>
+                            compact && !focusNode.hasFocus
+                                ? const SizedBox(width: 4)
+                                : MenuAnchor(
                         alignmentOffset: const Offset(0, -8),
                         style: MenuStyle(
                           backgroundColor: const WidgetStatePropertyAll(
@@ -2756,6 +2775,7 @@ class _Composer extends StatelessWidget {
                             color: PandoraSimpleColors.ink,
                           ),
                         ),
+                              ),
                       ),
                       const SizedBox(width: 2),
                       Expanded(
