@@ -1,17 +1,4 @@
-import modelRouterModule from "../../../packages/pandora-intelligence/src/routing/model-router.js";
-import registryModule from "../../../packages/pandora-intelligence/src/capabilities/registry.js";
-import modelContractModule from "../../../packages/pandora-intelligence/src/contracts/model.js";
-import policyModule from "../../../packages/pandora-intelligence/src/routing/policy.js";
-
-const { ModelRouter, normalizeModelSelection } = modelRouterModule as unknown as {
-  ModelRouter: new (input: Record<string, unknown>) => {
-    candidatesDetailed: (request: Record<string, unknown>, options?: Record<string, unknown>) => { candidates: Array<Record<string, unknown>>; excluded: Array<Record<string, unknown>> };
-  };
-  normalizeModelSelection: (value: unknown) => Readonly<Record<string, unknown>>;
-};
-const { ModelCapabilityRegistry } = registryModule as unknown as { ModelCapabilityRegistry: new () => { register: (value: Record<string, unknown>) => unknown } };
-const { createModelRequest } = modelContractModule as unknown as { createModelRequest: (value: Record<string, unknown>) => Record<string, unknown> };
-const { createRoutingPolicy } = policyModule as unknown as { createRoutingPolicy: (value: Record<string, unknown>) => Record<string, unknown> };
+import { ModelRouter, normalizeModelSelection, ModelCapabilityRegistry, createModelRequest, createRoutingPolicy } from "./routing-bundle.js";
 
 export type ChatModelSelection = Readonly<{selection:"auto"|"manual";provider:string|null;model:string|null;fallbackMode:"strict"|"allow_fallback"}>;
 export type ChatProviderConfig = Readonly<{provider:string;enabled:boolean;routingEligible:boolean;defaultModel:string;models:string[];tasks:string[];preferredTasks:string[];executionBoundary?:"external_provider"|"pandora_trusted_cloud"}>;
