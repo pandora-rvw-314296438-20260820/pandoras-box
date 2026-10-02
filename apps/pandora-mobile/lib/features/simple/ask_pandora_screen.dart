@@ -30,6 +30,7 @@ import '../../core/local_ai/plp_chat_fallback.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
+import 'pandora_model_picker.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../enterprise/plp_staff_task_action.dart';
 import 'pandora_simple_ui.dart';
@@ -105,6 +106,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   String? _submissionKey;
   String? _error;
   bool _shellHistoryExpanded = false;
+  PandoraChatModelSelection _modelSelection =
+      const PandoraChatModelSelection.auto();
+  PandoraIntelligenceMode _reasoningMode = PandoraIntelligenceMode.auto;
+  String _modelLabel = 'Auto';
 
   @override
   void initState() {
@@ -1162,6 +1167,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
         enterpriseContext: _cloudEnterpriseContext(),
+        mode: _reasoningMode,
+        modelSelection: _modelSelection,
       );
       await _watchActivity(execution);
       PandoraIntelligenceTurn turn;
@@ -1579,8 +1586,55 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _error = null;
       _outcomeUnknown = false;
       _submissionKey = null;
+      _modelSelection = const PandoraChatModelSelection.auto();
+      _reasoningMode = PandoraIntelligenceMode.auto;
+      _modelLabel = 'Auto';
     });
     _objectiveFocus.requestFocus();
+  }
+
+  Future<void> _pickModel() async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null || _submitting || _outcomeUnknown) return;
+    try {
+      final snapshot = await intelligence.modelPicker(threadId: _threadId);
+      if (!mounted) return;
+      final selected = await showModalBottomSheet<PandoraChatModelSelection>(
+        context: context,
+        backgroundColor: const Color(0xFF0B0B0C),
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => PandoraModelPickerSheet(
+          models: snapshot.models,
+          selection: _modelSelection,
+        ),
+      );
+      if (!mounted || selected == null) return;
+      setState(() {
+        _modelSelection = selected;
+        _modelLabel = snapshot.labelFor(selected);
+        _error = null;
+      });
+      _scheduleOverlayMeasure();
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
+  Future<void> _pickReasoning() async {
+    if (_submitting || _outcomeUnknown) return;
+    final selected = await showModalBottomSheet<PandoraIntelligenceMode>(
+      context: context,
+      backgroundColor: const Color(0xFF0B0B0C),
+      showDragHandle: true,
+      builder: (_) => PandoraReasoningPickerSheet(selection: _reasoningMode),
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _reasoningMode = selected;
+      _error = null;
+    });
+    _scheduleOverlayMeasure();
   }
 
   Future<void> loadThread(String threadId) async {
@@ -1599,6 +1653,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     });
     try {
       final history = await intelligence.messages(threadId);
+      PandoraChatModelPickerSnapshot? picker;
+      try {
+        picker = await intelligence.modelPicker(threadId: threadId);
+      } on PandoraIntelligenceException {
+        picker = null;
+      }
       if (!mounted) return;
       final teamPending = history.isNotEmpty &&
           !history.last.isUser &&
@@ -1620,6 +1680,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         _imageAttachment = null;
         _outcomeUnknown = false;
         _submissionKey = null;
+        if (picker != null) {
+          _modelSelection = picker.selection;
+          _reasoningMode = picker.reasoningMode;
+          _modelLabel = picker.labelFor(picker.selection);
+        } else {
+          _modelSelection = const PandoraChatModelSelection.auto();
+          _reasoningMode = PandoraIntelligenceMode.auto;
+          _modelLabel = 'Auto';
+        }
       });
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
@@ -1804,6 +1873,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
                 compact: true,
+                modelLabel: _modelLabel,
+                reasoningMode: _reasoningMode,
+                onModel: _pickModel,
+                onReasoning: _pickReasoning,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                   _scheduleOverlayMeasure();
@@ -1869,6 +1942,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
                 compact: true,
+                modelLabel: _modelLabel,
+                reasoningMode: _reasoningMode,
+                onModel: _pickModel,
+                onReasoning: _pickReasoning,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                   _scheduleOverlayMeasure();
@@ -2340,6 +2417,10 @@ class _Composer extends StatelessWidget {
     required this.error,
     required this.submitting,
     required this.disabled,
+    required this.modelLabel,
+    required this.reasoningMode,
+    required this.onModel,
+    required this.onReasoning,
     required this.onChanged,
     required this.onCamera,
     required this.onPhotos,
@@ -2367,6 +2448,10 @@ class _Composer extends StatelessWidget {
   final String? error;
   final bool submitting;
   final bool disabled;
+  final String modelLabel;
+  final PandoraIntelligenceMode reasoningMode;
+  final VoidCallback onModel;
+  final VoidCallback onReasoning;
   final VoidCallback onChanged;
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
@@ -2651,7 +2736,11 @@ class _Composer extends StatelessWidget {
                       ),
                       const SizedBox(width: 2),
                       Expanded(
-                        child: TextField(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextField(
                           key: const ValueKey<String>(
                               'ask' '-pandora-objective'),
                           controller: controller,
@@ -2684,6 +2773,19 @@ class _Composer extends StatelessWidget {
                             height: 1.35,
                           ),
                           onChanged: (_) => onChanged(),
+                            ),
+                            if (compact)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(2, 0, 0, 1),
+                                child: PandoraComposerModelControls(
+                                  modelLabel: modelLabel,
+                                  reasoningMode: reasoningMode,
+                                  enabled: !disabled && !submitting,
+                                  onModel: onModel,
+                                  onReasoning: onReasoning,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       if (!compact) ...[

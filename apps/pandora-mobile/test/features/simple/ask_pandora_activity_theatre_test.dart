@@ -42,6 +42,8 @@ class _FakeIntelligence extends PandoraIntelligenceApi {
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
+    PandoraChatModelSelection modelSelection =
+        const PandoraChatModelSelection.auto(),
   }) async {
     requestIds.add(requestId);
     return PandoraIntelligenceExecution(
