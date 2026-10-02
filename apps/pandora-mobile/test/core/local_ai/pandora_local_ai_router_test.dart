@@ -1,8 +1,28 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
 
 void main() {
   group('PandoraLocalAiRouter', () {
+    setUp(() {
+      PandoraLocalAiPreference.setCachedForTesting(true);
+    });
+
+    test('phone AI defaults off when the persisted preference is absent', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      PandoraLocalAiPreference.resetForTesting();
+      expect(await PandoraLocalAiPreference.load(), isFalse);
+      final decision = PandoraLocalAiRouter.decide(
+        message: 'Summarize this note.',
+        hasAttachment: false,
+        hasProjectContext: false,
+        hasSelectedCapability: false,
+        hasCharacterContext: false,
+      );
+      expect(decision.useLocal, isFalse);
+      expect(decision.reason, 'phone_ai_disabled');
+    });
+
     test('keeps routine conversation local', () {
       expect(
         PandoraLocalAiRouter.shouldUseLocal(
