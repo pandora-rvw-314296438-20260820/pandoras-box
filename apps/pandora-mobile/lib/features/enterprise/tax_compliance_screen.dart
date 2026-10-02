@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/widgets/pandora_navigation.dart';
 import '../../pandora_config.dart';
-import '../simple/ask_pandora_screen.dart';
 
 class TaxComplianceScreen extends StatefulWidget {
   const TaxComplianceScreen({
@@ -100,17 +99,6 @@ class _TaxComplianceScreenState extends State<TaxComplianceScreen> {
         _loading = false;
       });
     }
-  }
-
-  void _openPandora() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (routeContext) => AskPandoraScreen(
-          enterpriseContext: widget.enterpriseContext,
-          onHome: () => Navigator.of(routeContext).pop(),
-        ),
-      ),
-    );
   }
 
   String _periodLabel(Map<String, Object?> period) {
@@ -248,52 +236,6 @@ class _TaxComplianceScreenState extends State<TaxComplianceScreen> {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _isPlp ? null : SafeArea(
-        top: false,
-        child: Container(
-          decoration: BoxDecoration(
-            color: _canvas,
-            border: Border(top: BorderSide(color: _line)),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: Material(
-            color: _isPlp ? const Color(0xFF171512) : const Color(0xFFF0ECE4),
-            borderRadius: BorderRadius.circular(_isPlp ? 2 : 14),
-            child: InkWell(
-              key: const ValueKey<String>('tax-message-pandora'),
-              onTap: _openPandora,
-              borderRadius: BorderRadius.circular(_isPlp ? 2 : 14),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.auto_awesome_outlined,
-                      size: 20,
-                      color: _isPlp ? Colors.white : Colors.black,
-                    ),
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: Text(
-                        'Message Pandora about taxes',
-                        style: TextStyle(
-                          color: _isPlp ? Colors.white : Colors.black,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 20,
-                      color: _isPlp ? Colors.white : Colors.black,
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
         ),
       ),

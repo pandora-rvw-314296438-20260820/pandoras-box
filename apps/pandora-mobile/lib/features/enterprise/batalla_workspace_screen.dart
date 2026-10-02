@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_intelligence_api.dart';
-import '../simple/ask_pandora_screen.dart';
 
 // workspace_profile controls presentation only; authorization remains server-enforced.
 enum BatallaWorkspaceProfile {
@@ -151,11 +150,18 @@ class BatallaWorkspaceScreen extends StatefulWidget {
     this.initialRouteSlug = 'home',
     this.profileKey = 'atty_batalla',
     required this.onBackToWorkspaces,
+    this.onContextChanged,
+    this.onOpenThread,
   });
 
   final String initialRouteSlug;
   final String profileKey;
   final VoidCallback onBackToWorkspaces;
+  final ValueChanged<Map<String, Object?>>? onContextChanged;
+  final Future<void> Function(
+    PandoraIntelligenceThread thread,
+    Map<String, Object?> context,
+  )? onOpenThread;
 
   @override
   State<BatallaWorkspaceScreen> createState() => _BatallaWorkspaceScreenState();
@@ -245,28 +251,13 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
   void _select(String routeSlug) {
     if (_selectedSlug == routeSlug) return;
     setState(() => _selectedSlug = routeSlug);
+    widget.onContextChanged?.call(_contextFor(_selectedItem));
   }
 
-  Future<void> _openPandora({PandoraIntelligenceThread? thread}) async {
-    final item = _selectedItem;
-    final key = GlobalKey<AskPandoraScreenState>();
-    final future = Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (routeContext) => AskPandoraScreen(
-          key: key,
-          enterpriseContext: _contextFor(item),
-          onHome: () => Navigator.of(routeContext).pop(),
-        ),
-      ),
-    );
-    if (thread != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final state = key.currentState;
-        if (state != null) unawaited(state.loadThread(thread.id));
-      });
-    }
-    await future;
-    if (mounted) unawaited(_loadRecentThreads(refresh: true));
+  Future<void> _openRecentThread(PandoraIntelligenceThread thread) async {
+    final callback = widget.onOpenThread;
+    if (callback == null) return;
+    await callback(thread, _contextFor(_selectedItem));
   }
 
   Future<void> _showNavigationSheet() async {
@@ -387,7 +378,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    onTap: () => _openPandora(thread: thread),
+                    onTap: () => _openRecentThread(thread),
                   ),
             ],
           ),
@@ -507,12 +498,6 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
                         ),
                       ],
                     ),
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey<String>('batalla-ask-pandora'),
-                    onPressed: _openPandora,
-                    icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                    label: const Text('Ask Pandora'),
                   ),
                 ],
               ),

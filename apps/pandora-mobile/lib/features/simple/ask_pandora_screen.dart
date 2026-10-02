@@ -227,6 +227,21 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     setState(() => _shellHistoryExpanded = false);
   }
 
+  void primeExternalPrompt(
+    String prompt, {
+    bool requestFocus = true,
+  }) {
+    final normalized = prompt.trim();
+    if (normalized.isEmpty) return;
+    _objective.text = normalized;
+    _objective.selection = TextSelection.collapsed(offset: normalized.length);
+    if (requestFocus) {
+      _objectiveFocus.requestFocus();
+    } else {
+      _objectiveFocus.unfocus();
+    }
+  }
+
   Future<String?> submitExternalPrompt(
     String prompt, {
     bool requestFocus = true,

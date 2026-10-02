@@ -15,12 +15,16 @@ import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
 import '../../core/widgets/status_badge.dart';
-import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
 import 'connection_presentation.dart';
 
 class ConnectionsScreen extends StatefulWidget {
-  const ConnectionsScreen({super.key});
+  const ConnectionsScreen({super.key, this.onPandoraPrompt});
+
+  final void Function(
+    String prompt,
+    Map<String, Object?> context,
+  )? onPandoraPrompt;
 
   @override
   State<ConnectionsScreen> createState() => _ConnectionsScreenState();
@@ -232,7 +236,12 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
         ? repository as GovernedConnectionActionSource
         : null;
     if (source == null) {
-      _openGovernedConnectionAction(context, connection, 'Connect');
+      _openGovernedConnectionAction(
+        context,
+        connection,
+        'Connect',
+        widget.onPandoraPrompt,
+      );
       return;
     }
 
@@ -461,6 +470,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                         context,
                         items[index],
                         action,
+                        widget.onPandoraPrompt,
                       ),
                     ),
                     if (index != items.length - 1)
@@ -730,15 +740,25 @@ void _openGovernedConnectionAction(
   BuildContext context,
   ConnectionSummary connection,
   String action,
+  void Function(String prompt, Map<String, Object?> context)? onPandoraPrompt,
 ) {
   final verb = action.toLowerCase();
   final provider = connectionProviderDisplayName(connection.name);
   final prompt = verb == 'disconnect'
       ? 'Disconnect $provider. Verify the impact, affected systems, rollback path, and current provider state first. Prepare the governed change for my approval; do not execute it just because I asked.'
       : 'Review and manage $provider. Test its current health and capabilities, then show me any governed change that needs my approval.';
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => AskPandoraScreen(initialPrompt: prompt),
-    ),
+  onPandoraPrompt?.call(
+    prompt,
+    <String, Object?>{
+      'surface': 'enterprise_integrations',
+      'route': '/connections',
+      'capabilities': const <String>[],
+      'identityScope': 'owner_workspace',
+      'selectedObject': <String, String>{
+        'connectionId': connection.id,
+        'providerName': provider,
+        'action': action,
+      },
+    },
   );
 }

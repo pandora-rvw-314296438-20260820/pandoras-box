@@ -9,12 +9,16 @@ import '../../core/models/pandora_models.dart';
 import '../../core/state/screen_controller.dart';
 import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_navigation.dart';
-import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
 import 'provider_catalog_screen.dart';
 
 class PluginsScreen extends StatefulWidget {
-  const PluginsScreen({super.key});
+  const PluginsScreen({super.key, this.onPandoraPrompt});
+
+  final void Function(
+    String prompt,
+    Map<String, Object?> context,
+  )? onPandoraPrompt;
 
   @override
   State<PluginsScreen> createState() => _PluginsScreenState();
@@ -180,7 +184,9 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       child: TextButton.icon(
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => const ProviderCatalogScreen(),
+                            builder: (_) => ProviderCatalogScreen(
+                              onPandoraPrompt: widget.onPandoraPrompt,
+                            ),
                           ),
                         ),
                         icon: const Icon(Icons.grid_view_rounded, size: 18),
@@ -541,11 +547,18 @@ class _PluginsScreenState extends State<PluginsScreen> {
       _PluginAction.disconnect =>
         'Disconnect ${plugin.name}. Treat this as a consequential governed action. Show the exact account and capabilities that would be removed, require only the authorization boundary that actually applies, then verify provider state after the change. Do not disconnect anything else.',
     };
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AskPandoraScreen(initialPrompt: prompt),
-      ),
-    );
+    final context = <String, Object?>{
+      'surface': 'enterprise_integrations',
+      'route': '/connections',
+      'capabilities': const <String>[],
+      'identityScope': 'owner_workspace',
+      'selectedObject': <String, String>{
+        'providerId': plugin.id,
+        'providerName': plugin.name,
+        'action': action.name,
+      },
+    };
+    widget.onPandoraPrompt?.call(prompt, context);
   }
 }
 

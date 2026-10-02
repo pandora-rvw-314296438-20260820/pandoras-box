@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_intelligence_api.dart';
-import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
 
 class ProviderCatalogScreen extends StatefulWidget {
-  const ProviderCatalogScreen({super.key});
+  const ProviderCatalogScreen({super.key, this.onPandoraPrompt});
+
+  final void Function(
+    String prompt,
+    Map<String, Object?> context,
+  )? onPandoraPrompt;
 
   @override
   State<ProviderCatalogScreen> createState() => _ProviderCatalogScreenState();
@@ -283,11 +287,21 @@ class _ProviderCatalogScreenState extends State<ProviderCatalogScreen> {
     final prompt = entry.isAuthorized && entry.isHealthy
         ? 'Verify ${entry.displayName} from Pandora\'s Universal provider catalog. Confirm the current provider account, scopes, consent, capability grants and live health through provider-backed readback. Do not claim connected or usable from catalog metadata alone.'
         : 'Connect ${entry.displayName} from Pandora\'s Universal provider catalog. Verify the exact account, authorization scopes, consent requirements, capability grants and live provider health. Use Pandora\'s governed credential boundary and do not claim connected until provider-backed readback succeeds.';
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AskPandoraScreen(initialPrompt: prompt),
-      ),
-    );
+    final context = <String, Object?>{
+      'surface': 'enterprise_integrations',
+      'route': '/capabilities-providers',
+      'capabilities': entry.capabilities
+          .map((capability) => capability.capabilityKey)
+          .toList(growable: false),
+      'identityScope': 'owner_workspace',
+      'selectedObject': <String, String>{
+        'providerKey': entry.providerKey,
+        'providerName': entry.displayName,
+        'activationState': entry.activationState ?? 'unknown',
+      },
+    };
+    widget.onPandoraPrompt?.call(prompt, context);
+    Navigator.of(this.context).maybePop();
   }
 }
 

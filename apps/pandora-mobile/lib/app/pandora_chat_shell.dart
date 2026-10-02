@@ -70,6 +70,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
   Map<String, Object?>? _activeEnterpriseContext;
+  Map<String, Object?>? _surfaceContextOverride;
   EnterpriseWorkspaceSelection? _activeWorkspaceSelection;
   final Set<int> _visited = <int>{9};
   List<PandoraIntelligenceThread> _threads =
@@ -177,6 +178,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     HapticFeedback.selectionClick();
     setState(() {
       _index = value;
+      _surfaceContextOverride = null;
       _visited.add(value);
     });
     final screen = switch (value) {
@@ -489,9 +491,31 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
 
-  void _openVisionChat() => _openConversationHistory();
+  void _primeGlobalComposer(
+    String prompt,
+    Map<String, Object?> context, {
+    bool showHistory = false,
+  }) {
+    setState(() => _surfaceContextOverride = Map<String, Object?>.from(context));
+    _chatKey.currentState?.primeExternalPrompt(prompt);
+    if (showHistory) _chatKey.currentState?.showHistory();
+  }
+
+  Future<void> _openGlobalThread(
+    PandoraIntelligenceThread thread,
+    Map<String, Object?> context,
+  ) async {
+    setState(() => _surfaceContextOverride = Map<String, Object?>.from(context));
+    final chat = _chatKey.currentState;
+    if (chat == null) return;
+    chat.showHistory();
+    await chat.loadThread(thread.id);
+  }
 
   Map<String, Object?> _conversationContextForCurrentSurface() {
+    if (_surfaceContextOverride != null) {
+      return Map<String, Object?>.from(_surfaceContextOverride!);
+    }
     if (_index == 0 && _activeEnterpriseContext != null) {
       return Map<String, Object?>.from(_activeEnterpriseContext!);
     }
@@ -551,13 +575,17 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                           _activeWorkspaceSelection!.section.routeSlug,
                       profileKey: _activeWorkspaceProfileKey(),
                       onBackToWorkspaces: () => _select(9),
+                      onContextChanged: (context) {
+                        setState(() => _activeEnterpriseContext = context);
+                      },
+                      onOpenThread: _openGlobalThread,
                     )
                   : const SizedBox.expand(),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
           4 => const ActivityScreen(),
-          5 => const PluginsScreen(),
+          5 => PluginsScreen(onPandoraPrompt: _primeGlobalComposer),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
           8 => PandoraOperationsRoomScreen(
@@ -570,7 +598,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               onActivity: () => _select(4),
               onMore: () => _select(3),
             ),
-          10 => EnterpriseVisionScreen(onAskPandora: _openVisionChat),
+          10 => const EnterpriseVisionScreen(),
           11 => ProviderEcosystemScreen(
               onOpenConnections: () => _select(5),
             ),
