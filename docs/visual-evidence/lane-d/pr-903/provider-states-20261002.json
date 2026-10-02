@@ -1,0 +1,106 @@
+{
+  "snapshotAt": "2026-10-02T10:56:30Z",
+  "organization": "MCPMaster Staging",
+  "authority": "pandora_connection_verification_observations_v1 + live provider/broker readback",
+  "note": "Redacted evidence only. No credentials or raw tokens.",
+  "providers": [
+    {
+      "provider": "GitHub",
+      "state": "Verified",
+      "missing": null,
+      "source": "github_provider_readback",
+      "observedAt": "2026-10-02T10:41:20.736233Z"
+    },
+    {
+      "provider": "Supabase",
+      "state": "Verified",
+      "missing": null,
+      "source": "supabase_provider_readback",
+      "observedAt": "2026-10-02T10:41:20.736233Z"
+    },
+    {
+      "provider": "Vercel",
+      "state": "Verified",
+      "missing": null,
+      "source": "vercel_provider_readback",
+      "observedAt": "2026-10-02T10:41:20.736233Z"
+    },
+    {
+      "provider": "Meta",
+      "state": "Verified",
+      "missing": null,
+      "source": "vault_no_spend_provider_readback",
+      "observedAt": "2026-10-02T10:44:18.751631Z"
+    },
+    {
+      "provider": "Google Workspace",
+      "state": "Not connected",
+      "missing": "No organization-scoped Google Workspace OAuth connection is recorded.",
+      "source": "connection_inventory",
+      "observedAt": "2026-10-02T10:44:25.348929Z"
+    },
+    {
+      "provider": "OpenAI",
+      "state": "Partial",
+      "missing": "Configured model is readable, but the broker-required test inference was not run under the no-spend rule.",
+      "source": "vault_no_spend_provider_readback",
+      "observedAt": "2026-10-02T10:43:45.240203Z"
+    },
+    {
+      "provider": "Gemini",
+      "state": "Partial",
+      "missing": "Configured model is readable, but the broker-required test inference was not run under the no-spend rule.",
+      "source": "vault_no_spend_provider_readback",
+      "observedAt": "2026-10-02T10:44:00.010553Z"
+    },
+    {
+      "provider": "Kimi",
+      "state": "Partial",
+      "missing": "Configured model is readable, but the broker-required test inference was not run under the no-spend rule.",
+      "source": "vault_no_spend_provider_readback",
+      "observedAt": "2026-10-02T10:44:06.682601Z"
+    },
+    {
+      "provider": "PostHog",
+      "state": "Error",
+      "missing": "Stored PostHog credential is not authorized for project-read API access; a personal API key with project read access is required.",
+      "source": "vault_no_spend_provider_readback",
+      "observedAt": "2026-10-02T10:44:11.901015Z"
+    },
+    {
+      "provider": "PSA OpenSTAT",
+      "state": "Verified",
+      "missing": null,
+      "source": "public_safe_read_provider_readback",
+      "observedAt": "2026-10-02T10:41:20.736233Z"
+    },
+    {
+      "provider": "PHIVOLCS Hazard GIS",
+      "state": "Partial",
+      "missing": "PHIVOLCS public layer is reachable and valid, but the Supabase control-plane probe timed out before a fresh receipt could be committed.",
+      "source": "external_public_provider_readback",
+      "observedAt": "2026-10-02T10:41:20.736233Z"
+    },
+    {
+      "provider": "NAMRIA Geoportal",
+      "state": "Verified",
+      "missing": null,
+      "source": "public_safe_read_provider_readback",
+      "observedAt": "2026-10-02T10:41:20.736233Z"
+    },
+    {
+      "provider": "PSA PSGC",
+      "state": "Not connected",
+      "missing": "No PSA-issued PSGC query token is present in the tenant Vault.",
+      "source": "connection_inventory",
+      "observedAt": "2026-10-02T10:41:20.736233Z"
+    }
+  ],
+  "counts": {
+    "verified": 6,
+    "partial": 4,
+    "notConnected": 2,
+    "error": 1,
+    "total": 13
+  }
+}

@@ -35,6 +35,7 @@ import '../helpers/test_app.dart';
 const _surfaceKey = ValueKey<String>('owner-screen-evidence');
 const _phoneSize = Size(390, 844);
 const _compactPhoneSize = Size(320, 800);
+const _allProvidersEvidenceSize = Size(390, 2200);
 const _renderFrames = <Duration>[
   Duration.zero,
   Duration(milliseconds: 50),
@@ -637,6 +638,12 @@ void main() {
     _VisualCase(
       name: 'connections_healthy_porcelain_390x844',
       build: () => const ConnectionsScreen(),
+    ),
+    _VisualCase(
+      name: 'connections_all_providers_obsidian_390x2200',
+      build: () => const ConnectionsScreen(),
+      themeMode: ThemeMode.dark,
+      logicalSize: _allProvidersEvidenceSize,
     ),
     _VisualCase(
       name: 'connections_degraded_graphite_390x844',
