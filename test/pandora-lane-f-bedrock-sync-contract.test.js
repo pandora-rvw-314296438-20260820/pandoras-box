@@ -15,6 +15,7 @@ test("Bedrock sync uses only Vercel workload identity plus the dedicated role",(
 test("runtime probe is exactly one minimal Converse call per conversational candidate",()=>{
   assert.match(route,/prompt: "OK"/);
   assert.match(route,/maxTokens: 1/);
+  assert.match(route,/temperature: null/);
   assert.match(route,/converseWithBedrockTarget/);
   assert.doesNotMatch(route,/retry|backoff/i);
 });

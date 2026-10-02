@@ -609,7 +609,7 @@ async function runBedrockCatalogSync(oidc:string) {
       try{
         const value=await bedrockRuntime.converseWithBedrockTarget({
           modelId:row.modelId,invocationTarget:row.invocationTarget,providerName:row.providerName,
-          prompt: "OK", maxTokens: 1, credentials, fetchFn: globalThis.fetch, timeoutMs: 20000,
+          prompt: "OK", maxTokens: 1, temperature: null, credentials, fetchFn: globalThis.fetch, timeoutMs: 20000,
         });
         const usage=value?.usage||{};
         return{modelId:row.modelId,invocationTarget:row.invocationTarget,ok:true,

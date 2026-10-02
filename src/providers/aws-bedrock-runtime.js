@@ -263,6 +263,7 @@ async function converseWithBedrockTarget({
   resolveWorkloadToken = resolveDefaultWorkloadToken,
   now = new Date(),
   maxTokens = 256,
+  temperature = 0,
   credentials = null,
   timeoutMs = 30000,
 }) {
@@ -272,6 +273,9 @@ async function converseWithBedrockTarget({
   }
   if (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > 8192) {
     throw new Error("AWS_BEDROCK_OUTPUT_LIMIT_INVALID");
+  }
+  if (temperature !== null && (!Number.isFinite(temperature) || temperature < 0 || temperature > 1)) {
+    throw new Error("AWS_BEDROCK_TEMPERATURE_INVALID");
   }
   const { roleArn, region } = runtimeConfig(environment);
   let activeCredentials = credentials;
@@ -284,9 +288,11 @@ async function converseWithBedrockTarget({
       fetchFn,
     });
   }
+  const inferenceConfig = { maxTokens };
+  if (temperature !== null) inferenceConfig.temperature = temperature;
   const requestBody = {
     messages: [{ role: "user", content: normalizeParts({ prompt, parts }) }],
-    inferenceConfig: { maxTokens, temperature: 0 },
+    inferenceConfig,
   };
   if (typeof system === "string" && system.trim()) requestBody.system = [{ text: system.trim() }];
   const signed = signBedrockRequest({

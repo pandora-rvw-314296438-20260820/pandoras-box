@@ -253,10 +253,12 @@ test("dynamic Bedrock probe uses one exact Converse target with supplied short-l
     providerName: "Vendor",
     prompt: "OK",
     maxTokens: 1,
+    temperature: null,
     credentials: { accessKeyId: "ASIATEST", secretAccessKey: "secret", sessionToken: "session" },
-    fetchFn: async (url) => {
+    fetchFn: async (url, init) => {
       calls += 1;
       assert.match(url, /\/model\/us\.vendor\.model-v1\/converse$/);
+      assert.deepEqual(JSON.parse(init.body).inferenceConfig, { maxTokens: 1 });
       return {
         ok: true, status: 200,
         headers: { get: () => "req-1" },
