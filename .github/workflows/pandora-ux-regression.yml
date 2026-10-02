@@ -51,6 +51,15 @@ jobs:
           test -s test/goldens/owner_screens/obsidian_chat_shell_390x844.png
           test -s test/goldens/owner_screens/obsidian_chat_empty_390x844.png
 
+      - name: Emit Lane E shell golden for governed sync
+        working-directory: apps/pandora-mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'LANE_E_GOLDEN_B64_BEGIN'
+          base64 -w 76 test/goldens/owner_screens/obsidian_chat_shell_390x844.png
+          echo 'LANE_E_GOLDEN_B64_END'
+
       - name: Capture Lane E exact-source shell evidence
         working-directory: apps/pandora-mobile
         shell: bash
