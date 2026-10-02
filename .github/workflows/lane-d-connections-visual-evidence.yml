@@ -1,0 +1,49 @@
+name: Lane D connections visual evidence
+on:
+  push:
+    branches:
+      - chatgpt/lane-d-polish-connections-v1
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Render after evidence
+        working-directory: apps/pandora-mobile
+        run: |
+          set -euo pipefail
+          flutter pub get --enforce-lockfile
+          flutter test --update-goldens test/goldens/owner_screens_visual_evidence_test.dart --plain-name "captures connections_healthy_porcelain_390x844"
+          test -s build/owner-screen-evidence/connections_healthy_porcelain_390x844.png
+          mkdir -p ../../../docs/visual-evidence/lane-d/pr-903
+          cp build/owner-screen-evidence/connections_healthy_porcelain_390x844.png ../../../docs/visual-evidence/lane-d/pr-903/after.png
+      - name: Render before evidence from main
+        run: |
+          set -euo pipefail
+          git worktree add /tmp/lane-d-main origin/main
+          cd /tmp/lane-d-main/apps/pandora-mobile
+          flutter pub get --enforce-lockfile
+          flutter test test/goldens/owner_screens_visual_evidence_test.dart --plain-name "captures connections_healthy_porcelain_390x844"
+          test -s build/owner-screen-evidence/connections_healthy_porcelain_390x844.png
+          cp build/owner-screen-evidence/connections_healthy_porcelain_390x844.png "$GITHUB_WORKSPACE/docs/visual-evidence/lane-d/pr-903/before.png"
+      - name: Commit visual evidence
+        run: |
+          set -euo pipefail
+          git config user.name "pandora-lane-d-evidence"
+          git config user.email "actions@users.noreply.github.com"
+          git add apps/pandora-mobile/test/goldens/owner_screens/connections_healthy_porcelain_390x844.png docs/visual-evidence/lane-d/pr-903/before.png docs/visual-evidence/lane-d/pr-903/after.png
+          git diff --cached --quiet && exit 0
+          git commit -m "test(connections): add Lane D visual evidence"
+          git push origin HEAD:chatgpt/lane-d-polish-connections-v1
