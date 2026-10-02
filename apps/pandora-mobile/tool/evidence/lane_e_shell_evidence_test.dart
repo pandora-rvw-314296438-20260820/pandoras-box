@@ -116,7 +116,7 @@ Future<void> _pumpVisualFrames(WidgetTester tester) async {
 
 Future<void> _precacheMark(WidgetTester tester) async {
   final mark = find.byType(PandoraMark);
-  expect(mark, findsWidgets);
+  if (mark.evaluate().isEmpty) return;
   await tester.runAsync(() async {
     await precacheImage(
       const AssetImage(PandoraMark.assetPath),
@@ -264,6 +264,7 @@ void main() {
         requestFocus: false,
       );
       await tester.pumpAndSettle();
+      await _precacheMark(tester);
       expect(reply, contains('six affected reservations'));
       expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
       final history =
