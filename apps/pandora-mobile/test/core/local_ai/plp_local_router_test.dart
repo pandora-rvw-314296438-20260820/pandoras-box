@@ -4,6 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
 
 void main() {
+  setUp(() {
+    PandoraLocalAiPreference.setCachedForTesting(true);
+  });
+
   const ready = PandoraLocalAiStatus(
     supported: true,
     configured: true,
