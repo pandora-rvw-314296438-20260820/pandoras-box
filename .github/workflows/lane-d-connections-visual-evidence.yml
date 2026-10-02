@@ -34,15 +34,16 @@ jobs:
           flutter pub get --enforce-lockfile
           flutter test --update-goldens test/goldens/owner_screens_visual_evidence_test.dart --plain-name "captures connections_healthy_porcelain_390x844"
           test -s build/owner-screen-evidence/connections_healthy_porcelain_390x844.png
-          mkdir -p ../../../docs/visual-evidence/lane-d/pr-903
-          cp build/owner-screen-evidence/connections_healthy_porcelain_390x844.png ../../../docs/visual-evidence/lane-d/pr-903/after.png
+          mkdir -p ../../docs/visual-evidence/lane-d/pr-903
+          cp build/owner-screen-evidence/connections_healthy_porcelain_390x844.png ../../docs/visual-evidence/lane-d/pr-903/after.png
       - name: Render before evidence from main
         working-directory: before-main/apps/pandora-mobile
         run: |
           set -euo pipefail
           flutter pub get --enforce-lockfile
-          flutter test test/goldens/owner_screens_visual_evidence_test.dart --plain-name "captures connections_healthy_porcelain_390x844"
+          flutter test --update-goldens test/goldens/owner_screens_visual_evidence_test.dart --plain-name "captures connections_healthy_porcelain_390x844"
           test -s build/owner-screen-evidence/connections_healthy_porcelain_390x844.png
+          mkdir -p "$GITHUB_WORKSPACE/docs/visual-evidence/lane-d/pr-903"
           cp build/owner-screen-evidence/connections_healthy_porcelain_390x844.png "$GITHUB_WORKSPACE/docs/visual-evidence/lane-d/pr-903/before.png"
       - name: Commit visual evidence
         run: |
