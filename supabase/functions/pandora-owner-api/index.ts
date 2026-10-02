@@ -2103,10 +2103,9 @@ async function connectionAction(
         null,
         { canonicalProjectRead: true, credentialReturned: false },
       );
-    } else if (
-      normalizedProvider === "meta" ||
-      normalizedProvider === "google_workspace"
-    ) {
+    } else if (normalizedProvider === "meta") {
+      await verifyMetaConnection(context, connectionId);
+    } else if (normalizedProvider === "google_workspace") {
       await verifyVaultNoSpendConnection(context, normalizedProvider);
     } else if (SELF_SERVICE_PROVIDERS.has(normalizedProvider)) {
       const advanced = asRecord(item.advanced);
