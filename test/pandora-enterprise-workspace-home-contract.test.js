@@ -144,6 +144,14 @@ test("workspace home keeps the hamburger fixed without a redundant app title", (
   assert.ok(hub.includes("Icons.history_rounded"));
   assert.ok(hub.includes("workspace-home-activity"));
   assert.ok(hub.includes("workspace-home-more"));
+  assert.ok(
+    hub.includes(
+      "_header(context, openDrawer),\n              const SizedBox(height: 1),",
+    ),
+  );
+  assert.ok(
+    !hub.includes("const Divider(height: 1, color: Color(0x33FFFFFF))"),
+  );
 });
 
 

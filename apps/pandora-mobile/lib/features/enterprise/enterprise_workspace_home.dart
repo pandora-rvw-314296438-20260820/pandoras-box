@@ -454,7 +454,7 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _header(context, openDrawer),
-              const Divider(height: 1, color: Color(0x33FFFFFF)),
+              const SizedBox(height: 1),
               Expanded(
                 child: SingleChildScrollView(
                   key: const ValueKey<String>('enterprise-workspace-list'),
