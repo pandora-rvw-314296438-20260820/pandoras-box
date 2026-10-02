@@ -407,6 +407,10 @@ void main() {
       'attachment menu contains input actions without another navigation menu',
       (tester) async {
     await mount(tester, const Size(390, 800));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-plus')));
     await tester.pumpAndSettle();
     expect(find.text('Camera'), findsOneWidget);
