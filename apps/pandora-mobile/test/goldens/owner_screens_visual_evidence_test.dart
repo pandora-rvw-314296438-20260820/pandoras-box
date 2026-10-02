@@ -27,6 +27,7 @@ import 'package:pandora_mobile/features/projects/projects_screen.dart';
 import 'package:pandora_mobile/features/safety/safety_screen.dart';
 import 'package:pandora_mobile/features/settings/settings_screen.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
+import 'package:pandora_mobile/features/simple/pandora_model_picker.dart';
 import 'package:pandora_mobile/features/simple/projects_screen.dart' as simple;
 
 import '../helpers/fake_owner_api.dart';
@@ -677,6 +678,48 @@ void main() {
       build: () => const PandoraChatShell(),
       themeMode: ThemeMode.dark,
       textScaler: TextScaler.linear(1.6),
+    ),
+    _VisualCase(
+      name: 'model_picker_obsidian_390x844',
+      build: () => const PandoraModelPickerSheet(
+        selection: PandoraChatModelSelection.auto(),
+        models: <PandoraChatModelOption>[
+          PandoraChatModelOption(
+            routingProvider: 'bedrock',
+            providerName: 'Mistral AI',
+            modelId: 'fixture.mistral',
+            modelName: 'Mistral Verified',
+            selectable: true,
+            availability: 'available',
+          ),
+          PandoraChatModelOption(
+            routingProvider: 'bedrock',
+            providerName: 'Anthropic',
+            modelId: 'fixture.payment',
+            modelName: 'Claude Payment Blocked',
+            selectable: false,
+            availability: 'unavailable',
+            unavailableReason: 'Payment or provider agreement required',
+          ),
+          PandoraChatModelOption(
+            routingProvider: 'bedrock',
+            providerName: 'OpenAI',
+            modelId: 'fixture.access',
+            modelName: 'GPT Access Denied',
+            selectable: false,
+            availability: 'unavailable',
+            unavailableReason: 'Access denied',
+          ),
+        ],
+      ),
+      themeMode: ThemeMode.dark,
+    ),
+    _VisualCase(
+      name: 'reasoning_picker_obsidian_390x844',
+      build: () => const PandoraReasoningPickerSheet(
+        selection: PandoraIntelligenceMode.auto,
+      ),
+      themeMode: ThemeMode.dark,
     ),
     _VisualCase(
       name: 'obsidian_chat_empty_390x844',
