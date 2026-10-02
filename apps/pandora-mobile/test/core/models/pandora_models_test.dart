@@ -357,8 +357,11 @@ void main() {
     final activity = AuditEvent.fromJson(
       asJsonList(fixture('activity')).single,
     );
-    final connection = ConnectionSummary.fromJson(
-      asJsonList(fixture('connections')).single,
+    final connections = asJsonList(fixture('connections'))
+        .map(ConnectionSummary.fromJson)
+        .toList(growable: false);
+    final github = connections.singleWhere(
+      (connection) => connection.id == 'github',
     );
     final safety = SafetyOverview.fromJson(fixture('safety'));
 
@@ -366,8 +369,9 @@ void main() {
     expect(approval.reversible, isTrue);
     expect(action.executionMode, 'Plan first');
     expect(activity.summary, contains('exact candidate'));
-    expect(connection.canRead, isTrue);
-    expect(connection.canChange, isFalse);
+    expect(connections, hasLength(13));
+    expect(github.canRead, isTrue);
+    expect(github.canChange, isFalse);
     expect(safety.auditChain.valid, isTrue);
   });
 
