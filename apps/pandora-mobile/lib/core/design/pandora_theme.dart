@@ -158,6 +158,16 @@ abstract final class PandoraTheme {
           ),
         ),
       ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: palette.strongSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: PandoraRadius.cardBorder,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: action),
+      ),
       dividerTheme: DividerThemeData(
         color: palette.outlineSoft,
         thickness: 1,
