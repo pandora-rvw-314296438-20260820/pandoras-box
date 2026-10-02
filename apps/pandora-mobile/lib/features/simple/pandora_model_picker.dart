@@ -1,3 +1,11 @@
+const String pandoraLocalDeviceProvider = 'local_device';
+const String pandoraLocalDeviceModel = 'qwen-device';
+
+bool isPandoraLocalDeviceSelection(PandoraChatModelSelection selection) =>
+    selection.selection == 'manual' &&
+    selection.provider == pandoraLocalDeviceProvider &&
+    selection.model == pandoraLocalDeviceModel;
+
 import 'package:flutter/material.dart';
 
 import '../../core/data/pandora_intelligence_api.dart';
@@ -107,10 +115,16 @@ class PandoraModelPickerSheet extends StatelessWidget {
     super.key,
     required this.models,
     required this.selection,
+    required this.localAiEnabled,
+    required this.localAiAvailable,
+    this.localAiModelName,
   });
 
   final List<PandoraChatModelOption> models;
   final PandoraChatModelSelection selection;
+  final bool localAiEnabled;
+  final bool localAiAvailable;
+  final String? localAiModelName;
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +159,28 @@ class PandoraModelPickerSheet extends StatelessWidget {
                 onTap: () => Navigator.of(context).pop(
                   const PandoraChatModelSelection.auto(),
                 ),
+              ),
+              const Divider(height: 1, color: Color(0xFF242426)),
+              _ModelTile(
+                key: const ValueKey<String>('model-picker-local-device'),
+                title: 'Local device (Qwen)',
+                subtitle: !localAiEnabled
+                    ? 'Turn on Phone AI in Settings to use Qwen on this device.'
+                    : !localAiAvailable
+                        ? 'Phone AI is on, but no supported local model is configured.'
+                        : (localAiModelName?.trim().isNotEmpty ?? false)
+                            ? localAiModelName!.trim() + ' · private on-device inference'
+                            : 'Qwen · private on-device inference',
+                selected: isPandoraLocalDeviceSelection(selection),
+                enabled: localAiEnabled && localAiAvailable,
+                onTap: localAiEnabled && localAiAvailable
+                    ? () => Navigator.of(context).pop(
+                          const PandoraChatModelSelection.manual(
+                            provider: pandoraLocalDeviceProvider,
+                            model: pandoraLocalDeviceModel,
+                          ),
+                        )
+                    : null,
               ),
               const Divider(height: 1, color: Color(0xFF242426)),
               Expanded(
