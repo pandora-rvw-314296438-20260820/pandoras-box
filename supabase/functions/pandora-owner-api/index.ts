@@ -2104,15 +2104,7 @@ async function connectionAction(
         { canonicalProjectRead: true, credentialReturned: false },
       );
     } else if (normalizedProvider === "meta") {
-      await verifyMetaConnection(context, connectionId);
-      await recordConnectionVerificationObservation(
-        context,
-        normalizedProvider,
-        "verified",
-        "meta_live_vault_provider_readback",
-        null,
-        { providerHealth: "ACTIVE_HEALTHY", credentialReturned: false },
-      );
+      await verifyVaultNoSpendConnection(context, normalizedProvider);
     } else if (normalizedProvider === "google_workspace") {
       await verifyVaultNoSpendConnection(context, normalizedProvider);
     } else if (SELF_SERVICE_PROVIDERS.has(normalizedProvider)) {
