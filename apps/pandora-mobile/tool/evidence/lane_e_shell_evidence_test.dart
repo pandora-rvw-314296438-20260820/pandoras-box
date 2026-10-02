@@ -257,11 +257,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
 
+      await tester.tap(
+        find.byKey(const ValueKey<String>('workspace-expand-plp-boracay')),
+      );
+      await tester.pumpAndSettle();
+
       final scrollable = find.descendant(
         of: workspaceList,
         matching: find.byType(Scrollable),
       ).first;
       final scrollState = tester.state<ScrollableState>(scrollable);
+      expect(scrollState.position.maxScrollExtent, greaterThan(500));
       final beforeScroll = scrollState.position.pixels;
       await tester.drag(workspaceList, const Offset(0, -520));
       await tester.pumpAndSettle();
