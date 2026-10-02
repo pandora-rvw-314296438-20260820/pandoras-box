@@ -10,8 +10,12 @@ test("shared shell routes all known enterprise workspaces to non-empty business 
   assert.ok(shell.indexOf("'plp-boracay'")<shell.lastIndexOf("const SizedBox.expand()"));
 });
 test("PLP embedded mode suppresses its legacy scaffold and command dock",()=>{
-  assert.match(plp,/if \(widget.embeddedRouteSlug != null\)[\s\S]*_PlpLazyIndexedStack/);
-  const embedded=plp.slice(plp.indexOf("if (widget.embeddedRouteSlug != null)"),plp.indexOf("return KeyedSubtree(",plp.indexOf("if (widget.embeddedRouteSlug != null)")+1));
+  assert.match(plp,/if \(widget.embeddedRouteSlug != null\)[\s\S]*'plp-embedded-'[\s\S]*_PlpLazyIndexedStack/);
+  const marker=plp.indexOf("'plp-embedded-'");
+  const start=plp.lastIndexOf("if (widget.embeddedRouteSlug != null)",marker);
+  const end=plp.indexOf("return KeyedSubtree(",marker+20);
+  assert.ok(marker>=0&&start>=0&&end>marker);
+  const embedded=plp.slice(start,end);
   assert.doesNotMatch(embedded,/PlpCommandDock|AskPandoraScreen/);
 });
 test("Euro-Fish embedded sections render provider-backed operational content instead of a chat screen",()=>{

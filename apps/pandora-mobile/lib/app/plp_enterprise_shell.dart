@@ -38,7 +38,7 @@ class PlpEnterpriseShell extends StatefulWidget {
   final Map<String, Object?>? bootstrapOverride;
 
   /// When set, render only the existing PLP business surface for this route.
-  /// The parent PandoraChatShell remains the sole owner of navigation/chat.
+  /// The parent owner shell remains the sole owner of navigation/chat.
   final String? embeddedRouteSlug;
 
   @override
