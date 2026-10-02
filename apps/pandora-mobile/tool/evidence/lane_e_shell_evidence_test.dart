@@ -330,6 +330,9 @@ void main() {
       );
       await _capture(tester, '04-long-page-scrolled-under-composer');
 
+      final maxScroll = scrollState.position.pixels;
+      scrollState.position.jumpTo((maxScroll - 360).clamp(0.0, maxScroll));
+      await tester.pumpAndSettle();
       final firstScroll = scrollState.position.pixels;
       await tester.drag(workspaceList, const Offset(0, -360));
       await tester.pumpAndSettle();
