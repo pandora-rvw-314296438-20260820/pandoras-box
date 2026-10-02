@@ -58,15 +58,6 @@ jobs:
             test/goldens/owner_screens/model_picker_obsidian_390x844.png
           cp build/owner-screen-evidence/reasoning_picker_obsidian_390x844.png \
             test/goldens/owner_screens/reasoning_picker_obsidian_390x844.png
-          for golden in \
-            obsidian_chat_shell_390x844.png \
-            model_picker_obsidian_390x844.png \
-            reasoning_picker_obsidian_390x844.png
-          do
-            echo "PICKER_GOLDEN_B64_BEGIN:$golden"
-            base64 -w 76 "test/goldens/owner_screens/$golden"
-            echo "PICKER_GOLDEN_B64_END:$golden"
-          done
           test -s test/goldens/owner_screens/obsidian_chat_shell_390x844.png
           test -s test/goldens/owner_screens/obsidian_chat_empty_390x844.png
           test -s test/goldens/owner_screens/model_picker_obsidian_390x844.png
