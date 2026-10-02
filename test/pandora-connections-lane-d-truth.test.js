@@ -18,6 +18,10 @@ const verifierMigration = await readFile(
   "supabase/migrations/20261002104500_pandora_connection_verify_vault_no_spend_v1.sql",
   "utf8",
 );
+const observationRlsMigration = await readFile(
+  "supabase/migrations/20261002113909_pandora_connection_observation_rls_initplan_v1.sql",
+  "utf8",
+);
 
 test("Lane D Connections uses one fresh tenant-scoped verification truth per provider", () => {
   assert.match(observationMigration, /pandora_connection_verification_observations_v1/);
@@ -27,6 +31,14 @@ test("Lane D Connections uses one fresh tenant-scoped verification truth per pro
   assert.match(ownerApi, /applyConnectionVerificationObservation/);
   assert.match(ownerApi, /verificationState: observedState/);
   assert.match(ownerApi, /stale_after/);
+  assert.match(
+    observationRlsMigration,
+    /m\.user_id\s*=\s*\(select auth\.uid\(\)\)/,
+  );
+  assert.doesNotMatch(
+    observationRlsMigration,
+    /m\.user_id\s*=\s*auth\.uid\(\)/,
+  );
 });
 
 test("Verify all keeps broker health for active broker accounts and no-spend truth elsewhere", () => {
