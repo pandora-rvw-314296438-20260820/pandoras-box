@@ -22,30 +22,47 @@ alter table private.pandora_bedrock_reasoning_catalog
   add column if not exists last_probe_provider_request_id text,
   add column if not exists last_probe_error_code text;
 
-alter table private.pandora_bedrock_reasoning_catalog
-  drop constraint if exists pandora_bedrock_reasoning_catalog_runtime_state_check,
-  add constraint pandora_bedrock_reasoning_catalog_runtime_state_check
-    check (runtime_state in ('discovered','provider_hold','account_denied','onboarding_required','throttled','verified_available')),
-  add constraint pandora_bedrock_catalog_lifecycle_check
-    check (lifecycle_status in ('ACTIVE','LEGACY','REMOVED','UNKNOWN')),
-  add constraint pandora_bedrock_catalog_availability_state_check
-    check (availability_state in ('discovered','authorized','entitled','region_available','runtime_tested','routable','retired')),
-  add constraint pandora_bedrock_catalog_runtime_verification_check
-    check (runtime_verification_status in ('not_tested','passed','failed','skipped_non_conversational','retired')),
-  add constraint pandora_bedrock_catalog_probe_usage_check
-    check (last_probe_input_tokens>=0 and last_probe_output_tokens>=0 and last_probe_total_tokens>=0),
-  add constraint pandora_bedrock_catalog_routable_check
-    check (
-      routable=false or (
-        availability_state='routable'
-        and runtime_verification_status='passed'
-        and lifecycle_status='ACTIVE'
-        and 'conversation'=any(workflow_scopes)
-        and authorization_status='AUTHORIZED'
-        and entitlement_availability='AVAILABLE'
-        and region_availability='AVAILABLE'
-      )
-    );
+-- #911/#917 supersede the legacy Lane F catalog state machine. A late
+-- replay of #907 against a database that already has the newer entitlement_status
+-- column must not drop or replace the newer runtime-state constraint, nor add
+-- legacy checks that reject current rows. Fresh installs still receive the
+-- original #907 constraints before #911 advances the schema.
+do $pandora_907_forward_compat$
+begin
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema='private'
+      and table_name='pandora_bedrock_reasoning_catalog'
+      and column_name='entitlement_status'
+  ) then
+    alter table private.pandora_bedrock_reasoning_catalog
+      drop constraint if exists pandora_bedrock_reasoning_catalog_runtime_state_check,
+      add constraint pandora_bedrock_reasoning_catalog_runtime_state_check
+        check (runtime_state in ('discovered','provider_hold','account_denied','onboarding_required','throttled','verified_available')),
+      add constraint pandora_bedrock_catalog_lifecycle_check
+        check (lifecycle_status in ('ACTIVE','LEGACY','REMOVED','UNKNOWN')),
+      add constraint pandora_bedrock_catalog_availability_state_check
+        check (availability_state in ('discovered','authorized','entitled','region_available','runtime_tested','routable','retired')),
+      add constraint pandora_bedrock_catalog_runtime_verification_check
+        check (runtime_verification_status in ('not_tested','passed','failed','skipped_non_conversational','retired')),
+      add constraint pandora_bedrock_catalog_probe_usage_check
+        check (last_probe_input_tokens>=0 and last_probe_output_tokens>=0 and last_probe_total_tokens>=0),
+      add constraint pandora_bedrock_catalog_routable_check
+        check (
+          routable=false or (
+            availability_state='routable'
+            and runtime_verification_status='passed'
+            and lifecycle_status='ACTIVE'
+            and 'conversation'=any(workflow_scopes)
+            and authorization_status='AUTHORIZED'
+            and entitlement_availability='AVAILABLE'
+            and region_availability='AVAILABLE'
+          )
+        );
+  end if;
+end;
+$pandora_907_forward_compat$;
 
 create index if not exists pandora_bedrock_catalog_routable_idx
   on private.pandora_bedrock_reasoning_catalog(routable,provider_name,model_name);
