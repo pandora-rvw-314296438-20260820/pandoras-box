@@ -21,6 +21,8 @@ import 'package:pandora_mobile/features/activity/activity_screen.dart';
 import 'package:pandora_mobile/features/approvals/approvals_screen.dart';
 import 'package:pandora_mobile/features/command/command_screen.dart';
 import 'package:pandora_mobile/features/connections/connections_screen.dart';
+import 'package:pandora_mobile/features/enterprise/bok_workspace_screen.dart';
+import 'package:pandora_mobile/features/enterprise/enterprise_workspace_home.dart';
 import 'package:pandora_mobile/features/home/home_screen.dart';
 import 'package:pandora_mobile/features/intelligence/owner_intelligence_screen.dart';
 import 'package:pandora_mobile/features/projects/project_detail_screen.dart';
@@ -640,6 +642,17 @@ void main() {
     _VisualCase(
       name: 'connections_healthy_porcelain_390x844',
       build: () => const ConnectionsScreen(),
+    ),
+    _VisualCase(
+      name: 'lane_g_bok_restaurants_section_390x844',
+      build: () => BokWorkspaceScreen(
+        workspace: enterpriseWorkspaces.firstWhere((w) => w.key == 'bok'),
+        section: enterpriseWorkspaces
+            .firstWhere((w) => w.key == 'bok')
+            .sections
+            .firstWhere((s) => s.routeSlug == 'restaurants-branches'),
+      ),
+      themeMode: ThemeMode.dark,
     ),
     _VisualCase(
       name: 'connections_all_providers_obsidian_390x2200',
