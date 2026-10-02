@@ -49,11 +49,30 @@ function classify(v:unknown){
   if(kind==="unsupported_capability"||kind==="not_found")throw fail("unsupported_capability",false,true);
   throw fail("provider_error",retryable,true);
 }
+const BEDROCK_CHAT_URL="https://mcpmaster.vercel.app/api/operations-inference?operation=bedrock-chat";
+const ticketPattern=/^[0-9a-f]{64}$/;
+
 export async function bedrockCall(c:any,model:string,body:R){
-  const r=await c.rpc("pandora_bedrock_chat_request_v1",{p_model:model,p_body:body});
-  if(r.error)throw fail("provider_unavailable",true,true);
-  const e=rec(r.data),status=Number(e.status||0);
-  if(e.ok!==true||status<200||status>=300)classify(e);
+  const issued=await c.rpc("pandora_issue_bedrock_chat_ticket_v1",{p_model:model,p_body:body});
+  if(issued.error)throw fail("provider_unavailable",true,true);
+  const ticket=txt(rec(issued.data).ticket);
+  if(!ticketPattern.test(ticket))throw fail("provider_unavailable",true,true);
+  let response:Response;
+  try{
+    response=await fetch(BEDROCK_CHAT_URL,{
+      method:"POST",
+      headers:{"content-type":"application/json","accept":"application/json"},
+      body:JSON.stringify({ticket}),
+      redirect:"error",
+      signal:AbortSignal.timeout(90000),
+    });
+  }catch{
+    throw fail("provider_unavailable",true,true);
+  }
+  const rawEnvelope=await response.text();
+  let e:R;try{e=rec(rawEnvelope?JSON.parse(rawEnvelope):{})}catch{throw fail("provider_unavailable",true,true)}
+  const status=Number(e.status||response.status||0);
+  if(!response.ok||e.ok!==true||status<200||status>=300)classify(e);
   const b=rec(e.body),raw=txt(b.text);
   if(!raw)throw Error("INVALID_MODEL_OUTPUT");
   let valueRaw:unknown;try{valueRaw=JSON.parse(raw)}catch{throw Error("INVALID_MODEL_OUTPUT")}
