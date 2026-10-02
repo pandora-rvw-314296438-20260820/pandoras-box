@@ -30,11 +30,16 @@ class PlpEnterpriseShell extends StatefulWidget {
   const PlpEnterpriseShell({
     super.key,
     this.bootstrapOverride,
+    this.embeddedRouteSlug,
   });
 
   /// Acceptance tests may provide a verified bootstrap fixture. Production
   /// does not pass this and still loads from the authenticated PLP RPCs.
   final Map<String, Object?>? bootstrapOverride;
+
+  /// When set, render only the existing PLP business surface for this route.
+  /// The parent PandoraChatShell remains the sole owner of navigation/chat.
+  final String? embeddedRouteSlug;
 
   @override
   State<PlpEnterpriseShell> createState() => _PlpEnterpriseShellState();
@@ -45,6 +50,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   static const _muted = Color(0xFF746F67);
   static const _text = Color(0xFF171512);
   static const _accent = Color(0xFF82764F);
+
+  static const _embeddedRouteToIndex = <String, int>{
+    'home': 0,
+    'operations': 2,
+    'overview': 5,
+    'guests': 6,
+    'team-access': 7,
+    'sales-revenue': 8,
+    'needs-you': 9,
+    'activity': 10,
+    'settings': 11,
+    'system-developer': 12,
+    'tax-compliance': 13,
+  };
 
   static const _surfaceByDestination = <String, int>{
     'home': 0,
@@ -90,6 +109,26 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   RealtimeChannel? _plpRealtimeChannel;
   Timer? _plpRealtimeRefreshDebounce;
   String? _plpRealtimeOrganizationId;
+
+  @override
+  void initState() {
+    super.initState();
+    final route = widget.embeddedRouteSlug;
+    if (route != null) _index = _embeddedRouteToIndex[route] ?? 0;
+  }
+
+  @override
+  void didUpdateWidget(covariant PlpEnterpriseShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.embeddedRouteSlug != widget.embeddedRouteSlug &&
+        widget.embeddedRouteSlug != null) {
+      _index = _embeddedRouteToIndex[widget.embeddedRouteSlug!] ?? 0;
+      _surfaceHistory.clear();
+      _routedTool = null;
+      _routedToolKey = null;
+      _routedToolHistory.clear();
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -460,6 +499,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   void _openDrawer() {
     _dismissWorkspaceKeyboard();
+    if (widget.embeddedRouteSlug != null) {
+      PandoraNavigationScope.maybeOf(context)?.openDrawer?.call();
+      return;
+    }
     _resetDrawerScroll();
     _scaffoldKey.currentState?.openDrawer();
   }
@@ -971,6 +1014,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               },
             ),
           ];
+
+          if (widget.embeddedRouteSlug != null) {
+            return KeyedSubtree(
+              key: ValueKey<String>(
+                'plp-embedded-' + widget.embeddedRouteSlug!,
+              ),
+              child: _routedTool ??
+                  _PlpLazyIndexedStack(
+                    index: _index,
+                    cacheEpoch: bootstrap['generatedAt']?.toString(),
+                    children: screens,
+                  ),
+            );
+          }
 
           return KeyedSubtree(
             key: const ValueKey('plp-enterprise-shell'),
