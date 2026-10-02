@@ -33,7 +33,8 @@ void main() {
   test('current shell exposes Vision Intelligence without changing Batalla IA', () {
     expect(shell, contains("'Vision Intelligence'"));
     expect(shell, contains("10 => 'vision_intelligence'"));
-    expect(shell, contains('10 => EnterpriseVisionScreen('));
+    expect(shell, contains('10 => const EnterpriseVisionScreen(),'));
+    expect(shell, isNot(contains('onAskPandora')));
     expect(shell, contains("label: 'Core systems'"));
     expect(shell, contains('indices: const <int>[9, 10, 0, 8]'));
     expect(shell, contains("label: 'Capabilities'"));
