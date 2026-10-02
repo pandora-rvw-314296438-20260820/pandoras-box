@@ -14,7 +14,14 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 0
+          fetch-depth: 1
+      - name: Check out main for before evidence
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: main
+          path: before-main
+          fetch-depth: 1
+          persist-credentials: false
       - name: Set up Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
@@ -30,10 +37,9 @@ jobs:
           mkdir -p ../../../docs/visual-evidence/lane-d/pr-903
           cp build/owner-screen-evidence/connections_healthy_porcelain_390x844.png ../../../docs/visual-evidence/lane-d/pr-903/after.png
       - name: Render before evidence from main
+        working-directory: before-main/apps/pandora-mobile
         run: |
           set -euo pipefail
-          git worktree add /tmp/lane-d-main origin/main
-          cd /tmp/lane-d-main/apps/pandora-mobile
           flutter pub get --enforce-lockfile
           flutter test test/goldens/owner_screens_visual_evidence_test.dart --plain-name "captures connections_healthy_porcelain_390x844"
           test -s build/owner-screen-evidence/connections_healthy_porcelain_390x844.png
@@ -41,6 +47,7 @@ jobs:
       - name: Commit visual evidence
         run: |
           set -euo pipefail
+          rm -rf before-main
           git config user.name "pandora-lane-d-evidence"
           git config user.email "actions@users.noreply.github.com"
           git add apps/pandora-mobile/test/goldens/owner_screens/connections_healthy_porcelain_390x844.png docs/visual-evidence/lane-d/pr-903/before.png docs/visual-evidence/lane-d/pr-903/after.png
