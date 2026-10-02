@@ -7,7 +7,7 @@ const taps=fs.readFileSync("apps/pandora-mobile/test/features/simple/pandora_pic
 test("picker goldens are compared to committed PNGs instead of regenerated in CI",()=>{
   assert.doesNotMatch(workflow,/--update-goldens/);
   assert.doesNotMatch(workflow,/cp build\/owner-screen-evidence\/model_picker/);
-  assert.match(workflow,/Verify committed Lane E and picker goldens/);
+  assert.match(workflow,/Verify committed Lane E and Lane G goldens/);
   assert.match(golden,/matchesGoldenFile\('owner_screens\/\$\{visual\.name\}\.png'\)/);
 });
 test("both model and reasoning pickers have tap-through widget coverage",()=>{
