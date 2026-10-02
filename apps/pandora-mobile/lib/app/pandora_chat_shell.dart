@@ -15,6 +15,7 @@ import '../features/enterprise/batalla_workspace_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/enterprise_workspace_home.dart';
 import '../features/enterprise/marketing_growth_workspace_screen.dart';
+import '../features/enterprise/shared_enterprise_workspace_screen.dart';
 import '../features/enterprise/provider_ecosystem_screen.dart';
 import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
@@ -552,7 +553,21 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                       profileKey: _activeWorkspaceProfileKey(),
                       onBackToWorkspaces: () => _select(9),
                     )
-                  : const SizedBox.expand(),
+                  : SharedEnterpriseWorkspaceScreen(
+                      selection: _activeWorkspaceSelection!,
+                      onHome: () => _select(9),
+                      onOpenSection: (routeSlug) {
+                        final workspace = _activeWorkspaceSelection!.workspace;
+                        final section = workspace.sections.firstWhere(
+                          (item) => item.routeSlug == routeSlug,
+                          orElse: () => _activeWorkspaceSelection!.section,
+                        );
+                        _openWorkspace(EnterpriseWorkspaceSelection(
+                          workspace: workspace,
+                          section: section,
+                        ));
+                      },
+                    ),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
