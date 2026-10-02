@@ -57,7 +57,7 @@ void main() {
     const ValueKey<String>('pandora-recent-chats-drawer'),
   );
   final recentChats = find.byKey(
-    const ValueKey<String>('pandora-recent-chats'),
+    const ValueKey<String>('workspace-home-search'),
   );
 
   Future<Finder> drawerTile(WidgetTester tester, String title) async {
@@ -185,13 +185,16 @@ void main() {
     expect(find.byType(PandoraOperationsRoomScreen), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('operations-room-chat')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey<String>('operations-room-composer')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-composer')),
       findsOneWidget,
     );
-    expect(find.textContaining('The Operations Room is ready.'), findsOneWidget);
     for (final role in <String>[
       'ATHENA',
       'APOLLO',
@@ -282,15 +285,22 @@ void main() {
     expect(plus, findsOneWidget);
     expect(composer, findsOneWidget);
     expect(composerDock, findsOneWidget);
-    expect(voice, findsOneWidget);
+    expect(voice, findsNothing);
     expect(submit, findsOneWidget);
-    expect(find.byType(Divider), findsNothing);
+    expect(
+      find.descendant(of: submit, matching: find.byIcon(Icons.mic_none_rounded)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: composerDock, matching: find.byType(Divider)),
+      findsNothing,
+    );
     final composerRect = tester.getRect(composer);
     expect(composerRect.bottom, lessThanOrEqualTo(844 - 320));
     expect(tester.getRect(objective).bottom, lessThanOrEqualTo(844 - 320));
     final field = tester.widget<TextField>(objective);
     expect(field.minLines, 1);
-    expect(field.maxLines, 6);
+    expect(field.maxLines, 5);
     expect(tester.takeException(), isNull);
   });
 
@@ -367,7 +377,7 @@ void main() {
   });
 
   testWidgets(
-      'chat header swaps temporary chat for overflow after the first turn',
+      'first send opens inline history and survives cross-page navigation',
       (tester) async {
     await mount(
       tester,
@@ -375,50 +385,58 @@ void main() {
       repository: _ConversationRepository(),
     );
 
-    expect(find.text('Pandora'), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
-      findsOneWidget,
+    final historyOffstage = find.byKey(
+      const ValueKey<String>('pandora-active-chat-history-offstage'),
     );
-    expect(
-      find.byKey(const ValueKey<String>('pandora-chat-overflow')),
-      findsNothing,
-    );
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
 
     await tester.enterText(
       find.byKey(const ValueKey<String>('ask-pandora-objective')),
       'Start this conversation',
     );
+    await tester.pump();
+    final action = find.byKey(const ValueKey<String>('ask-pandora-submit'));
+    expect(
+      find.descendant(
+        of: action,
+        matching: find.byIcon(Icons.arrow_upward_rounded),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
+    expect(find.text('Conversation started.'), findsOneWidget);
+
     await tester.tap(
-      find.byKey(const ValueKey<String>('ask-pandora-submit')),
+      find.byKey(const ValueKey<String>('pandora-active-chat-minimize')),
     );
     await tester.pumpAndSettle();
-
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
     expect(
-      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
-      findsNothing,
+      find.byKey(const ValueKey<String>('ask-pandora-composer')),
+      findsOneWidget,
     );
-    final overflow =
-        find.byKey(const ValueKey<String>('pandora-chat-overflow'));
-    expect(overflow, findsOneWidget);
 
-    await tester.tap(overflow);
+    await tester.tap(menu);
     await tester.pumpAndSettle();
+    await tester.tap(await drawerTile(tester, 'Projects'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Create project'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey<String>('pandora-chat-menu-new')),
+      find.byKey(const ValueKey<String>('ask-pandora-composer')),
       findsOneWidget,
     );
-    expect(
-      find.byKey(const ValueKey<String>('pandora-chat-menu-search')),
-      findsNothing,
-    );
-    expect(recentChats, findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('pandora-chat-menu-more')),
-      findsOneWidget,
-    );
+
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(await drawerTile(tester, 'Pandora'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
+    expect(find.text('Conversation started.'), findsOneWidget);
     expect(tester.takeException(), isNull);
-  });
+  });;
 }
 
 class _ConversationRepository extends FakeRepository {

@@ -287,9 +287,11 @@ class PandoraOperationsRoomScreen extends StatefulWidget {
   const PandoraOperationsRoomScreen({
     super.key,
     this.onHome,
+    this.globalConversation = false,
   });
 
   final VoidCallback? onHome;
+  final bool globalConversation;
 
   @override
   State<PandoraOperationsRoomScreen> createState() =>
@@ -319,6 +321,10 @@ class _PandoraOperationsRoomScreenState
   void initState() {
     super.initState();
     _activity.addListener(_onActivityChanged);
+    if (widget.globalConversation) {
+      _expandedRoster = true;
+      return;
+    }
     unawaited(_refreshLocalAiStatus());
     _messages.add(
       _RoomMessage.agent(
@@ -332,7 +338,7 @@ class _PandoraOperationsRoomScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_restoreStarted) return;
+    if (widget.globalConversation || _restoreStarted) return;
     _restoreStarted = true;
     unawaited(_restoreRoom());
   }
@@ -678,8 +684,34 @@ class _PandoraOperationsRoomScreenState
     });
   }
 
+  Widget _buildGlobalConversationWorkspace() => Scaffold(
+        backgroundColor: PandoraV2Colors.canvas,
+        body: SafeArea(
+          child: Column(
+            children: [
+              PandoraPageHeader(title: 'Operations Room'),
+              _RoomHeader(
+                mode: _mode,
+                activeRoles: const <String>{},
+                expandedRoster: _expandedRoster,
+                mentionsEnabled: false,
+                onModeChanged: _setMode,
+                onRosterToggle: () =>
+                    setState(() => _expandedRoster = !_expandedRoster),
+                onMention: _mentionRole,
+                onHome: widget.onHome,
+              ),
+              const OperationsExecutionFeed(),
+            ],
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
+    if (widget.globalConversation) {
+      return _buildGlobalConversationWorkspace();
+    }
     final latest = pandoraLatestPresentableActivity(_activity.events);
     final itemCount = _messages.length + (latest == null ? 0 : 1);
     return Scaffold(
@@ -692,6 +724,7 @@ class _PandoraOperationsRoomScreenState
               mode: _mode,
               activeRoles: _activeRoles,
               expandedRoster: _expandedRoster,
+              mentionsEnabled: true,
               onModeChanged: _setMode,
               onRosterToggle: () =>
                   setState(() => _expandedRoster = !_expandedRoster),
@@ -783,6 +816,7 @@ class _RoomHeader extends StatelessWidget {
     required this.mode,
     required this.activeRoles,
     required this.expandedRoster,
+    required this.mentionsEnabled,
     required this.onModeChanged,
     required this.onRosterToggle,
     required this.onMention,
@@ -792,6 +826,7 @@ class _RoomHeader extends StatelessWidget {
   final OperationsRoomMode mode;
   final Set<String> activeRoles;
   final bool expandedRoster;
+  final bool mentionsEnabled;
   final ValueChanged<OperationsRoomMode> onModeChanged;
   final VoidCallback onRosterToggle;
   final ValueChanged<OperationsRoomRole> onMention;
@@ -877,7 +912,7 @@ class _RoomHeader extends StatelessWidget {
                   _RoleChip(
                     role: role,
                     active: activeRoles.contains(role.name),
-                    onTap: () => onMention(role),
+                    onTap: mentionsEnabled ? () => onMention(role) : null,
                   ),
                   const SizedBox(width: 6),
                 ],
@@ -986,7 +1021,7 @@ class _RoleChip extends StatelessWidget {
 
   final OperationsRoomRole role;
   final bool active;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Tooltip(
