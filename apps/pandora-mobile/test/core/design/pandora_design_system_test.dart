@@ -65,10 +65,12 @@ void main() {
     );
   });
 
-  test('the V2 surface aliases the canonical main-account tokens', () {
-    expect(PandoraV2Colors.canvas, PandoraColorTokens.graphiteCanvas);
-    expect(PandoraV2Colors.surface, PandoraColorTokens.graphiteSurface);
-    expect(PandoraV2Colors.action, PandoraColorTokens.action);
+  test('the released V2 surface keeps the approved true-black Obsidian palette', () {
+    expect(PandoraV2Colors.canvas, const Color(0xFF000000));
+    expect(PandoraV2Colors.surface, const Color(0xFF0A0A0A));
+    expect(PandoraV2Colors.line, const Color(0xFF222222));
+    expect(PandoraV2Colors.action, Colors.white);
+    expect(PandoraV2Colors.onAction, Colors.black);
   });
 
   test('mobile theme exposes the same semantic action color', () {
