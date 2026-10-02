@@ -721,7 +721,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     }
   }
 
-  Future<bool> _trySubmitLocalAi(String objective) async {
+  Future<bool> _trySubmitLocalAi(
+    String objective, {
+    bool forceLocal = false,
+  }) async {
     final status = await (() async {
       try {
         return await PandoraLocalAi.instance.status();
@@ -748,6 +751,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: status,
         ),
       );
+      if (forceLocal && mounted) {
+        setState(() {
+          _pendingMessage = null;
+          _error =
+              'Local device (Qwen) cannot safely handle this turn. Choose Auto or a cloud model.';
+        });
+        return true;
+      }
       return false;
     }
     unawaited(
@@ -759,7 +770,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       ),
     );
 
-    if (!status.loaded) {
+    if (!status.loaded && !forceLocal) {
       unawaited(
         _recordLocalAiTurn(
           phase: 'fallback',
@@ -771,8 +782,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       if (_isPlpEnterpriseContext) {
         unawaited(_prewarmPlpLocalAiIfSafe());
       }
-      // Never put a cold llama.cpp warm on the user's response path. The
-      // current turn continues through cloud while Qwen prepares separately.
+      // Auto never blocks a response on a cold local model.
       return false;
     }
 
@@ -1125,7 +1135,17 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         return;
       }
       final priorTurnUsedLocalAi = _lastTurnUsedLocalAi;
-      if (!teamAdministrationTurn && await _trySubmitLocalAi(objective)) {
+      final forceLocal = isPandoraLocalDeviceSelection(_modelSelection);
+      if (!teamAdministrationTurn &&
+          await _trySubmitLocalAi(objective, forceLocal: forceLocal)) {
+        return;
+      }
+      if (forceLocal) {
+        setState(() {
+          _pendingMessage = null;
+          _error =
+              'Local device (Qwen) is unavailable for this turn. Choose Auto or a cloud model.';
+        });
         return;
       }
 
@@ -1598,6 +1618,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (intelligence == null || _submitting || _outcomeUnknown) return;
     try {
       final snapshot = await intelligence.modelPicker(threadId: _threadId);
+      final localEnabled = await PandoraLocalAiPreference.load();
+      final localStatus = await PandoraLocalAi.instance.status();
       if (!mounted) return;
       final selected = await showModalBottomSheet<PandoraChatModelSelection>(
         context: context,
@@ -1607,12 +1629,18 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         builder: (_) => PandoraModelPickerSheet(
           models: snapshot.models,
           selection: _modelSelection,
+          localAiEnabled: localEnabled,
+          localAiAvailable:
+              localStatus.supported && localStatus.configured,
+          localAiModelName: localStatus.modelName,
         ),
       );
       if (!mounted || selected == null) return;
       setState(() {
         _modelSelection = selected;
-        _modelLabel = snapshot.labelFor(selected);
+        _modelLabel = isPandoraLocalDeviceSelection(selected)
+            ? 'Local device'
+            : snapshot.labelFor(selected);
         _error = null;
       });
       _scheduleOverlayMeasure();
