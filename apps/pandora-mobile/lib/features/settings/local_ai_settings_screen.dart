@@ -22,6 +22,7 @@ class LocalAiSettingsScreen extends StatefulWidget {
 
 class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
   PandoraLocalAiStatus? _status;
+  bool _phoneAiEnabled = false;
   bool _busy = false;
   String? _error;
   Map<String, Object?>? _acceptanceChallenge;
@@ -36,9 +37,31 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
   }
 
   Future<void> _refresh() async {
+    final enabled = await PandoraLocalAiPreference.load();
     final status = await PandoraLocalAi.instance.status();
     if (!mounted) return;
-    setState(() => _status = status);
+    setState(() {
+      _phoneAiEnabled = enabled;
+      _status = status;
+    });
+  }
+
+  Future<void> _setPhoneAiEnabled(bool enabled) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await PandoraLocalAiPreference.setEnabled(enabled);
+      if (!mounted) return;
+      setState(() => _phoneAiEnabled = enabled);
+      await _refresh();
+    } on PandoraLocalAiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _chooseModel() async {
@@ -298,6 +321,25 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
             statusLabel: loaded ? 'Ready' : 'Local-first setup',
           ),
           const SizedBox(height: PandoraSpacing.lg),
+          Card(
+            child: SwitchListTile.adaptive(
+              key: const ValueKey<String>('phone-ai-enabled-toggle'),
+              value: _phoneAiEnabled,
+              onChanged: _busy
+                  ? null
+                  : (value) {
+                      _setPhoneAiEnabled(value);
+                    },
+              secondary: const Icon(Icons.smartphone_rounded),
+              title: const Text('Phone AI'),
+              subtitle: Text(
+                _phoneAiEnabled
+                    ? 'On · Qwen may be used for safe local turns. Pandora can still require cloud intelligence for unsupported work.'
+                    : 'Off by default · local inference stays unloaded until you turn this on.',
+              ),
+            ),
+          ),
+          const SizedBox(height: PandoraSpacing.sm),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(PandoraSpacing.md),

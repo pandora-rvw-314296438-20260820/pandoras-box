@@ -155,7 +155,7 @@ void main() {
     final screenSource =
         File('lib/features/simple/ask_pandora_screen.dart').readAsStringSync();
     final localStart = screenSource.indexOf(
-      'Future<bool> _trySubmitLocalAi(String objective) async {',
+      'Future<bool> _trySubmitLocalAi(',
     );
     final localStatus = screenSource.indexOf(
       'final status = await (() async {',
@@ -258,9 +258,9 @@ void main() {
     );
 
     final localStart = screenSource.indexOf(
-      'Future<bool> _trySubmitLocalAi(String objective) async {',
+      'Future<bool> _trySubmitLocalAi(',
     );
-    final coldGuard = screenSource.indexOf('if (!status.loaded)', localStart);
+    final coldGuard = screenSource.indexOf('if (!status.loaded && !forceLocal)', localStart);
     final coldFallback =
         screenSource.indexOf('local_cold_background_prewarm', coldGuard);
     final warm = screenSource.indexOf(
