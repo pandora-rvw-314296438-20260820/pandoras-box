@@ -28,6 +28,7 @@ void main() {
       hasProjectContext: true,
       hasSelectedCapability: false,
       hasCharacterContext: false,
+      usePhoneAi: true,
       status: ready,
     );
 
@@ -42,6 +43,7 @@ void main() {
       hasProjectContext: true,
       hasSelectedCapability: false,
       hasCharacterContext: false,
+      usePhoneAi: true,
       status: ready,
     );
 
@@ -72,6 +74,7 @@ void main() {
       hasProjectContext: true,
       hasSelectedCapability: false,
       hasCharacterContext: false,
+      usePhoneAi: true,
       status: unvalidated,
     );
 
@@ -97,6 +100,7 @@ void main() {
       hasProjectContext: true,
       hasSelectedCapability: false,
       hasCharacterContext: false,
+      usePhoneAi: true,
       status: oversized,
     );
 
@@ -127,6 +131,7 @@ void main() {
       hasProjectContext: true,
       hasSelectedCapability: false,
       hasCharacterContext: false,
+      usePhoneAi: true,
       status: constrained,
     );
 
@@ -141,6 +146,7 @@ void main() {
       hasProjectContext: true,
       hasSelectedCapability: true,
       hasCharacterContext: false,
+      usePhoneAi: true,
       status: ready,
     );
 
@@ -229,11 +235,15 @@ void main() {
     expect(systemPrompt, greaterThan(modelResident));
   });
 
-  test('PLP local prompt keeps verified resort snapshot and prewarms Qwen', () {
+  test('PLP local prompt remains gated by the core phone-AI opt-in', () {
     final screenSource =
         File('lib/features/simple/ask_pandora_screen.dart').readAsStringSync();
 
     expect(screenSource, contains('_prewarmPlpLocalAiIfSafe()'));
+    final localAiSource = File('lib/core/local_ai/pandora_local_ai.dart').readAsStringSync();
+    expect(localAiSource, contains('bool usePhoneAi = false'));
+    expect(localAiSource, contains("phone_ai_disabled"));
+    expect(screenSource, isNot(contains('usePhoneAi: true')));
     expect(
       screenSource,
       contains('Verified PLP resort snapshot already synchronized to this phone.'),

@@ -11,7 +11,6 @@ void main() {
           hasProjectContext: false,
           hasSelectedCapability: false,
           hasCharacterContext: false,
-          usePhoneAi: true,
         ),
         isFalse,
       );
