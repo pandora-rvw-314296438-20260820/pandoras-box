@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
@@ -18,6 +19,24 @@ void main() {
     FakeRepository? repository,
   }) async {
     await setTestSurface(tester, logicalSize: size);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('pandora/local_ai'),
+      (call) async => call.method == 'status'
+          ? <String, Object?>{
+              'supported': false,
+              'configured': false,
+              'loaded': false,
+            }
+          : null,
+    );
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('pandora/local_ai'),
+        null,
+      ),
+    );
     await tester.pumpWidget(
       testApp(
         child: PandoraDependencies(
@@ -57,7 +76,7 @@ void main() {
     const ValueKey<String>('pandora-recent-chats-drawer'),
   );
   final recentChats = find.byKey(
-    const ValueKey<String>('pandora-recent-chats'),
+    const ValueKey<String>('workspace-home-search'),
   );
 
   Future<Finder> drawerTile(WidgetTester tester, String title) async {
@@ -185,13 +204,16 @@ void main() {
     expect(find.byType(PandoraOperationsRoomScreen), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('operations-room-chat')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey<String>('operations-room-composer')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-composer')),
       findsOneWidget,
     );
-    expect(find.textContaining('The Operations Room is ready.'), findsOneWidget);
     for (final role in <String>[
       'ATHENA',
       'APOLLO',
@@ -282,15 +304,22 @@ void main() {
     expect(plus, findsOneWidget);
     expect(composer, findsOneWidget);
     expect(composerDock, findsOneWidget);
-    expect(voice, findsOneWidget);
+    expect(voice, findsNothing);
     expect(submit, findsOneWidget);
-    expect(find.byType(Divider), findsNothing);
+    expect(
+      find.descendant(of: submit, matching: find.byIcon(Icons.mic_none_rounded)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: composerDock, matching: find.byType(Divider)),
+      findsNothing,
+    );
     final composerRect = tester.getRect(composer);
     expect(composerRect.bottom, lessThanOrEqualTo(844 - 320));
     expect(tester.getRect(objective).bottom, lessThanOrEqualTo(844 - 320));
     final field = tester.widget<TextField>(objective);
     expect(field.minLines, 1);
-    expect(field.maxLines, 6);
+    expect(field.maxLines, 5);
     expect(tester.takeException(), isNull);
   });
 
@@ -331,21 +360,27 @@ void main() {
 
   testWidgets('primary and recent-chat drawers can never stack', (tester) async {
     await mount(tester, const Size(390, 800));
+    final openRecentChats =
+        tester.widget<IconButton>(recentChats).onPressed!;
+    final menuButton = find.ancestor(
+      of: menu,
+      matching: find.byType(PandoraMenuButton),
+    );
+    expect(menuButton, findsOneWidget);
+    final openPrimaryNavigation =
+        tester.widget<PandoraMenuButton>(menuButton).onPressed;
 
     await tester.tap(menu);
     await tester.pumpAndSettle();
     expect(primaryDrawer, findsOneWidget);
     expect(recentDrawer, findsNothing);
 
-    tester.widget<IconButton>(recentChats).onPressed!.call();
+    openRecentChats.call();
     await tester.pumpAndSettle();
     expect(primaryDrawer, findsNothing);
     expect(recentDrawer, findsOneWidget);
 
-    final menuButton = tester.widget<PandoraMenuButton>(
-      find.byKey(const ValueKey<String>('pandora-side-panel-open')),
-    );
-    menuButton.onPressed();
+    openPrimaryNavigation();
     await tester.pumpAndSettle();
     expect(primaryDrawer, findsOneWidget);
     expect(recentDrawer, findsNothing);
@@ -353,9 +388,55 @@ void main() {
   });
 
   testWidgets(
+    'empty shell is logo-only and the resting composer is bare',
+    (tester) async {
+      await mount(tester, const Size(390, 800));
+      final conversationState = tester.state<AskPandoraScreenState>(
+        find.byType(AskPandoraScreen),
+      );
+      conversationState.showHistory();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('pandora-logo-only-landing')),
+        findsOneWidget,
+      );
+      expect(find.text('What can I help with?'), findsNothing);
+      expect(find.text('What can you do for me now?'), findsNothing);
+      expect(find.text('Check my GitHub for failing CI'), findsNothing);
+      expect(find.text('What needs my attention?'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('ask-pandora-plus')),
+        findsNothing,
+      );
+
+      final composer = tester.widget<DecoratedBox>(
+        find.byKey(const ValueKey<String>('ask-pandora-composer')),
+      );
+      final decoration = composer.decoration as BoxDecoration;
+      expect(decoration.color, Colors.transparent);
+      expect(decoration.border, isNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('ask-pandora-objective')),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey<String>('ask-pandora-plus')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
       'attachment menu contains input actions without another navigation menu',
       (tester) async {
     await mount(tester, const Size(390, 800));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-plus')));
     await tester.pumpAndSettle();
     expect(find.text('Camera'), findsOneWidget);
@@ -367,77 +448,97 @@ void main() {
   });
 
   testWidgets(
-      'chat header swaps temporary chat for overflow after the first turn',
+      'first send opens inline history and survives cross-page navigation',
       (tester) async {
+    final repository = _ConversationRepository();
     await mount(
       tester,
       const Size(390, 800),
-      repository: _ConversationRepository(),
+      repository: repository,
+    );
+    final conversationState = tester.state<AskPandoraScreenState>(
+      find.byType(AskPandoraScreen),
     );
 
-    expect(find.text('Pandora'), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
-      findsOneWidget,
+    final historyOffstage = find.byKey(
+      const ValueKey<String>('pandora-active-chat-history-offstage'),
     );
-    expect(
-      find.byKey(const ValueKey<String>('pandora-chat-overflow')),
-      findsNothing,
-    );
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
 
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+    await conversationState.submitExternalPrompt(
       'Start this conversation',
+      requestFocus: false,
     );
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
+    expect(repository.lastMessage, 'Start this conversation');
+
     await tester.tap(
-      find.byKey(const ValueKey<String>('ask-pandora-submit')),
+      find.byKey(const ValueKey<String>('pandora-active-chat-minimize')),
     );
     await tester.pumpAndSettle();
-
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
     expect(
-      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
-      findsNothing,
+      find.byKey(const ValueKey<String>('ask-pandora-composer')),
+      findsOneWidget,
     );
-    final overflow =
-        find.byKey(const ValueKey<String>('pandora-chat-overflow'));
-    expect(overflow, findsOneWidget);
 
-    await tester.tap(overflow);
+    await tester.tap(menu);
     await tester.pumpAndSettle();
+    await tester.tap(await drawerTile(tester, 'Projects'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Create project'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey<String>('pandora-chat-menu-new')),
+      find.byKey(const ValueKey<String>('ask-pandora-composer')),
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey<String>('pandora-chat-menu-search')),
-      findsNothing,
+      identical(
+        conversationState,
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen)),
+      ),
+      isTrue,
     );
-    expect(recentChats, findsOneWidget);
+
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(await drawerTile(tester, 'Pandora'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
     expect(
-      find.byKey(const ValueKey<String>('pandora-chat-menu-more')),
-      findsOneWidget,
+      identical(
+        conversationState,
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen)),
+      ),
+      isTrue,
     );
+    expect(repository.lastMessage, 'Start this conversation');
     expect(tester.takeException(), isNull);
-  });
+  });;
 }
 
 class _ConversationRepository extends FakeRepository {
+  String? lastMessage;
+
   @override
   Future<IntakeReceipt> ask({
     required String message,
     String? projectId,
     String? idempotencyKey,
-  }) async =>
-      const IntakeReceipt(
-        reply: 'Conversation started.',
-        needsApproval: false,
-        actionId: 'action-chat-header-1',
-        status: IntakeStatus(
-          whatChanged: 'Message recorded.',
-          whereWeAre: 'Conversation',
-          whatIsDone: 'First turn complete.',
-          whatIsHappeningNow: 'Waiting for the next message.',
-          whatIWillDoNext: 'Continue the conversation.',
-        ),
-      );
+  }) async {
+    lastMessage = message;
+    return const IntakeReceipt(
+      reply: 'Conversation started.',
+      needsApproval: false,
+      actionId: 'action-chat-header-1',
+      status: IntakeStatus(
+        whatChanged: 'Message recorded.',
+        whereWeAre: 'Conversation',
+        whatIsDone: 'First turn complete.',
+        whatIsHappeningNow: 'Waiting for the next message.',
+        whatIWillDoNext: 'Continue the conversation.',
+      ),
+    );
+  }
 }

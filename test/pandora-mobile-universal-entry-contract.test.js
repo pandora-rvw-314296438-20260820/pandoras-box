@@ -18,10 +18,13 @@ test('Universal Pandora entry never creates a Project just because intelligence 
   );
 });
 
-test('empty Pandora chat prompts universal commands instead of project-only examples', async () => {
+test('empty Pandora chat is logo-only while the universal composer remains live', async () => {
   const chat = await readFile(chatPath, 'utf8');
 
-  assert.match(chat, /What can you do for me now\?/);
-  assert.match(chat, /Check my GitHub for failing CI/);
-  assert.match(chat, /What needs my attention\?/);
+  assert.match(chat, /pandora-logo-only-landing/);
+  assert.match(chat, /Message Pandora…/);
+  assert.doesNotMatch(
+    chat,
+    /What can I help with|What can you do for me now\?|Check my GitHub for failing CI|What needs my attention\?|_suggestions|_ObsidianSuggestion/,
+  );
 });

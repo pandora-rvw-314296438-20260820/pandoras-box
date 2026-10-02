@@ -25,6 +25,7 @@ import '../features/simple/offline_evidence_screen.dart';
 import '../features/simple/pandora_v2_ui.dart';
 import '../features/simple/projects_screen.dart';
 import '../features/simple/simple_safety_screen.dart';
+import 'pandora_conversation_layer.dart';
 import 'pandora_dependencies.dart';
 
 class PandoraChatShell extends StatefulWidget {
@@ -201,26 +202,30 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     );
   }
 
+  void _openConversationHistory() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final scaffold = _scaffoldKey.currentState;
+    if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
+    if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
+    _chatKey.currentState?.showHistory();
+  }
+
   void _newChat() {
-    setState(() {
-      _activeEnterpriseContext = null;
-      _activeWorkspaceSelection = null;
-      _roots.remove(0);
-      _visited.add(0);
-    });
-    _select(0);
+    final chat = _chatKey.currentState;
+    if (chat == null) return;
+    chat.newChat();
+    chat.showHistory();
+    unawaited(_refreshHistory());
   }
 
   Future<void> _openThread(PandoraIntelligenceThread thread) async {
-    setState(() {
-      _activeEnterpriseContext = null;
-      _activeWorkspaceSelection = null;
-      _roots.remove(0);
-      _visited.add(0);
-    });
-    _select(0);
-    await WidgetsBinding.instance.endOfFrame;
-    await _chatKey.currentState?.loadThread(thread.id);
+    final scaffold = _scaffoldKey.currentState;
+    if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
+    if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
+    final chat = _chatKey.currentState;
+    if (chat == null) return;
+    chat.showHistory();
+    await chat.loadThread(thread.id);
   }
 
   Future<void> _manageThread(PandoraIntelligenceThread thread) async {
@@ -484,25 +489,36 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
 
-  void _openVisionChat() {
-    setState(() {
-      _activeWorkspaceSelection = null;
-      _activeEnterpriseContext = <String, Object?>{
-        'surface': 'enterprise_overview',
-        'route': '/enterprise/vision-intelligence',
-        'capabilities': const <String>[],
-        'identityScope': 'enterprise_workspace',
-        'selectedObject': <String, String>{
-          'feature': 'vision_intelligence',
-          'feed': 'kabukicho_camstreamer',
-          'source': 'CamStreamer',
-          'analysisState': 'display_only_public_demo',
-        },
-      };
-      _roots.remove(0);
-      _visited.add(0);
-    });
-    _select(0);
+  void _openVisionChat() => _openConversationHistory();
+
+  Map<String, Object?> _conversationContextForCurrentSurface() {
+    if (_index == 0 && _activeEnterpriseContext != null) {
+      return Map<String, Object?>.from(_activeEnterpriseContext!);
+    }
+    final route = switch (_index) {
+      1 => '/projects',
+      2 => '/needs-you',
+      3 => '/settings-more',
+      4 => '/activity',
+      5 => '/connections',
+      6 => '/saved-evidence',
+      7 => '/verify-safety',
+      8 => '/operations-room',
+      9 => '/home',
+      10 => '/enterprise/vision-intelligence',
+      11 => '/capabilities-providers',
+      _ => '/home',
+    };
+    return <String, Object?>{
+      'surface': 'pandora_business_os',
+      'route': route,
+      'capabilities': const <String>[],
+      'identityScope': 'owner_workspace',
+      'selectedObject': <String, String>{
+        'screen': _destinations[_index].label,
+        'destinationIndex': _index.toString(),
+      },
+    };
   }
 
   Widget _root(int index) => _roots.putIfAbsent(
@@ -536,13 +552,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                       profileKey: _activeWorkspaceProfileKey(),
                       onBackToWorkspaces: () => _select(9),
                     )
-                  : AskPandoraScreen(
-                      key: _chatKey,
-                      onSearchChats: _openRecentChats,
-                      onMore: () => _select(3),
-                      onHome: () => _select(9),
-                      enterpriseContext: _activeEnterpriseContext,
-                    ),
+                  : const SizedBox.expand(),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
@@ -550,7 +560,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           5 => const PluginsScreen(),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
-          8 => PandoraOperationsRoomScreen(onHome: () => _select(9)),
+          8 => PandoraOperationsRoomScreen(
+              onHome: () => _select(9),
+              globalConversation: true,
+            ),
           9 => EnterpriseWorkspaceHome(
               onOpen: _openWorkspace,
               onSearchChats: _openRecentChats,
@@ -561,7 +574,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           11 => ProviderEcosystemScreen(
               onOpenConnections: () => _select(5),
             ),
-          _ => AskPandoraScreen(key: _chatKey),
+          _ => const SizedBox.expand(),
         },
       );
 
@@ -623,7 +636,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         scrollController: _drawerScrollController,
         destinations: _destinations,
         selectedIndex: _index,
-        onSelected: _select,
+        onSelected: (value) {
+          if (value == 0) {
+            _openConversationHistory();
+            return;
+          }
+          _select(value);
+        },
       );
 
   Widget _recentChatsPanel() => _PandoraRecentChatsPanel(
@@ -650,6 +669,19 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               ],
             );
 
+            final activeChat = PandoraConversationLayer(
+              key: const ValueKey<String>('pandora-global-active-chat-shell'),
+              businessWorkspace: body,
+              conversation: AskPandoraScreen(
+                key: _chatKey,
+                onSearchChats: _openRecentChats,
+                onMore: () => _select(3),
+                onHome: () => _select(9),
+                enterpriseContext: _conversationContextForCurrentSurface(),
+                shellOverlay: true,
+              ),
+            );
+
             if (constraints.maxWidth >= 900) {
               return Scaffold(
                 key: _scaffoldKey,
@@ -674,8 +706,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                     const VerticalDivider(
                         width: 1, color: PandoraV2Colors.line),
                     Expanded(
-                      child:
-                          PandoraNavigationScope(openDrawer: null, child: body),
+                      child: PandoraNavigationScope(
+                        openDrawer: null,
+                        child: activeChat,
+                      ),
                     ),
                   ],
                 ),
@@ -732,7 +766,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               ),
               body: PandoraNavigationScope(
                 openDrawer: _openDrawer,
-                child: body,
+                child: activeChat,
               ),
             );
           },

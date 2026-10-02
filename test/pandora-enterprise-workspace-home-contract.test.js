@@ -104,7 +104,10 @@ test("shell boots to Home and preserves Operations Room", () => {
   assert.match(shell, /final Set<int> _visited = <int>\{9\};/);
   assert.match(shell, /int _index = 9;/);
   assert.match(shell, /9 => EnterpriseWorkspaceHome\(/);
-  assert.match(shell, /8 => PandoraOperationsRoomScreen\(onHome: \(\) => _select\(9\)\)/);
+  assert.match(
+    shell,
+    /8 => PandoraOperationsRoomScreen\([\s\S]*?onHome: \(\) => _select\(9\),[\s\S]*?globalConversation:\s*true/,
+  );
 });
 
 test("workspace scope is passed to Ask Pandora without visible message injection", () => {
@@ -130,12 +133,15 @@ test("control revisions preserve workspace scope across every provider body", ()
 });
 
 
-test("workspace home matches the screenshot header hierarchy", () => {
-  assert.ok(hub.includes("workspace-home-brand"));
+test("workspace home keeps the hamburger fixed without a redundant app title", () => {
+  assert.ok(!hub.includes("workspace-home-brand"));
+  assert.ok(!hub.includes("workspace-home-title"));
   assert.ok(hub.includes("workspace-home-navigation"));
   assert.ok(hub.includes("PandoraMenuButton"));
   assert.ok(!hub.includes("Icons.menu_rounded"));
   assert.ok(hub.includes("workspace-home-search"));
+  assert.ok(hub.includes("Recent chats"));
+  assert.ok(hub.includes("Icons.history_rounded"));
   assert.ok(hub.includes("workspace-home-activity"));
   assert.ok(hub.includes("workspace-home-more"));
 });

@@ -30,12 +30,15 @@ test('production execution ledger no longer auto-enrolls work into ProjectOS', (
 test('mobile composer consumes sent text immediately and preserves a typed follow-up', () => {
   const chat = read('apps', 'pandora-mobile', 'lib', 'features', 'simple', 'ask_pandora_screen.dart');
   const start = chat.indexOf('Future<void> _submit() async');
-  const end = chat.indexOf('void _useSuggestion', start);
+  const end = chat.indexOf('Future<void> _handleCalendarCommand', start);
   assert.ok(start >= 0 && end > start);
   const submit = chat.slice(start, end);
   assert.equal((submit.match(/_objective\.clear\(\);/g) ?? []).length, 1);
   assert.ok(submit.indexOf('_objective.clear();') < submit.indexOf('intelligence.startChatExecution('));
-  assert.match(chat, /hintText:\s*submitting\s*\?\s*'Follow up'\s*:\s*'Message Pandora'/s);
+  assert.match(
+    chat,
+    /hintText:\s*submitting\s*\?\s*'Follow up'\s*:\s*\(compact[\s\S]*?'Message Pandora…'[\s\S]*?'Message Pandora'\)/s,
+  );
 });
 
 test('mobile navigation uses the Pandora menu glyph instead of the stock hamburger', () => {
