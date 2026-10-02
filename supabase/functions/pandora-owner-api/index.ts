@@ -720,6 +720,213 @@ function liveConnectionSummary(
   };
 }
 
+function applyConnectionVerificationObservation(
+  item: JsonRecord,
+  value: unknown,
+): JsonRecord {
+  const observation = asRecord(value);
+  const observedState = textValue(observation.state).toLowerCase();
+  if (!["verified", "partial", "not_connected", "error"].includes(observedState)) {
+    return item;
+  }
+  const mapping: Record<string, { state: string; label: string; canRead: boolean }> = {
+    verified: { state: "ready", label: "Verified", canRead: true },
+    partial: { state: "partial", label: "Partial", canRead: false },
+    not_connected: { state: "off", label: "Not connected", canRead: false },
+    error: { state: "problem", label: "Error", canRead: false },
+  };
+  const mapped = mapping[observedState];
+  return {
+    ...item,
+    state: mapped.state,
+    plainStatus: mapped.label,
+    canRead: mapped.canRead,
+    canChange: false,
+    lastCheckedAt: observation.observed_at ?? item.lastCheckedAt ?? null,
+    advanced: {
+      ...asRecord(item.advanced),
+      verificationState: observedState,
+      verificationSource: textValue(observation.source) || null,
+      verificationMissing: textValue(observation.missing_reason) || null,
+      verificationEvidence: asRecord(observation.evidence_redacted),
+    },
+  };
+}
+
+async function recordConnectionVerificationObservation(
+  context: UserContext,
+  provider: string,
+  state: "verified" | "partial" | "not_connected" | "error",
+  source: string,
+  missingReason: string | null,
+  evidence: JsonRecord,
+  staleSeconds = 900,
+) {
+  const admin = createOperationalAdminClient();
+  const observedAt = new Date();
+  const { error } = await admin
+    .from("pandora_connection_verification_observations_v1")
+    .upsert({
+      organization_id: context.organizationId,
+      provider_key: provider,
+      state,
+      observed_at: observedAt.toISOString(),
+      stale_after: state === "not_connected"
+        ? null
+        : new Date(observedAt.getTime() + staleSeconds * 1000).toISOString(),
+      source,
+      missing_reason: missingReason,
+      evidence_redacted: evidence,
+      updated_at: observedAt.toISOString(),
+    }, { onConflict: "organization_id,provider_key" });
+  if (error) throw new Error("CONNECTION_TEST_FAILED");
+}
+
+async function verifyVaultNoSpendConnection(
+  context: UserContext,
+  provider: string,
+) {
+  const admin = createOperationalAdminClient();
+  const { data, error } = await admin.rpc(
+    "pandora_connection_verify_vault_no_spend_v1",
+    {
+      p_organization_id: context.organizationId,
+      p_provider_key: provider,
+      p_actor_user_id: context.userId,
+    },
+  );
+  const result = asRecord(data);
+  if (
+    error ||
+    result.ok !== true ||
+    textValue(result.provider).toLowerCase() !== provider ||
+    !["verified", "partial", "not_connected", "error"].includes(
+      textValue(result.state).toLowerCase(),
+    )
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+  return result;
+}
+
+const PUBLIC_SAFE_READ_PROVIDERS: Record<string, {
+  url: string;
+  providerIdentity: string;
+  capabilityKey: string;
+  accept: string;
+}> = {
+  "ph.psa.openstat": {
+    url: "https://openstat.psa.gov.ph/PXWeb/api/v1/en",
+    providerIdentity: "PSA OpenSTAT PXWeb",
+    capabilityKey: "statistics.catalog.read",
+    accept: "application/json",
+  },
+  "ph.phivolcs.hazard_gis": {
+    url: "https://gisweb.phivolcs.dost.gov.ph/arcgis/rest/services/PHIVOLCS/GroundShaking/MapServer/0?f=pjson",
+    providerIdentity: "PHIVOLCS Ground Shaking (Deterministic)",
+    capabilityKey: "hazard.layer.read",
+    accept: "application/json",
+  },
+  "ph.namria.geoportal": {
+    url: "https://geoserver.geoportal.gov.ph/geoserver/ows?service=wms&version=1.1.1&request=GetCapabilities",
+    providerIdentity: "GeoServer Web Map Service",
+    capabilityKey: "geospatial.catalog.read",
+    accept: "application/vnd.ogc.wms_xml, text/xml",
+  },
+};
+
+async function verifyPublicSafeReadConnection(
+  context: UserContext,
+  provider: string,
+) {
+  const contract = PUBLIC_SAFE_READ_PROVIDERS[provider];
+  if (!contract) throw new Error("CONNECTION_TEST_UNSUPPORTED");
+  const response = await providerFetch(contract.url, {
+    headers: {
+      accept: contract.accept,
+      "user-agent": "PandoraSafeReadProbe/1.0",
+    },
+  });
+  const body = await response.text();
+  if (!response.ok || body.length === 0 || body.length > 8 * 1024 * 1024) {
+    await recordConnectionVerificationObservation(
+      context,
+      provider,
+      "error",
+      "public_safe_read_provider_readback",
+      "The official public provider did not return a valid safe-read response.",
+      { httpStatus: response.status, credentialReturned: false },
+    );
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  let shapeVerified = false;
+  if (provider === "ph.namria.geoportal") {
+    shapeVerified =
+      /(?:WMT_MS_Capabilities|WMS_Capabilities)/.test(body) &&
+      /<Service>/.test(body);
+  } else {
+    const parsed = JSON.parse(body) as unknown;
+    if (provider === "ph.psa.openstat") {
+      shapeVerified = Array.isArray(parsed) && parsed.length > 0;
+    } else {
+      const record = asRecord(parsed);
+      shapeVerified = textValue(record.type) === "Feature Layer" &&
+        textValue(record.capabilities).split(",").includes("Query");
+    }
+  }
+  if (!shapeVerified) {
+    await recordConnectionVerificationObservation(
+      context,
+      provider,
+      "error",
+      "public_safe_read_provider_readback",
+      "The official public provider returned an unexpected response shape.",
+      { httpStatus: response.status, shapeVerified: false, credentialReturned: false },
+    );
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const digest = await sha256Text(body);
+  const observedAt = new Date().toISOString();
+  const admin = createOperationalAdminClient();
+  const { data, error } = await admin.rpc(
+    "pandora_connection_commit_public_safe_read_v1",
+    {
+      p_organization_id: context.organizationId,
+      p_provider_key: provider,
+      p_actor_user_id: context.userId,
+      p_tenant_key: "official-public-api",
+      p_provider_identity: contract.providerIdentity,
+      p_verified_at: observedAt,
+      p_provider_readback: {
+        verificationState: "provider_readback_verified",
+        providerKey: provider,
+        organizationId: context.organizationId,
+        tenantId: context.organizationId,
+        tenantKey: "official-public-api",
+        providerIdentity: contract.providerIdentity,
+        health: { state: "healthy" },
+        probe: { capabilityKey: contract.capabilityKey, ok: true },
+        credentialReturned: false,
+        httpStatus: response.status,
+        bodySha256: digest,
+        grantedScopes: [contract.capabilityKey],
+        observedAt,
+      },
+    },
+  );
+  if (error || asRecord(data).ok !== true) throw new Error("CONNECTION_TEST_FAILED");
+  await recordConnectionVerificationObservation(
+    context,
+    provider,
+    "verified",
+    "public_safe_read_provider_readback",
+    null,
+    { httpStatus: response.status, shapeVerified: true, credentialReturned: false },
+  );
+}
+
 function approvalSummary(value: unknown, riskCode = "") {
   const approval = asRecord(value);
   const preview = asRecord(approval.preview_redacted);
@@ -1166,7 +1373,7 @@ async function project(context: UserContext, identifier: string) {
 async function connections(
   context: UserContext,
 ){
-  const [liveResult, legacyResult] = await Promise.all([
+  const [liveResult, legacyResult, observationResult] = await Promise.all([
     context.client.rpc("pandora_live_connections_v1", {
       p_organization_id: context.organizationId,
     }),
@@ -1176,8 +1383,13 @@ async function connections(
       )
       .eq("organization_id", context.organizationId)
       .order("provider"),
+    context.client.from("pandora_connection_verification_observations_v1")
+      .select(
+        "provider_key,state,observed_at,stale_after,source,missing_reason,evidence_redacted",
+      )
+      .eq("organization_id", context.organizationId),
   ]);
-  if (liveResult.error || legacyResult.error) {
+  if (liveResult.error || legacyResult.error || observationResult.error) {
     throw new Error("BACKEND_READ_FAILED");
   }
   const live = asRecord(liveResult.data);
@@ -1189,28 +1401,56 @@ async function connections(
   ) {
     throw new Error("BACKEND_READ_FAILED");
   }
+
   const legacyRows = (legacyResult.data || []) as JsonRecord[];
   const legacyByProvider = new Map<string, JsonRecord>();
   for (const row of legacyRows) {
     const provider = textValue(row.provider).toLowerCase();
-    if (provider && !legacyByProvider.has(provider)) {
+    const existing = legacyByProvider.get(provider);
+    if (
+      provider &&
+      (!existing ||
+        textValue(row.status) === "active" ||
+        Date.parse(textValue(row.updated_at)) > Date.parse(textValue(existing.updated_at)))
+    ) {
       legacyByProvider.set(provider, row);
     }
   }
+
+  const now = Date.now();
+  const observationsByProvider = new Map<string, JsonRecord>();
+  for (const raw of (observationResult.data || []) as JsonRecord[]) {
+    const provider = textValue(raw.provider_key).toLowerCase();
+    const staleAfter = textValue(raw.stale_after);
+    const fresh = !staleAfter || Date.parse(staleAfter) > now;
+    if (provider && fresh) observationsByProvider.set(provider, raw);
+  }
+
   const liveProviders = new Set<string>();
   const projected: JsonRecord[] = live.providers.map((item) => {
     const provider = textValue(asRecord(item).provider).toLowerCase();
     if (!provider) throw new Error("BACKEND_READ_FAILED");
     liveProviders.add(provider);
-    return liveConnectionSummary(
+    const summary = liveConnectionSummary(
       item,
       context.organizationId,
       legacyByProvider.get(provider),
     );
+    return applyConnectionVerificationObservation(
+      summary,
+      observationsByProvider.get(provider),
+    );
   });
   for (const row of legacyRows) {
     const provider = textValue(row.provider).toLowerCase();
-    if (!liveProviders.has(provider)) projected.push(legacyConnectionSummary(row));
+    if (!liveProviders.has(provider)) {
+      projected.push(
+        applyConnectionVerificationObservation(
+          legacyConnectionSummary(row),
+          observationsByProvider.get(provider),
+        ),
+      );
+    }
   }
   return projected;
 }
@@ -1750,6 +1990,55 @@ async function verifyMetaConnection(
   }
 }
 
+async function verifyBrokerConnection(
+  context: UserContext,
+  item: JsonRecord,
+  provider: string,
+) {
+  const advanced = asRecord(item.advanced);
+  const connectionId = textValue(
+    advanced.accountId,
+    textValue(item.id),
+  );
+  const tenantKey = textValue(advanced.tenantKey);
+  if (!PROVIDER_UUID.test(connectionId) || !PROVIDER_TENANT.test(tenantKey)) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const brokerResponse = await providerFetch(
+    `${SUPABASE_URL}/functions/v1/pandora-connections-broker`,
+    {
+      method: "POST",
+      headers: {
+        authorization: context.authorization,
+        apikey: SUPABASE_ANON_KEY,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        action: "health",
+        provider,
+        organizationId: context.organizationId,
+        tenantId: context.organizationId,
+        connectionId,
+        tenantKey,
+      }),
+    },
+  );
+  const result = await providerJson(brokerResponse);
+  if (
+    !brokerResponse.ok ||
+    result.ok !== true ||
+    textValue(result.provider).toLowerCase() !== provider ||
+    result.healthy !== true ||
+    textValue(result.connectionId) !== connectionId ||
+    textValue(result.tenantId) !== context.organizationId ||
+    textValue(result.tenantKey) !== tenantKey
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+}
+
 async function connectionAction(
   context: UserContext,
   connectionId: string,
@@ -1786,12 +2075,75 @@ async function connectionAction(
     const normalizedProvider = provider.toLowerCase();
     if (normalizedProvider === "github") {
       await verifyGithubConnection(context, connectionId);
+      await recordConnectionVerificationObservation(
+        context,
+        normalizedProvider,
+        "verified",
+        "github_provider_readback",
+        null,
+        { repositoryRead: true, credentialReturned: false },
+      );
     } else if (normalizedProvider === "supabase") {
       await verifySupabaseConnection(context, connectionId);
+      await recordConnectionVerificationObservation(
+        context,
+        normalizedProvider,
+        "verified",
+        "supabase_provider_readback",
+        null,
+        { providerHealth: "ACTIVE_HEALTHY", credentialReturned: false },
+      );
     } else if (normalizedProvider === "vercel") {
       await verifyVercelConnection(context, connectionId);
+      await recordConnectionVerificationObservation(
+        context,
+        normalizedProvider,
+        "verified",
+        "vercel_provider_readback",
+        null,
+        { canonicalProjectRead: true, credentialReturned: false },
+      );
     } else if (normalizedProvider === "meta") {
       await verifyMetaConnection(context, connectionId);
+      await recordConnectionVerificationObservation(
+        context,
+        normalizedProvider,
+        "verified",
+        "meta_live_vault_provider_readback",
+        null,
+        { providerHealth: "ACTIVE_HEALTHY", credentialReturned: false },
+      );
+    } else if (normalizedProvider === "google_workspace") {
+      await verifyVaultNoSpendConnection(context, normalizedProvider);
+    } else if (SELF_SERVICE_PROVIDERS.has(normalizedProvider)) {
+      const advanced = asRecord(item.advanced);
+      const accountId = textValue(advanced.accountId, textValue(item.id));
+      const tenantKey = textValue(advanced.tenantKey);
+      if (PROVIDER_UUID.test(accountId) && PROVIDER_TENANT.test(tenantKey)) {
+        await verifyBrokerConnection(context, item, normalizedProvider);
+        await recordConnectionVerificationObservation(
+          context,
+          normalizedProvider,
+          "verified",
+          "pandora_connections_broker",
+          null,
+          { brokerHealth: true, credentialReturned: false },
+        );
+      } else {
+        await verifyVaultNoSpendConnection(context, normalizedProvider);
+      }
+    } else if (PUBLIC_SAFE_READ_PROVIDERS[normalizedProvider]) {
+      await verifyPublicSafeReadConnection(context, normalizedProvider);
+    } else if (normalizedProvider === "ph.psa.psgc") {
+      await recordConnectionVerificationObservation(
+        context,
+        normalizedProvider,
+        "not_connected",
+        "connection_inventory",
+        "No PSA-issued PSGC query token is present in the tenant Vault.",
+        { credentialPresent: false },
+        0,
+      );
     } else {
       throw new Error("CONNECTION_TEST_UNSUPPORTED");
     }

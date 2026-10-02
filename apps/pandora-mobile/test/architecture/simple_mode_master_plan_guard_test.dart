@@ -64,13 +64,16 @@ void main() {
       expect(projects, contains(label));
     }
     for (final label in const [
-      'Test now',
+      'Verify all (',
       'Connect',
-      'Reconnect',
       'Disconnect',
+      'connection-refresh-',
+      'connection-more-',
     ]) {
       expect(connections, contains(label));
     }
+    expect(connections, isNot(contains("'Test now'")));
+    expect(connections, isNot(contains("label: const Text('Verify')")));
     expect(approvals, contains('View details'));
     expect(approvals, contains('Sanitized change summary'));
     expect(approvals, contains('Undo available'));
