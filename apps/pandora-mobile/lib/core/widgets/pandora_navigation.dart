@@ -68,53 +68,92 @@ class PandoraPageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final openDrawer = PandoraNavigationScope.maybeOf(context)?.openDrawer;
     final showPandoraChevron = title == 'Pandora';
+    final background = Theme.of(context).scaffoldBackgroundColor;
     return SizedBox(
-      height: 56,
+      key: const ValueKey<String>('pandora-page-header-soft-fade'),
+      height: 68,
       child: Stack(
-        alignment: Alignment.center,
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: openDrawer != null
-                ? PandoraMenuButton(
-                    key: const ValueKey<String>('pandora-side-panel-open'),
-                    onPressed: openDrawer,
-                  )
-                : const SizedBox(width: 48),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 64),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -.2,
-                          decoration: TextDecoration.none,
-                        ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 56,
+            child: ColoredBox(
+              color: background,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: openDrawer != null
+                        ? PandoraMenuButton(
+                            key: const ValueKey<String>('pandora-side-panel-open'),
+                            onPressed: openDrawer,
+                          )
+                        : const SizedBox(width: 48),
                   ),
-                ),
-                if (showPandoraChevron) ...[
-                  const SizedBox(width: 3),
-                  const Icon(Icons.keyboard_arrow_down_rounded, size: 17),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 64),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -.2,
+                                      decoration: TextDecoration.none,
+                                    ),
+                          ),
+                        ),
+                        if (showPandoraChevron) ...[
+                          const SizedBox(width: 3),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 17,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ...actions,
+                        const SizedBox(width: 4),
+                      ],
+                    ),
+                  ),
                 ],
-              ],
+              ),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ...actions,
-                const SizedBox(width: 4),
-              ],
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 16,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[
+                      background,
+                      background.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
