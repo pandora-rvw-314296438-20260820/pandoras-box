@@ -47,6 +47,6 @@ test("Bedrock ticket issuance commits before the external OIDC claim",()=>{
   assert.match(issueSql,/insert into private\.pandora_bedrock_chat_tickets/);
   assert.match(issueSql,/jsonb_build_object\('ticket',v_token/);
   assert.doesNotMatch(issueSql,/extensions\.http|mcpmaster\.vercel\.app/);
-  assert.match(issueSql,/revoke all on function public\.pandora_issue_bedrock_chat_ticket_v1\(text,jsonb\) from public,anon,authenticated/);
-  assert.match(issueSql,/grant execute on function public\.pandora_issue_bedrock_chat_ticket_v1\(text,jsonb\) to service_role/);
+  assert.match(issueSql,/revoke all on function public\.pandora_issue_bedrock_chat_ticket_v1\(text,jsonb\)\s+from public,anon,authenticated/);
+  assert.match(issueSql,/grant execute on function public\.pandora_issue_bedrock_chat_ticket_v1\(text,jsonb\)\s+to service_role/);
 });
