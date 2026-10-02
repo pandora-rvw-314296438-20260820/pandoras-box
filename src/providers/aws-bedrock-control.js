@@ -69,8 +69,9 @@ async function fetchBedrockCatalogTruth({ fetchFn = globalThis.fetch, resolveWor
   return normalizeBedrockCatalogSnapshot({ foundationModels: models, inferenceProfiles: profiles, availabilityByModel: Object.fromEntries(availabilityPairs), region, observedAt: now.toISOString() });
 }
 async function probeBedrockCatalog({ snapshot, fetchFn = globalThis.fetch, resolveWorkloadToken, now = new Date() }) {
-  const plan = buildBedrockProbePlan(snapshot), credentials = await credentialsForControl(resolveWorkloadToken, fetchFn), region = BEDROCK_REGION, host = `bedrock-runtime.${region}.amazonaws.com`, body = minimalBedrockProbeBody();
+  const plan = buildBedrockProbePlan(snapshot), credentials = await credentialsForControl(resolveWorkloadToken, fetchFn), region = BEDROCK_REGION, host = `bedrock-runtime.${region}.amazonaws.com`;
   return mapLimit(plan, 6, async (model) => {
+    const body = minimalBedrockProbeBody(model.modelId);
     const attemptedAt = new Date().toISOString();
     if (!model.invocationTarget) return { modelId:model.modelId, invocationTarget:null, success:false, httpStatus:null, reason:"invocation_target_unresolved", attemptedAt, inputTokens:0, outputTokens:0, totalTokens:0 };
     try {

@@ -1,6 +1,68 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class PandoraLocalAiPreference {
+  const PandoraLocalAiPreference._();
+
+  static const String storageKey = 'pandora.use_phone_ai.v1';
+  static bool _enabled = false;
+  static bool _loaded = false;
+
+  static bool get cachedEnabled => _enabled;
+
+  static Future<bool> load() async {
+    if (_loaded) return _enabled;
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      _enabled = preferences.getBool(storageKey) ?? false;
+    } catch (_) {
+      _enabled = false;
+    }
+    _loaded = true;
+    return _enabled;
+  }
+
+  static Future<void> setEnabled(bool enabled) async {
+    if (!enabled) _enabled = false;
+    var persisted = false;
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      persisted = await preferences.setBool(storageKey, enabled);
+    } catch (_) {
+      persisted = false;
+    }
+    _enabled = persisted ? enabled : false;
+    _loaded = true;
+    if (!enabled || !persisted) {
+      try {
+        await PandoraLocalAi.instance.cancel();
+      } catch (_) {}
+      try {
+        await PandoraLocalAi.instance.unload();
+      } catch (_) {}
+    }
+    if (!persisted) {
+      throw const PandoraLocalAiException(
+        'Pandora could not save the phone-AI preference.',
+      );
+    }
+  }
+
+  @visibleForTesting
+  static void setCachedForTesting(bool enabled) {
+    _enabled = enabled;
+    _loaded = true;
+  }
+
+  @visibleForTesting
+  static void resetForTesting() {
+    _enabled = false;
+    _loaded = false;
+  }
+}
 
 class PandoraLocalAiStatus {
   const PandoraLocalAiStatus({
@@ -111,6 +173,7 @@ class PandoraLocalAi {
   }
 
   Future<bool> warm() async {
+    if (!await PandoraLocalAiPreference.load()) return false;
     try {
       final warmed = await _methods.invokeMethod<bool>('warm').timeout(
         const Duration(seconds: 128),
@@ -192,6 +255,9 @@ class PandoraLocalAi {
     required String challengeNonce,
     required String expectedApkSha256,
   }) async {
+    if (!await PandoraLocalAiPreference.load()) {
+      throw const PandoraLocalAiException('Phone AI is off.');
+    }
     try {
       final raw = await _methods.invokeMethod<Object?>(
         'runAcceptance',
@@ -222,6 +288,9 @@ class PandoraLocalAi {
   }
 
   Stream<String> generate(String prompt, {int predictLength = 192}) async* {
+    if (!await PandoraLocalAiPreference.load()) {
+      throw const PandoraLocalAiException('Phone AI is off.');
+    }
     final normalized = prompt.trim();
     if (normalized.isEmpty) {
       throw const PandoraLocalAiException('Local AI prompt cannot be empty.');
@@ -329,10 +398,11 @@ class PandoraLocalAiRouter {
     required bool hasProjectContext,
     required bool hasSelectedCapability,
     required bool hasCharacterContext,
-    bool usePhoneAi = false,
     PandoraLocalAiStatus? status,
   }) {
-    if (!usePhoneAi) return _record(false, 'phone_ai_disabled');
+    if (!PandoraLocalAiPreference.cachedEnabled) {
+      return _record(false, 'phone_ai_disabled');
+    }
     final value = message.trim();
     if (value.isEmpty) return _record(false, 'empty_message');
     if (value.length > 4000) {
@@ -467,7 +537,6 @@ class PandoraLocalAiRouter {
     required bool hasProjectContext,
     required bool hasSelectedCapability,
     required bool hasCharacterContext,
-    bool usePhoneAi = false,
     PandoraLocalAiStatus? status,
   }) =>
       decide(
@@ -476,7 +545,6 @@ class PandoraLocalAiRouter {
         hasProjectContext: hasProjectContext,
         hasSelectedCapability: hasSelectedCapability,
         hasCharacterContext: hasCharacterContext,
-        usePhoneAi: usePhoneAi,
         status: status,
       ).useLocal;
 }

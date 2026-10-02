@@ -65,6 +65,15 @@ void main() {
     expect(runtime, contains('AppLifecycleState.hidden'));
     expect(runtime, contains('AppLifecycleState.detached'));
     expect(runtime, contains('PandoraLocalAi.instance.unload()'));
+    expect(runtime, contains('PandoraLocalAiPreference.load()'));
+    expect(runtime, contains('PandoraLocalAiPreference.cachedEnabled'));
+    expect(runtime, contains('unawaited(unload())'));
+
+    final localAi = File('lib/core/local_ai/pandora_local_ai.dart').readAsStringSync();
+    expect(localAi, contains("storageKey = 'pandora.use_phone_ai.v1'"));
+    expect(localAi, contains("return _record(false, 'phone_ai_disabled')"));
+    expect(localAi, contains('if (!await PandoraLocalAiPreference.load()) return false;'));
+    expect(localAi, contains("throw const PandoraLocalAiException('Phone AI is off.')"));
 
     expect(app, contains('PandoraLocalAiRuntime.instance.start()'));
     expect(plpApp, contains('PandoraLocalAiRuntime.instance.start()'));

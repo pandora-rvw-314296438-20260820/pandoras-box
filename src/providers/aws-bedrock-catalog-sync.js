@@ -306,12 +306,14 @@ function buildBedrockProbePlan(snapshot) {
       invocationTarget: model.invocationTarget,
     })));
 }
-function minimalBedrockProbeBody() {
+function minimalBedrockProbeBody(modelId = "") {
+  const normalized = String(modelId || "").trim().toLowerCase();
+  const maxTokens = normalized === "moonshotai.kimi-k3" ? 16 : 1;
   return Object.freeze({
     messages: Object.freeze([
       { role: "user", content: Object.freeze([{ text: "OK" }]) },
     ]),
-    inferenceConfig: Object.freeze({ maxTokens: 1, temperature: 0 }),
+    inferenceConfig: Object.freeze({ maxTokens }),
   });
 }
 
