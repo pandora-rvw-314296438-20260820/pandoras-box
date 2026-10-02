@@ -1,4 +1,4 @@
-const BRAND_MARK = 'https://raw.githubusercontent.com/mbanatao/Battle/c3594e4721097714118a3e1a6854e9836410b00a/public/brand/banatao/red-apple-mark-96.png';
+const BRAND_MARK = '/assets/brand/pandora-product-mark-ui-1024.png';
 const API_BASE = '/api/operator';
 const PROFESSIONAL_ROUTES = new Set([
   'professional-home', 'build', 'run', 'connect', 'memory', 'verify',

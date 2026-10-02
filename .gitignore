@@ -11,4 +11,6 @@ __pycache__/
 .env.*
 !.env.example
 .dart_tool/
+apps/pandora-mobile/build/
 public/control-tower/
+public/assets/brand/pandora-product-mark-ui-1024.png
