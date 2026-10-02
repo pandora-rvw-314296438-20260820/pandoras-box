@@ -2699,6 +2699,22 @@ class _Composer extends StatelessWidget {
                           final voiceReady =
                               compact && !submitting && empty;
                           final cancelReady = submitting && empty;
+                          final VoidCallback onDictate = () {
+                            if (controller.text.trim().isNotEmpty) {
+                              this.onSubmit();
+                              return;
+                            }
+                            this.onDictate();
+                          };
+                          final VoidCallback onSubmit = () {
+                            if (compact &&
+                                !submitting &&
+                                controller.text.trim().isEmpty) {
+                              this.onDictate();
+                              return;
+                            }
+                            this.onSubmit();
+                          };
                           return SizedBox.square(
                             dimension: compact ? 36 : 40,
                             child: IconButton(
