@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/widgets/pandora_navigation.dart';
 import '../../pandora_config.dart';
-import '../simple/ask_pandora_screen.dart';
 
 class MarketingGrowthWorkspaceScreen extends StatefulWidget {
   const MarketingGrowthWorkspaceScreen({
@@ -232,15 +231,6 @@ class _MarketingGrowthWorkspaceScreenState
     return const SizedBox.shrink();
   }
 
-  void _openPandora() {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (routeContext) => AskPandoraScreen(
-        enterpriseContext: widget.enterpriseContext,
-        onHome: () => Navigator.of(routeContext).pop(),
-      ),
-    ));
-  }
-
   String get _sectionTitle {
     final route = widget.initialRouteSlug;
     if (route == 'home' || route == 'overview') return 'Overview';
@@ -328,41 +318,6 @@ class _MarketingGrowthWorkspaceScreenState
               if (!_loading && _error == null && _data != null)
                 ..._sectionContent(_data!),
             ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          color: _canvas,
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: Material(
-            color: const Color(0xFFF2F5F9),
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              key: const ValueKey('marketing-growth-command-bar'),
-              onTap: _openPandora,
-              borderRadius: BorderRadius.circular(14),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                child: Row(
-                  children: [
-                    Icon(Icons.auto_awesome_outlined, color: Colors.black),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Message Pandora about Marketing & Growth',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_rounded, color: Colors.black),
-                  ],
-                ),
-              ),
-            ),
           ),
         ),
       ),

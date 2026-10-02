@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../app/pandora_shared_conversation_scope.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../simple/pandora_v2_ui.dart';
 part 'provider_ecosystem_widgets.dart';
@@ -233,6 +234,12 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
   }
 
   Future<void> _showFamily(_CapabilityFamily family) async {
+    PandoraSharedConversationScope.maybeOf(context)?.bindSelectedObject(
+      <String, String>{
+        'recordType': 'capability_family',
+        'capabilityFamily': family.name,
+      },
+    );
     await showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,

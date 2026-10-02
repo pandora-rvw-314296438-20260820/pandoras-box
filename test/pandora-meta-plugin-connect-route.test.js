@@ -21,8 +21,9 @@ test('Meta plugin Connect and Reconnect prepare Facebook authorization when sent
   assert.match(ui, /_openGovernedPluginAction\(\s*plugin,[\s\S]*?_PluginAction\.connect,/);
   assert.match(ui, /_PluginAction\.connect when plugin\.id == 'meta' =>\s*'Connect Facebook'/);
   assert.match(ui, /_PluginAction\.reconnect when plugin\.id == 'meta' =>\s*'Connect Facebook'/);
-  assert.match(ui, /AskPandoraScreen\(initialPrompt: prompt\)/);
-  assert.match(ui, /Press Send in Ask Pandora to prepare a secure Facebook authorization link/);
+  assert.doesNotMatch(ui, /AskPandoraScreen/);
+  assert.match(ui, /shared\.submitPrompt\(prompt, selectedObject: selected\)/);
+  assert.match(ui, /Pandora will prepare a secure Facebook authorization link in the shared conversation/);
 
   const prompt = 'Connect Facebook';
   assert.equal(routePattern('connections').test(prompt.toLowerCase()), false);
