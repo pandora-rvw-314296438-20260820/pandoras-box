@@ -23,7 +23,7 @@ test('main business shell mounts one app-level Pandora conversation', () => {
   assert.match(shell, /PandoraConversationLayer\(/);
   assert.match(shell, /shellOverlay:\s*true/);
   assert.equal((shell.match(/AskPandoraScreen\(/g) ?? []).length, 1);
-  assert.match(layer, /compactComposerHeight = 68/);
+  assert.match(layer, /compactComposerHeight = 80/);
   assert.match(layer, /MediaQuery\.viewPaddingOf\(context\)\.bottom/);
   assert.match(layer, /pandora-business-composer-clearance/);
   assert.match(layer, /EdgeInsets\.only\(bottom: businessBottomInset\)/);
