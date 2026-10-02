@@ -43,22 +43,21 @@ test('recording 4998: bounded status reads stay direct but audit/analyze takes d
   assert.match(analysis, /audit\|analy\[sz\]e/);
 });
 
-test('recording 4998: search sheet owns controller lifetime and opens selected chat only after teardown', () => {
+test('recording 4998: Recent chats owns search lifetime in the exclusive right drawer', () => {
   assert.doesNotMatch(shell, /_workspaceKey/);
   assert.doesNotMatch(shell, /key:\s*_workspaceKey/);
-  assert.match(shell, /showModalBottomSheet<PandoraIntelligenceThread>/);
-  assert.match(shell, /_SearchChatsSheet\(threads: _threads\)/);
-  assert.match(shell, /final TextEditingController _controller = TextEditingController\(\);/);
-  assert.match(shell, /void dispose\(\) \{[\s\S]*?_controller\.dispose\(\);[\s\S]*?super\.dispose\(\);/);
-  assert.match(shell, /pandora-search-chats-sheet/);
-  assert.match(shell, /Navigator\.of\(context\)\.pop\(thread\)/);
-  assert.match(shell, /if \(!mounted \|\| selected == null\) return;/);
-  assert.match(shell, /await _openThread\(selected\)/);
-  const searchStart = shell.indexOf('Future<void> _searchChats() async');
-  const openThreadStart = shell.indexOf('Future<void> _openThread(', searchStart);
-  const searchBody = shell.slice(searchStart, openThreadStart);
-  assert.doesNotMatch(searchBody, /TextEditingController/);
-  assert.doesNotMatch(searchBody, /\.dispose\(\)/);
+  assert.match(shell, /endDrawer:\s*Drawer\(/);
+  assert.match(shell, /pandora-recent-chats-drawer/);
+  assert.match(shell, /class _PandoraRecentChatsPanel extends StatefulWidget/);
+  assert.match(shell, /final TextEditingController _search = TextEditingController\(\);/);
+  assert.match(shell, /void dispose\(\) \{[\s\S]*?_search\.dispose\(\);[\s\S]*?super\.dispose\(\);/);
+  assert.match(shell, /pandora-recent-chats-panel/);
+  assert.match(shell, /void _openRecentChats\(\)/);
+  assert.match(shell, /openEndDrawer\(\)/);
+  assert.match(shell, /onTap:\s*\(\) => widget\.onOpenThread\(thread\)/);
+  assert.match(shell, /await _chatKey\.currentState\?\.loadThread\(thread\.id\)/);
+  assert.doesNotMatch(shell, /showModalBottomSheet<PandoraIntelligenceThread>/);
+  assert.doesNotMatch(shell, /class _SearchChatsSheet/);
 });
 
 test('recording 4998: owner shell is deterministically Graphite', () => {
