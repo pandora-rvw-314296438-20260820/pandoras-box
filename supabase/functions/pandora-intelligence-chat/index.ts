@@ -279,7 +279,7 @@ function bedrockBody(message:string,attachments:any[],prior:any[],ctx:unknown,en
 async function bedrockConfig(c:any){
   const r=await c.rpc("pandora_list_conversational_models_v1");
   if(r.error)throw Error("BACKEND_READ_FAILED");
-  const rows=Array.isArray(r.data)?r.data.map(rec):[],models=rows.map(x=>txt(x.model_id)).filter(Boolean);
+  const rows:R[]=Array.isArray(r.data)?r.data.map(rec):[],models=rows.map((x:R)=>txt(x.model_id)).filter(Boolean);
   return{enabled:models.length>0,routingEligible:models.length>0,fallbackEnabled:true,model:models[0]??"",allowedModels:models,tasks:["chat"],preferredTasks:[],policyVersion:"lane-f-bedrock-live-v2",streamMode:"buffered_v1"};
 }
 async function bedrockSignature(payload:string,timestamp:string){
