@@ -20,6 +20,10 @@ test('owner Meta connection test uses the live Vault-backed verifier', () => {
     ownerApi,
     /normalizedProvider === "meta"[\s\S]{0,180}verifyMetaConnection\(context, connectionId\)/,
   );
+  assert.match(
+    ownerApi,
+    /normalizedProvider === "meta"[\s\S]{0,420}meta_live_vault_provider_readback/,
+  );
 });
 
 test('Meta verifier binds exact connector, Vault ref, Page identity, and service-role execution', () => {

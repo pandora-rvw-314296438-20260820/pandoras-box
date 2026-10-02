@@ -1,13 +1,145 @@
 [
   {
-    "id": "connection-fixture-1",
-    "name": "Source control",
+    "id": "github",
+    "name": "GitHub",
     "plainPurpose": "Code, issues, and proposed changes",
     "state": "ready",
-    "plainStatus": "Ready",
+    "plainStatus": "Verified",
     "canRead": true,
     "canChange": false,
     "needsOwnerApprovalForChanges": true,
-    "lastCheckedAt": "2026-08-14T01:00:00Z"
+    "lastCheckedAt": "2026-08-19T11:26:56.736233Z"
+  },
+  {
+    "id": "supabase",
+    "name": "Supabase",
+    "plainPurpose": "Database, sign-in, and safe server functions",
+    "state": "ready",
+    "plainStatus": "Verified",
+    "canRead": true,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:26:56.736233Z"
+  },
+  {
+    "id": "vercel",
+    "name": "Vercel",
+    "plainPurpose": "Live web versions and service health",
+    "state": "ready",
+    "plainStatus": "Verified",
+    "canRead": true,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:26:56.736233Z"
+  },
+  {
+    "id": "meta",
+    "name": "Meta",
+    "plainPurpose": "Facebook Page and Meta Business access",
+    "state": "ready",
+    "plainStatus": "Verified",
+    "canRead": true,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:29:54.751631Z"
+  },
+  {
+    "id": "google_workspace",
+    "name": "Google Workspace",
+    "plainPurpose": "Google Drive and Sheets read access",
+    "state": "off",
+    "plainStatus": "Not connected",
+    "canRead": false,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:30:01.348929Z"
+  },
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "plainPurpose": "OpenAI model health and bounded test inference",
+    "state": "partial",
+    "plainStatus": "Partial",
+    "canRead": false,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:29:21.240203Z"
+  },
+  {
+    "id": "gemini",
+    "name": "Gemini",
+    "plainPurpose": "Gemini model health and bounded test inference",
+    "state": "partial",
+    "plainStatus": "Partial",
+    "canRead": false,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:29:36.010553Z"
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi",
+    "plainPurpose": "Kimi model health and bounded test inference",
+    "state": "partial",
+    "plainStatus": "Partial",
+    "canRead": false,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:29:42.682601Z"
+  },
+  {
+    "id": "posthog",
+    "name": "PostHog",
+    "plainPurpose": "Product usage and reliability signals",
+    "state": "problem",
+    "plainStatus": "Error",
+    "canRead": false,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:29:47.901015Z"
+  },
+  {
+    "id": "ph.psa.openstat",
+    "name": "PSA OpenSTAT",
+    "plainPurpose": "Official Philippine statistics catalog read access",
+    "state": "ready",
+    "plainStatus": "Verified",
+    "canRead": true,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:26:56.736233Z"
+  },
+  {
+    "id": "ph.phivolcs.hazard_gis",
+    "name": "PHIVOLCS Hazard GIS",
+    "plainPurpose": "Official public hazard-layer read access",
+    "state": "partial",
+    "plainStatus": "Partial",
+    "canRead": false,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:26:56.736233Z"
+  },
+  {
+    "id": "ph.namria.geoportal",
+    "name": "NAMRIA Geoportal",
+    "plainPurpose": "Official public geospatial catalog read access",
+    "state": "ready",
+    "plainStatus": "Verified",
+    "canRead": true,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:26:56.736233Z"
+  },
+  {
+    "id": "ph.psa.psgc",
+    "name": "PSA PSGC",
+    "plainPurpose": "Philippine Standard Geographic Code query access",
+    "state": "off",
+    "plainStatus": "Not connected",
+    "canRead": false,
+    "canChange": false,
+    "needsOwnerApprovalForChanges": true,
+    "lastCheckedAt": "2026-08-19T11:26:56.736233Z"
   }
 ]

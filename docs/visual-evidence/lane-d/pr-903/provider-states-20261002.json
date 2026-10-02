@@ -1,0 +1,119 @@
+{
+  "snapshotAt": "2026-10-02T11:38:19.238Z",
+  "organization": "MCPMaster Staging",
+  "authority": "pandora_connection_verification_observations_v1 + live provider/broker readback",
+  "note": "Redacted evidence only. No credentials or raw tokens.",
+  "providers": [
+    {
+      "provider": "Gemini",
+      "state": "Partial",
+      "missing": "Configured model is readable, but the broker-required test inference was not run under the no-spend rule.",
+      "source": "vault_no_spend_provider_readback",
+      "observedAt": "2026-10-02T11:30:22.217Z",
+      "fresh": true
+    },
+    {
+      "provider": "GitHub",
+      "state": "Verified",
+      "missing": null,
+      "source": "github_provider_readback",
+      "observedAt": "2026-10-02T11:37:03.727Z",
+      "fresh": true
+    },
+    {
+      "provider": "Google Workspace",
+      "state": "Not connected",
+      "missing": "No organization-scoped Google Workspace OAuth connection is recorded.",
+      "source": "connection_inventory",
+      "observedAt": "2026-10-02T11:30:21.325Z",
+      "fresh": true
+    },
+    {
+      "provider": "Kimi",
+      "state": "Partial",
+      "missing": "Configured model is readable, but the broker-required test inference was not run under the no-spend rule.",
+      "source": "vault_no_spend_provider_readback",
+      "observedAt": "2026-10-02T11:30:22.543Z",
+      "fresh": true
+    },
+    {
+      "provider": "Meta",
+      "state": "Verified",
+      "missing": null,
+      "source": "meta_live_vault_provider_readback",
+      "observedAt": "2026-10-02T11:34:19.259Z",
+      "fresh": true
+    },
+    {
+      "provider": "OpenAI",
+      "state": "Partial",
+      "missing": "Configured model is readable, but the broker-required test inference was not run under the no-spend rule.",
+      "source": "vault_no_spend_provider_readback",
+      "observedAt": "2026-10-02T11:30:21.346Z",
+      "fresh": true
+    },
+    {
+      "provider": "NAMRIA Geoportal",
+      "state": "Verified",
+      "missing": null,
+      "source": "public_safe_read_provider_readback",
+      "observedAt": "2026-10-02T11:37:03.727Z",
+      "fresh": true
+    },
+    {
+      "provider": "PHIVOLCS Hazard GIS",
+      "state": "Partial",
+      "missing": "PHIVOLCS public layer is externally reachable and valid, but the Supabase control-plane probe timed out before a fresh direct receipt could be committed.",
+      "source": "external_public_provider_readback",
+      "observedAt": "2026-10-02T11:37:03.727Z",
+      "fresh": true
+    },
+    {
+      "provider": "PSA OpenSTAT",
+      "state": "Partial",
+      "missing": "PSA OpenSTAT publishes the current PXWeb API, but the Supabase control-plane API-root probe timed out before a fresh direct receipt could be committed.",
+      "source": "external_public_provider_readback",
+      "observedAt": "2026-10-02T11:37:03.727Z",
+      "fresh": true
+    },
+    {
+      "provider": "PSA PSGC",
+      "state": "Not connected",
+      "missing": "No PSA-issued PSGC query token is present in the tenant Vault.",
+      "source": "connection_inventory",
+      "observedAt": "2026-10-02T10:41:20.736Z",
+      "fresh": true
+    },
+    {
+      "provider": "PostHog",
+      "state": "Error",
+      "missing": "Stored PostHog credential is not authorized for project-read API access; a personal API key with project read access is required.",
+      "source": "vault_no_spend_provider_readback",
+      "observedAt": "2026-10-02T11:30:23.023Z",
+      "fresh": true
+    },
+    {
+      "provider": "Supabase",
+      "state": "Verified",
+      "missing": null,
+      "source": "supabase_provider_readback",
+      "observedAt": "2026-10-02T11:37:03.727Z",
+      "fresh": true
+    },
+    {
+      "provider": "Vercel",
+      "state": "Verified",
+      "missing": null,
+      "source": "vercel_provider_readback",
+      "observedAt": "2026-10-02T11:37:03.727Z",
+      "fresh": true
+    }
+  ],
+  "counts": {
+    "verified": 5,
+    "partial": 5,
+    "notConnected": 2,
+    "error": 1,
+    "total": 13
+  }
+}
