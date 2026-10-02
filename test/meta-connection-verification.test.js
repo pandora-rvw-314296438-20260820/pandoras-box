@@ -13,16 +13,16 @@ const migration = readFileSync(
   'utf8',
 );
 
-test('owner Meta connection dispatch uses the live Vault-backed no-spend verifier', () => {
-  assert.match(ownerApi, /async function verifyVaultNoSpendConnection\(/);
-  assert.match(ownerApi, /pandora_connection_verify_vault_no_spend_v1/);
+test('owner Meta connection test uses the live Vault-backed verifier', () => {
+  assert.match(ownerApi, /async function verifyMetaConnection\(/);
+  assert.match(ownerApi, /pandora_verify_meta_connection_20260906/);
   assert.match(
     ownerApi,
-    /normalizedProvider === "meta"\)\s*\{[\s\S]{0,220}verifyVaultNoSpendConnection\(context, normalizedProvider\);/,
+    /normalizedProvider === "meta"[\s\S]{0,180}verifyMetaConnection\(context, connectionId\)/,
   );
-  assert.doesNotMatch(
+  assert.match(
     ownerApi,
-    /normalizedProvider === "meta"\)[\s\S]{0,220}verifyMetaConnection\(context, connectionId\)/,
+    /normalizedProvider === "meta"[\s\S]{0,420}meta_live_vault_provider_readback/,
   );
 });
 
