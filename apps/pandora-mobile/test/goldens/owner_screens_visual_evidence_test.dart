@@ -174,6 +174,8 @@ class _VisualCase {
     this.textScaler = TextScaler.noScaling,
     this.failing = false,
     this.pending = false,
+    this.conversation = false,
+    this.prepare,
   });
 
   final String name;
@@ -183,6 +185,8 @@ class _VisualCase {
   final TextScaler textScaler;
   final bool failing;
   final bool pending;
+  final bool conversation;
+  final Future<void> Function(WidgetTester tester)? prepare;
 }
 
 class _FixtureActivityHistorySource implements PandoraActivityHistorySource {
@@ -310,10 +314,15 @@ class _FixtureActivityHistorySource implements PandoraActivityHistorySource {
 }
 
 class _FixtureRepository implements PandoraRepository {
-  _FixtureRepository({this.failing = false, this.pending = false});
+  _FixtureRepository({
+    this.failing = false,
+    this.pending = false,
+    this.conversation = false,
+  });
 
   final bool failing;
   final bool pending;
+  final bool conversation;
   Completer<RepositorySnapshot<HomeSummary>>? _pendingHome;
   static final DateTime _verifiedAt = DateTime.utc(
     2026,
@@ -437,8 +446,23 @@ class _FixtureRepository implements PandoraRepository {
     required String message,
     String? projectId,
     String? idempotencyKey,
-  }) =>
+  }) async {
+    if (!conversation) {
       throw UnimplementedError('Visual evidence never performs mutations.');
+    }
+    return const IntakeReceipt(
+      reply: 'Conversation started.',
+      needsApproval: false,
+      actionId: 'visual-conversation-1',
+      status: IntakeStatus(
+        whatChanged: 'Message recorded.',
+        whereWeAre: 'Conversation',
+        whatIsDone: 'First turn complete.',
+        whatIsHappeningNow: 'Waiting for the next message.',
+        whatIWillDoNext: 'Continue the conversation.',
+      ),
+    );
+  }
 
   @override
   Future<IntakeReceipt> runAction({
@@ -488,6 +512,7 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
   final repository = _FixtureRepository(
     failing: visual.failing,
     pending: visual.pending,
+    conversation: visual.conversation,
   );
   Object? frameworkException;
   late final File output;
@@ -515,6 +540,13 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
       await tester.pump(frame);
     }
     await _waitForRenderedPandoraMark(tester, visual.name);
+    if (visual.prepare != null) {
+      await visual.prepare!(tester);
+      for (final frame in _renderFrames) {
+        await tester.pump(frame);
+      }
+      await _waitForRenderedPandoraMark(tester, visual.name);
+    }
     frameworkException = tester.takeException();
 
     final boundary = tester.renderObject<RenderRepaintBoundary>(
@@ -675,6 +707,61 @@ void main() {
       name: 'obsidian_chat_empty_390x844',
       build: () => const AskPandoraScreen(),
       themeMode: ThemeMode.dark,
+    ),
+    _VisualCase(
+      name: 'obsidian_nav_drawer_scrim_390x844',
+      build: () => const PandoraChatShell(),
+      themeMode: ThemeMode.dark,
+      prepare: (tester) async {
+        await tester.tap(find.byTooltip('Open navigation'));
+        await tester.pumpAndSettle();
+      },
+    ),
+    _VisualCase(
+      name: 'obsidian_recent_chats_right_390x844',
+      build: () => const PandoraChatShell(),
+      themeMode: ThemeMode.dark,
+      prepare: (tester) async {
+        await tester.tap(find.byTooltip('Open navigation'));
+        await tester.pumpAndSettle();
+        final drawer = find.byKey(
+          const ValueKey<String>('pandora-primary-navigation-drawer'),
+        );
+        await tester.tap(
+          find.descendant(
+            of: drawer,
+            matching: find.widgetWithText(ListTile, 'Pandora'),
+          ).first,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey<String>('pandora-recent-chats')),
+        );
+        await tester.pumpAndSettle();
+      },
+    ),
+    _VisualCase(
+      name: 'obsidian_ellipsis_menu_390x844',
+      build: () => AskPandoraScreen(
+        onSearchChats: () {},
+        onMore: () {},
+      ),
+      themeMode: ThemeMode.dark,
+      conversation: true,
+      prepare: (tester) async {
+        await tester.enterText(
+          find.byKey(const ValueKey<String>('ask-pandora-objective')),
+          'Start this conversation',
+        );
+        await tester.tap(
+          find.byKey(const ValueKey<String>('ask-pandora-submit')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey<String>('pandora-chat-overflow')),
+        );
+        await tester.pumpAndSettle();
+      },
     ),
     _VisualCase(
       name: 'obsidian_projects_grid_390x844',

@@ -85,6 +85,48 @@ void main() {
     return tile;
   }
 
+  testWidgets('empty landing is mark-only with a borderless always-live input', (tester) async {
+    await mount(tester, const Size(390, 844));
+
+    expect(
+      find.byKey(const ValueKey<String>('pandora-empty-landing')),
+      findsOneWidget,
+    );
+    expect(find.text('What can I help with?'), findsNothing);
+    expect(
+      find.text('Ask a question, describe a change, or tell Pandora what you want to build.'),
+      findsNothing,
+    );
+    expect(find.text('What can you do for me now?'), findsNothing);
+    expect(find.text('Check my GitHub for failing CI'), findsNothing);
+    expect(find.text('What needs my attention?'), findsNothing);
+
+    final objective =
+        find.byKey(const ValueKey<String>('ask-pandora-objective'));
+    expect(objective, findsOneWidget);
+    final field = tester.widget<TextField>(objective);
+    expect(field.decoration?.border, InputBorder.none);
+    expect(field.decoration?.enabledBorder, InputBorder.none);
+    expect(field.decoration?.focusedBorder, InputBorder.none);
+
+    final dock = tester.widget<Container>(
+      find.byKey(const ValueKey<String>('ask-pandora-composer-dock')),
+    );
+    final dockDecoration = dock.decoration! as BoxDecoration;
+    expect(dockDecoration.color, Colors.transparent);
+    expect(dockDecoration.border, isNull);
+    expect(dockDecoration.boxShadow, isNull);
+
+    final composer = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey<String>('ask-pandora-composer')),
+    );
+    final composerDecoration = composer.decoration as BoxDecoration;
+    expect(composerDecoration.color, Colors.transparent);
+    expect(composerDecoration.border, isNull);
+    expect(composerDecoration.boxShadow, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in <double>[360, 390, 600]) {
     testWidgets('phone $width uses full-width chat and one drawer',
         (tester) async {
