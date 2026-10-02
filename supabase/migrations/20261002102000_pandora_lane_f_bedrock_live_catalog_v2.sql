@@ -65,29 +65,6 @@ insert into private.pandora_bedrock_catalog_sync_state(singleton) values(true) o
 alter table private.pandora_bedrock_catalog_sync_state enable row level security;
 revoke all on private.pandora_bedrock_catalog_sync_state from public,anon,authenticated,service_role;
 
-create table if not exists private.pandora_bedrock_sync_nonces(
-  nonce uuid primary key,
-  issued_at timestamptz not null,
-  consumed_at timestamptz not null default now()
-);
-alter table private.pandora_bedrock_sync_nonces enable row level security;
-revoke all on private.pandora_bedrock_sync_nonces from public,anon,authenticated,service_role;
-
-create or replace function public.pandora_bedrock_sync_nonce_consume_v1(p_nonce uuid,p_issued_at bigint)
-returns boolean
-language plpgsql security definer set search_path to 'pg_catalog','private','public'
-as $$
-declare v_now bigint:=floor(extract(epoch from clock_timestamp()))::bigint;
-begin
-  if coalesce(auth.role(),'')<>'service_role' then raise exception 'SERVICE_ROLE_REQUIRED' using errcode='42501'; end if;
-  if p_nonce is null or p_issued_at is null or abs(v_now-p_issued_at)>120 then return false; end if;
-  delete from private.pandora_bedrock_sync_nonces where consumed_at<clock_timestamp()-interval '15 minutes';
-  insert into private.pandora_bedrock_sync_nonces(nonce,issued_at) values(p_nonce,to_timestamp(p_issued_at)) on conflict do nothing;
-  return found;
-end;$$;
-revoke all on function public.pandora_bedrock_sync_nonce_consume_v1(uuid,bigint) from public,anon,authenticated;
-grant execute on function public.pandora_bedrock_sync_nonce_consume_v1(uuid,bigint) to service_role;
-
 create or replace function public.pandora_bedrock_catalog_sync_claim_v1()
 returns jsonb
 language plpgsql security definer set search_path to 'pg_catalog','private','public'
@@ -282,11 +259,11 @@ begin
     where name=('pandora_ops_vercel_'||'wake_hmac_v1') limit 1;
   if nullif(trim(v_secret),'') is null then raise exception 'BEDROCK_SYNC_WAKE_SECRET_UNAVAILABLE' using errcode='55000'; end if;
   v_timestamp:=floor(extract(epoch from clock_timestamp()))::bigint::text;
-  v_message:=v_timestamp||E'\n'||v_nonce::text||E'\nPOST\n/api/bedrock-model-catalog-sync\n{}';
+  v_message:=v_timestamp||E'\n'||v_nonce::text||E'\nPOST\n/api/operations-native-worker\n{\"action\":\"bedrock_catalog_sync\"}';
   v_signature:=encode(extensions.hmac(convert_to(v_message,'UTF8'),convert_to(v_secret,'UTF8'),'sha256'),'hex');
   v_request_id:=net.http_post(
-    url:='https://mcpmaster.vercel.app/api/bedrock-model-catalog-sync',
-    body:='{}'::jsonb,
+    url:='https://mcpmaster.vercel.app/api/operations-native-worker',
+    body:='{"action":"bedrock_catalog_sync"}'::jsonb,
     headers:=jsonb_build_object(
       'content-type','application/json',
       'x-pandora-wake-timestamp',v_timestamp,
