@@ -4,6 +4,7 @@ import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
+import 'package:pandora_mobile/core/widgets/pandora_navigation.dart';
 import 'package:pandora_mobile/features/operations/operations_room_screen.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
 
@@ -37,7 +38,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(
           find.descendant(
-            of: find.byType(Drawer),
+            of: primaryDrawer,
             matching: find.widgetWithText(ListTile, 'Pandora'),
           ),
         );
@@ -47,18 +48,26 @@ void main() {
   }
 
   final menu = find.byTooltip('Open navigation');
+  final primaryDrawer = find.byKey(
+    const ValueKey<String>('pandora-primary-navigation-drawer'),
+  );
+  final recentDrawer = find.byKey(
+    const ValueKey<String>('pandora-recent-chats-drawer'),
+  );
+  final recentChats = find.byKey(
+    const ValueKey<String>('pandora-recent-chats'),
+  );
 
   Future<Finder> drawerTile(WidgetTester tester, String title) async {
-    final drawer = find.byType(Drawer);
     final scrollable = find.descendant(
-      of: drawer,
+      of: primaryDrawer,
       matching: find.byType(Scrollable),
     ).first;
     final state = tester.state<ScrollableState>(scrollable);
     state.position.jumpTo(state.position.minScrollExtent);
     await tester.pump();
     final tile = find.descendant(
-      of: drawer,
+      of: primaryDrawer,
       matching: find.widgetWithText(ListTile, title),
     );
     if (tile.evaluate().isEmpty) {
@@ -88,7 +97,8 @@ void main() {
       );
       await tester.tap(menu);
       await tester.pumpAndSettle();
-      final drawer = find.byType(Drawer);
+      expect(primaryDrawer, findsOneWidget);
+      expect(recentDrawer, findsNothing);
       for (final title in <String>[
         'Pandora',
         'Projects',
@@ -117,7 +127,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.byType(Drawer), findsNothing);
+      expect(primaryDrawer, findsNothing);
+      expect(recentDrawer, findsNothing);
       expect(find.text('Keep this draft'), findsOneWidget);
     });
   }
@@ -156,7 +167,7 @@ void main() {
       (tester) async {
     await mount(tester, const Size(1024, 800));
     expect(menu, findsNothing);
-    expect(find.byType(Drawer), findsNothing);
+    expect(primaryDrawer, findsNothing);
     expect(find.widgetWithText(ListTile, 'Capabilities & Providers'), findsOneWidget);
     expect(tester.getSize(find.byType(AskPandoraScreen)).width, 759);
     expect(tester.takeException(), isNull);
@@ -258,6 +269,8 @@ void main() {
         find.byKey(const ValueKey<String>('ask-pandora-objective'));
     final plus = find.byKey(const ValueKey<String>('ask-pandora-plus'));
     final composer = find.byKey(const ValueKey<String>('ask-pandora-composer'));
+    final composerDock =
+        find.byKey(const ValueKey<String>('ask-pandora-composer-dock'));
     final voice = find.byKey(const ValueKey<String>('ask-pandora-voice'));
     final submit = find.byKey(const ValueKey<String>('ask-pandora-submit'));
     await tester.tap(objective);
@@ -266,6 +279,7 @@ void main() {
     expect(objective, findsOneWidget);
     expect(plus, findsOneWidget);
     expect(composer, findsOneWidget);
+    expect(composerDock, findsOneWidget);
     expect(voice, findsOneWidget);
     expect(submit, findsOneWidget);
     expect(find.byType(Divider), findsNothing);
@@ -278,40 +292,61 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('search chats can open and close repeatedly before navigation',
+  testWidgets('recent chats opens only as the right-side drawer',
       (tester) async {
     await mount(tester, const Size(390, 800));
-    await tester.tap(menu);
-    await tester.pumpAndSettle();
+    expect(recentChats, findsOneWidget);
+    expect(
+      find.descendant(
+        of: primaryDrawer,
+        matching: find.text('Recent chats'),
+      ),
+      findsNothing,
+    );
+
     for (var attempt = 0; attempt < 3; attempt++) {
-      await tester.tap(
-        find.byKey(const ValueKey<String>('pandora-search-chats')),
-      );
+      await tester.tap(recentChats);
       await tester.pumpAndSettle();
+      expect(recentDrawer, findsOneWidget);
+      expect(primaryDrawer, findsNothing);
       expect(
-        find.byKey(const ValueKey<String>('pandora-search-chats-sheet')),
+        find.byKey(const ValueKey<String>('pandora-recent-chats-panel')),
         findsOneWidget,
       );
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey<String>('pandora-search-chats-sheet')),
-        findsNothing,
-      );
-      expect(tester.takeException(), isNull, reason: 'search attempt $attempt');
+      expect(recentDrawer, findsNothing);
+      expect(tester.takeException(), isNull, reason: 'history attempt $attempt');
     }
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+
     await tester.tap(menu);
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.descendant(
-        of: find.byType(Drawer),
-        matching: find.widgetWithText(ListTile, 'Projects'),
-      ),
-    );
+    await tester.tap(await drawerTile(tester, 'Projects'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Create project'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('primary and recent-chat drawers can never stack', (tester) async {
+    await mount(tester, const Size(390, 800));
+
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    expect(primaryDrawer, findsOneWidget);
+    expect(recentDrawer, findsNothing);
+
+    tester.widget<IconButton>(recentChats).onPressed!.call();
+    await tester.pumpAndSettle();
+    expect(primaryDrawer, findsNothing);
+    expect(recentDrawer, findsOneWidget);
+
+    final menuButton = tester.widget<PandoraMenuButton>(
+      find.byKey(const ValueKey<String>('pandora-side-panel-open')),
+    );
+    menuButton.onPressed();
+    await tester.pumpAndSettle();
+    expect(primaryDrawer, findsOneWidget);
+    expect(recentDrawer, findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -373,8 +408,9 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey<String>('pandora-chat-menu-search')),
-      findsOneWidget,
+      findsNothing,
     );
+    expect(recentChats, findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('pandora-chat-menu-more')),
       findsOneWidget,
