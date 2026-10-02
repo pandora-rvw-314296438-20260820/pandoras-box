@@ -11,6 +11,7 @@ import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/activity/pandora_activity_projection.dart';
 import 'package:pandora_mobile/core/data/pandora_activity_history_api.dart';
+import 'package:pandora_mobile/core/data/pandora_intelligence_api.dart';
 import 'package:pandora_mobile/core/data/pandora_repository.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
@@ -174,6 +175,7 @@ class _VisualCase {
     this.textScaler = TextScaler.noScaling,
     this.failing = false,
     this.pending = false,
+    this.arrange,
   });
 
   final String name;
@@ -183,6 +185,7 @@ class _VisualCase {
   final TextScaler textScaler;
   final bool failing;
   final bool pending;
+  final Future<void> Function(WidgetTester tester)? arrange;
 }
 
 class _FixtureActivityHistorySource implements PandoraActivityHistorySource {
@@ -515,6 +518,13 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
       await tester.pump(frame);
     }
     await _waitForRenderedPandoraMark(tester, visual.name);
+    if (visual.arrange != null) {
+      await visual.arrange!(tester);
+      for (final frame in _renderFrames) {
+        await tester.pump(frame);
+      }
+      await _waitForRenderedPandoraMark(tester, visual.name);
+    }
     frameworkException = tester.takeException();
 
     final boundary = tester.renderObject<RenderRepaintBoundary>(
@@ -574,6 +584,65 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
     isNull,
     reason: '${visual.name} raised a framework exception.',
   );
+}
+
+final List<PandoraIntelligenceThread> _laneDVisualThreads =
+    <PandoraIntelligenceThread>[
+  PandoraIntelligenceThread(
+    id: 'thread-lane-d-001',
+    title: 'Finalize the executive operating brief for tomorrow',
+    status: 'active',
+    lastMessageAt: DateTime.utc(2030, 1, 1),
+    createdAt: DateTime.utc(2029, 12, 20),
+  ),
+  PandoraIntelligenceThread(
+    id: 'thread-lane-d-002',
+    title: 'Review provider health and deployment evidence',
+    status: 'active',
+    lastMessageAt: DateTime.utc(2030, 1, 1),
+    createdAt: DateTime.utc(2029, 12, 19),
+  ),
+  PandoraIntelligenceThread(
+    id: 'thread-lane-d-003',
+    title: 'Prepare the next customer workspace walkthrough',
+    status: 'active',
+    lastMessageAt: DateTime.utc(2030, 1, 1),
+    createdAt: DateTime.utc(2029, 12, 18),
+  ),
+];
+
+Future<void> _openPandoraChatForEvidence(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Open navigation'));
+  await tester.pumpAndSettle();
+  final drawer = find.byKey(
+    const ValueKey<String>('pandora-primary-navigation-drawer'),
+  );
+  await tester.tap(
+    find.descendant(
+      of: drawer,
+      matching: find.widgetWithText(ListTile, 'Pandora'),
+    ).first,
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _showPrimaryDrawerForEvidence(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Open navigation'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _showRecentChatsForEvidence(WidgetTester tester) async {
+  await _openPandoraChatForEvidence(tester);
+  await tester.tap(
+    find.byKey(const ValueKey<String>('pandora-recent-chats')),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _showConversationOptionsForEvidence(WidgetTester tester) async {
+  await _showRecentChatsForEvidence(tester);
+  await tester.tap(find.byTooltip('Conversation options').first);
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -672,9 +741,33 @@ void main() {
       textScaler: TextScaler.linear(1.6),
     ),
     _VisualCase(
-      name: 'obsidian_chat_empty_390x844',
+      name: 'obsidian_logo_only_landing_390x844',
       build: () => const AskPandoraScreen(),
       themeMode: ThemeMode.dark,
+    ),
+    _VisualCase(
+      name: 'obsidian_nav_drawer_scrim_390x844',
+      build: () => PandoraChatShell(
+        initialRecentThreads: _laneDVisualThreads,
+      ),
+      themeMode: ThemeMode.dark,
+      arrange: _showPrimaryDrawerForEvidence,
+    ),
+    _VisualCase(
+      name: 'obsidian_recent_chats_right_390x844',
+      build: () => PandoraChatShell(
+        initialRecentThreads: _laneDVisualThreads,
+      ),
+      themeMode: ThemeMode.dark,
+      arrange: _showRecentChatsForEvidence,
+    ),
+    _VisualCase(
+      name: 'obsidian_recent_chat_ellipsis_390x844',
+      build: () => PandoraChatShell(
+        initialRecentThreads: _laneDVisualThreads,
+      ),
+      themeMode: ThemeMode.dark,
+      arrange: _showConversationOptionsForEvidence,
     ),
     _VisualCase(
       name: 'obsidian_projects_grid_390x844',

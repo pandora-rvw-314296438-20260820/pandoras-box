@@ -28,7 +28,12 @@ import '../features/simple/simple_safety_screen.dart';
 import 'pandora_dependencies.dart';
 
 class PandoraChatShell extends StatefulWidget {
-  const PandoraChatShell({super.key});
+  const PandoraChatShell({
+    super.key,
+    this.initialRecentThreads,
+  });
+
+  final List<PandoraIntelligenceThread>? initialRecentThreads;
 
   @override
   State<PandoraChatShell> createState() => _PandoraChatShellState();
@@ -115,8 +120,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     _recentChatsOpenScheduled = true;
     final scaffold = _scaffoldKey.currentState;
     if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
-    if (!_historyLoaded) _historyLoaded = true;
-    unawaited(_refreshHistory());
+    if (widget.initialRecentThreads == null) {
+      if (!_historyLoaded) _historyLoaded = true;
+      unawaited(_refreshHistory());
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _recentChatsOpenScheduled = false;
@@ -132,6 +139,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   @override
   void initState() {
     super.initState();
+    final seededThreads = widget.initialRecentThreads;
+    if (seededThreads != null) {
+      _threads = List<PandoraIntelligenceThread>.unmodifiable(seededThreads);
+      _historyLoaded = true;
+    }
     unawaited(OwnerAnalytics.shared.capture(OwnerAnalyticsEvent.appOpened));
     unawaited(
       OwnerAnalytics.shared.capture(
