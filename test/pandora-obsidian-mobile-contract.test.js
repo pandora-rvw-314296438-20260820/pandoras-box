@@ -25,11 +25,19 @@ test('approved Obsidian palette is native Flutter dark UI', () => {
   assert.match(shell, /brightness: Brightness\.dark/);
 });
 
-test('chat matches the Obsidian conversation-first hierarchy without a WebView shell', () => {
-  assert.match(chat, /What can I help with\?/);
-  assert.match(chat, /class _ObsidianSuggestion/);
-  assert.match(chat, /backgroundColor: Colors\.white/);
-  assert.match(chat, /Icons\.arrow_upward_rounded/);
+test('chat landing is logo-only with a bare borderless always-live composer', () => {
+  assert.match(chat, /pandora-logo-only-landing/);
+  assert.match(chat, /size:\s*28/);
+  assert.doesNotMatch(
+    chat,
+    /What can I help with|Ask a question, describe a change|_suggestions|_ObsidianSuggestion/,
+  );
+  assert.match(chat, /Message Pandora…/);
+  assert.match(chat, /border:\s*compact[\s\S]*?\? null/);
+  assert.ok((chat.match(/compact:\s*true/g) ?? []).length >= 2);
+  assert.match(chat, /final voiceReady =\s*compact && !submitting && empty/);
+  assert.match(chat, /tooltip: voiceReady[\s\S]*?'Voice input'[\s\S]*?'Send'/);
+  assert.doesNotMatch(chat, /backgroundColor:\s*Colors\.white/);
   assert.doesNotMatch(chat, /WebView|InAppWebView/);
 });
 

@@ -55,7 +55,8 @@ test('recording 4998: Recent chats owns search lifetime in the exclusive right d
   assert.match(shell, /void _openRecentChats\(\)/);
   assert.match(shell, /openEndDrawer\(\)/);
   assert.match(shell, /onTap:\s*\(\) => widget\.onOpenThread\(thread\)/);
-  assert.match(shell, /await _chatKey\.currentState\?\.loadThread\(thread\.id\)/);
+  assert.match(shell, /final chat = _chatKey\.currentState/);
+  assert.match(shell, /await chat\.loadThread\(thread\.id\)/);
   assert.doesNotMatch(shell, /showModalBottomSheet<PandoraIntelligenceThread>/);
   assert.doesNotMatch(shell, /class _SearchChatsSheet/);
 });

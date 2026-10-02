@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pandora_mobile/core/widgets/pandora_navigation.dart';
 import 'package:pandora_mobile/features/enterprise/enterprise_workspace_home.dart';
 
 void main() {
@@ -13,20 +14,32 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: EnterpriseWorkspaceHome(
-          onOpen: (_) {},
-          onSearchChats: () {},
-          onActivity: () {},
-          onMore: () {},
+        home: PandoraNavigationScope(
+          openDrawer: () {},
+          child: EnterpriseWorkspaceHome(
+            onOpen: (_) {},
+            onSearchChats: () {},
+            onActivity: () {},
+            onMore: () {},
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey<String>('workspace-home-brand')),
+      find.byKey(const ValueKey<String>('workspace-home-navigation')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey<String>('workspace-home-brand')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('workspace-home-title')),
+      findsNothing,
+    );
+    expect(find.byTooltip('Recent chats'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
