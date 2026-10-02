@@ -1682,13 +1682,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                     ),
                   )
                 : _messages.isEmpty && _pendingMessage == null
-                    ? Padding(
+                    ? const Padding(
                         padding: conversationPadding,
-                        child: _EmptyConversation(
-                          suggestions: _suggestions,
-                          onSuggestion: _useSuggestion,
-                          disabled: _outcomeUnknown || _submitting,
-                        ),
+                        child: _EmptyConversation(),
                       )
                     : _Conversation(
                         threadIdentity: _threadId ?? 'local-chat',
@@ -1726,6 +1722,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
             child: KeyedSubtree(
               key: _composerKey,
               child: _Composer(
+                minimalLanding: !_loadingThread &&
+                    _messages.isEmpty &&
+                    _pendingMessage == null &&
+                    _attachment == null &&
+                    _imageAttachment == null &&
+                    _projectContext == null &&
+                    _serviceContext == null &&
+                    _characterContext == null &&
+                    _error == null,
                 controller: _objective,
                 focusNode: _objectiveFocus,
                 attachment: _attachment,
@@ -1852,122 +1857,11 @@ class _ChatHeader extends StatelessWidget {
 }
 
 class _EmptyConversation extends StatelessWidget {
-  const _EmptyConversation({
-    required this.suggestions,
-    required this.onSuggestion,
-    required this.disabled,
-  });
-
-  final List<String> suggestions;
-  final ValueChanged<String> onSuggestion;
-  final bool disabled;
+  const _EmptyConversation();
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 42),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const PandoraMark(size: 40, color: Colors.white),
-                const SizedBox(height: 18),
-                const Text(
-                  'What can I help with?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -.35,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: const Text(
-                    'Ask a question, describe a change, or tell Pandora what you want to build.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: PandoraSimpleColors.muted,
-                      fontSize: 14,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 30),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  child: Column(
-                    children: [
-                      for (var index = 0;
-                          index < suggestions.length;
-                          index++) ...[
-                        _ObsidianSuggestion(
-                          label: suggestions[index],
-                          enabled: !disabled,
-                          onPressed: () => onSuggestion(suggestions[index]),
-                        ),
-                        if (index != suggestions.length - 1)
-                          const SizedBox(height: 12),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
-class _ObsidianSuggestion extends StatelessWidget {
-  const _ObsidianSuggestion({
-    required this.label,
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: const Color(0x0DFFFFFF),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: PandoraSimpleColors.line),
-        ),
-        child: InkWell(
-          onTap: enabled ? onPressed : null,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: enabled
-                          ? const Color(0xFFE2E2E2)
-                          : PandoraSimpleColors.muted,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 17,
-                  color: Color(0xFF555555),
-                ),
-              ],
-            ),
-          ),
-        ),
+  Widget build(BuildContext context) => const Center(
+        child: PandoraMark(size: 34, color: Colors.white),
       );
 }
 
@@ -2304,6 +2198,7 @@ class _PandoraThinkingBubble extends StatelessWidget {
 
 class _Composer extends StatelessWidget {
   const _Composer({
+    required this.minimalLanding,
     required this.controller,
     required this.focusNode,
     required this.attachment,
@@ -2330,6 +2225,7 @@ class _Composer extends StatelessWidget {
     required this.onRemoveProjectContext,
   });
 
+  final bool minimalLanding;
   final TextEditingController controller;
   final FocusNode focusNode;
   final PandoraTextAttachment? attachment;
@@ -2356,7 +2252,75 @@ class _Composer extends StatelessWidget {
   final VoidCallback onRemoveProjectContext;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
+  Widget build(BuildContext context) {
+    if (minimalLanding) {
+      return SafeArea(
+        top: false,
+        child: Padding(
+          key: const ValueKey<String>('ask-pandora-minimal-composer'),
+          padding: const EdgeInsets.fromLTRB(24, 4, 18, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey<String>('ask-pandora-objective'),
+                  controller: controller,
+                  focusNode: focusNode,
+                  readOnly: disabled,
+                  minLines: 1,
+                  maxLines: 1,
+                  maxLength: 4000,
+                  keyboardType: TextInputType.text,
+                  textInputAction: TextInputAction.send,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    hintText: 'Message Pandora',
+                    counterText: '',
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  style: const TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 16,
+                    height: 1.3,
+                  ),
+                  onChanged: (_) => onChanged(),
+                  onSubmitted: (_) {
+                    if (!disabled && !submitting && controller.text.trim().isNotEmpty) {
+                      onSubmit();
+                    }
+                  },
+                ),
+              ),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: controller,
+                builder: (context, value, child) {
+                  final ready = value.text.trim().isNotEmpty && !disabled && !submitting;
+                  return IconButton(
+                    key: const ValueKey<String>('ask-pandora-minimal-submit'),
+                    tooltip: 'Send',
+                    onPressed: ready ? onSubmit : null,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: PandoraSimpleColors.ink,
+                      disabledForegroundColor: PandoraSimpleColors.muted,
+                    ),
+                    icon: const Icon(Icons.arrow_upward_rounded, size: 20),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SafeArea(
         top: false,
         child: ClipRect(
           child: BackdropFilter(
@@ -2673,6 +2637,7 @@ class _Composer extends StatelessWidget {
           ),
         ),
       );
+  }
 }
 
 class _CharacterContextSheet extends StatelessWidget {
