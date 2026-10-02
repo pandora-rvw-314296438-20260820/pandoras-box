@@ -14,7 +14,7 @@ class PandoraConversationLayer extends StatelessWidget {
   /// Resting shell composer height before the device safe-area inset.
   /// Business surfaces reserve this exact vertical lane so their final controls
   /// can scroll fully above Pandora instead of rendering underneath it.
-  static const double compactComposerHeight = 68;
+  static const double compactComposerHeight = 80;
 
   final Widget businessWorkspace;
   final Widget conversation;
