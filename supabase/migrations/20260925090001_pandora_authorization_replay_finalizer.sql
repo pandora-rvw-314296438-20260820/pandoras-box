@@ -43,7 +43,8 @@ begin
    'pandora_chat_universal_dispatch_v2','pandora_chat_universal_dispatch_v9',
    'pandora_chat_repository_snapshot_v1','pandora_enterprise_direct_github_v1',
    'pandora_meta_connection_v1','pandora_meta_oauth_prepare_v1',
-   'pandora_google_workspace_connection_v1','pandora_google_workspace_oauth_prepare_v1'
+   'pandora_google_workspace_connection_v1','pandora_google_workspace_oauth_prepare_v1',
+   'pandora_plp_studio_prepare_candidate_v1'
   ])
  loop
   b:=pg_get_functiondef(r.oid);

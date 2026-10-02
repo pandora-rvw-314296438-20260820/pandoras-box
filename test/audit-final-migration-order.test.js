@@ -53,3 +53,17 @@ test('Meta Business Login requires a valid configuration ID before issuing OAuth
   assert.match(source, /values\(p_organization_id,v_uid,v_state_hash,v_redirect,v_scopes,v_expires\)/);
   assert.match(source, /https:\/\/mcpmaster\.vercel\.app\/oauth\/meta\/callback/);
 });
+
+
+test('authorization finalizer also repairs provider-only PLP Studio membership guard when present', () => {
+  const source = fs.readFileSync(path.join(dir, finalizer), 'utf8');
+  assert.match(source, /'pandora_plp_studio_prepare_candidate_v1'/);
+  assert.match(
+    source,
+    /regexp_replace\(b,[\s\S]*private\.pandora_is_active_org_admin_v1\(p_organization_id\)/,
+  );
+  assert.match(
+    source,
+    /raise exception 'Final replay reintroduced a nullable membership guard'/,
+  );
+});
