@@ -225,7 +225,7 @@ begin
     fallback_mode=excluded.fallback_mode,
     reasoning_mode=excluded.reasoning_mode,
     updated_at=now()
-  where private.pandora_intelligence_thread_routing_state.organization_id=excluded.organization_id;
+  where pandora_intelligence_thread_routing_state.organization_id=excluded.organization_id;
 
   select r.* into strict v_row
   from private.pandora_intelligence_thread_routing_state r
