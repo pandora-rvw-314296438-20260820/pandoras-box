@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
@@ -18,6 +19,24 @@ void main() {
     FakeRepository? repository,
   }) async {
     await setTestSurface(tester, logicalSize: size);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('pandora/local_ai'),
+      (call) async => call.method == 'status'
+          ? <String, Object?>{
+              'supported': false,
+              'configured': false,
+              'loaded': false,
+            }
+          : null,
+    );
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('pandora/local_ai'),
+        null,
+      ),
+    );
     await tester.pumpWidget(
       testApp(
         child: PandoraDependencies(
@@ -343,8 +362,13 @@ void main() {
     await mount(tester, const Size(390, 800));
     final openRecentChats =
         tester.widget<IconButton>(recentChats).onPressed!;
+    final menuButton = find.ancestor(
+      of: menu,
+      matching: find.byType(PandoraMenuButton),
+    );
+    expect(menuButton, findsOneWidget);
     final openPrimaryNavigation =
-        tester.widget<PandoraMenuButton>(menu).onPressed;
+        tester.widget<PandoraMenuButton>(menuButton).onPressed;
 
     await tester.tap(menu);
     await tester.pumpAndSettle();
@@ -363,45 +387,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('empty shell is logo-only and the resting composer is bare',
-      (tester) async {
-    await mount(tester, const Size(390, 800));
-    final conversationState = tester.state<AskPandoraScreenState>(
-      find.byType(AskPandoraScreen),
-    );
-    conversationState.showHistory();
-    await tester.pumpAndSettle();
+  testWidgets(
+    'empty shell is logo-only and the resting composer is bare',
+    (tester) async {
+      await mount(tester, const Size(390, 800));
+      final conversationState = tester.state<AskPandoraScreenState>(
+        find.byType(AskPandoraScreen),
+      );
+      conversationState.showHistory();
+      await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('pandora-shell-empty-mark')),
-      findsOneWidget,
-    );
-    expect(find.text('What can I help with?'), findsNothing);
-    expect(find.text('What can you do for me now?'), findsNothing);
-    expect(find.text('Check my GitHub for failing CI'), findsNothing);
-    expect(find.text('What needs my attention?'), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('ask-pandora-plus')),
-      findsNothing,
-    );
+      expect(
+        find.byKey(const ValueKey<String>('pandora-shell-empty-mark')),
+        findsOneWidget,
+      );
+      expect(find.text('What can I help with?'), findsNothing);
+      expect(find.text('What can you do for me now?'), findsNothing);
+      expect(find.text('Check my GitHub for failing CI'), findsNothing);
+      expect(find.text('What needs my attention?'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('ask-pandora-plus')),
+        findsNothing,
+      );
 
-    final composer = tester.widget<DecoratedBox>(
-      find.byKey(const ValueKey<String>('ask-pandora-composer')),
-    );
-    final decoration = composer.decoration as BoxDecoration;
-    expect(decoration.color, Colors.transparent);
-    expect(decoration.border, isNull);
+      final composer = tester.widget<DecoratedBox>(
+        find.byKey(const ValueKey<String>('ask-pandora-composer')),
+      );
+      final decoration = composer.decoration as BoxDecoration;
+      expect(decoration.color, Colors.transparent);
+      expect(decoration.border, isNull);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('ask-pandora-objective')),
-    );
-    await tester.pump();
-    expect(
-      find.byKey(const ValueKey<String>('ask-pandora-plus')),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-  });
+      await tester.tap(
+        find.byKey(const ValueKey<String>('ask-pandora-objective')),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey<String>('ask-pandora-plus')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
       'attachment menu contains input actions without another navigation menu',
