@@ -13,7 +13,8 @@ test("manual and Auto chat routes admit provider-verified Bedrock models",()=>{
   assert.match(sql,/c.routable=true/);assert.match(sql,/c.runtime_verification_status='passed'/);assert.match(sql,/c.lifecycle_status='ACTIVE'/);
 });
 test("Bedrock execution stays behind one-time ticket and existing Vercel OIDC signer",()=>{
-  assert.match(api,/bedrock-chat/);assert.match(bridge,/pandora_claim_bedrock_chat_ticket_v1/);assert.match(bridge,/converseWithBedrockTarget/);
+  const control=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/index.ts","utf8");
+  assert.match(api,/bedrock-chat/);assert.match(bridge,/bedrock_chat_ticket_claim/);assert.match(control,/pandora_claim_bedrock_chat_ticket_v1/);assert.match(bridge,/converseWithBedrockTarget/);
   assert.match(bridge,/temperature:null/);assert.match(bridge,/resolveVercelWorkloadToken/);
   assert.match(sql,/delete from private.pandora_bedrock_chat_tickets[\s\S]*returning \* into v_row/);
   assert.doesNotMatch(edge,/bedrock-runtime\.us-east-1\.amazonaws\.com/);
