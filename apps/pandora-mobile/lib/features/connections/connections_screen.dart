@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../app/pandora_shared_conversation_scope.dart';
 import '../../core/data/owner_projection.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_tokens.dart';
@@ -15,7 +16,6 @@ import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
 import '../../core/widgets/status_badge.dart';
-import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
 import 'connection_presentation.dart';
 
@@ -736,9 +736,19 @@ void _openGovernedConnectionAction(
   final prompt = verb == 'disconnect'
       ? 'Disconnect $provider. Verify the impact, affected systems, rollback path, and current provider state first. Prepare the governed change for my approval; do not execute it just because I asked.'
       : 'Review and manage $provider. Test its current health and capabilities, then show me any governed change that needs my approval.';
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => AskPandoraScreen(initialPrompt: prompt),
-    ),
-  );
+  final shared = PandoraSharedConversationScope.maybeOf(context);
+  final selected = <String, String>{
+    'recordType': 'connection',
+    'connectionId': connection.id,
+    'providerName': provider,
+    'connectionState': connection.state,
+    'connectionStatus': connection.status,
+  };
+  if (shared == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Use the Pandora composer to manage this connection.')),
+    );
+    return;
+  }
+  unawaited(shared.submitPrompt(prompt, selectedObject: selected));
 }

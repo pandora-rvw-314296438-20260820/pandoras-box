@@ -227,6 +227,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     setState(() => _shellHistoryExpanded = false);
   }
 
+  void showExternalFailureMessage(String message) {
+    final normalized = message.trim();
+    if (normalized.isEmpty || !mounted) return;
+    setState(() {
+      _shellHistoryExpanded = true;
+      _error = normalized;
+    });
+  }
+
   Future<String?> submitExternalPrompt(
     String prompt, {
     bool requestFocus = true,

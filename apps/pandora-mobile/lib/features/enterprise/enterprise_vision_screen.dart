@@ -7,20 +7,12 @@ import '../simple/pandora_v2_ui.dart';
 import 'enterprise_vision_embed.dart';
 
 class EnterpriseVisionScreen extends StatelessWidget {
-  const EnterpriseVisionScreen({
-    super.key,
-    this.onAskPandora,
-  });
-
-  final VoidCallback? onAskPandora;
+  const EnterpriseVisionScreen({super.key});
 
   static final Uri _sourceUri = Uri.parse(
     'https://camstreamer.com/live/stream/47239-live-dong-jing-xin-su-ge-wu-ji-ting',
   );
 
-  void _askPandora(BuildContext context) {
-    onAskPandora?.call();
-  }
 
   Future<void> _openSource() async {
     await launchUrl(_sourceUri);
@@ -166,13 +158,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
                   icon: const Icon(Icons.open_in_new_rounded),
                   label: const Text('Open live source'),
                 ),
-                FilledButton.icon(
-                  onPressed: onAskPandora == null
-                      ? null
-                      : () => _askPandora(context),
-                  icon: const Icon(Icons.auto_awesome_rounded),
-                  label: const Text('Ask Pandora'),
-                ),
+
               ],
             ),
           ],

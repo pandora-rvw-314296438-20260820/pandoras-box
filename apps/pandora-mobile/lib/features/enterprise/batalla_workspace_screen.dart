@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_intelligence_api.dart';
-import '../simple/ask_pandora_screen.dart';
+import '../../app/pandora_shared_conversation_scope.dart';
 
 // workspace_profile controls presentation only; authorization remains server-enforced.
 enum BatallaWorkspaceProfile {
@@ -245,27 +245,16 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
   void _select(String routeSlug) {
     if (_selectedSlug == routeSlug) return;
     setState(() => _selectedSlug = routeSlug);
+    final item = _selectedItem;
+    PandoraSharedConversationScope.maybeOf(context)
+        ?.bindEnterpriseContext(_contextFor(item));
   }
 
-  Future<void> _openPandora({PandoraIntelligenceThread? thread}) async {
-    final item = _selectedItem;
-    final key = GlobalKey<AskPandoraScreenState>();
-    final future = Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (routeContext) => AskPandoraScreen(
-          key: key,
-          enterpriseContext: _contextFor(item),
-          onHome: () => Navigator.of(routeContext).pop(),
-        ),
-      ),
-    );
-    if (thread != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final state = key.currentState;
-        if (state != null) unawaited(state.loadThread(thread.id));
-      });
-    }
-    await future;
+  Future<void> _openSharedThread(PandoraIntelligenceThread thread) async {
+    final shared = PandoraSharedConversationScope.maybeOf(context);
+    if (shared == null) return;
+    shared.bindEnterpriseContext(_contextFor(_selectedItem));
+    await shared.openThread(thread.id);
     if (mounted) unawaited(_loadRecentThreads(refresh: true));
   }
 
@@ -387,7 +376,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    onTap: () => _openPandora(thread: thread),
+                    onTap: () => unawaited(_openSharedThread(thread)),
                   ),
             ],
           ),
@@ -508,12 +497,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
                       ],
                     ),
                   ),
-                  FilledButton.icon(
-                    key: const ValueKey<String>('batalla-ask-pandora'),
-                    onPressed: _openPandora,
-                    icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                    label: const Text('Ask Pandora'),
-                  ),
+
                 ],
               ),
             ),

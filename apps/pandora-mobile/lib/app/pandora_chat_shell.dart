@@ -26,6 +26,7 @@ import '../features/simple/pandora_v2_ui.dart';
 import '../features/simple/projects_screen.dart';
 import '../features/simple/simple_safety_screen.dart';
 import 'pandora_conversation_layer.dart';
+import 'pandora_shared_conversation_scope.dart';
 import 'pandora_dependencies.dart';
 
 class PandoraChatShell extends StatefulWidget {
@@ -71,6 +72,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   final Map<int, Widget> _roots = <int, Widget>{};
   Map<String, Object?>? _activeEnterpriseContext;
   EnterpriseWorkspaceSelection? _activeWorkspaceSelection;
+  Map<String, String> _surfaceSelectedObject = const <String, String>{};
   final Set<int> _visited = <int>{9};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
@@ -178,6 +180,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     setState(() {
       _index = value;
       _visited.add(value);
+      _surfaceSelectedObject = const <String, String>{};
     });
     final screen = switch (value) {
       0 => 'pandora_chat',
@@ -473,6 +476,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     setState(() {
       _activeEnterpriseContext = nextContext;
       _activeWorkspaceSelection = selection;
+      _surfaceSelectedObject = const <String, String>{};
       _roots.remove(0);
       _visited.add(0);
     });
@@ -489,11 +493,59 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
 
-  void _openVisionChat() => _openConversationHistory();
+  void _bindEnterpriseContext(Map<String, Object?> context) {
+    if (!mounted) return;
+    setState(() {
+      _activeEnterpriseContext = Map<String, Object?>.from(context);
+      _surfaceSelectedObject = const <String, String>{};
+    });
+  }
+
+  void _bindSelectedObject(Map<String, String> selected) {
+    if (!mounted) return;
+    setState(() => _surfaceSelectedObject = Map<String, String>.from(selected));
+  }
+
+  Future<String?> _submitSharedPrompt(
+    String prompt, {
+    Map<String, String>? selectedObject,
+  }) async {
+    if (selectedObject != null) _bindSelectedObject(selectedObject);
+    await WidgetsBinding.instance.endOfFrame;
+    final chat = _chatKey.currentState;
+    if (chat == null) return null;
+    chat.showHistory();
+    return chat.submitExternalPrompt(prompt, requestFocus: false);
+  }
+
+  Future<void> _openSharedThread(String threadId) async {
+    final chat = _chatKey.currentState;
+    if (chat == null) return;
+    chat.showHistory();
+    await chat.loadThread(threadId);
+  }
+
+  void _reportSharedFailure(
+    String code, {
+    Map<String, String>? selectedObject,
+  }) {
+    if (selectedObject != null) _bindSelectedObject(selectedObject);
+    _chatKey.currentState?.showExternalFailureMessage(
+      pandoraNaturalFailureMessage(code),
+    );
+  }
 
   Map<String, Object?> _conversationContextForCurrentSurface() {
     if (_index == 0 && _activeEnterpriseContext != null) {
-      return Map<String, Object?>.from(_activeEnterpriseContext!);
+      final context = Map<String, Object?>.from(_activeEnterpriseContext!);
+      final selected = context['selectedObject'];
+      context['selectedObject'] = <String, String>{
+        if (selected is Map)
+          for (final entry in selected.entries)
+            entry.key.toString(): entry.value.toString(),
+        ..._surfaceSelectedObject,
+      };
+      return context;
     }
     final route = switch (_index) {
       1 => '/projects',
@@ -517,6 +569,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       'selectedObject': <String, String>{
         'screen': _destinations[_index].label,
         'destinationIndex': _index.toString(),
+        ..._surfaceSelectedObject,
       },
     };
   }
@@ -557,7 +610,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
           4 => const ActivityScreen(),
-          5 => const PluginsScreen(),
+          5 => PluginsScreen(onOpenProviderCatalog: () => _select(11)),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
           8 => PandoraOperationsRoomScreen(
@@ -570,7 +623,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               onActivity: () => _select(4),
               onMore: () => _select(3),
             ),
-          10 => EnterpriseVisionScreen(onAskPandora: _openVisionChat),
+          10 => const EnterpriseVisionScreen(),
           11 => ProviderEcosystemScreen(
               onOpenConnections: () => _select(5),
             ),
@@ -671,7 +724,14 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
             final activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
-              businessWorkspace: body,
+              businessWorkspace: PandoraSharedConversationScope(
+                submitPrompt: _submitSharedPrompt,
+                openThread: _openSharedThread,
+                bindEnterpriseContext: _bindEnterpriseContext,
+                bindSelectedObject: _bindSelectedObject,
+                reportFailure: _reportSharedFailure,
+                child: body,
+              ),
               conversation: AskPandoraScreen(
                 key: _chatKey,
                 onSearchChats: _openRecentChats,

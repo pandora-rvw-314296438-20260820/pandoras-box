@@ -3,18 +3,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../app/pandora_shared_conversation_scope.dart';
 import '../../core/data/owner_projection.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/models/pandora_models.dart';
 import '../../core/state/screen_controller.dart';
 import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_navigation.dart';
-import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
 import 'provider_catalog_screen.dart';
 
 class PluginsScreen extends StatefulWidget {
-  const PluginsScreen({super.key});
+  const PluginsScreen({
+    super.key,
+    this.onOpenProviderCatalog,
+  });
+
+  final VoidCallback? onOpenProviderCatalog;
 
   @override
   State<PluginsScreen> createState() => _PluginsScreenState();
@@ -178,11 +183,13 @@ class _PluginsScreenState extends State<PluginsScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const ProviderCatalogScreen(),
-                          ),
-                        ),
+                        onPressed: widget.onOpenProviderCatalog ??
+                            () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        const ProviderCatalogScreen(),
+                                  ),
+                                ),
                         icon: const Icon(Icons.grid_view_rounded, size: 18),
                         label: const Text('Browse provider catalog'),
                       ),
@@ -493,7 +500,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
             if (plugin.id == 'meta' && !plugin.installed) ...[
               const SizedBox(height: 8),
               const Text(
-                'Press Send in Ask Pandora to prepare a secure Facebook authorization link.',
+                'Pandora will prepare a secure Facebook authorization link in the shared conversation.',
                 style: TextStyle(
                   color: PandoraV2Colors.muted,
                   fontSize: 12.5,
@@ -541,11 +548,21 @@ class _PluginsScreenState extends State<PluginsScreen> {
       _PluginAction.disconnect =>
         'Disconnect ${plugin.name}. Treat this as a consequential governed action. Show the exact account and capabilities that would be removed, require only the authorization boundary that actually applies, then verify provider state after the change. Do not disconnect anything else.',
     };
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AskPandoraScreen(initialPrompt: prompt),
-      ),
-    );
+    final shared = PandoraSharedConversationScope.maybeOf(context);
+    final selected = <String, String>{
+      'recordType': 'provider',
+      'providerId': plugin.id,
+      'providerName': plugin.name,
+      'providerState': plugin.state,
+      if (plugin.accountLabel != null) 'accountLabel': plugin.accountLabel!,
+    };
+    if (shared == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Use the Pandora composer to manage this provider.')),
+      );
+      return;
+    }
+    unawaited(shared.submitPrompt(prompt, selectedObject: selected));
   }
 }
 
