@@ -1657,7 +1657,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final media = MediaQuery.of(context);
     final keyboardInset = media.viewInsets.bottom;
     final topInset = media.padding.top;
-    final headerHeight = _headerHeight > 0 ? _headerHeight : 56.0;
+    final conversationActive =
+        _threadId != null || _messages.isNotEmpty || _pendingMessage != null;
+    final headerHeight =
+        conversationActive ? (_headerHeight > 0 ? _headerHeight : 56.0) : 0.0;
     final composerHeight = _composerHeight > 0 ? _composerHeight : 68.0;
     final viewportHeight = media.size.height > keyboardInset
         ? media.size.height - keyboardInset
@@ -1830,22 +1833,21 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       body: Stack(
         children: [
           Positioned.fill(child: conversationContent),
-          Positioned(
-            top: topInset,
-            left: 0,
-            right: 0,
-            child: KeyedSubtree(
-              key: _headerKey,
-              child: _ChatHeader(
-                active: _threadId != null ||
-                    _messages.isNotEmpty ||
-                    _pendingMessage != null,
-                onNewChat: newChat,
-                onSearchChats: widget.onSearchChats,
-                onMore: widget.onMore,
+          if (conversationActive)
+            Positioned(
+              top: topInset,
+              left: 0,
+              right: 0,
+              child: KeyedSubtree(
+                key: _headerKey,
+                child: _ChatHeader(
+                  active: true,
+                  onNewChat: newChat,
+                  onSearchChats: widget.onSearchChats,
+                  onMore: widget.onMore,
+                ),
               ),
             ),
-          ),
           Positioned(
             left: 0,
             right: 0,

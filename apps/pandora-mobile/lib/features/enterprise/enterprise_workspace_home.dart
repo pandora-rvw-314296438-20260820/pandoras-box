@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 
 class EnterpriseWorkspaceSection {
@@ -376,42 +375,14 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                 key: const ValueKey<String>('workspace-home-navigation'),
                 onPressed: openDrawer,
               ),
-            Expanded(
-              child: InkWell(
-                key: const ValueKey<String>('workspace-home-brand'),
-                onTap: openDrawer,
-                borderRadius: BorderRadius.circular(18),
-                child: Row(
-                  children: [
-                    PandoraMark(size: roomy ? 40 : 32),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Pandora',
-                          key: ValueKey<String>('workspace-home-title'),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            const Spacer(),
             if (widget.onSearchChats != null)
               IconButton(
                 key: const ValueKey<String>('workspace-home-search'),
-                tooltip: 'Search chats',
+                tooltip: 'Recent chats',
                 color: Colors.white,
                 onPressed: widget.onSearchChats,
-                icon: const Icon(Icons.search_rounded, size: 24),
+                icon: const Icon(Icons.history_rounded, size: 23),
               ),
             if (roomy && widget.onActivity != null)
               IconButton(

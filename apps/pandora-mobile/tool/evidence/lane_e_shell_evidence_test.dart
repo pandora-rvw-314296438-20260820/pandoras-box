@@ -211,6 +211,14 @@ void main() {
       expect(composerDock, findsOneWidget);
       expect(navigation, findsOneWidget);
       expect(workspaceList, findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('workspace-home-brand')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('workspace-home-title')),
+        findsNothing,
+      );
       expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
       expect(find.text('What can I help with?'), findsNothing,
           reason: 'legacy empty-state copy is absent');

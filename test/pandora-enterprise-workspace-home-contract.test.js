@@ -133,12 +133,15 @@ test("control revisions preserve workspace scope across every provider body", ()
 });
 
 
-test("workspace home matches the screenshot header hierarchy", () => {
-  assert.ok(hub.includes("workspace-home-brand"));
+test("workspace home keeps the hamburger fixed without a redundant app title", () => {
+  assert.ok(!hub.includes("workspace-home-brand"));
+  assert.ok(!hub.includes("workspace-home-title"));
   assert.ok(hub.includes("workspace-home-navigation"));
   assert.ok(hub.includes("PandoraMenuButton"));
   assert.ok(!hub.includes("Icons.menu_rounded"));
   assert.ok(hub.includes("workspace-home-search"));
+  assert.ok(hub.includes("Recent chats"));
+  assert.ok(hub.includes("Icons.history_rounded"));
   assert.ok(hub.includes("workspace-home-activity"));
   assert.ok(hub.includes("workspace-home-more"));
 });
