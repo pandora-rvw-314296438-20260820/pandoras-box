@@ -24,9 +24,7 @@ class PandoraLocalAiRuntime with WidgetsBindingObserver {
     if (_started) return;
     _started = true;
     WidgetsBinding.instance.addObserver(this);
-    unawaited(PandoraLocalAiPreference.load().then((enabled) async {
-      if (!enabled) await unload();
-    }));
+    unawaited(PandoraLocalAiPreference.load());
   }
 
   void keepResident({Duration idleFor = defaultIdleUnloadDelay}) {

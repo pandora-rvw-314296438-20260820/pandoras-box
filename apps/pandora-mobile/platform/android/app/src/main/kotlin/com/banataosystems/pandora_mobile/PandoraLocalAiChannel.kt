@@ -82,9 +82,10 @@ If required information is missing locally, needs an authoritative provider muta
         activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE)
     private val modelDirectory = File(activity.filesDir, "pandora-local-ai")
     private val modelFile = File(modelDirectory, "model.gguf")
-    private val engine by lazy {
+    private val engineLazy = lazy {
         AiChat.getInferenceEngine(activity.applicationContext)
     }
+    private val engine by engineLazy
 
     private var eventSink: EventChannel.EventSink? = null
     private var pendingModelResult: MethodChannel.Result? = null
@@ -145,13 +146,23 @@ If required information is missing locally, needs an authoritative provider muta
                     error.message ?: "Pandora could not import that GGUF model.",
                     null,
                 )
+            } catch (t: Throwable) {
+                result.error("LOCAL_AI_NATIVE", t.message, null)
             }
         }
         return true
     }
 
+    private fun safeCancel() {
+        if (!engineLazy.isInitialized()) return
+        try {
+            engine.requestCancel()
+        } catch (t: Throwable) {
+        }
+    }
+
     fun close() {
-        engine.requestCancel()
+        safeCancel()
         activeGeneration?.cancel()
         activeAcceptance?.cancel()
         activeWarm?.cancel()
@@ -169,11 +180,15 @@ If required information is missing locally, needs an authoritative provider muta
             "runAcceptance" -> runAcceptance(call, result)
             "cancel" -> {
                 scope.launch {
-                    engine.requestCancel()
-                    activeGeneration?.cancel()
-                    activeAcceptance?.cancel()
-                    activeWarm?.cancel()
-                    result.success(null)
+                    try {
+                        safeCancel()
+                        activeGeneration?.cancel()
+                        activeAcceptance?.cancel()
+                        activeWarm?.cancel()
+                        result.success(null)
+                    } catch (t: Throwable) {
+                        result.error("LOCAL_AI_NATIVE", t.message, null)
+                    }
                 }
             }
             "resetConversation" -> resetConversation(result)
@@ -362,6 +377,8 @@ If required information is missing locally, needs an authoritative provider muta
                     error.message ?: "Pandora physical acceptance failed.",
                     null,
                 )
+            } catch (t: Throwable) {
+                result.error("LOCAL_AI_NATIVE", t.message, null)
             } finally {
                 activeAcceptance = null
             }
@@ -630,7 +647,7 @@ If required information is missing locally, needs an authoritative provider muta
                 eventSink?.success(
                     mapOf("requestId" to requestId, "type" to "done"),
                 )
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
                 lastGenerationPhase = "failed"
                 lastGenerationOutcome = "failed"
                 lastGenerationErrorClass = error.javaClass.simpleName
@@ -675,6 +692,8 @@ If required information is missing locally, needs an authoritative provider muta
                     error.message ?: "Pandora could not reset local context.",
                     null,
                 )
+            } catch (t: Throwable) {
+                result.error("LOCAL_AI_NATIVE", t.message, null)
             }
         }
     }
@@ -682,7 +701,7 @@ If required information is missing locally, needs an authoritative provider muta
     private fun unload(result: MethodChannel.Result) {
         scope.launch {
             try {
-                engine.requestCancel()
+                safeCancel()
                 val generationJob = activeGeneration
                 val warmJob = activeWarm
                 generationJob?.cancel()
@@ -700,6 +719,8 @@ If required information is missing locally, needs an authoritative provider muta
                     error.message ?: "Pandora could not unload the local model.",
                     statusMap(),
                 )
+            } catch (t: Throwable) {
+                result.error("LOCAL_AI_NATIVE", t.message, null)
             }
         }
     }
@@ -708,7 +729,7 @@ If required information is missing locally, needs an authoritative provider muta
         engine.clearCancelRequest()
         val watchdog = scope.launch(Dispatchers.Default) {
             delay(WARM_DEADLINE_MS)
-            engine.requestCancel()
+            safeCancel()
         }
         return try {
             withTimeout(WARM_DEADLINE_MS + 3_000L) {
