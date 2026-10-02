@@ -128,6 +128,7 @@ begin
     select 1 from public.pandora_intelligence_threads t
     where t.id=p_thread_id
       and t.organization_id=p_organization_id
+      and t.created_by=v_user_id
       and t.status='active'
   ) then
     raise exception 'THREAD_NOT_FOUND' using errcode='P0002';
@@ -175,7 +176,7 @@ set search_path='pg_catalog','private','public','auth','pg_temp'
 as $
 declare
   v_user_id uuid := auth.uid();
-  v_result jsonb;
+  v_row private.pandora_intelligence_thread_routing_state%rowtype;
 begin
   if v_user_id is null then raise exception 'SIGN_IN_REQUIRED' using errcode='42501'; end if;
   if not exists (
@@ -184,7 +185,7 @@ begin
   ) then raise exception 'ORGANIZATION_ACCESS_REQUIRED' using errcode='42501'; end if;
   if not exists (
     select 1 from public.pandora_intelligence_threads t
-    where t.id=p_thread_id and t.organization_id=p_organization_id and t.status='active'
+    where t.id=p_thread_id and t.organization_id=p_organization_id and t.created_by=v_user_id and t.status='active'
   ) then raise exception 'THREAD_NOT_FOUND' using errcode='P0002'; end if;
   if p_selection_mode not in ('auto','manual')
      or p_fallback_mode not in ('strict','allow_fallback')
@@ -206,13 +207,43 @@ begin
        )
     then raise exception 'MANUAL_MODEL_UNAVAILABLE' using errcode='22023'; end if;
   end if;
-  v_result := private.pandora_set_intelligence_thread_model_selection_v1(
-    p_thread_id,p_organization_id,p_selection_mode,
+  insert into private.pandora_intelligence_thread_routing_state(
+    thread_id,organization_id,provider,model,stickiness_mode,recovery_epoch,
+    selection_mode,requested_provider,requested_model,fallback_mode,reasoning_mode
+  ) values (
+    p_thread_id,p_organization_id,null,null,'unassigned',0,
+    p_selection_mode,
     case when p_selection_mode='manual' then p_requested_provider else null end,
     case when p_selection_mode='manual' then p_requested_model else null end,
-    p_fallback_mode,p_reasoning_mode
+    case when p_selection_mode='manual' then p_fallback_mode else 'allow_fallback' end,
+    p_reasoning_mode
+  )
+  on conflict(thread_id) do update set
+    selection_mode=excluded.selection_mode,
+    requested_provider=excluded.requested_provider,
+    requested_model=excluded.requested_model,
+    fallback_mode=excluded.fallback_mode,
+    reasoning_mode=excluded.reasoning_mode,
+    updated_at=now()
+  where private.pandora_intelligence_thread_routing_state.organization_id=excluded.organization_id;
+
+  select r.* into strict v_row
+  from private.pandora_intelligence_thread_routing_state r
+  where r.thread_id=p_thread_id and r.organization_id=p_organization_id;
+
+  return jsonb_build_object(
+    'ok',true,
+    'selection',jsonb_build_object(
+      'selectionMode',v_row.selection_mode,
+      'requestedProvider',v_row.requested_provider,
+      'requestedModel',v_row.requested_model,
+      'fallbackMode',v_row.fallback_mode,
+      'reasoningMode',v_row.reasoning_mode,
+      'executedProvider',v_row.provider,
+      'executedModel',v_row.model,
+      'updatedAt',v_row.updated_at
+    )
   );
-  return jsonb_build_object('ok',true,'selection',v_result);
 end;
 $;
 revoke all on function public.pandora_intelligence_thread_model_selection_set_v1(uuid,uuid,text,text,text,text,text) from public,anon;
