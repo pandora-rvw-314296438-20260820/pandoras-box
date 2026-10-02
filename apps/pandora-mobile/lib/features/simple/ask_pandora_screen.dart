@@ -2710,7 +2710,17 @@ class _Composer extends StatelessWidget {
                               padding: EdgeInsets.zero,
                               onPressed: disabled
                                   ? null
-                                  : (voiceReady ? onDictate : onSubmit),
+                                  : () {
+                                      final currentEmpty =
+                                          controller.text.trim().isEmpty;
+                                      if (compact &&
+                                          !submitting &&
+                                          currentEmpty) {
+                                        onDictate();
+                                      } else {
+                                        onSubmit();
+                                      }
+                                    },
                               icon: Icon(
                                 voiceReady
                                     ? Icons.mic_none_rounded

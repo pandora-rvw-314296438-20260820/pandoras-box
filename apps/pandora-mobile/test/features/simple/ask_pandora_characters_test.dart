@@ -24,6 +24,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.tap(
+      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-plus')),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-plus')));
     await tester.pumpAndSettle();
     expect(

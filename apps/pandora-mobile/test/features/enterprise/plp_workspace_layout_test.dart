@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pandora_mobile/core/widgets/pandora_navigation.dart';
 import 'package:pandora_mobile/features/enterprise/enterprise_workspace_home.dart';
 
 void main() {
@@ -13,11 +14,14 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: EnterpriseWorkspaceHome(
-          onOpen: (_) {},
-          onSearchChats: () {},
-          onActivity: () {},
-          onMore: () {},
+        home: PandoraNavigationScope(
+          openDrawer: () {},
+          child: EnterpriseWorkspaceHome(
+            onOpen: (_) {},
+            onSearchChats: () {},
+            onActivity: () {},
+            onMore: () {},
+          ),
         ),
       ),
     );
