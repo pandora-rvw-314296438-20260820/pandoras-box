@@ -86,7 +86,7 @@ test("every enterprise workspace exposes the tax command center", () => {
 test("tax command center reads live tenant-scoped backend truth and preserves legal action gates", () => {
   assert.match(tax, /pandora_tax_command_center_v1/);
   assert.match(tax, /PandoraConfig\.organizationId/);
-  assert.match(tax, /Message Pandora about taxes/);
+  assert.doesNotMatch(tax, /Message Pandora about taxes|AskPandoraScreen/);
   assert.match(tax, /filingSubmission/);
   assert.match(tax, /paymentExecution/);
   assert.match(tax, /The Philippines rule pack is still under professional review/);
@@ -192,6 +192,6 @@ test("PLP keeps resort work primary and Tax & Compliance available under System"
   assert.match(plpShell, /PandoraNavigationScope\(\s*openDrawer: null/);
   assert.match(plpShell, /'plp-floating-navigation'/);
   assert.doesNotMatch(plpShell, /_index == 4 \|\| _index == 12/);
-  assert.match(tax, /bottomNavigationBar: _isPlp \? null : SafeArea/);
+  assert.doesNotMatch(tax, /bottomNavigationBar:/);
   assert.match(tax, /plp-tax-owner-status/);
 });

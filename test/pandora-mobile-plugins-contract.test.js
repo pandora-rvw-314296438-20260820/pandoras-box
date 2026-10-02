@@ -18,7 +18,8 @@ test('mobile exposes Capabilities & Providers with runtime Live Connections behi
   assert.match(shell, /_ChatDestination\(\s*'Live Connections'/);
   assert.match(shell, /'Capabilities & Providers'/);
   assert.match(shell, /ProviderEcosystemScreen/);
-  assert.match(shell, /PluginsScreen\(\)/);
+  assert.match(shell, /PluginsScreen\(/);
+  assert.match(shell, /onOpenProviderCatalog: \(\) => _select\(11\)/);
   assert.match(shell, /5 => 'live_connections'/);
   assert.match(shell, /11 => 'provider_ecosystem'/);
 });

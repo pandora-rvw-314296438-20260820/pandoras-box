@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../app/pandora_shared_conversation_scope.dart';
 import '../../core/data/pandora_intelligence_api.dart';
-import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
 
 class ProviderCatalogScreen extends StatefulWidget {
@@ -163,6 +165,14 @@ class _ProviderCatalogScreenState extends State<ProviderCatalogScreen> {
       );
 
   Future<void> _showProvider(PandoraProviderCatalogEntry entry) async {
+    PandoraSharedConversationScope.maybeOf(context)?.bindSelectedObject(
+      <String, String>{
+        'recordType': 'provider_catalog_entry',
+        'providerKey': entry.providerKey,
+        'providerName': entry.displayName,
+        'providerState': _providerState(entry),
+      },
+    );
     await showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
@@ -283,11 +293,20 @@ class _ProviderCatalogScreenState extends State<ProviderCatalogScreen> {
     final prompt = entry.isAuthorized && entry.isHealthy
         ? 'Verify ${entry.displayName} from Pandora\'s Universal provider catalog. Confirm the current provider account, scopes, consent, capability grants and live health through provider-backed readback. Do not claim connected or usable from catalog metadata alone.'
         : 'Connect ${entry.displayName} from Pandora\'s Universal provider catalog. Verify the exact account, authorization scopes, consent requirements, capability grants and live provider health. Use Pandora\'s governed credential boundary and do not claim connected until provider-backed readback succeeds.';
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AskPandoraScreen(initialPrompt: prompt),
-      ),
-    );
+    final shared = PandoraSharedConversationScope.maybeOf(context);
+    final selected = <String, String>{
+      'recordType': 'provider_catalog_entry',
+      'providerKey': entry.providerKey,
+      'providerName': entry.displayName,
+      'providerState': _providerState(entry),
+    };
+    if (shared == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Use the Pandora composer to manage this provider.')),
+      );
+      return;
+    }
+    unawaited(shared.submitPrompt(prompt, selectedObject: selected));
   }
 }
 
