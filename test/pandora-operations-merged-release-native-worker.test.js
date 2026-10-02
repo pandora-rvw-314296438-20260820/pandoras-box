@@ -93,6 +93,20 @@ async function invoke(options = {}) {
       if (id === '../src/runtime/operations-source-release-policy.cjs') {
         return require(path.join(root, 'src/runtime/operations-source-release-policy.cjs'));
       }
+      if (id === '../src/providers/aws-bedrock-runtime.js') {
+        return {
+          BEDROCK_ROLE_ARN: 'arn:aws:iam::792289066859:role/PandoraVercelBedrockInferenceV2',
+          BEDROCK_REGION: 'us-east-1',
+          assumeRoleWithVercelOidc: async () => { throw new Error('BEDROCK_SYNC_UNEXPECTED_IN_OPERATIONS_FIXTURE'); },
+          converseWithBedrockTarget: async () => { throw new Error('BEDROCK_SYNC_UNEXPECTED_IN_OPERATIONS_FIXTURE'); },
+        };
+      }
+      if (id === '../src/providers/aws-bedrock-catalog-sync.js') {
+        return {
+          discoverBedrockCatalog: async () => { throw new Error('BEDROCK_SYNC_UNEXPECTED_IN_OPERATIONS_FIXTURE'); },
+          applyProbeResult: () => { throw new Error('BEDROCK_SYNC_UNEXPECTED_IN_OPERATIONS_FIXTURE'); },
+        };
+      }
       throw new Error('Unexpected import: ' + id);
     },
   }, { filename: 'operations-native-worker.js' });
