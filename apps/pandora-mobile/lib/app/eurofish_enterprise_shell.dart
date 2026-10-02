@@ -11,7 +11,14 @@ import '../features/simple/ask_pandora_screen.dart';
 import 'pandora_dependencies.dart';
 
 class EurofishEnterpriseShell extends StatefulWidget {
-  const EurofishEnterpriseShell({super.key});
+  const EurofishEnterpriseShell({
+    super.key,
+    this.embedded = false,
+    this.initialRouteSlug = 'home',
+  });
+
+  final bool embedded;
+  final String initialRouteSlug;
 
   @override
   State<EurofishEnterpriseShell> createState() =>
@@ -53,6 +60,20 @@ class _EurofishEnterpriseShellState extends State<EurofishEnterpriseShell> {
       ).enterpriseContext;
 
   @override
+  void initState() {
+    super.initState();
+    _routeSlug = widget.initialRouteSlug;
+  }
+
+  @override
+  void didUpdateWidget(covariant EurofishEnterpriseShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialRouteSlug != widget.initialRouteSlug) {
+      _routeSlug = widget.initialRouteSlug;
+    }
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_historyLoaded) {
@@ -82,6 +103,10 @@ class _EurofishEnterpriseShellState extends State<EurofishEnterpriseShell> {
 
   void _openDrawer() {
     FocusManager.instance.primaryFocus?.unfocus();
+    if (widget.embedded) {
+      PandoraNavigationScope.maybeOf(context)?.openDrawer?.call();
+      return;
+    }
     _scaffoldKey.currentState?.openDrawer();
     unawaited(_refreshHistory());
   }
@@ -114,7 +139,7 @@ class _EurofishEnterpriseShellState extends State<EurofishEnterpriseShell> {
         api: _workspaceApi,
         openDrawer: _openDrawer,
         onOpen: _selectSection,
-        onAskPandora: () => _selectSection('overview'),
+        onAskPandora: widget.embedded ? null : () => _selectSection('overview'),
       );
     }
     if (_routeSlug == 'tax-compliance') {
@@ -123,6 +148,14 @@ class _EurofishEnterpriseShellState extends State<EurofishEnterpriseShell> {
         workspaceName: _workspace.name,
         enterpriseContext: _enterpriseContext,
         onHome: () => _selectSection('home'),
+      );
+    }
+    if (widget.embedded) {
+      return _EurofishOperationalSection(
+        workspace: _workspace,
+        section: _section,
+        api: _workspaceApi,
+        openDrawer: _openDrawer,
       );
     }
     return AskPandoraScreen(
@@ -163,12 +196,14 @@ class _EurofishEnterpriseShellState extends State<EurofishEnterpriseShell> {
       onNewChat: () => unawaited(_newChat()),
     );
 
-    return Theme(
+    final themed = Theme(
       data: Theme.of(context).copyWith(
         scaffoldBackgroundColor: _canvas,
         canvasColor: _canvas,
       ),
-      child: Scaffold(
+      child: widget.embedded
+          ? _body()
+          : Scaffold(
         key: _scaffoldKey,
         backgroundColor: _canvas,
         drawer: drawer,
@@ -182,7 +217,129 @@ class _EurofishEnterpriseShellState extends State<EurofishEnterpriseShell> {
         ),
       ),
     );
+    return themed;
   }
+}
+
+class _EurofishOperationalSection extends StatefulWidget {
+  const _EurofishOperationalSection({
+    required this.workspace,
+    required this.section,
+    required this.api,
+    required this.openDrawer,
+  });
+  final EnterpriseWorkspaceProfile workspace;
+  final EnterpriseWorkspaceSection section;
+  final EurofishWorkspaceApi api;
+  final VoidCallback openDrawer;
+
+  @override
+  State<_EurofishOperationalSection> createState() =>
+      _EurofishOperationalSectionState();
+}
+
+class _EurofishOperationalSectionState
+    extends State<_EurofishOperationalSection> {
+  late Future<EurofishWorkspaceSnapshot> _snapshot;
+
+  @override
+  void initState() {
+    super.initState();
+    _snapshot = widget.api.loadOverview();
+  }
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+        key: ValueKey<String>(
+          'eurofish-operational-' + widget.section.routeSlug,
+        ),
+        color: _EurofishEnterpriseShellState._canvas,
+        child: SafeArea(
+          child: FutureBuilder<EurofishWorkspaceSnapshot>(
+            future: _snapshot,
+            builder: (context, value) => ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Navigation',
+                      onPressed: widget.openDrawer,
+                      icon: const Icon(Icons.menu_rounded),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        widget.section.label,
+                        style: const TextStyle(
+                          color: _EurofishEnterpriseShellState._ink,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                if (value.connectionState == ConnectionState.waiting)
+                  const Center(child: CircularProgressIndicator())
+                else if (value.hasError || value.data == null)
+                  const _EurofishPanel(
+                    child: Text(
+                      'Provider-backed data is unavailable for this section.',
+                      style: TextStyle(
+                        color: _EurofishEnterpriseShellState._ink,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  )
+                else ...[
+                  _EurofishPanel(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Text(
+                          'Verified evidence: ' +
+                              value.data!.verifiedEvidenceCount.toString(),
+                          style: const TextStyle(
+                            color: _EurofishEnterpriseShellState._ink,
+                          ),
+                        ),
+                        Text(
+                          'Connected sources: ' +
+                              value.data!.connectedSourceCount.toString(),
+                          style: const TextStyle(
+                            color: _EurofishEnterpriseShellState._ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _EurofishPanel(
+                    child: Text(
+                      value.data!.facts.isEmpty
+                          ? 'No verified records are available for this section yet.'
+                          : value.data!.facts
+                              .take(6)
+                              .map((fact) =>
+                                  fact['label']?.toString() ??
+                                  fact['key']?.toString() ??
+                                  'Verified business record')
+                              .join('\n'),
+                      style: const TextStyle(
+                        color: _EurofishEnterpriseShellState._muted,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
 }
 
 class _EurofishHome extends StatefulWidget {
@@ -191,14 +348,14 @@ class _EurofishHome extends StatefulWidget {
     required this.api,
     required this.openDrawer,
     required this.onOpen,
-    required this.onAskPandora,
+    this.onAskPandora,
   });
 
   final EnterpriseWorkspaceProfile workspace;
   final EurofishWorkspaceApi api;
   final VoidCallback openDrawer;
   final ValueChanged<String> onOpen;
-  final VoidCallback onAskPandora;
+  final VoidCallback? onAskPandora;
 
   @override
   State<_EurofishHome> createState() => _EurofishHomeState();
@@ -320,13 +477,15 @@ class _EurofishHomeState extends State<_EurofishHome> {
                         ),
                       ),
                     ),
-                const SizedBox(height: 8),
-                FilledButton.icon(
-                  key: const ValueKey<String>('eurofish-home-ask-pandora'),
-                  onPressed: widget.onAskPandora,
-                  icon: const Icon(Icons.auto_awesome_rounded),
-                  label: const Text('Message Pandora'),
-                ),
+                if (widget.onAskPandora != null) ...[
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    key: const ValueKey<String>('eurofish-home-ask-pandora'),
+                    onPressed: widget.onAskPandora,
+                    icon: const Icon(Icons.auto_awesome_rounded),
+                    label: const Text('Message Pandora'),
+                  ),
+                ],
               ],
             ),
           ),
