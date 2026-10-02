@@ -822,6 +822,7 @@ class _PandoraSidePanel extends StatelessWidget {
               ),
             ],
           ),
+          footer: const SizedBox.shrink(),
         ),
       );
 }
@@ -1040,7 +1041,7 @@ class _PandoraRecentChatsPanelState extends State<_PandoraRecentChatsPanel> {
                             subtitle: Padding(
                               padding: const EdgeInsets.only(top: 4, right: 10),
                               child: Text(
-                                '${_relativeTime(thread.lastMessageAt)} · ${_chatStatusLabel(thread.status)}',
+                                '${_chatRelativeTime(thread.lastMessageAt)} · ${_chatStatusLabel(thread.status)}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -1072,6 +1073,14 @@ class _PandoraRecentChatsPanelState extends State<_PandoraRecentChatsPanel> {
       ),
     );
   }
+}
+
+String _chatRelativeTime(DateTime value) {
+  final difference = DateTime.now().difference(value.toLocal());
+  if (difference.isNegative || difference.inMinutes < 1) return 'just now';
+  if (difference.inHours < 1) return '${difference.inMinutes}m ago';
+  if (difference.inDays < 1) return '${difference.inHours}h ago';
+  return '${difference.inDays}d ago';
 }
 
 String _chatStatusLabel(String status) {
