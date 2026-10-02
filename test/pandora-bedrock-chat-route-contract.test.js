@@ -21,3 +21,16 @@ test("Bedrock execution stays behind one-time ticket and existing Vercel OIDC si
 test("image turns only admit Bedrock catalog rows that advertise IMAGE input",()=>{
   assert.match(edge,/bcfg.imageModels:bcfg.allowedModels/);assert.match(sql,/'IMAGE'=any\(c.input_modalities\)/);
 });
+
+
+test("Bedrock ticket claim uses Vercel OIDC control gateway instead of Vercel Supabase service-role env",()=>{
+  const control=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/index.ts","utf8");
+  assert.match(bridge,/mcpmaster-supabase-control/);
+  assert.match(bridge,/action:"bedrock_chat_ticket_claim"/);
+  assert.match(bridge,/resolveVercelWorkloadToken/);
+  assert.doesNotMatch(bridge,/SUPABASE_"\+"SERVICE_ROLE_KEY|loadOperatorPublicConfig/);
+  assert.match(control,/bedrock_chat_ticket_claim/);
+  assert.match(control,/pandora_claim_bedrock_chat_ticket_v1/);
+  assert.match(control,/includeOrganization:\s*false/);
+  assert.match(control,/route\.includeOrganization !== false/);
+});
