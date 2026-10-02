@@ -32,6 +32,7 @@ import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../enterprise/plp_staff_task_action.dart';
+import 'pandora_model_picker.dart';
 import 'pandora_simple_ui.dart';
 
 class AskPandoraScreen extends StatefulWidget {
@@ -105,6 +106,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   String? _submissionKey;
   String? _error;
   bool _shellHistoryExpanded = false;
+  PandoraChatModelSelection _modelSelection =
+      const PandoraChatModelSelection.auto();
+  PandoraIntelligenceMode _reasoningMode = PandoraIntelligenceMode.auto;
+  PandoraIntelligenceRouting? _lastRouting;
 
   @override
   void initState() {
@@ -1162,6 +1167,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
         enterpriseContext: _cloudEnterpriseContext(),
+        mode: _reasoningMode,
+        modelSelection: _modelSelection,
       );
       await _watchActivity(execution);
       PandoraIntelligenceTurn turn;
@@ -1181,6 +1188,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       if (!mounted) return;
       setState(() {
         _threadId = turn.threadId;
+        _lastRouting = turn.routing ?? _lastRouting;
         _teamAdministrationPending = turn.needsClarification &&
             (turn.conversationLane == 'team_admin' ||
                 _isTeamAdministrationClarification(turn.reply));
@@ -1575,6 +1583,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _characterContext = null;
       _characterSessionId = null;
       _threadId = null;
+      _modelSelection = const PandoraChatModelSelection.auto();
+      _reasoningMode = PandoraIntelligenceMode.auto;
+      _lastRouting = null;
       _pendingMessage = null;
       _error = null;
       _outcomeUnknown = false;
@@ -1599,12 +1610,43 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     });
     try {
       final history = await intelligence.messages(threadId);
+      PandoraThreadModelState? modelState;
+      PandoraIntelligenceModelCatalog? modelCatalog;
+      try {
+        modelState = await intelligence.threadModelState(threadId);
+        if (!modelState.selection.isAuto) {
+          modelCatalog = await intelligence.modelCatalog();
+        }
+      } on PandoraIntelligenceException {
+        modelState = null;
+      }
       if (!mounted) return;
       final teamPending = history.isNotEmpty &&
           !history.last.isUser &&
           _isTeamAdministrationClarification(history.last.content);
       setState(() {
         _threadId = threadId;
+        if (modelState != null) {
+          final saved = modelState.selection;
+          final catalogEntry =
+              modelCatalog?.find(saved.provider, saved.model);
+          _modelSelection =
+              catalogEntry == null ? saved : saved.withLabel(catalogEntry.label);
+          _reasoningMode = modelState.reasoningMode;
+          _lastRouting = modelState.executedModel == null
+              ? null
+              : PandoraIntelligenceRouting(
+                  requestedSelection: saved.selection,
+                  requestedProvider: saved.provider,
+                  requestedModel: saved.model,
+                  executedProvider: modelState.executedProvider,
+                  executedModel: modelState.executedModel,
+                );
+        } else {
+          _modelSelection = const PandoraChatModelSelection.auto();
+          _reasoningMode = PandoraIntelligenceMode.auto;
+          _lastRouting = null;
+        }
         _teamAdministrationPending = teamPending;
         _messages
           ..clear()
@@ -1650,6 +1692,68 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _imageAttachment = image;
       _error = null;
     });
+  }
+
+
+  String get _modelLabel => _modelSelection.label;
+
+  String get _reasoningLabel => switch (_reasoningMode) {
+        PandoraIntelligenceMode.fast => 'Fast',
+        PandoraIntelligenceMode.deep => 'Deep',
+        PandoraIntelligenceMode.auto => 'Auto',
+      };
+
+  Future<void> _pickModel() async {
+    if (_submitting || _outcomeUnknown) return;
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) {
+      setState(() => _error = 'Verified model choices are unavailable right now.');
+      return;
+    }
+    try {
+      final catalog = await intelligence.modelCatalog();
+      if (!mounted) return;
+      final selected = await showModalBottomSheet<PandoraChatModelSelection>(
+        context: context,
+        useSafeArea: true,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: const Color(0xB3000000),
+        builder: (context) => PandoraModelPickerSheet(
+          models: catalog.models,
+          selected: _modelSelection,
+          lastExecutedModel: _lastRouting?.executedModel,
+        ),
+      );
+      if (selected == null || !mounted) return;
+      setState(() {
+        _modelSelection = selected;
+        _error = null;
+      });
+      _scheduleOverlayMeasure();
+    } on PandoraIntelligenceException catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error.message);
+    }
+  }
+
+  Future<void> _pickReasoning() async {
+    if (_submitting || _outcomeUnknown) return;
+    final selected = await showModalBottomSheet<PandoraIntelligenceMode>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: const Color(0xB3000000),
+      builder: (context) => PandoraReasoningPickerSheet(
+        selected: _reasoningMode,
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _reasoningMode = selected;
+      _error = null;
+    });
+    _scheduleOverlayMeasure();
   }
 
   @override
@@ -1804,6 +1908,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
                 compact: true,
+                modelLabel: _modelLabel,
+                reasoningLabel: _reasoningLabel,
+                onModel: _pickModel,
+                onReasoning: _pickReasoning,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                   _scheduleOverlayMeasure();
@@ -1869,6 +1977,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
                 compact: true,
+                modelLabel: _modelLabel,
+                reasoningLabel: _reasoningLabel,
+                onModel: _pickModel,
+                onReasoning: _pickReasoning,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                   _scheduleOverlayMeasure();
@@ -2340,6 +2452,10 @@ class _Composer extends StatelessWidget {
     required this.error,
     required this.submitting,
     required this.disabled,
+    required this.modelLabel,
+    required this.reasoningLabel,
+    required this.onModel,
+    required this.onReasoning,
     required this.onChanged,
     required this.onCamera,
     required this.onPhotos,
@@ -2367,6 +2483,10 @@ class _Composer extends StatelessWidget {
   final String? error;
   final bool submitting;
   final bool disabled;
+  final String modelLabel;
+  final String reasoningLabel;
+  final VoidCallback onModel;
+  final VoidCallback onReasoning;
   final VoidCallback onChanged;
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
@@ -2424,6 +2544,34 @@ class _Composer extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (compact) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 2),
+                  child: Row(
+                    children: [
+                      _ComposerChoiceButton(
+                        key: const ValueKey<String>(
+                          'ask-pandora-model-control',
+                        ),
+                        label: 'Model',
+                        value: modelLabel,
+                        enabled: !submitting && !disabled,
+                        onPressed: onModel,
+                      ),
+                      const SizedBox(width: 8),
+                      _ComposerChoiceButton(
+                        key: const ValueKey<String>(
+                          'ask-pandora-reasoning-control',
+                        ),
+                        label: 'Reasoning',
+                        value: reasoningLabel,
+                        enabled: !submitting && !disabled,
+                        onPressed: onReasoning,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (error != null) ...[
                 Container(
                   margin: const EdgeInsets.fromLTRB(2, 0, 2, 8),
@@ -2760,6 +2908,75 @@ class _Composer extends StatelessWidget {
               ),
             ),
           ),
+          ),
+        ),
+      );
+}
+
+class _ComposerChoiceButton extends StatelessWidget {
+  const _ComposerChoiceButton({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String label;
+  final String value;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: '$label $value',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: enabled ? onPressed : null,
+            borderRadius: BorderRadius.circular(10),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 24),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$label · ',
+                      style: TextStyle(
+                        color: PandoraSimpleColors.muted.withValues(
+                          alpha: enabled ? .9 : .5,
+                        ),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        value,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: PandoraSimpleColors.ink.withValues(
+                            alpha: enabled ? .96 : .45,
+                          ),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 15,
+                      color: PandoraSimpleColors.muted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       );

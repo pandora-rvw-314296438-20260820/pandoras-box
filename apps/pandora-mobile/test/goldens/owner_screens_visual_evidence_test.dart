@@ -11,6 +11,7 @@ import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/activity/pandora_activity_projection.dart';
 import 'package:pandora_mobile/core/data/pandora_activity_history_api.dart';
+import 'package:pandora_mobile/core/data/pandora_intelligence_api.dart';
 import 'package:pandora_mobile/core/data/pandora_repository.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
@@ -27,6 +28,7 @@ import 'package:pandora_mobile/features/projects/projects_screen.dart';
 import 'package:pandora_mobile/features/safety/safety_screen.dart';
 import 'package:pandora_mobile/features/settings/settings_screen.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
+import 'package:pandora_mobile/features/simple/pandora_model_picker.dart';
 import 'package:pandora_mobile/features/simple/projects_screen.dart' as simple;
 
 import '../helpers/fake_owner_api.dart';
@@ -677,6 +679,45 @@ void main() {
       build: () => const PandoraChatShell(),
       themeMode: ThemeMode.dark,
       textScaler: TextScaler.linear(1.6),
+    ),
+    _VisualCase(
+      name: 'obsidian_model_picker_sheet_390x844',
+      build: () => Scaffold(
+        backgroundColor: const Color(0xFF050505),
+        body: Align(
+          alignment: Alignment.bottomCenter,
+          child: PandoraModelPickerSheet(
+            selected: const PandoraChatModelSelection.auto(),
+            models: const <PandoraIntelligenceModelCatalogEntry>[
+              PandoraIntelligenceModelCatalogEntry.auto(),
+              PandoraIntelligenceModelCatalogEntry(
+                provider: 'bedrock',model: 'fixture.verified',label: 'Verified model',
+                providerLabel: 'Provider A',available: true,state: 'ready',
+                routable: true,runtimeVerificationStatus: 'passed',
+              ),
+              PandoraIntelligenceModelCatalogEntry(
+                provider: 'bedrock',model: 'fixture.payment',label: 'Payment blocked model',
+                providerLabel: 'Provider B',available: false,state: 'unavailable',
+                routable: false,runtimeVerificationStatus: 'failed',
+                unavailableReason: 'Payment blocked',
+              ),
+              PandoraIntelligenceModelCatalogEntry(
+                provider: 'bedrock',model: 'fixture.access',label: 'Access denied model',
+                providerLabel: 'Provider C',available: false,state: 'unavailable',
+                routable: false,runtimeVerificationStatus: 'failed',
+                unavailableReason: 'Access denied',
+              ),
+              PandoraIntelligenceModelCatalogEntry(
+                provider: 'bedrock',model: 'fixture.entitlement',label: 'Not entitled model',
+                providerLabel: 'Provider D',available: false,state: 'unavailable',
+                routable: false,runtimeVerificationStatus: 'failed',
+                unavailableReason: 'Not entitled',
+              ),
+            ],
+          ),
+        ),
+      ),
+      themeMode: ThemeMode.dark,
     ),
     _VisualCase(
       name: 'obsidian_chat_empty_390x844',
