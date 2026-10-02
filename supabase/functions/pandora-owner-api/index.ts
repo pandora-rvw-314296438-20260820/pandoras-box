@@ -2104,7 +2104,10 @@ async function connectionAction(
         { canonicalProjectRead: true, credentialReturned: false },
       );
     } else if (normalizedProvider === "meta") {
-      await verifyMetaConnection(context, connectionId);
+      // Meta verification must use the same tenant-scoped Vault-backed
+      // no-spend verifier as the other private-credential providers. Keep
+      // credential material server-side and persist only the redacted result.
+      await verifyVaultNoSpendConnection(context, normalizedProvider);
     } else if (normalizedProvider === "google_workspace") {
       await verifyVaultNoSpendConnection(context, normalizedProvider);
     } else if (SELF_SERVICE_PROVIDERS.has(normalizedProvider)) {

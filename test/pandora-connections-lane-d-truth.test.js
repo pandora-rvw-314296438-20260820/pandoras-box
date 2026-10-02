@@ -32,6 +32,18 @@ test("Lane D Connections uses one fresh tenant-scoped verification truth per pro
 test("Verify all keeps broker health for active broker accounts and no-spend truth elsewhere", () => {
   assert.match(ownerApi, /functions\/v1\/pandora-connections-broker/);
   assert.match(ownerApi, /verifyVaultNoSpendConnection/);
+  assert.match(
+    ownerApi,
+    /normalizedProvider === "meta"\)\s*\{[\s\S]{0,500}verifyVaultNoSpendConnection\(context, normalizedProvider\);/,
+  );
+  assert.doesNotMatch(
+    ownerApi,
+    /normalizedProvider === "meta"\)[\s\S]{0,500}verifyMetaConnection/,
+  );
+  assert.doesNotMatch(
+    screen,
+    /verificationEvidence|Verification evidence|_buildEvidence/,
+  );
   assert.match(ownerApi, /verifyPublicSafeReadConnection/);
   assert.match(ownerApi, /PUBLIC_SAFE_READ_PROVIDERS/);
   assert.match(verifierMigration, /'posthog','openai','gemini','kimi','meta','google_workspace'/);
