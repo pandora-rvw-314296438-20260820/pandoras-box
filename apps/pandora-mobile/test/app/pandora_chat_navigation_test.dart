@@ -341,13 +341,15 @@ void main() {
 
   testWidgets('primary and recent-chat drawers can never stack', (tester) async {
     await mount(tester, const Size(390, 800));
+    final openRecentChats =
+        tester.widget<IconButton>(recentChats).onPressed!;
 
     await tester.tap(menu);
     await tester.pumpAndSettle();
     expect(primaryDrawer, findsOneWidget);
     expect(recentDrawer, findsNothing);
 
-    tester.widget<IconButton>(recentChats).onPressed!.call();
+    openRecentChats.call();
     await tester.pumpAndSettle();
     expect(primaryDrawer, findsNothing);
     expect(recentDrawer, findsOneWidget);
@@ -379,10 +381,14 @@ void main() {
   testWidgets(
       'first send opens inline history and survives cross-page navigation',
       (tester) async {
+    final repository = _ConversationRepository();
     await mount(
       tester,
       const Size(390, 800),
-      repository: _ConversationRepository(),
+      repository: repository,
+    );
+    final conversationState = tester.state<AskPandoraScreenState>(
+      find.byType(AskPandoraScreen),
     );
 
     final historyOffstage = find.byKey(
@@ -407,7 +413,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
-    expect(find.text('Conversation started.'), findsOneWidget);
+    expect(repository.lastMessage, 'Start this conversation');
 
     await tester.tap(
       find.byKey(const ValueKey<String>('pandora-active-chat-minimize')),
@@ -428,34 +434,52 @@ void main() {
       find.byKey(const ValueKey<String>('ask-pandora-composer')),
       findsOneWidget,
     );
+    expect(
+      identical(
+        conversationState,
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen)),
+      ),
+      isTrue,
+    );
 
     await tester.tap(menu);
     await tester.pumpAndSettle();
     await tester.tap(await drawerTile(tester, 'Pandora'));
     await tester.pumpAndSettle();
     expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
-    expect(find.text('Conversation started.'), findsOneWidget);
+    expect(
+      identical(
+        conversationState,
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen)),
+      ),
+      isTrue,
+    );
+    expect(repository.lastMessage, 'Start this conversation');
     expect(tester.takeException(), isNull);
   });;
 }
 
 class _ConversationRepository extends FakeRepository {
+  String? lastMessage;
+
   @override
   Future<IntakeReceipt> ask({
     required String message,
     String? projectId,
     String? idempotencyKey,
-  }) async =>
-      const IntakeReceipt(
-        reply: 'Conversation started.',
-        needsApproval: false,
-        actionId: 'action-chat-header-1',
-        status: IntakeStatus(
-          whatChanged: 'Message recorded.',
-          whereWeAre: 'Conversation',
-          whatIsDone: 'First turn complete.',
-          whatIsHappeningNow: 'Waiting for the next message.',
-          whatIWillDoNext: 'Continue the conversation.',
-        ),
-      );
+  }) async {
+    lastMessage = message;
+    return const IntakeReceipt(
+      reply: 'Conversation started.',
+      needsApproval: false,
+      actionId: 'action-chat-header-1',
+      status: IntakeStatus(
+        whatChanged: 'Message recorded.',
+        whereWeAre: 'Conversation',
+        whatIsDone: 'First turn complete.',
+        whatIsHappeningNow: 'Waiting for the next message.',
+        whatIWillDoNext: 'Continue the conversation.',
+      ),
+    );
+  }
 }
