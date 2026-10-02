@@ -33,7 +33,8 @@ test('provider choice is server-owned and provider eligibility fails closed',()=
   must(edge,'gcfg.enabled&&gcfg.routingEligible');
   must(edge,'nextGeminiModels(geminiModel).filter((m:string)=>gcfg.allowedModels.includes(m))');
   must(edge,'rp==="gemini"&&geminiOk&&gcfg.allowedModels.includes(rm)');
-  must(edge,'candidates(route,gcfg,cfg,ocfg,rcfg,task,geminiModel)');
+  must(edge,'planChatModelCandidates');
+  mustNot(edge,'const list=candidates(');
   must(edge,'cfg.enabled&&cfg.routingEligible');
   must(config,"('kimi','enabled','false',true,now())");
   must(config,"('kimi','default_model','kimi-k3',true,now())");
