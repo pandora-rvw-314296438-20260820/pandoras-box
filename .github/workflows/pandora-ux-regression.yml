@@ -81,11 +81,14 @@ jobs:
           } > "$evidence/manifest.txt"
 
       - name: Upload Lane E shell evidence
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: lane-e-shell-evidence-${{ env.SOURCE_SHA }}
           path: |
             apps/pandora-mobile/build/lane-e-shell-evidence
+            apps/pandora-mobile/build/owner-screen-evidence
+            apps/pandora-mobile/test/failures/owner_screens
             apps/pandora-mobile/test/goldens/owner_screens/obsidian_chat_shell_390x844.png
             apps/pandora-mobile/test/goldens/owner_screens/obsidian_chat_empty_390x844.png
             apps/pandora-mobile/test/goldens/owner_screens/model_picker_obsidian_390x844.png
