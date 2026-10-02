@@ -48,8 +48,20 @@ jobs:
           flutter test --no-pub --update-goldens --reporter expanded \
             test/goldens/owner_screens_visual_evidence_test.dart \
             --plain-name "captures obsidian_chat_empty_390x844"
+          flutter test --no-pub --update-goldens --reporter expanded \
+            test/goldens/owner_screens_visual_evidence_test.dart \
+            --plain-name "captures model_picker_obsidian_390x844"
+          flutter test --no-pub --update-goldens --reporter expanded \
+            test/goldens/owner_screens_visual_evidence_test.dart \
+            --plain-name "captures reasoning_picker_obsidian_390x844"
+          cp build/owner-screen-evidence/model_picker_obsidian_390x844.png \
+            test/goldens/owner_screens/model_picker_obsidian_390x844.png
+          cp build/owner-screen-evidence/reasoning_picker_obsidian_390x844.png \
+            test/goldens/owner_screens/reasoning_picker_obsidian_390x844.png
           test -s test/goldens/owner_screens/obsidian_chat_shell_390x844.png
           test -s test/goldens/owner_screens/obsidian_chat_empty_390x844.png
+          test -s test/goldens/owner_screens/model_picker_obsidian_390x844.png
+          test -s test/goldens/owner_screens/reasoning_picker_obsidian_390x844.png
 
       - name: Capture Lane E exact-source shell evidence
         working-directory: apps/pandora-mobile
@@ -82,5 +94,7 @@ jobs:
             apps/pandora-mobile/build/lane-e-shell-evidence
             apps/pandora-mobile/test/goldens/owner_screens/obsidian_chat_shell_390x844.png
             apps/pandora-mobile/test/goldens/owner_screens/obsidian_chat_empty_390x844.png
+            apps/pandora-mobile/test/goldens/owner_screens/model_picker_obsidian_390x844.png
+            apps/pandora-mobile/test/goldens/owner_screens/reasoning_picker_obsidian_390x844.png
           if-no-files-found: error
           retention-days: 7

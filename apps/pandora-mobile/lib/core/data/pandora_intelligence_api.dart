@@ -278,6 +278,8 @@ class PandoraIntelligenceApi {
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
+    PandoraChatModelSelection modelSelection =
+        const PandoraChatModelSelection.auto(),
   }) async {
     _requireSession();
     final activity = PandoraActivityStreamApi(
@@ -297,6 +299,7 @@ class PandoraIntelligenceApi {
       textAttachment: textAttachment,
       imageAttachment: imageAttachment,
       mode: mode,
+      modelSelection: modelSelection,
       activityJobId: jobId,
     );
     return PandoraIntelligenceExecution(
@@ -314,6 +317,8 @@ class PandoraIntelligenceApi {
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
+    PandoraChatModelSelection modelSelection =
+        const PandoraChatModelSelection.auto(),
     String? activityJobId,
   }) async {
     _requireSession();
@@ -365,6 +370,7 @@ class PandoraIntelligenceApi {
           if (enterpriseContext != null) 'enterpriseContext': enterpriseContext,
           if (activityJobId != null) 'activityJobId': activityJobId,
           'mode': mode.name,
+          'modelSelection': modelSelection.toJson(),
           if (attachments.isNotEmpty) 'attachments': attachments,
         },
       );
@@ -435,6 +441,25 @@ class PandoraIntelligenceApi {
     } on PostgrestException {
       throw const PandoraIntelligenceException(
         'Pandora could not verify plugin runtime state right now.',
+      );
+    }
+  }
+
+
+  Future<PandoraChatModelPickerSnapshot> modelPicker({String? threadId}) async {
+    _requireSession();
+    try {
+      final response = await _client.rpc(
+        'pandora_chat_model_picker_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_thread_id': threadId,
+        },
+      );
+      return PandoraChatModelPickerSnapshot.fromJson(_map(response));
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not load the verified model catalog right now.',
       );
     }
   }
@@ -617,6 +642,127 @@ class PandoraIntelligenceApi {
 }
 
 enum PandoraIntelligenceMode { auto, fast, deep }
+
+class PandoraChatModelSelection {
+  const PandoraChatModelSelection.auto()
+      : selection = 'auto',
+        provider = null,
+        model = null,
+        fallbackMode = 'allow_fallback';
+
+  const PandoraChatModelSelection.manual({
+    required this.provider,
+    required this.model,
+    this.fallbackMode = 'strict',
+  }) : selection = 'manual';
+
+  final String selection;
+  final String? provider;
+  final String? model;
+  final String fallbackMode;
+
+  bool get isAuto => selection == 'auto';
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'selection': selection,
+        if (provider != null) 'provider': provider,
+        if (model != null) 'model': model,
+        'fallbackMode': fallbackMode,
+      };
+
+  factory PandoraChatModelSelection.fromJson(Map<String, dynamic> json) {
+    final selection = _text(json['selectionMode'], fallback: 'auto');
+    final provider = _optionalText(json['requestedProvider']);
+    final model = _optionalText(json['requestedModel']);
+    if (selection == 'manual' && provider != null && model != null) {
+      return PandoraChatModelSelection.manual(
+        provider: provider,
+        model: model,
+        fallbackMode: _text(json['fallbackMode'], fallback: 'strict'),
+      );
+    }
+    return const PandoraChatModelSelection.auto();
+  }
+}
+
+class PandoraChatModelOption {
+  const PandoraChatModelOption({
+    required this.routingProvider,
+    required this.providerName,
+    required this.modelId,
+    required this.modelName,
+    required this.selectable,
+    required this.availability,
+    this.unavailableReason,
+    this.lastVerifiedAt,
+  });
+
+  final String routingProvider;
+  final String providerName;
+  final String modelId;
+  final String modelName;
+  final bool selectable;
+  final String availability;
+  final String? unavailableReason;
+  final DateTime? lastVerifiedAt;
+
+  factory PandoraChatModelOption.fromJson(Map<String, dynamic> json) =>
+      PandoraChatModelOption(
+        routingProvider: _text(json['routingProvider'], fallback: 'bedrock'),
+        providerName: _text(json['providerName'], fallback: 'Provider'),
+        modelId: _requiredText(json['modelId']),
+        modelName: _text(
+          json['modelName'],
+          fallback: _requiredText(json['modelId']),
+        ),
+        selectable: json['selectable'] == true,
+        availability: _text(json['availability'], fallback: 'unavailable'),
+        unavailableReason: _optionalText(json['unavailableReason']),
+        lastVerifiedAt: _optionalDate(json['lastVerifiedAt']),
+      );
+}
+
+class PandoraChatModelPickerSnapshot {
+  const PandoraChatModelPickerSnapshot({
+    required this.models,
+    required this.selection,
+    required this.reasoningMode,
+  });
+
+  final List<PandoraChatModelOption> models;
+  final PandoraChatModelSelection selection;
+  final PandoraIntelligenceMode reasoningMode;
+
+  factory PandoraChatModelPickerSnapshot.fromJson(Map<String, dynamic> json) {
+    final rawModels = json['models'];
+    final selectionJson = _map(json['selection']);
+    final reasoning = _text(selectionJson['reasoningMode'], fallback: 'auto');
+    return PandoraChatModelPickerSnapshot(
+      models: rawModels is List
+          ? rawModels
+              .map((value) => PandoraChatModelOption.fromJson(_map(value)))
+              .toList(growable: false)
+          : const <PandoraChatModelOption>[],
+      selection: PandoraChatModelSelection.fromJson(selectionJson),
+      reasoningMode: switch (reasoning) {
+        'fast' => PandoraIntelligenceMode.fast,
+        'deep' => PandoraIntelligenceMode.deep,
+        _ => PandoraIntelligenceMode.auto,
+      },
+    );
+  }
+
+  String labelFor(PandoraChatModelSelection value) {
+    if (value.isAuto) return 'Auto';
+    for (final option in models) {
+      if (option.routingProvider == value.provider &&
+          option.modelId == value.model) {
+        return option.modelName;
+      }
+    }
+    return 'Manual';
+  }
+}
 
 class PandoraCapabilityRegistry {
   const PandoraCapabilityRegistry({
