@@ -115,8 +115,8 @@ class PandoraModelPickerSheet extends StatelessWidget {
     super.key,
     required this.models,
     required this.selection,
-    required this.localAiEnabled,
-    required this.localAiAvailable,
+    this.localAiEnabled = false,
+    this.localAiAvailable = false,
     this.localAiModelName,
   });
 
