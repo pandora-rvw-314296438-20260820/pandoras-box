@@ -27,6 +27,9 @@ import '../features/simple/projects_screen.dart';
 import '../features/simple/simple_safety_screen.dart';
 import 'pandora_conversation_layer.dart';
 import 'pandora_shared_conversation_scope.dart';
+import 'plp_enterprise_shell.dart';
+import 'eurofish_enterprise_shell.dart';
+import '../features/enterprise/bok_workspace_screen.dart';
 import 'pandora_dependencies.dart';
 
 class PandoraChatShell extends StatefulWidget {
@@ -605,7 +608,26 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                       profileKey: _activeWorkspaceProfileKey(),
                       onBackToWorkspaces: () => _select(9),
                     )
-                  : const SizedBox.expand(),
+                  : _activeWorkspaceSelection?.workspace.key == 'plp-boracay'
+                      ? PlpEnterpriseShell(
+                          embeddedRouteSlug:
+                              _activeWorkspaceSelection!.section.routeSlug,
+                        )
+                      : _activeWorkspaceSelection?.workspace.key ==
+                              '1064-euro-fish-traders'
+                          ? EurofishEnterpriseShell(
+                              embedded: true,
+                              initialRouteSlug:
+                                  _activeWorkspaceSelection!.section.routeSlug,
+                            )
+                          : _activeWorkspaceSelection?.workspace.key == 'bok'
+                              ? BokWorkspaceScreen(
+                                  workspace:
+                                      _activeWorkspaceSelection!.workspace,
+                                  section:
+                                      _activeWorkspaceSelection!.section,
+                                )
+                              : const SizedBox.expand(),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
