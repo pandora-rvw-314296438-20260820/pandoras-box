@@ -588,6 +588,7 @@ function bedrockProbeCode(error:any) {
   return"provider_unavailable";
 }
 function bedrockUsage(value:unknown){const n=Number(value||0);return Number.isSafeInteger(n)&&n>=0?n:0;}
+function bedrockProbeMaxTokens(modelId:unknown){return String(modelId||"")==="moonshotai.kimi-k3"?16:1;}
 async function runBedrockCatalogSync(oidc:string) {
   const claim=await control(oidc,{action:"bedrock_catalog_sync_claim"});
   if(!claim||claim.mode!=="execute"||typeof claim.syncId!=="string")return{ok:true,state:claim?.mode||"busy",probed:0};
@@ -609,7 +610,7 @@ async function runBedrockCatalogSync(oidc:string) {
       try{
         const value=await bedrockRuntime.converseWithBedrockTarget({
           modelId:row.modelId,invocationTarget:row.invocationTarget,providerName:row.providerName,
-          prompt: "OK", maxTokens: 1, temperature: null, credentials, fetchFn: globalThis.fetch, timeoutMs: 20000,
+          prompt: "OK", maxTokens: bedrockProbeMaxTokens(row.modelId), temperature: null, credentials, fetchFn: globalThis.fetch, timeoutMs: 20000,
         });
         const usage=value?.usage||{};
         return{modelId:row.modelId,invocationTarget:row.invocationTarget,ok:true,

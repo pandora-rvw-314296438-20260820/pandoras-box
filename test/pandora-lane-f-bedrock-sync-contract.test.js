@@ -12,9 +12,11 @@ test("Bedrock sync uses only Vercel workload identity plus the dedicated role",(
   assert.doesNotMatch(route,/AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|Github_supabase|SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(route,/signedAction === "bedrock_catalog_sync"/);
 });
-test("runtime probe is exactly one minimal Converse call per conversational candidate",()=>{
+test("runtime probe is exactly one minimal model-supported Converse call per conversational candidate",()=>{
   assert.match(route,/prompt: "OK"/);
-  assert.match(route,/maxTokens: 1/);
+  assert.match(route,/function bedrockProbeMaxTokens/);
+  assert.match(route,/moonshotai\.kimi-k3"\?16:1/);
+  assert.match(route,/maxTokens: bedrockProbeMaxTokens\(row\.modelId\)/);
   assert.match(route,/temperature: null/);
   assert.match(route,/converseWithBedrockTarget/);
   assert.doesNotMatch(route,/retry|backoff/i);
