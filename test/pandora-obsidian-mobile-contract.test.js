@@ -16,12 +16,11 @@ test('approved Obsidian palette is native Flutter dark UI', () => {
   assert.match(simple, /canvas = Color\(0xFF000000\)/);
   assert.match(simple, /surface = Color\(0xFF0A0A0A\)/);
   assert.match(simple, /line = Color\(0xFF222222\)/);
-  assert.match(tokens, /graphiteCanvas = Color\(0xFF101116\)/);
-  assert.match(tokens, /graphiteSurface = Color\(0xFF191B22\)/);
-  assert.match(tokens, /graphiteOutline = Color\(0xFF30333D\)/);
-  assert.match(v2, /canvas = PandoraColorTokens\.graphiteCanvas/);
-  assert.match(v2, /surface = PandoraColorTokens\.graphiteSurface/);
-  assert.match(v2, /line = PandoraColorTokens\.graphiteOutline/);
+  assert.match(v2, /canvas = Color\(0xFF000000\)/);
+  assert.match(v2, /surface = Color\(0xFF0A0A0A\)/);
+  assert.match(v2, /line = Color\(0xFF222222\)/);
+  assert.match(v2, /action = Color\(0xFFFFFFFF\)/);
+  assert.match(v2, /onAction = Color\(0xFF000000\)/);
   assert.match(shell, /ColorScheme\.dark\(/);
   assert.match(shell, /brightness: Brightness\.dark/);
 });
