@@ -2570,24 +2570,28 @@ class _Composer extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 2),
                   child: Row(
                     children: [
-                      _ComposerChoiceButton(
-                        key: const ValueKey<String>(
-                          'ask-pandora-model-control',
+                      Expanded(
+                        child: _ComposerChoiceButton(
+                          key: const ValueKey<String>(
+                            'ask-pandora-model-control',
+                          ),
+                          label: 'Model',
+                          value: modelLabel,
+                          enabled: !submitting && !disabled,
+                          onPressed: onModel,
                         ),
-                        label: 'Model',
-                        value: modelLabel,
-                        enabled: !submitting && !disabled,
-                        onPressed: onModel,
                       ),
                       const SizedBox(width: 8),
-                      _ComposerChoiceButton(
-                        key: const ValueKey<String>(
-                          'ask-pandora-reasoning-control',
+                      Expanded(
+                        child: _ComposerChoiceButton(
+                          key: const ValueKey<String>(
+                            'ask-pandora-reasoning-control',
+                          ),
+                          label: 'Reasoning',
+                          value: reasoningLabel,
+                          enabled: !submitting && !disabled,
+                          onPressed: onReasoning,
                         ),
-                        label: 'Reasoning',
-                        value: reasoningLabel,
-                        enabled: !submitting && !disabled,
-                        onPressed: onReasoning,
                       ),
                     ],
                   ),
