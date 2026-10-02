@@ -300,20 +300,6 @@ begin
 end;$$;
 revoke all on function private.pandora_bedrock_catalog_emit_sync_v1() from public,anon,authenticated,service_role;
 
-create or replace function private.pandora_bedrock_catalog_enable_schedule_v1()
-returns jsonb
-language plpgsql security definer set search_path to 'pg_catalog','private','cron'
-as $$
-declare v_job bigint;
-begin
-  if exists(select 1 from cron.job where jobname='pandora-bedrock-live-catalog-sync-v1') then
-    perform cron.unschedule('pandora-bedrock-live-catalog-sync-v1');
-  end if;
-  v_job:=cron.schedule('pandora-bedrock-live-catalog-sync-v1','17 3 * * *','select private.pandora_bedrock_catalog_emit_sync_v1();');
-  return jsonb_build_object('scheduled',true,'jobId',v_job,'schedule','17 3 * * *');
-end;$$;
-revoke all on function private.pandora_bedrock_catalog_enable_schedule_v1() from public,anon,authenticated,service_role;
-
 comment on table private.pandora_bedrock_reasoning_catalog is
   'Live AWS Bedrock catalog. Historical table name retained for compatibility; workflow_scopes contains the authoritative capability scope.';
 comment on column private.pandora_bedrock_reasoning_catalog.routable is

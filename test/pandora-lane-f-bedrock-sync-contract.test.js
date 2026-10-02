@@ -28,3 +28,7 @@ test("phone local AI is an explicit opt-in and defaults OFF",()=>{
   assert.match(local,/bool usePhoneAi = false/);
   assert.match(local,/if \(!usePhoneAi\) return _record\(false, 'phone_ai_disabled'\)/);
 });
+
+test("owner-approved probe cycle cannot silently become recurring spend",()=>{
+  assert.doesNotMatch(migration,/cron\.schedule|enable_schedule/i);
+});
