@@ -117,3 +117,57 @@ test('current Gemini and OpenAI profiles route through one registry and future p
   const future = await router.execute(request({ requestId: 'req-future', budget: { maxAttempts: 1 } }), { policy: futurePolicy });
   assert.equal(future.routedProvider, 'future-provider');
 });
+
+
+test('manual strict selection is a hard routing constraint and verified performance cannot override it', async () => {
+  const registry = new ModelCapabilityRegistry();
+  registry.register(syntheticModel('chosen', 'exact'));
+  registry.register(syntheticModel('learned', 'high-score'));
+  const router = new ModelRouter({ registry, adapters: { chosen: adapter('chosen'), learned: adapter('learned') } });
+  const policy = createRoutingPolicy({
+    policyVersion: 'manual-v1',
+    performance: {
+      'chosen:exact': { quality: 0.1, successRate: 0.1, latencyScore: 0.1, costScore: 0.1, sampleCount: 100 },
+      'learned:high-score': { quality: 1, successRate: 1, latencyScore: 1, costScore: 1, sampleCount: 100 },
+    },
+  });
+  const result = await router.execute(request({ requestId: 'manual-hard' }), {
+    policy,
+    selection: { selection: 'manual', provider: 'chosen', model: 'exact', fallbackMode: 'strict' },
+  });
+  assert.equal(result.routedProvider, 'chosen');
+  assert.equal(result.routedModel, 'exact');
+  assert.equal(result.routingDecision.requestedSelection, 'manual');
+  assert.equal(result.routingDecision.requestedProvider, 'chosen');
+  assert.equal(result.routingDecision.requestedModel, 'exact');
+  assert.equal(result.routingDecision.executedProvider, 'chosen');
+  assert.equal(result.routingDecision.executedModel, 'exact');
+  assert.equal(result.routingDecision.fallbackReason, null);
+});
+
+test('manual strict never silently switches models while allow_fallback records requested and executed separately', async () => {
+  const registry = new ModelCapabilityRegistry();
+  registry.register(syntheticModel('chosen', 'exact', { costClass: 'low' }));
+  registry.register(syntheticModel('fallback', 'backup', { costClass: 'medium' }));
+  let fallbackCalls = 0;
+  const failing = { async execute() { throw Object.assign(new Error('down'), { code: 'provider_unavailable', retryable: true, crossProviderEligible: true }); } };
+  const fallback = { async execute(_request, declaration) { fallbackCalls += 1; return { provider: 'fallback', model: declaration.modelId, output: 'ok' }; } };
+  const router = new ModelRouter({ registry, adapters: { chosen: failing, fallback } });
+  await assert.rejects(
+    () => router.execute(request({ requestId: 'manual-strict-fail' }), {
+      selection: { selection: 'manual', provider: 'chosen', model: 'exact', fallbackMode: 'strict' },
+    }),
+    error => error && error.code === 'provider_unavailable',
+  );
+  assert.equal(fallbackCalls, 0);
+  const result = await router.execute(request({ requestId: 'manual-fallback' }), {
+    selection: { selection: 'manual', provider: 'chosen', model: 'exact', fallbackMode: 'allow_fallback' },
+  });
+  assert.equal(result.routedProvider, 'fallback');
+  assert.equal(result.routingDecision.requestedProvider, 'chosen');
+  assert.equal(result.routingDecision.requestedModel, 'exact');
+  assert.equal(result.routingDecision.executedProvider, 'fallback');
+  assert.equal(result.routingDecision.executedModel, 'backup');
+  assert.equal(result.routingDecision.fallbackReason, 'provider_unavailable');
+  assert.equal(result.routingDecision.fallbackMode, 'allow_fallback');
+});

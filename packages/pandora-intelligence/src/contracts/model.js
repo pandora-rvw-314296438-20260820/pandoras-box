@@ -1,7 +1,7 @@
 'use strict';
 
 const MODEL_TASKS = Object.freeze([
-  'understand_intent', 'compile_project_spec', 'classify_task', 'plan_build',
+  'chat', 'understand_intent', 'compile_project_spec', 'classify_task', 'plan_build',
   'design_experience', 'plan_architecture', 'generate_code', 'repair_code',
   'inspect_error', 'inspect_visual', 'write_copy', 'summarize_context',
   'extract_structure', 'derive_acceptance_tests',
