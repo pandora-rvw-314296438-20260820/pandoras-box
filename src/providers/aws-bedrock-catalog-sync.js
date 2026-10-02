@@ -82,7 +82,14 @@ function buildBedrockProbePlan(snapshot) {
   if (!snapshot || !Array.isArray(snapshot.models)) throw new TypeError("snapshot.models is required");
   return Object.freeze(snapshot.models.filter((model) => model.conversational === true).map((model) => Object.freeze({ modelId: model.modelId, providerName: model.providerName, invocationTarget: model.invocationTarget })));
 }
-function minimalBedrockProbeBody() {
-  return Object.freeze({ messages: Object.freeze([{ role: "user", content: Object.freeze([{ text: "OK" }]) }]), inferenceConfig: Object.freeze({ maxTokens: 1, temperature: 0 }) });
+function minimalBedrockProbeBody(modelId = "") {
+  const normalized = String(modelId || "").trim().toLowerCase();
+  const maxTokens = normalized === "moonshotai.kimi-k3" ? 16 : 1;
+  return Object.freeze({
+    messages: Object.freeze([
+      { role: "user", content: Object.freeze([{ text: "OK" }]) },
+    ]),
+    inferenceConfig: Object.freeze({ maxTokens }),
+  });
 }
 module.exports = { buildBedrockProbePlan, isConversationalBedrockModel, minimalBedrockProbeBody, normalizeBedrockCatalogSnapshot, preProbeState, selectInvocationTarget };
