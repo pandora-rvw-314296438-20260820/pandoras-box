@@ -196,7 +196,15 @@ function signBedrockRequest({
   if (region !== BEDROCK_REGION) throw new Error("AWS_BEDROCK_REGION_DENIED");
   const service = "bedrock";
   const host = `bedrock-runtime.${region}.amazonaws.com`;
-  const path = modelPath(modelId);
+  const rawModelId = String(modelId || "");
+  // SigV4 signs the RFC3986-encoded canonical URI, while the actual HTTP URL
+  // keeps the Bedrock model identifier raw. Accepting a caller-preencoded
+  // "%3A" target would make the wire path and canonical path disagree.
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/.test(rawModelId)) {
+    throw new Error("AWS_BEDROCK_MODEL_DENIED");
+  }
+  const wirePath = modelPath(rawModelId);
+  const canonicalPath = canonicalAwsPath(wirePath);
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
   const dateStamp = amzDate.slice(0, 8);
   const payload = JSON.stringify(body);
@@ -209,7 +217,7 @@ function signBedrockRequest({
   const signedHeaders = "content-type;host;x-amz-date;x-amz-security-token";
   const canonicalRequest = [
     "POST",
-    canonicalAwsPath(path),
+    canonicalPath,
     "",
     canonicalHeaders,
     signedHeaders,
@@ -234,7 +242,7 @@ function signBedrockRequest({
     `AWS4-HMAC-SHA256 Credential=${credentials.accessKeyId}/${scope}, ` +
     `SignedHeaders=${signedHeaders}, Signature=${signature}`;
   return {
-    url: `https://${host}${path}`,
+    url: `https://${host}${wirePath}`,
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -279,7 +287,7 @@ async function converseWithBedrockTarget({
   resolveWorkloadToken = resolveDefaultWorkloadToken,
   now = new Date(),
   maxTokens = 256,
-  temperature = 0,
+  temperature = null,
   credentials = null,
   timeoutMs = 30000,
 }) {

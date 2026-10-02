@@ -106,6 +106,58 @@ test("Bedrock SigV4 canonicalizes colon-bearing model IDs exactly once", () => {
   );
 });
 
+test("Bedrock SigV4 rejects pre-encoded model identifiers", () => {
+  assert.throws(
+    () => signBedrockRequest({
+      region: "us-east-1",
+      modelId: "amazon.nova-lite-v1%3A0",
+      body: {
+        messages: [{ role: "user", content: [{ text: "ping" }] }],
+        inferenceConfig: { maxTokens: 16 },
+      },
+      credentials: {
+        accessKeyId: "ASIATEST",
+        secretAccessKey: "secret",
+        sessionToken: "session",
+      },
+      now: new Date("2026-09-12T10:00:00Z"),
+    }),
+    /AWS_BEDROCK_MODEL_DENIED/,
+  );
+});
+
+test("Bedrock Converse omits temperature by default", async () => {
+  const result = await converseWithBedrockTarget({
+    modelId: "moonshotai.kimi-k3",
+    invocationTarget: "us.moonshotai.kimi-k3",
+    providerName: "Moonshot AI",
+    prompt: "OK",
+    maxTokens: 16,
+    credentials: {
+      accessKeyId: "ASIATEST",
+      secretAccessKey: "secret",
+      sessionToken: "session",
+    },
+    fetchFn: async (_url, init) => {
+      assert.deepEqual(JSON.parse(init.body).inferenceConfig, { maxTokens: 16 });
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => "req-no-temperature" },
+        async text() {
+          return JSON.stringify({
+            output: { message: { content: [{ text: "OK" }] } },
+            usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+            stopReason: "end_turn",
+          });
+        },
+      };
+    },
+  });
+  assert.equal(result.text, "OK");
+  assert.equal(result.providerRequestId, "req-no-temperature");
+});
+
 test("Bedrock health fails closed when workload identity is unavailable", async () => {
   let fetchCalls = 0;
   const probe = createBedrockHealthProbe(
