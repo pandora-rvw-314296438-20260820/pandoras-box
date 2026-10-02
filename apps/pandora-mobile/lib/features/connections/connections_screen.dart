@@ -16,6 +16,7 @@ import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
 import '../../core/widgets/status_badge.dart';
 import '../simple/ask_pandora_screen.dart';
+import '../simple/pandora_v2_ui.dart';
 import 'connection_presentation.dart';
 
 class ConnectionsScreen extends StatefulWidget {
@@ -274,9 +275,84 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
     }
   }
 
+  ThemeData _connectionsTheme(ThemeData base) {
+    const scheme = ColorScheme.dark(
+      primary: PandoraV2Colors.ink,
+      onPrimary: Colors.black,
+      primaryContainer: PandoraV2Colors.soft,
+      onPrimaryContainer: PandoraV2Colors.ink,
+      secondary: PandoraV2Colors.ink,
+      onSecondary: Colors.black,
+      surface: PandoraV2Colors.surface,
+      onSurface: PandoraV2Colors.ink,
+      error: PandoraV2Colors.danger,
+      onError: Colors.black,
+      outline: PandoraV2Colors.line,
+      outlineVariant: PandoraV2Colors.line,
+    );
+    return base.copyWith(
+      brightness: Brightness.dark,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: PandoraV2Colors.canvas,
+      canvasColor: PandoraV2Colors.canvas,
+      extensions: const <ThemeExtension<dynamic>>[PandoraPalette.graphite],
+      textTheme: base.textTheme.apply(
+        bodyColor: PandoraV2Colors.ink,
+        displayColor: PandoraV2Colors.ink,
+      ),
+      cardTheme: CardThemeData(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        color: PandoraV2Colors.surface,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: PandoraRadius.cardBorder,
+          side: const BorderSide(color: PandoraV2Colors.line),
+        ),
+      ),
+      popupMenuTheme: const PopupMenuThemeData(
+        color: PandoraV2Colors.surface,
+        surfaceTintColor: Colors.transparent,
+        textStyle: TextStyle(color: PandoraV2Colors.ink),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, PandoraSize.minimumTouchTarget),
+          backgroundColor: PandoraV2Colors.ink,
+          foregroundColor: Colors.black,
+          disabledBackgroundColor: PandoraV2Colors.soft,
+          disabledForegroundColor: PandoraV2Colors.muted,
+          shape: const RoundedRectangleBorder(
+            borderRadius: PandoraRadius.controlBorder,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, PandoraSize.minimumTouchTarget),
+          foregroundColor: PandoraV2Colors.ink,
+          side: const BorderSide(color: PandoraV2Colors.line),
+          shape: const RoundedRectangleBorder(
+            borderRadius: PandoraRadius.controlBorder,
+          ),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: PandoraV2Colors.ink,
+          minimumSize: const Size.square(PandoraSize.minimumTouchTarget),
+        ),
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: PandoraPage(
+  Widget build(BuildContext context) => Theme(
+        data: _connectionsTheme(Theme.of(context)),
+        child: Scaffold(
+          backgroundColor: PandoraV2Colors.canvas,
+          body: PandoraPage(
           title: 'Connections',
           subtitle: 'Provider health, capability, and verified freshness.',
           onRefresh: () async {
@@ -331,6 +407,10 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                   ],
                   FilledButton.icon(
                     key: const ValueKey<String>('connections-verify-all'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: PandoraV2Colors.ink,
+                      foregroundColor: Colors.black,
+                    ),
                     onPressed:
                         _verifyingAll ? null : () => _verifyAll(items),
                     icon: _verifyingAll
@@ -383,7 +463,8 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
             },
           ),
         ),
-      );
+      ),
+    );
 }
 
 class _ConnectionHealthBar extends StatelessWidget {
@@ -618,7 +699,7 @@ class _ConnectionCard extends StatelessWidget {
             const SizedBox(height: PandoraSpacing.sm),
             SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
+              child: OutlinedButton.icon(
                 key: ValueKey<String>('connection-connect-${connection.id}'),
                 onPressed: busy ? null : onConnect,
                 icon: busy
