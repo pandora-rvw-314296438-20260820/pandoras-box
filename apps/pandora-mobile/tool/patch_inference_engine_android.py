@@ -163,9 +163,13 @@ def patch_impl(path: Path) -> int:
     bench_replacement = bench_anchor + """
     override fun runtimeDiagnostics(): String = nativeRuntimeDiagnostics()
 
-    override fun requestCancel() = requestCancelNative()
+    override fun requestCancel() {
+        if (nativeReady) requestCancelNative()
+    }
 
-    override fun clearCancelRequest() = clearCancelNative()
+    override fun clearCancelRequest() {
+        if (nativeReady) clearCancelNative()
+    }
 """
 
     cleanup_error_old = """                is InferenceEngine.State.Error -> {
@@ -185,6 +189,17 @@ def patch_impl(path: Path) -> int:
                 }
 """
 
+    ready_flag_old = """    private var _readyForSystemPrompt = false
+"""
+    ready_flag_new = ready_flag_old + """    @Volatile
+    private var nativeReady = false
+"""
+
+    load_library_old = """                System.loadLibrary("ai-chat")
+"""
+    load_library_new = load_library_old + """                nativeReady = true
+"""
+
     try:
         text = replace_exact(text, init_old, init_new, "native initialization catch block")
         text = replace_exact(text, load_old, load_new, "native model load/prepare block")
@@ -198,6 +213,18 @@ def patch_impl(path: Path) -> int:
         text = replace_exact(text, user_prompt_old, user_prompt_new, "user prompt fail-closed block")
         text = replace_exact(text, system_result_old, system_result_new, "system prompt result block")
         text = replace_exact(text, bench_anchor, bench_replacement, "benchmark implementation")
+        text = replace_exact(
+            text,
+            ready_flag_old,
+            ready_flag_new,
+            "native ready flag declaration anchor",
+        )
+        text = replace_exact(
+            text,
+            load_library_old,
+            load_library_new,
+            "native library load call",
+        )
         text = replace_exact(
             text,
             cleanup_error_old,
@@ -238,8 +265,10 @@ def patch_impl(path: Path) -> int:
         "requestCancelNative()",
         "clearCancelNative()",
         "override fun runtimeDiagnostics(): String",
-        "override fun requestCancel() = requestCancelNative()",
-        "override fun clearCancelRequest() = clearCancelNative()",
+        "@Volatile\n    private var nativeReady = false",
+        'System.loadLibrary("ai-chat")\n                nativeReady = true',
+        "override fun requestCancel() {\n        if (nativeReady) requestCancelNative()\n    }",
+        "override fun clearCancelRequest() {\n        if (nativeReady) clearCancelNative()\n    }",
         "Pandora reuses processSystemPrompt() as a warm conversation reset.",
         "Unloading native resources after error...",
         "_state.value = InferenceEngine.State.Error(error)",

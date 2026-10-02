@@ -231,6 +231,8 @@ class PandoraLocalAi {
       await _methods.invokeMethod<void>('unload');
     } on MissingPluginException {
       return;
+    } on PlatformException {
+      return;
     }
   }
 
@@ -246,6 +248,8 @@ class PandoraLocalAi {
     try {
       await _methods.invokeMethod<void>('cancel');
     } on MissingPluginException {
+      return;
+    } on PlatformException {
       return;
     }
   }
