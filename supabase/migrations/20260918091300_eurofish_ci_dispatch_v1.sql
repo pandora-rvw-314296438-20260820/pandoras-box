@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260918091300
+-- Name: eurofish_ci_dispatch_v1
+-- Original SQL SHA-256: aa69872279e2aef3aedebb04f41ce7481fa6d7247bdaedf0945fc6de0151ac81
+-- Original statement count: 1
+-- Provider SQL bytes: 1120
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

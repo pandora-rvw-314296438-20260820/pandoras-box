@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260917172137
+-- Name: lock_plp_staff_identity_role_map
+-- Original SQL SHA-256: 0915eeeb39974251430639a3c023cffb9184efc9c4fed5016f0056ba98cc24c1
+-- Original statement count: 1
+-- Provider SQL bytes: 376
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

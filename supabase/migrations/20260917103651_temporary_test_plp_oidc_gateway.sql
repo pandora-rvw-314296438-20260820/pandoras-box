@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260917103651
+-- Name: temporary_test_plp_oidc_gateway
+-- Original SQL SHA-256: 22cc3b0cbfc03ea554ff4a9f6e36ef7a8dfd37d3cd1a3012df47bd692a0736a6
+-- Original statement count: 1
+-- Provider SQL bytes: 2682
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

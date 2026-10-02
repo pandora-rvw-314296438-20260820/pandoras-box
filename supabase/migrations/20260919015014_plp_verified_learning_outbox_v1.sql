@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260919015014
+-- Name: plp_verified_learning_outbox_v1
+-- Original SQL SHA-256: d252053dce30d5ee8961bfc63db127c7d77d2537695debaf7c1e4f82eff27965
+-- Original statement count: 1
+-- Provider SQL bytes: 4949
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

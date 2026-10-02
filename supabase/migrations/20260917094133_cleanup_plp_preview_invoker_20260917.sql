@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260917094133
+-- Name: cleanup_plp_preview_invoker_20260917
+-- Original SQL SHA-256: 18a1274783f30144e7abfe7c475bc47b9c61230bf0837a1a03f80aa7328d8648
+-- Original statement count: 1
+-- Provider SQL bytes: 146
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

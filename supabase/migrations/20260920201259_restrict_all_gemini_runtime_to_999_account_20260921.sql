@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260920201259
+-- Name: restrict_all_gemini_runtime_to_999_account_20260921
+-- Original SQL SHA-256: bfb744157d3f0edde2d7ed9632aff59bcd1c75ad7bd2787d8249c4aaeca27b79
+-- Original statement count: 1
+-- Provider SQL bytes: 3458
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

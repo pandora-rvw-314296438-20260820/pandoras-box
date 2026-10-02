@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260920180412
+-- Name: phone_local_ai_turn_telemetry_v1
+-- Original SQL SHA-256: fdfe3bc3621d2f005fb96f088eb688eca8a721fa3bd18e5544667cb8ef115726
+-- Original statement count: 1
+-- Provider SQL bytes: 3560
+-- Canonical executable authority: supabase/migrations/20260920180430_phone_local_ai_turn_telemetry_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260917063136
+-- Name: pandora_chat_github_connection_and_redesign_routing_v14
+-- Original SQL SHA-256: 56d92d9629973dfab3eea6599356b9c63d5de747d534efd3826fa0111d324c62
+-- Original statement count: 1
+-- Provider SQL bytes: 15476
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

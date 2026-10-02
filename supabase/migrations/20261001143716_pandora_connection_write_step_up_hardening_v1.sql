@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20261001143716
+-- Name: pandora_connection_write_step_up_hardening_v1
+-- Original SQL SHA-256: 25b6888e1a81c760df7370e838559bf75271fb08db8e6afedf9cfe78bece73df
+-- Original statement count: 1
+-- Provider SQL bytes: 9655
+-- Canonical executable authority: supabase/migrations/20261001144500_pandora_connection_write_step_up_hardening_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

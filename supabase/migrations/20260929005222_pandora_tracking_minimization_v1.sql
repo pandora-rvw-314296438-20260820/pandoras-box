@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929005222
+-- Name: pandora_tracking_minimization_v1
+-- Original SQL SHA-256: 7ba8ec0346ed3d1c92115dc7ac89f13d7701a70438b5de624c352bca15d2dc1f
+-- Original statement count: 1
+-- Provider SQL bytes: 2525
+-- Canonical executable authority: supabase/migrations/20260929014500_pandora_tracking_minimization_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260926141512
+-- Name: pandora_meta_business_login_config_id_v1
+-- Original SQL SHA-256: 383ce576b3944faa413206e1af2e8c4880f5df8d0cfbe59bb5ca4d054a99675b
+-- Original statement count: 1
+-- Provider SQL bytes: 3339
+-- Canonical executable authority: supabase/migrations/20260926121500_pandora_meta_business_login_config_id_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

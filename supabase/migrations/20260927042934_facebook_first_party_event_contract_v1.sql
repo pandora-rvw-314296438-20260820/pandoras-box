@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260927042934
+-- Name: facebook_first_party_event_contract_v1
+-- Original SQL SHA-256: 70f1933df4823424bb74f47f9779b59c69598e2569f062e543423557710d9c4d
+-- Original statement count: 1
+-- Provider SQL bytes: 1801
+-- Canonical executable authority: supabase/migrations/20260927041500_facebook_first_party_event_contract_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

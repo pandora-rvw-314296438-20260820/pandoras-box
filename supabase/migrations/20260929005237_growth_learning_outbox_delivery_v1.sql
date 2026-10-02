@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260929005237
+-- Name: growth_learning_outbox_delivery_v1
+-- Original SQL SHA-256: a5c7dcf55688c149ec7bdd4118422d861f881c3207ecea263f727e87f5f0e94c
+-- Original statement count: 1
+-- Provider SQL bytes: 35145
+-- Canonical executable authority: supabase/migrations/20260929040000_growth_learning_outbox_delivery_v1.sql
+-- Reconciliation: same_name_canonical_authority_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

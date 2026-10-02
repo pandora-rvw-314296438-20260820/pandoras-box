@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260920201211
+-- Name: restrict_ai_routes_qwen_kimi_999_gemini_20260921
+-- Original SQL SHA-256: 1c5fa0bda1f3945c1bb174493b1361a5dca6dd38e3bf94c92ab91a27a6fa5d45
+-- Original statement count: 1
+-- Provider SQL bytes: 3769
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;

@@ -1,0 +1,11 @@
+-- Pandora remote migration history receipt.
+-- Project ref: jcyqixttuebxqqfkjonq
+-- Version: 20260917172501
+-- Name: temporary_open_plp_staff_auth_pr
+-- Original SQL SHA-256: a3c49b3dcca9fc5e8d2d858243637e244f9ce54c2153163178fffaeb7f5a3350
+-- Original statement count: 1
+-- Provider SQL bytes: 2194
+-- Canonical executable authority: not reconstructed in this history-only receipt.
+-- Reconciliation: provider_only_identity_preserved_without_replay
+-- Replay mode: history_receipt_noop; this file restores provider-version identity only and does not claim schema/effect parity.
+select 1;
