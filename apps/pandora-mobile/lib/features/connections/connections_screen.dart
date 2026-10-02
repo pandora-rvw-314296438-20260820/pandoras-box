@@ -66,7 +66,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
             content: Text(
               status.connected
                   ? 'Vercel user access is authorized through Pandora.'
-                  : 'Vercel user access needs your permission.',
+                  : 'Needs your permission to authorize Vercel user access.',
             ),
           ),
         );
