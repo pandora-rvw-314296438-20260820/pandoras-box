@@ -1682,9 +1682,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                     ),
                   )
                 : _messages.isEmpty && _pendingMessage == null
-                    ? const Padding(
+                    ? Padding(
                         padding: conversationPadding,
-                        child: _EmptyConversation(),
+                        child: const _EmptyConversation(),
                       )
                     : _Conversation(
                         threadIdentity: _threadId ?? 'local-chat',
