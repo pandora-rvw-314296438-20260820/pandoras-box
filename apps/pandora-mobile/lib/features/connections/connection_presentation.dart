@@ -26,14 +26,14 @@ ConnectionCardState synthesizeConnectionCardState({
 }) {
   final normalized =
       '${state.trim().toLowerCase()} ${rawStatus.trim().toLowerCase()}';
-  final hardFailure = <String>[
+  final failureWords = <String>[
     failureCode ?? '',
     failureMessage ?? '',
     normalized,
   ].join(' ').toLowerCase();
   final hasHardFailure = RegExp(
     r'(^|[^a-z])(error|failed|failure|down|unhealthy|rejected)([^a-z]|$)',
-  ).hasMatch(hardFailure);
+  ).hasMatch(failureWords);
 
   final capabilities = capabilityAvailability.toList(growable: false);
   final anyCapability = capabilities.any((value) => value);
@@ -77,73 +77,31 @@ String connectionProviderDisplayName(String rawName) {
   final raw = rawName.trim();
   if (raw.isEmpty) return 'Provider';
   final normalized = raw.toLowerCase();
-  const providers = <(String, String)>[
-    ('github', 'GitHub'),
-    ('supabase', 'Supabase'),
-    ('vercel', 'Vercel'),
-    ('posthog', 'PostHog'),
-    ('meta', 'Meta'),
-    ('google workspace', 'Google Workspace'),
-    ('google_drive', 'Google Workspace'),
-    ('openai', 'OpenAI'),
-    ('gemini', 'Gemini'),
-    ('kimi', 'Kimi'),
-    ('namria', 'NAMRIA Geoportal'),
-    ('phivolcs', 'PHIVOLCS Hazard GIS'),
-    ('psa openstat', 'PSA OpenSTAT'),
-    ('psa psgc', 'PSA PSGC'),
-  ];
-  for (final entry in providers) {
-    if (normalized.contains(entry.$1)) return entry.$2;
+  const aliases = <String, String>{
+    'github': 'GitHub',
+    'supabase': 'Supabase',
+    'vercel': 'Vercel',
+    'posthog': 'PostHog',
+    'meta': 'Meta',
+    'google workspace': 'Google Workspace',
+    'google_drive': 'Google Workspace',
+    'openai': 'OpenAI',
+    'gemini': 'Gemini',
+    'kimi': 'Kimi',
+    'namria': 'NAMRIA Geoportal',
+    'phivolcs': 'PHIVOLCS Hazard GIS',
+    'psa openstat': 'PSA OpenSTAT',
+    'psa psgc': 'PSA PSGC',
+  };
+  for (final entry in aliases.entries) {
+    if (normalized.contains(entry.key)) return entry.value;
   }
   final beforeDash = raw.split(RegExp(r'\s+[—:-]\s+')).first.trim();
   return beforeDash
-      .replaceFirst(RegExp(r'\s+(?:account|business)(String provider, String? rawLabel) {
-  final raw = rawLabel?.trim() ?? '';
-  if (raw.isEmpty) return '';
-
-  final cleaned = raw
       .replaceFirst(
-        RegExp(
-          '^' + RegExp.escape(provider.trim()) + r'\s+(?:Account|Business)\s*[—:-]\s*',
-          caseSensitive: false,
-        ),
+        RegExp(r'\s+(?:account|business)$', caseSensitive: false),
         '',
       )
-      .trim();
-
-  final candidate = cleaned.isEmpty ? raw : cleaned;
-  if (RegExp(r'^pandora-rvw-\d+-\d+$', caseSensitive: false)
-      .hasMatch(candidate)) {
-    return 'Pandora GitHub account';
-  }
-  if (_uuid.hasMatch(candidate)) return 'Connected account';
-  if (candidate.length <= 52) return candidate;
-  return '${candidate.substring(0, 34)}…${candidate.substring(candidate.length - 10)}';
-}
-
-bool connectionIdentityNeedsTooltip(String? rawLabel) {
-  final raw = rawLabel?.trim() ?? '';
-  if (raw.isEmpty) return false;
-  return RegExp(r'pandora-rvw-\d+-\d+', caseSensitive: false).hasMatch(raw) ||
-      _uuid.hasMatch(raw) ||
-      raw.length > 52;
-}
-
-final RegExp _uuid = RegExp(
-  r'\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b',
-  caseSensitive: false,
-);
-
-String _relativeAge(DateTime value, DateTime now) {
-  var difference = now.toLocal().difference(value.toLocal());
-  if (difference.isNegative) difference = Duration.zero;
-  if (difference.inMinutes < 1) return 'just now';
-  if (difference.inHours < 1) return '${difference.inMinutes}m ago';
-  if (difference.inDays < 1) return '${difference.inHours}h ago';
-  return '${difference.inDays}d ago';
-}
-, caseSensitive: false), '')
       .trim();
 }
 
@@ -154,7 +112,9 @@ String connectionDisplayIdentity(String provider, String? rawLabel) {
   final cleaned = raw
       .replaceFirst(
         RegExp(
-          '^' + RegExp.escape(provider.trim()) + r'\s+(?:Account|Business)\s*[—:-]\s*',
+          '^' +
+              RegExp.escape(provider.trim()) +
+              r'\s+(?:Account|Business)\s*[—:-]\s*',
           caseSensitive: false,
         ),
         '',
