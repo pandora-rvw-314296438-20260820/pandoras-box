@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('node:fs');const test=require('node:test');const assert=require('node:assert/strict');
+const router=fs.readFileSync('packages/pandora-intelligence/src/routing/model-router.js','utf8');
+const chat=fs.readFileSync('supabase/functions/pandora-intelligence-chat/index.ts','utf8');
+const helper=fs.readFileSync('supabase/functions/pandora-intelligence-chat/model-routing.ts','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261002091500_pandora_lane_f_model_control_v1.sql','utf8');
+test('manual model selection is hard and auditable',()=>{assert.match(router,/manual_selection_mismatch/);assert.match(router,/requestedSelection/);assert.match(router,/executedProvider/);assert.match(router,/fallbackReason/)});
+test('Ask Pandora plans through the central router',()=>{assert.match(chat,/planChatModelCandidates/);assert.doesNotMatch(chat,/const list=candidates\(/);assert.match(helper,/ModelRouter/);assert.match(helper,/createRoutingPolicy/);assert.match(helper,/task:"chat"/)});
+test('thread selection persists requested identity separately from executed identity',()=>{assert.match(migration,/selection_mode text not null default 'auto'/);assert.match(migration,/requested_provider/);assert.match(chat,/requestedSelection:effectiveSelection\.selection/);assert.match(chat,/executedProvider:result\.provider/)});
+test('only verified outcomes feed adaptive chat performance',()=>{assert.match(chat,/\.not\("verification_outcome","is",null\)/);assert.match(chat,/\.not\("verification_evidence_ref","is",null\)/);assert.match(chat,/\["pass","fail","disagree","remediated"\]/)});
+test('existing model lineage tables are reused',()=>{assert.match(migration,/alter table public\.pandora_model_runs/);assert.match(migration,/alter table public\.pandora_model_attempts/);assert.doesNotMatch(migration,/create table[^;]+model_(runs|attempts)/i);assert.match(chat,/pandora_model_runs/);assert.match(chat,/pandora_model_attempts/)});
