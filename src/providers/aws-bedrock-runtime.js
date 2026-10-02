@@ -26,6 +26,90 @@ function sha256(value) {
   return crypto.createHash("sha256").update(value, "utf8").digest("hex");
 }
 
+function awsPercentEncode(value) {
+  return encodeURIComponent(String(value)).replace(/[!'()*]/g, (char) =>
+    "%" + char.charCodeAt(0).toString(16).toUpperCase());
+}
+
+function canonicalQuery(params = {}) {
+  return Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && String(value) !== "")
+    .map(([key, value]) => [awsPercentEncode(key), awsPercentEncode(value)])
+    .sort(([aKey, aValue], [bKey, bValue]) => aKey.localeCompare(bKey) || aValue.localeCompare(bValue))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
+}
+
+function signBedrockControlRequest({
+  region,
+  path,
+  query = {},
+  credentials,
+  now = new Date(),
+}) {
+  if (region !== BEDROCK_REGION) throw new Error("AWS_BEDROCK_REGION_DENIED");
+  if (typeof path !== "string" || !path.startsWith("/") || path.includes("..")) {
+    throw new Error("AWS_BEDROCK_CONTROL_PATH_INVALID");
+  }
+  const service = "bedrock";
+  const host = `bedrock.${region}.amazonaws.com`;
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const canonical = canonicalQuery(query);
+  const payloadHash = sha256("");
+  const canonicalHeaders =
+    `host:${host}\n` +
+    `x-amz-date:${amzDate}\n` +
+    `x-amz-security-token:${credentials.sessionToken}\n`;
+  const signedHeaders = "host;x-amz-date;x-amz-security-token";
+  const canonicalRequest = ["GET", path, canonical, canonicalHeaders, signedHeaders, payloadHash].join("\n");
+  const scope = `${dateStamp}/${region}/${service}/aws4_request`;
+  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, sha256(canonicalRequest)].join("\n");
+  const kDate = hmac(Buffer.from(`AWS4${credentials.secretAccessKey}`, "utf8"), dateStamp);
+  const kRegion = hmac(kDate, region);
+  const kService = hmac(kRegion, service);
+  const kSigning = hmac(kService, "aws4_request");
+  const signature = crypto.createHmac("sha256", kSigning).update(stringToSign, "utf8").digest("hex");
+  const authorization =
+    `AWS4-HMAC-SHA256 Credential=${credentials.accessKeyId}/${scope}, ` +
+    `SignedHeaders=${signedHeaders}, Signature=${signature}`;
+  return {
+    url: `https://${host}${path}${canonical ? `?${canonical}` : ""}`,
+    method: "GET",
+    headers: {
+      "x-amz-date": amzDate,
+      "x-amz-security-token": credentials.sessionToken,
+      authorization,
+    },
+  };
+}
+
+async function bedrockControlJson({
+  path,
+  query = {},
+  credentials,
+  region = BEDROCK_REGION,
+  fetchFn = globalThis.fetch,
+  now = new Date(),
+  timeoutMs = 15000,
+}) {
+  const signed = signBedrockControlRequest({ region, path, query, credentials, now });
+  const response = await fetchFn(signed.url, {
+    ...signed,
+    signal: typeof AbortSignal?.timeout === "function" ? AbortSignal.timeout(timeoutMs) : undefined,
+  });
+  const raw = await response.text();
+  let payload = {};
+  try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = {}; }
+  if (!response.ok) {
+    const error = new Error("AWS_BEDROCK_CONTROL_FAILED");
+    error.status = response.status;
+    error.awsCode = typeof payload?.message === "string" ? payload.message.slice(0, 240) : undefined;
+    throw error;
+  }
+  return payload;
+}
+
 function xmlText(xml, tag) {
   const match = String(xml || "").match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`));
   return match ? match[1] : "";
@@ -167,6 +251,79 @@ function normalizeParts({ prompt, parts }) {
   return [{ text: prompt }];
 }
 
+async function converseWithBedrockTarget({
+  modelId,
+  invocationTarget,
+  providerName = null,
+  prompt,
+  parts,
+  system,
+  environment = process.env,
+  fetchFn = globalThis.fetch,
+  resolveWorkloadToken = resolveDefaultWorkloadToken,
+  now = new Date(),
+  maxTokens = 256,
+  credentials = null,
+  timeoutMs = 30000,
+}) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/.test(String(modelId || "")) ||
+      !/^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/.test(String(invocationTarget || ""))) {
+    throw new Error("AWS_BEDROCK_MODEL_DENIED");
+  }
+  if (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > 8192) {
+    throw new Error("AWS_BEDROCK_OUTPUT_LIMIT_INVALID");
+  }
+  const { roleArn, region } = runtimeConfig(environment);
+  let activeCredentials = credentials;
+  if (!activeCredentials) {
+    const workloadToken = await resolveWorkloadToken();
+    if (!workloadToken) throw new Error("AWS_WORKLOAD_IDENTITY_UNAVAILABLE");
+    activeCredentials = await assumeRoleWithVercelOidc({
+      roleArn,
+      webIdentityToken: workloadToken,
+      fetchFn,
+    });
+  }
+  const requestBody = {
+    messages: [{ role: "user", content: normalizeParts({ prompt, parts }) }],
+    inferenceConfig: { maxTokens, temperature: 0 },
+  };
+  if (typeof system === "string" && system.trim()) requestBody.system = [{ text: system.trim() }];
+  const signed = signBedrockRequest({
+    region,
+    modelId: invocationTarget,
+    body: requestBody,
+    credentials: activeCredentials,
+    now,
+  });
+  const response = await fetchFn(signed.url, {
+    ...signed,
+    signal: typeof AbortSignal?.timeout === "function" ? AbortSignal.timeout(timeoutMs) : undefined,
+  });
+  const raw = await response.text();
+  let payload;
+  try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = {}; }
+  if (!response.ok) {
+    const error = new Error("AWS_BEDROCK_CONVERSE_FAILED");
+    error.status = response.status;
+    error.awsCode = typeof payload?.message === "string" ? payload.message.slice(0, 240) : undefined;
+    throw error;
+  }
+  const content = Array.isArray(payload?.output?.message?.content) ? payload.output.message.content : [];
+  const text = content.map((item) => (typeof item?.text === "string" ? item.text : "")).join("").trim();
+  if (!text) throw new Error("AWS_BEDROCK_RESPONSE_INVALID");
+  return {
+    text,
+    modelId,
+    invocationTarget,
+    providerName,
+    region,
+    usage: payload?.usage || null,
+    stopReason: payload?.stopReason || null,
+    providerRequestId: response.headers?.get?.("x-amzn-requestid") || null,
+  };
+}
+
 async function converseWithBedrockModel({
   modelId,
   prompt,
@@ -180,64 +337,19 @@ async function converseWithBedrockModel({
 }) {
   const model = getBedrockReasoningModel(modelId);
   if (!model) throw new Error("AWS_BEDROCK_MODEL_DENIED");
-  if (!Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens > 8192) {
-    throw new Error("AWS_BEDROCK_OUTPUT_LIMIT_INVALID");
-  }
-  const { roleArn, region } = runtimeConfig(environment);
-  const workloadToken = await resolveWorkloadToken();
-  if (!workloadToken) throw new Error("AWS_WORKLOAD_IDENTITY_UNAVAILABLE");
-  const credentials = await assumeRoleWithVercelOidc({
-    roleArn,
-    webIdentityToken: workloadToken,
-    fetchFn,
-  });
-  const requestBody = {
-    messages: [{ role: "user", content: normalizeParts({ prompt, parts }) }],
-    inferenceConfig: { maxTokens, temperature: 0 },
-  };
-  if (typeof system === "string" && system.trim()) {
-    requestBody.system = [{ text: system.trim() }];
-  }
-  const signed = signBedrockRequest({
-    region,
-    modelId: model.invocationTarget,
-    body: requestBody,
-    credentials,
-    now,
-  });
-  const response = await fetchFn(signed.url, signed);
-  const raw = await response.text();
-  let payload;
-  try {
-    payload = raw ? JSON.parse(raw) : {};
-  } catch {
-    payload = {};
-  }
-  if (!response.ok) {
-    const error = new Error("AWS_BEDROCK_CONVERSE_FAILED");
-    error.status = response.status;
-    error.awsCode =
-      typeof payload?.message === "string" ? payload.message.slice(0, 240) : undefined;
-    throw error;
-  }
-  const content = Array.isArray(payload?.output?.message?.content)
-    ? payload.output.message.content
-    : [];
-  const text = content
-    .map((item) => (typeof item?.text === "string" ? item.text : ""))
-    .join("")
-    .trim();
-  if (!text) throw new Error("AWS_BEDROCK_RESPONSE_INVALID");
-  return {
-    text,
+  return converseWithBedrockTarget({
     modelId: model.modelId,
     invocationTarget: model.invocationTarget,
     providerName: model.providerName,
-    region,
-    usage: payload?.usage || null,
-    stopReason: payload?.stopReason || null,
-    providerRequestId: response.headers?.get?.("x-amzn-requestid") || null,
-  };
+    prompt,
+    parts,
+    system,
+    environment,
+    fetchFn,
+    resolveWorkloadToken,
+    now,
+    maxTokens,
+  });
 }
 
 async function converseWithBedrock({
@@ -337,6 +449,9 @@ module.exports = {
   runtimeConfig,
   assumeRoleWithVercelOidc,
   signBedrockRequest,
+  signBedrockControlRequest,
+  bedrockControlJson,
+  converseWithBedrockTarget,
   converseWithBedrock,
   converseWithBedrockModel,
   createBedrockHealthProbe,

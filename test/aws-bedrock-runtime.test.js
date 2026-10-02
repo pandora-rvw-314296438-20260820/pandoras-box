@@ -6,6 +6,9 @@ const assert = require("node:assert/strict");
 const {
   assumeRoleWithVercelOidc,
   signBedrockRequest,
+  signBedrockControlRequest,
+  bedrockControlJson,
+  converseWithBedrockTarget,
   createBedrockHealthProbe,
   converseWithBedrockModel,
   converseWithBedrock,
@@ -226,4 +229,42 @@ test("arbitrary Bedrock model identifiers are rejected before STS", async () => 
     /AWS_BEDROCK_MODEL_DENIED/,
   );
   assert.equal(calls, 0);
+});
+
+
+test("Bedrock control-plane SigV4 stays on the dedicated regional endpoint", () => {
+  const signed = signBedrockControlRequest({
+    region: "us-east-1",
+    path: "/inference-profiles",
+    query: { type: "SYSTEM_DEFINED", maxResults: 100 },
+    credentials: { accessKeyId: "ASIATEST", secretAccessKey: "secret", sessionToken: "session" },
+    now: new Date("2026-10-02T10:00:00Z"),
+  });
+  assert.match(signed.url, /^https:\/\/bedrock\.us-east-1\.amazonaws\.com\/inference-profiles\?/);
+  assert.match(signed.headers.authorization, /\/us-east-1\/bedrock\/aws4_request/);
+  assert.equal("x-amz-access-key" in signed.headers, false);
+});
+
+test("dynamic Bedrock probe uses one exact Converse target with supplied short-lived credentials", async () => {
+  let calls = 0;
+  const result = await converseWithBedrockTarget({
+    modelId: "vendor.model-v1",
+    invocationTarget: "us.vendor.model-v1",
+    providerName: "Vendor",
+    prompt: "OK",
+    maxTokens: 1,
+    credentials: { accessKeyId: "ASIATEST", secretAccessKey: "secret", sessionToken: "session" },
+    fetchFn: async (url) => {
+      calls += 1;
+      assert.match(url, /\/model\/us\.vendor\.model-v1\/converse$/);
+      return {
+        ok: true, status: 200,
+        headers: { get: () => "req-1" },
+        async text() { return JSON.stringify({ output:{message:{content:[{text:"OK"}]}}, usage:{inputTokens:1,outputTokens:1,totalTokens:2}, stopReason:"end_turn" }); },
+      };
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.usage.totalTokens, 2);
+  assert.equal(result.providerRequestId, "req-1");
 });

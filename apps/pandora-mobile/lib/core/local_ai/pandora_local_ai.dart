@@ -329,8 +329,10 @@ class PandoraLocalAiRouter {
     required bool hasProjectContext,
     required bool hasSelectedCapability,
     required bool hasCharacterContext,
+    bool usePhoneAi = false,
     PandoraLocalAiStatus? status,
   }) {
+    if (!usePhoneAi) return _record(false, 'phone_ai_disabled');
     final value = message.trim();
     if (value.isEmpty) return _record(false, 'empty_message');
     if (value.length > 4000) {
@@ -465,6 +467,7 @@ class PandoraLocalAiRouter {
     required bool hasProjectContext,
     required bool hasSelectedCapability,
     required bool hasCharacterContext,
+    bool usePhoneAi = false,
     PandoraLocalAiStatus? status,
   }) =>
       decide(
@@ -473,6 +476,7 @@ class PandoraLocalAiRouter {
         hasProjectContext: hasProjectContext,
         hasSelectedCapability: hasSelectedCapability,
         hasCharacterContext: hasCharacterContext,
+        usePhoneAi: usePhoneAi,
         status: status,
       ).useLocal;
 }

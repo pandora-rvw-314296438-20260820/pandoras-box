@@ -3,7 +3,7 @@ import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
 
 void main() {
   group('PandoraLocalAiRouter', () {
-    test('keeps routine conversation local', () {
+    test('phone AI is OFF by default', () {
       expect(
         PandoraLocalAiRouter.shouldUseLocal(
           message: 'Explain this idea in simple words.',
@@ -11,6 +11,29 @@ void main() {
           hasProjectContext: false,
           hasSelectedCapability: false,
           hasCharacterContext: false,
+          usePhoneAi: true,
+        ),
+        isFalse,
+      );
+      final decision = PandoraLocalAiRouter.decide(
+        message: 'Explain this idea in simple words.',
+        hasAttachment: false,
+        hasProjectContext: false,
+        hasSelectedCapability: false,
+        hasCharacterContext: false,
+      );
+      expect(decision.reason, 'phone_ai_disabled');
+    });
+
+    test('opt-in permits routine conversation to use local AI', () {
+      expect(
+        PandoraLocalAiRouter.shouldUseLocal(
+          message: 'Explain this idea in simple words.',
+          hasAttachment: false,
+          hasProjectContext: false,
+          hasSelectedCapability: false,
+          hasCharacterContext: false,
+          usePhoneAi: true,
         ),
         isTrue,
       );
@@ -24,6 +47,7 @@ void main() {
           hasProjectContext: false,
           hasSelectedCapability: false,
           hasCharacterContext: false,
+          usePhoneAi: true,
         ),
         isFalse,
       );
@@ -37,6 +61,7 @@ void main() {
           hasProjectContext: false,
           hasSelectedCapability: false,
           hasCharacterContext: false,
+          usePhoneAi: true,
         ),
         isFalse,
       );
@@ -49,6 +74,7 @@ void main() {
         hasProjectContext: false,
         hasSelectedCapability: false,
         hasCharacterContext: false,
+        usePhoneAi: true,
         status: const PandoraLocalAiStatus(
           supported: true,
           configured: true,
@@ -67,6 +93,7 @@ void main() {
         hasProjectContext: false,
         hasSelectedCapability: false,
         hasCharacterContext: false,
+        usePhoneAi: true,
         status: const PandoraLocalAiStatus(
           supported: true,
           configured: true,
@@ -85,6 +112,7 @@ void main() {
         hasProjectContext: false,
         hasSelectedCapability: false,
         hasCharacterContext: false,
+        usePhoneAi: true,
         status: const PandoraLocalAiStatus(
           supported: true,
           configured: true,
@@ -106,6 +134,7 @@ void main() {
         hasProjectContext: false,
         hasSelectedCapability: false,
         hasCharacterContext: false,
+        usePhoneAi: true,
         status: const PandoraLocalAiStatus(
           supported: true,
           configured: true,
@@ -128,6 +157,7 @@ void main() {
           hasProjectContext: false,
           hasSelectedCapability: false,
           hasCharacterContext: false,
+          usePhoneAi: true,
         ),
         isFalse,
       );
