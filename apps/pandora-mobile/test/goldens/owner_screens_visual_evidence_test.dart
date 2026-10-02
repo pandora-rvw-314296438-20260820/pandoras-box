@@ -197,7 +197,6 @@ class _FixtureIntelligenceApi extends PandoraIntelligenceApi {
             'visual-evidence-test-key',
             authOptions: const AuthClientOptions(
               autoRefreshToken: false,
-              persistSession: false,
             ),
           ),
           organizationId: 'org-pandora',
