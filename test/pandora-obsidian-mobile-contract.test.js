@@ -33,7 +33,9 @@ test('chat landing is logo-only with a bare borderless always-live composer', ()
     /What can I help with|Ask a question, describe a change|_suggestions|_ObsidianSuggestion/,
   );
   assert.match(chat, /Message Pandora…/);
-  assert.match(chat, /border:\s*compact[\s\S]*?\? null/);
+  assert.match(chat, /height:\s*54/);
+  assert.match(chat, /Color\(0xFF151515\)/);
+  assert.match(chat, /BorderRadius\.circular\(27\)/);
   assert.match(chat, /ask-pandora-composer/);
   assert.match(chat, /final voiceReady =\s*!submitting && empty/);
   assert.match(chat, /tooltip: voiceReady[\s\S]*?'Voice input'[\s\S]*?'Send'/);

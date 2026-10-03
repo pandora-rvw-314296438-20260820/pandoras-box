@@ -121,6 +121,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _activityController.addListener(_handleActivityTimelineChanged);
+    unawaited(PandoraLocalAiPreference.load());
     _shellHistoryExpanded = widget.shellOverlay;
     final initial = widget.initialPrompt?.trim();
     if (initial != null && initial.isNotEmpty) {
@@ -783,7 +784,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     String objective, {
     bool forceLocal = false,
   }) async {
-    final localEnabled = await PandoraLocalAiPreference.load();
+    final localEnabled = PandoraLocalAiPreference.cachedEnabled;
     if (!localEnabled) {
       if (forceLocal) {
         _recordTurnFailure(
@@ -1187,14 +1188,18 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       return;
     }
     final dependencies = PandoraDependencies.of(context);
-    final suppressActivityTheatre = pandoraIsTrivialConversationTurn(objective);
-    final requestActivityTheatre = pandoraShouldRequestActivityTheatre(
-      objective,
-      hasAttachment: _attachment != null || _imageAttachment != null,
-      hasSelectedCapability: _serviceContext != null,
-      hasProjectContext:
-          _projectContext != null || (widget.enterpriseContext?.isNotEmpty ?? false),
-    );
+    final hasIntelligence = dependencies.intelligence != null;
+    final suppressActivityTheatre =
+        hasIntelligence && pandoraIsTrivialConversationTurn(objective);
+    final requestActivityTheatre = !hasIntelligence ||
+        pandoraShouldRequestActivityTheatre(
+          objective,
+          hasAttachment: _attachment != null || _imageAttachment != null,
+          hasSelectedCapability: _serviceContext != null,
+          hasProjectContext:
+              _projectContext != null ||
+              (widget.enterpriseContext?.isNotEmpty ?? false),
+        );
     // A completed user turn must never inherit a prior turn's request identity.
     _submissionKey = null;
     await _activityController.clear();
@@ -1972,10 +1977,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 messages: _messages,
                 pendingMessage: _pendingMessage,
                 thinking: _submitting,
-                activityRequested:
-                    widget.shellOverlay ? false : _activityTheatreRequested,
-                activitySuppressed:
-                    widget.shellOverlay ? true : _activityTheatreSuppressed,
+                activityRequested: _activityTheatreRequested,
+                activitySuppressed: _activityTheatreSuppressed,
                 activityEvents: _activityController.events,
                 activityError: _activityController.publicError,
                 inlineError: _error,
@@ -2769,10 +2772,15 @@ class _Composer extends StatelessWidget {
                             onRemove: onRemoveImage,
                           ),
                         if (characterContext != null)
-                          _CompactContextToken(
-                            icon: Icons.face_retouching_natural_outlined,
-                            label: characterContext!.name,
-                            onRemove: onRemoveCharacterContext,
+                          KeyedSubtree(
+                            key: const ValueKey<String>(
+                              'ask-pandora-character-context',
+                            ),
+                            child: _CompactContextToken(
+                              icon: Icons.face_retouching_natural_outlined,
+                              label: 'Character · ${characterContext!.name}',
+                              onRemove: onRemoveCharacterContext,
+                            ),
                           ),
                         if (serviceContext != null)
                           _CompactContextToken(

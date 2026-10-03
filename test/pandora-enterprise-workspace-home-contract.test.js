@@ -100,9 +100,9 @@ test("workspace navigation uses admitted structured Enterprise context", () => {
   assert.ok(hub.includes("'route': '/enterprise/workspaces/${workspace.key}/${section.routeSlug}'"));
 });
 
-test("shell boots to Home and preserves Operations Room", () => {
-  assert.match(shell, /final Set<int> _visited = <int>\{9\};/);
-  assert.match(shell, /int _index = 9;/);
+test("shell boots to the logo-only Pandora landing and preserves Home plus Operations Room", () => {
+  assert.match(shell, /final Set<int> _visited = <int>\{0\};/);
+  assert.match(shell, /int _index = 0;/);
   assert.match(shell, /9 => EnterpriseWorkspaceHome\(/);
   assert.match(
     shell,
