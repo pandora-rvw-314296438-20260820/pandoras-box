@@ -7,6 +7,7 @@ import '../core/analytics/owner_analytics.dart';
 import '../core/data/pandora_core_api.dart';
 import '../core/data/pandora_enterprise_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
+import '../core/design/pandora_theme.dart';
 import '../core/design/pandora_tokens.dart';
 import '../core/local_ai/pandora_local_ai.dart';
 import '../core/security/pandora_identity_verification.dart';
@@ -1343,6 +1344,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
             ListTile(
               leading: const Icon(Icons.chat_bubble_outline_rounded),
               title: const Text('Pandora'),
+              selected: _chatVisible,
               onTap: _openConversationHistory,
             ),
             if (selection != null)
@@ -1350,6 +1352,8 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                 ListTile(
                   leading: Icon(section.icon),
                   title: Text(section.label),
+                  selected: !_chatVisible &&
+                      selection.section.routeSlug == section.routeSlug,
                   onTap: () => _openWorkspace(EnterpriseWorkspaceSelection(
                       workspace: selection.workspace, section: section)),
                 ),
@@ -1374,6 +1378,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   }
 
   ThemeData _theme(ThemeData base) {
+    // This shell always uses the locked dark palette. Copying a light ambient
+    // theme retains its resolved text/button/icon colours on the dark canvas.
+    final dark = PandoraTheme.graphite;
     const scheme = ColorScheme.dark(
       primary: PandoraV2Colors.ink,
       onPrimary: Colors.black,
@@ -1383,17 +1390,73 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       onSecondary: Colors.black,
       surface: PandoraV2Colors.surface,
       onSurface: PandoraV2Colors.ink,
+      onSurfaceVariant: PandoraV2Colors.muted,
+      surfaceContainerLowest: PandoraV2Colors.canvas,
+      surfaceContainerLow: PandoraV2Colors.canvas,
+      surfaceContainer: PandoraV2Colors.surface,
+      surfaceContainerHigh: PandoraV2Colors.soft,
+      surfaceContainerHighest: PandoraV2Colors.soft,
+      surfaceTint: Colors.transparent,
       error: PandoraV2Colors.danger,
       onError: Colors.black,
       outline: PandoraV2Colors.line,
       outlineVariant: PandoraV2Colors.line,
     );
-    return base.copyWith(
+    final actionForeground = WidgetStateProperty.resolveWith<Color>(
+      (states) => states.contains(WidgetState.disabled)
+          ? PandoraV2Colors.muted
+          : PandoraV2Colors.ink,
+    );
+    return dark.copyWith(
+      platform: base.platform,
+      visualDensity: base.visualDensity,
       brightness: Brightness.dark,
       colorScheme: scheme,
       scaffoldBackgroundColor: PandoraV2Colors.canvas,
       canvasColor: PandoraV2Colors.canvas,
-      extensions: const <ThemeExtension<dynamic>>[PandoraPalette.graphite],
+      extensions: <ThemeExtension<dynamic>>[
+        PandoraPalette.graphite.copyWith(
+          canvas: PandoraV2Colors.canvas,
+          subtleSurface: PandoraV2Colors.soft,
+          strongSurface: PandoraV2Colors.surface,
+          outlineSoft: PandoraV2Colors.line,
+        ),
+      ],
+      textTheme: dark.textTheme.apply(
+        bodyColor: PandoraV2Colors.ink,
+        displayColor: PandoraV2Colors.ink,
+      ),
+      iconTheme: dark.iconTheme.copyWith(color: PandoraV2Colors.ink),
+      primaryIconTheme:
+          dark.primaryIconTheme.copyWith(color: PandoraV2Colors.ink),
+      disabledColor: PandoraV2Colors.muted,
+      textButtonTheme: TextButtonThemeData(
+        style: dark.textButtonTheme.style?.copyWith(
+          foregroundColor: actionForeground,
+          overlayColor: WidgetStateProperty.resolveWith<Color?>((states) =>
+              states.contains(WidgetState.pressed) ||
+                      states.contains(WidgetState.focused) ||
+                      states.contains(WidgetState.hovered)
+                  ? PandoraV2Colors.ink.withValues(alpha: .12)
+                  : null),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: dark.iconButtonTheme.style
+            ?.copyWith(foregroundColor: actionForeground),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: dark.outlinedButtonTheme.style?.copyWith(
+          foregroundColor: actionForeground,
+          side: const WidgetStatePropertyAll(
+              BorderSide(color: PandoraV2Colors.line)),
+        ),
+      ),
+      cardTheme: dark.cardTheme.copyWith(color: PandoraV2Colors.surface),
+      dialogTheme:
+          dark.dialogTheme.copyWith(backgroundColor: PandoraV2Colors.surface),
+      popupMenuTheme:
+          dark.popupMenuTheme.copyWith(color: PandoraV2Colors.surface),
       appBarTheme: const AppBarTheme(
         backgroundColor: PandoraV2Colors.canvas,
         foregroundColor: PandoraV2Colors.ink,
@@ -1409,6 +1472,11 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: PandoraV2Colors.surface,
+        hintStyle: const TextStyle(color: PandoraV2Colors.muted),
+        labelStyle: const TextStyle(color: PandoraV2Colors.muted),
+        floatingLabelStyle: const TextStyle(color: PandoraV2Colors.ink),
+        prefixIconColor: PandoraV2Colors.muted,
+        suffixIconColor: PandoraV2Colors.muted,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         enabledBorder: OutlineInputBorder(
@@ -1427,12 +1495,29 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     );
   }
 
+  Widget _presentRoot(int index) {
+    final root = _root(index);
+    // PLP content owns its porcelain appearance; the shared composer remains
+    // a sibling under the Core theme, with no tenant or navigation change.
+    final presented = root is PlpEnterpriseShell
+        ? Theme(
+            key: const ValueKey('pandora-plp-content-theme'),
+            data: PandoraTheme.porcelain,
+            child: root,
+          )
+        : root;
+    return PandoraCoreRouteVisibility(
+      active: index == _index && !_chatVisible,
+      child: presented,
+    );
+  }
+
   Widget _sidePanel() => _inClientWorkspace
       ? _clientSidePanel()
       : _PandoraSidePanel(
           scrollController: _drawerScrollController,
           destinations: _destinations,
-          selectedIndex: _index,
+          selectedIndex: _chatVisible ? 0 : _index,
           onSelected: (value) {
             if (value == 0) {
               _openConversationHistory();
@@ -1476,11 +1561,12 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               children: [
                 for (var i = 0; i < _destinations.length; i++)
                   _visited.contains(i) || i == _index
-                      ? _root(i)
+                      ? _presentRoot(i)
                       : const SizedBox.shrink(),
               ],
             );
 
+            final chatScopeEpoch = _scopeEpoch;
             Widget activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
               businessWorkspace: Offstage(
@@ -1503,7 +1589,18 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                 enterpriseContext: _conversationContextForCurrentSurface(),
                 shellOverlay: true,
                 initialHistoryExpanded: _chatVisible,
-                onCoreNavigate: _handleCoreNavigation,
+                onCoreNavigate: (handoff) {
+                  if (mounted && chatScopeEpoch == _scopeEpoch) {
+                    _handleCoreNavigation(handoff);
+                  }
+                },
+                onHistoryVisibilityChanged: (visible) {
+                  if (mounted &&
+                      chatScopeEpoch == _scopeEpoch &&
+                      _chatVisible != visible) {
+                    setState(() => _chatVisible = visible);
+                  }
+                },
               ),
             );
 

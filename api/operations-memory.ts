@@ -1,12 +1,17 @@
 import express from 'express';
+import {pathToFileURL} from 'node:url';
 import {loadOperatorPublicConfig} from '../src/operator-public-config.js';
 import {SupabaseBearerAuthenticator} from '../apps/meta-business-mcp/src/auth/supabase-bearer.js';
 import {resolveVercelWorkloadToken} from '../src/runtime/vercel-workload-identity.js';
+// Preserve native ESM under Vercel's CommonJS TypeScript transform. Fixed
+// require.resolve calls retain the module graphs in the deployment trace.
+const nativeImport = new Function('specifier', 'return import(specifier)') as
+  (specifier: string) => Promise<any>;
 let ownerMemoryModulesPromise:any;
 function loadOwnerMemoryModules(){
   return ownerMemoryModulesPromise ??= Promise.all([
-    import('../packages/pandora-operations-memory/workload-rpc.mjs'),
-    import('../packages/pandora-operations-memory/owner-read.mjs'),
+    nativeImport(pathToFileURL(require.resolve('../packages/pandora-operations-memory/workload-rpc.mjs')).href),
+    nativeImport(pathToFileURL(require.resolve('../packages/pandora-operations-memory/owner-read.mjs')).href),
   ]).then(([workload,owner])=>({
     createWorkloadOperationsMemory:workload.createWorkloadOperationsMemory,
     createOwnerMemoryRead:owner.createOwnerMemoryRead,

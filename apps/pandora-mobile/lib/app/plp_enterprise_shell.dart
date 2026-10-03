@@ -409,13 +409,17 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       const Duration(milliseconds: 250),
       () {
         if (!mounted) return;
-        setState(() => _bootstrapFuture = _loadBootstrapAndRemember());
+        setState(() {
+          _bootstrapFuture = _loadBootstrapAndRemember();
+        });
       },
     );
   }
 
   void _refresh() {
-    setState(() => _bootstrapFuture = _loadBootstrapAndRemember());
+    setState(() {
+      _bootstrapFuture = _loadBootstrapAndRemember();
+    });
   }
 
   void _open(

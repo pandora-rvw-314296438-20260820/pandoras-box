@@ -12,6 +12,8 @@ class TeamScreen extends StatefulWidget {
     super.key,
     this.gateway,
     this.organizationId,
+    this.organizationName,
+    this.embedded = false,
     this.openInviteOnLoad = false,
   });
 
@@ -19,6 +21,10 @@ class TeamScreen extends StatefulWidget {
 
   /// A Core client route pins the team to the explicit authorized tenant.
   final String? organizationId;
+
+  /// Presentation only; authority is obtained from the gateway.
+  final String? organizationName;
+  final bool embedded;
   final bool openInviteOnLoad;
 
   @override
@@ -50,7 +56,9 @@ class _TeamScreenState extends State<TeamScreen> {
   void initState() {
     super.initState();
     _gateway = widget.gateway ??
-        SupabasePandoraUserAdminGateway(organizationId: widget.organizationId);
+        SupabasePandoraUserAdminGateway(
+            organizationId: widget.organizationId,
+            organizationName: widget.organizationName);
     _load(initial: true);
   }
 
@@ -257,21 +265,42 @@ class _TeamScreenState extends State<TeamScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: PandoraPage(
-          title: 'Team',
-          subtitle: 'Invite people and give each person the access they need.',
+  Widget build(BuildContext context) => widget.embedded
+      ? RefreshIndicator(
           onRefresh: _load,
-          actions: [
-            IconButton(
-              tooltip: 'Refresh team',
-              onPressed: _refreshing ? null : _load,
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
-          child: _buildBody(context),
-        ),
-      );
+          child: ListView(
+            key: const ValueKey('team-embedded-scroll'),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  tooltip: 'Refresh team',
+                  onPressed: _refreshing ? null : _load,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ),
+              _buildBody(context),
+            ],
+          ),
+        )
+      : Scaffold(
+          body: PandoraPage(
+            title: 'Team',
+            subtitle:
+                'Invite people and give each person the access they need.',
+            onRefresh: _load,
+            actions: [
+              IconButton(
+                tooltip: 'Refresh team',
+                onPressed: _refreshing ? null : _load,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
+            child: _buildBody(context),
+          ),
+        );
 
   Widget _buildBody(BuildContext context) {
     if (_loading && _organizations.isEmpty) {
@@ -318,6 +347,9 @@ class _TeamScreenState extends State<TeamScreen> {
         ],
         _TeamSummary(
           organization: organization,
+          organizationName: widget.organizationId == organization?.id
+              ? widget.organizationName
+              : null,
           members: _members,
           inviting: _inviting,
           refreshing: _refreshing,
@@ -366,6 +398,7 @@ class _TeamScreenState extends State<TeamScreen> {
 class _TeamSummary extends StatelessWidget {
   const _TeamSummary({
     required this.organization,
+    this.organizationName,
     required this.members,
     required this.inviting,
     required this.refreshing,
@@ -373,6 +406,7 @@ class _TeamSummary extends StatelessWidget {
   });
 
   final PandoraOrganizationAccess? organization;
+  final String? organizationName;
   final List<PandoraTeamMember> members;
   final bool inviting;
   final bool refreshing;
@@ -382,11 +416,18 @@ class _TeamSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = members.where((member) => member.isActive).length;
     final invited = members.where((member) => member.isInvited).length;
+    final name = organizationName?.trim().isNotEmpty == true
+        ? organizationName!.trim()
+        : organization?.name ?? 'Your team';
     return PandoraSurface(
-      title: organization?.name ?? 'Your team',
+      title: organization?.isOperator == true
+          ? 'Managing $name as Pandora Administrator'
+          : name,
       subtitle: organization == null
           ? 'Organization access is being checked.'
-          : 'You are an ${_roleLabel(organization!.role).toLowerCase()}.',
+          : organization!.isOperator
+              ? null
+              : 'You are an ${_roleLabel(organization!.role).toLowerCase()}.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

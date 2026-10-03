@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_core_client_scope.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/app/pandora_member_workspace_gate.dart';
+import 'package:pandora_mobile/app/plp_enterprise_shell.dart';
 import 'package:pandora_mobile/core/data/pandora_core_api.dart';
 import 'package:pandora_mobile/core/data/pandora_enterprise_api.dart';
 import 'package:pandora_mobile/core/data/pandora_intelligence_api.dart';
@@ -24,6 +27,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../helpers/fake_owner_api.dart';
 import '../helpers/test_app.dart';
 
+class _EmptyPkceStorage extends GotrueAsyncStorage {
+  @override
+  Future<String?> getItem({required String key}) async => null;
+
+  @override
+  Future<void> setItem({required String key, required String value}) async {}
+
+  @override
+  Future<void> removeItem({required String key}) async {}
+}
+
 class _CoreGateway implements PandoraCoreGateway, PandoraCoreEntryGateway {
   _CoreGateway(
       {this.organizationId = PandoraConfig.plpOrganizationId,
@@ -37,6 +51,7 @@ class _CoreGateway implements PandoraCoreGateway, PandoraCoreEntryGateway {
   final snapshots = <String>[];
   final validated = <String>[];
   final left = <String>[];
+  final operations = <String>[];
   bool entryValid = true;
   PandoraCoreFailure? entryFailure;
 
@@ -53,26 +68,28 @@ class _CoreGateway implements PandoraCoreGateway, PandoraCoreEntryGateway {
   Future<PandoraCoreRecord> snapshot(String section,
       {String? organizationId}) async {
     snapshots.add(section);
+    final client = <String, dynamic>{
+      'organization_id': this.organizationId,
+      'display_name': displayName,
+      'industry': 'Hospitality',
+      'workspace_type': adapter == 'plp_v1' ? 'plp' : 'generic',
+      'lifecycle_state': 'active',
+      'can_enter': true,
+    };
     return <String, dynamic>{
-      'clients': <PandoraCoreRecord>[
-        <String, dynamic>{
-          'organization_id': this.organizationId,
-          'display_name': displayName,
-          'industry': 'Hospitality',
-          'workspace_type': adapter == 'plp_v1' ? 'plp' : 'generic',
-          'lifecycle_state': 'active',
-          'can_enter': true,
-        },
-      ],
+      'clients': <PandoraCoreRecord>[client],
+      if (organizationId != null) 'client': client,
     };
   }
 
   @override
   Future<PandoraCoreRecord> operate(String operation,
-          {String? organizationId,
-          required PandoraCoreRecord payload,
-          required String idempotencyKey}) =>
-      throw StateError('No Core mutation is expected in scope tests.');
+      {String? organizationId,
+      required PandoraCoreRecord payload,
+      required String idempotencyKey}) {
+    operations.add(operation);
+    throw StateError('No Core mutation is expected in scope tests.');
+  }
 
   @override
   Future<PandoraCoreRecord> enterClient(String organizationId,
@@ -308,6 +325,7 @@ Future<void> _mount(
   PandoraWorkspaceAccessSource? workspaceAccess,
   PandoraAuth? auth,
   bool throughAuthGate = false,
+  ThemeMode themeMode = ThemeMode.dark,
 }) async {
   PandoraLocalAiPreference.setCachedForTesting(false);
   addTearDown(PandoraLocalAiPreference.resetForTesting);
@@ -327,7 +345,7 @@ Future<void> _mount(
       .instance.defaultBinaryMessenger
       .setMockMethodCallHandler(channel, null));
   await tester.pumpWidget(testApp(
-    themeMode: ThemeMode.dark,
+    themeMode: themeMode,
     child: PandoraDependencies(
       auth: auth ?? const FakeAuth(),
       repository: repository ?? FakeRepository(),
@@ -402,7 +420,186 @@ Future<void> _openGeneric(WidgetTester tester, _CoreGateway gateway,
   await _settle(tester);
 }
 
+double _contrastRatio(Color foreground, Color background) {
+  final painted = Color.alphaBlend(foreground, background);
+  final a = painted.computeLuminance();
+  final b = background.computeLuminance();
+  return a > b ? (a + .05) / (b + .05) : (b + .05) / (a + .05);
+}
+
 void main() {
+  testWidgets(
+      'authorized PLP entry keeps porcelain controls inside a dark command shell',
+      (tester) async {
+    final bootstrapReads = <Completer<http.Response>>[];
+    final supabase = await tester.runAsync(() => Supabase.initialize(
+          url: 'https://plp-bootstrap-fixture.invalid',
+          publishableKey: 'test-placeholder',
+          debug: false,
+          authOptions: FlutterAuthClientOptions(
+              localStorage: EmptyLocalStorage(),
+              pkceAsyncStorage: _EmptyPkceStorage(),
+              autoRefreshToken: false,
+              detectSessionInUri: false),
+          httpClient: MockClient((request) {
+            expect(request.url.path,
+                '/rest/v1/rpc/plp_enterprise_mobile_bootstrap_v1');
+            final response = Completer<http.Response>();
+            bootstrapReads.add(response);
+            return response.future;
+          }),
+        ));
+    addTearDown(() => tester.runAsync(() => supabase!.dispose()));
+    final gateway = _CoreGateway();
+    await _mount(tester, gateway,
+        intelligence: _History('Owner'), factory: _genericRuntime);
+    await _clients(tester);
+    await _enter(tester);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Reason for administrator access'),
+        'Inspect resort access readiness');
+    await tester.tap(find.text('Continue'));
+    await _settle(tester);
+    expect(bootstrapReads, hasLength(1));
+    bootstrapReads.single.complete(http.Response(
+        '{"message":"Fixture bootstrap unavailable","code":"42501"}', 403,
+        headers: {'content-type': 'application/json'}));
+    await _settle(tester);
+    expect(gateway.entered, [PandoraConfig.plpOrganizationId]);
+    expect(find.byType(PlpEnterpriseShell), findsOneWidget);
+    expect(find.byKey(const ValueKey('pandora-plp-content-theme')),
+        findsOneWidget);
+    final contentTheme =
+        Theme.of(tester.element(find.byType(PlpEnterpriseShell)));
+    expect(contentTheme.brightness, Brightness.light);
+    final chat = find.byType(AskPandoraScreen);
+    expect(Theme.of(tester.element(chat)).brightness, Brightness.dark);
+    final composer = find.byKey(const ValueKey('ask-pandora-objective'));
+    expect(composer.hitTestable(), findsOneWidget);
+    // No production bootstrap is invented. Its real unavailable state uses a
+    // default Material button, which must inherit the light content boundary.
+    final retry = find.byKey(const ValueKey('plp-bootstrap-retry'));
+    expect(retry.hitTestable(), findsOneWidget);
+    final retryText = tester.widget<RichText>(find.descendant(
+        of: find.descendant(of: retry, matching: find.text('Retry')),
+        matching: find.byType(RichText)));
+    final retryMaterial = tester.widget<Material>(
+        find.descendant(of: retry, matching: find.byType(Material)).first);
+    expect(_contrastRatio(retryText.text.style!.color!, retryMaterial.color!),
+        greaterThanOrEqualTo(4.5));
+    final editor = tester.widget<EditableText>(
+        find.descendant(of: composer, matching: find.byType(EditableText)));
+    expect(
+        _contrastRatio(editor.style.color!,
+            Theme.of(tester.element(chat)).colorScheme.surface),
+        greaterThanOrEqualTo(4.5));
+    await tester.tap(retry);
+    await _settle(tester);
+    expect(bootstrapReads, hasLength(2));
+    bootstrapReads.last.complete(http.Response(
+        '{"message":"Fixture bootstrap unavailable","code":"42501"}', 403,
+        headers: {'content-type': 'application/json'}));
+    await _settle(tester);
+    expect(find.byType(PlpEnterpriseShell), findsOneWidget);
+    expect(Theme.of(tester.element(chat)).brightness, Brightness.dark);
+    await tester.tap(find.byKey(const ValueKey('core-return-pandora')));
+    await _settle(tester);
+    expect(
+        find.byKey(const ValueKey('pandora-plp-content-theme')), findsNothing);
+    expect(find.byType(AskPandoraScreen), findsOneWidget);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _settle(tester);
+  });
+
+  for (final ambient in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets(
+        'shell Core controls remain readable and tappable under ${ambient.name} ambient theme',
+        (tester) async {
+      final gateway = _CoreGateway();
+      await _mount(tester, gateway,
+          intelligence: _History('Owner'), themeMode: ambient);
+      await _clients(tester);
+      final search = find.widgetWithText(TextField, 'Find a client');
+      final theme = Theme.of(tester.element(search));
+      expect(theme.brightness, Brightness.dark);
+      final field = tester.widget<EditableText>(
+          find.descendant(of: search, matching: find.byType(EditableText)));
+      final surface = theme.inputDecorationTheme.fillColor!;
+      expect(_contrastRatio(field.style.color!, surface),
+          greaterThanOrEqualTo(4.5));
+      expect(
+          _contrastRatio(theme.inputDecorationTheme.hintStyle!.color!, surface),
+          greaterThanOrEqualTo(4.5));
+      final manage =
+          find.byKey(ValueKey('core-manage-${gateway.organizationId}'));
+      final label =
+          find.descendant(of: manage, matching: find.text('Manage client'));
+      final renderedLabel = tester.widget<RichText>(
+          find.descendant(of: label, matching: find.byType(RichText)));
+      expect(
+          _contrastRatio(
+              renderedLabel.text.style!.color!, theme.colorScheme.surface),
+          greaterThanOrEqualTo(4.5));
+      await tester.ensureVisible(manage);
+      await tester.tap(manage);
+      await _settle(tester);
+      expect(find.text('Summary'), findsOneWidget);
+      final back = find.byKey(const ValueKey('core-back'));
+      final backIcon = find.descendant(of: back, matching: find.byType(Icon));
+      final icon = tester.widget<Icon>(backIcon);
+      final iconColor =
+          icon.color ?? IconTheme.of(tester.element(backIcon)).color!;
+      expect(_contrastRatio(iconColor, theme.scaffoldBackgroundColor),
+          greaterThanOrEqualTo(3));
+      await tester.tap(back);
+      await _settle(tester);
+      final add = find.byKey(const ValueKey('core-add-client'));
+      await tester.ensureVisible(add);
+      await tester.tap(add);
+      await _settle(tester);
+      expect(find.byType(PandoraCoreOperationForm), findsOneWidget);
+      final business = find.byKey(const ValueKey('core-field-name'));
+      final businessEditor = tester.widget<EditableText>(
+          find.descendant(of: business, matching: find.byType(EditableText)));
+      final formTheme = Theme.of(tester.element(business));
+      expect(formTheme.brightness, Brightness.dark);
+      expect(
+          _contrastRatio(businessEditor.style.color!,
+              formTheme.inputDecorationTheme.fillColor!),
+          greaterThanOrEqualTo(4.5));
+      await tester.enterText(business, 'Unsubmitted client');
+      final formScroll = find
+          .descendant(
+              of: find.byType(PandoraCoreOperationForm),
+              matching: find.byType(Scrollable))
+          .first;
+      final industry = find.byKey(const ValueKey('core-field-industry'));
+      await tester.scrollUntilVisible(industry, 180, scrollable: formScroll);
+      await tester.tap(industry);
+      await tester.pumpAndSettle();
+      final option = find.text('Hospitality').last;
+      final optionText = tester.widget<RichText>(
+          find.descendant(of: option, matching: find.byType(RichText)));
+      expect(
+          _contrastRatio(optionText.text.style!.color!, formTheme.canvasColor),
+          greaterThanOrEqualTo(4.5));
+      await tester.tap(option);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Cancel'), 180,
+          scrollable: formScroll);
+      await tester.tap(find.text('Cancel'));
+      await _settle(tester);
+      expect(find.byType(PandoraCoreOperationForm), findsNothing);
+      expect(find.byKey(const ValueKey('ask-pandora-objective')).hitTestable(),
+          findsOneWidget);
+      expect(gateway.operations, isEmpty);
+      expect(gateway.entered, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets(
       'AuthGate launches operator Home with composer, preserves active chat '
       'on token refresh, and keeps customer launch in own workspace chooser',
@@ -511,6 +708,9 @@ void main() {
     });
     final ownerState =
         tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    final previousOwnerNavigation = tester
+        .widget<AskPandoraScreen>(find.byType(AskPandoraScreen))
+        .onCoreNavigate!;
     await tester.enterText(find.byKey(const ValueKey('ask-pandora-objective')),
         'Owner private draft');
     await _clients(tester);
@@ -532,6 +732,17 @@ void main() {
     expect(find.text('Owner private draft'), findsNothing);
     final clientChat =
         tester.widget<AskPandoraScreen>(find.byType(AskPandoraScreen));
+    final previousClientNavigation = clientChat.onCoreNavigate!;
+    previousOwnerNavigation(const PandoraIntelligenceHandoff(
+        request: 'Return to Pandora',
+        kind: 'core_navigation',
+        section: 'clients',
+        action: 'return_owner'));
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('core-client-context-banner')),
+        findsOneWidget,
+        reason: 'An owner callback from before entry cannot end client scope.');
+    expect(gateway.left, isEmpty);
     expect((clientChat.enterpriseContext!['organization'] as Map)['id'],
         PandoraConfig.plpOrganizationId);
     expect(clientHistory.calls, greaterThan(0));
@@ -553,6 +764,23 @@ void main() {
     expect(find.text('Client private draft'), findsNothing);
     final returned =
         tester.widget<AskPandoraScreen>(find.byType(AskPandoraScreen));
+    final readCount = gateway.snapshots.length;
+    final currentContext = returned.enterpriseContext;
+    previousClientNavigation(const PandoraIntelligenceHandoff(
+        request: 'Open client details',
+        kind: 'core_navigation',
+        section: 'clients',
+        action: 'inspect',
+        organizationId: PandoraConfig.plpOrganizationId));
+    await _settle(tester);
+    expect(gateway.snapshots.length, readCount,
+        reason:
+            'A callback from an ended client session cannot navigate Core.');
+    expect(
+        tester
+            .widget<AskPandoraScreen>(find.byType(AskPandoraScreen))
+            .enterpriseContext,
+        currentContext);
     expect((returned.enterpriseContext?['organization'] as Map?)?['id'],
         isNot(PandoraConfig.plpOrganizationId));
     returned.onSearchChats!();

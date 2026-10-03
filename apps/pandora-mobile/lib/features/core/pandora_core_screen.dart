@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_core_api.dart';
+import '../../core/data/pandora_user_admin_api.dart';
 import '../../core/security/pandora_auth.dart';
 import '../../core/security/pandora_identity_verification.dart';
 import '../../core/widgets/pandora_navigation.dart';
@@ -16,6 +17,28 @@ const _line = Color(0xFF292D32);
 
 /// A single operational projection of Pandora Core. The same signed-in RPC
 /// contract powers Home, client administration and the deeper owner sections.
+/// Cached shell roots retain state, but only the visible business page owns
+/// system Back. A conversation overlay or another root cannot pop this page.
+class PandoraCoreRouteVisibility extends InheritedWidget {
+  const PandoraCoreRouteVisibility({
+    super.key,
+    required this.active,
+    required super.child,
+  });
+
+  final bool active;
+
+  static bool isActive(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<PandoraCoreRouteVisibility>()
+          ?.active ??
+      true;
+
+  @override
+  bool updateShouldNotify(PandoraCoreRouteVisibility oldWidget) =>
+      active != oldWidget.active;
+}
+
 class PandoraCoreScreen extends StatefulWidget {
   const PandoraCoreScreen({
     super.key,
@@ -27,6 +50,7 @@ class PandoraCoreScreen extends StatefulWidget {
     this.onEnterClient,
     this.onContextChanged,
     this.initialAction,
+    this.teamGateway,
   });
 
   final PandoraCoreGateway gateway;
@@ -37,6 +61,7 @@ class PandoraCoreScreen extends StatefulWidget {
   final Future<void> Function(PandoraCoreRecord client)? onEnterClient;
   final ValueChanged<PandoraCoreRecord>? onContextChanged;
   final String? initialAction;
+  final PandoraUserAdminGateway? teamGateway;
 
   @override
   State<PandoraCoreScreen> createState() => _PandoraCoreScreenState();
@@ -137,7 +162,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             _prospectForm(initial: const {'stage': 'proposal'});
           } else if (widget.initialAction == 'manage_users' &&
               _clientId != null) {
-            setState(() => _tool = TeamScreen(organizationId: _clientId));
+            _openTeam(_clientId!);
           }
         });
       }
@@ -233,6 +258,15 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     }
     return 'Organization $organizationId';
   }
+
+  void _openTeam(String organizationId) => setState(() {
+        _tool = TeamScreen(
+          gateway: widget.teamGateway,
+          organizationId: organizationId,
+          organizationName: _organizationName(organizationId),
+          embedded: true,
+        );
+      });
 
   Future<void> _form(
     String operation,
@@ -335,6 +369,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final navigationActive = PandoraCoreRouteVisibility.isActive(context);
     final canGoBack =
         _tool != null || (_clientId != null && widget.organizationId == null);
     final content = _tool ??
@@ -364,9 +399,9 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           ),
         );
     return PopScope<void>(
-      canPop: !canGoBack,
+      canPop: !navigationActive || !canGoBack,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && canGoBack) _back();
+        if (!didPop && navigationActive && canGoBack) _back();
       },
       child: Material(
         color: const Color(0xFF090B0E),
@@ -410,12 +445,13 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                             fontWeight: FontWeight.w700),
                       ),
                     ),
-                    IconButton(
-                      key: const ValueKey('core-refresh'),
-                      tooltip: 'Refresh',
-                      onPressed: _loading ? null : _load,
-                      icon: const Icon(Icons.refresh_rounded, size: 21),
-                    ),
+                    if (_tool is! TeamScreen)
+                      IconButton(
+                        key: const ValueKey('core-refresh'),
+                        tooltip: 'Refresh',
+                        onPressed: _loading ? null : _load,
+                        icon: const Icon(Icons.refresh_rounded, size: 21),
+                      ),
                   ],
                 ),
               ),
@@ -457,6 +493,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
         for (final row in _rows('needs_you').take(5))
           _RecordTile(
             row: row,
+            isDecision: true,
             onTap: () => _showDecision(row),
           ),
       _Heading('Clients',
@@ -719,9 +756,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             _Action(
               label: 'Manage Team & Access',
               icon: Icons.group_outlined,
-              onPressed: () => setState(() {
-                _tool = TeamScreen(organizationId: id);
-              }),
+              onPressed: () => _openTeam(id),
             ),
             const SizedBox(height: 12),
             ..._recordList('members', 'No client users recorded.'),
@@ -1086,13 +1121,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           icon: Icons.account_tree_outlined,
           onPressed: () => widget.onNavigate?.call('capabilities'),
         ),
-      if (tab == 'Models')
-        const _Notice(
-          title: 'Auto routing',
-          message:
-              'The composer uses current routing policy. Catalog discovery '
-              'does not prove a model is available.',
-        ),
+      if (tab == 'Models') _modelRoutingSummary(),
       if (tab == 'Memory') const PandoraCoreMemoryPanel(),
       const SizedBox(height: 10),
       if (tab == 'Memory') const _Heading('Pending learning delivery'),
@@ -1100,8 +1129,45 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           tab.toLowerCase(),
           tab == 'Memory'
               ? 'No pending learning deliveries.'
-              : 'No verified ${tab.toLowerCase()} state in this snapshot.'),
+              : 'No verified ${tab.toLowerCase()} state in this snapshot.',
+          hidePromotedCandidate: tab == 'Deployments'),
     ];
+  }
+
+  Widget _modelRoutingSummary() {
+    final routing = coreRecord(_snapshot?['model_routing']);
+    if (routing.isEmpty) {
+      return const _Empty('Current model routing evidence is unavailable.');
+    }
+    return _Panel(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(
+              child: Text('Auto routing',
+                  style: TextStyle(color: _ink, fontWeight: FontWeight.w700))),
+          _StatePill(routing['enabled'] == true
+              ? 'Enabled'
+              : routing['enabled'] == false
+                  ? 'Disabled'
+                  : 'Unknown'),
+        ]),
+        const SizedBox(height: 8),
+        for (final field in const {
+          'configured_eligible_models': 'Eligible models',
+          'verified_eligible_models': 'With runtime evidence',
+          'fresh_verified_eligible_models': 'Verified within 24 hours',
+        }.entries)
+          if (routing[field.key] is num)
+            _StatusLine(field.value, coreText(routing[field.key])),
+        const SizedBox(height: 6),
+        const Text('Runtime evidence measures availability.',
+            style: TextStyle(color: _muted, fontSize: 12)),
+        TextButton(
+          onPressed: () => _showRecord(routing, title: 'Auto routing evidence'),
+          child: const Text('Routing evidence'),
+        ),
+      ]),
+    );
   }
 
   List<Widget> _administration() {
@@ -1120,7 +1186,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                       _snapshot?['operator'])['platform_organization_id'],
                   '');
               if (org.isEmpty) return;
-              setState(() => _tool = TeamScreen(organizationId: org));
+              _openTeam(org);
             }),
         const SizedBox(height: 12),
         ..._recordList('team', 'No internal team records available.'),
@@ -1166,7 +1232,8 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           const _Empty('No owner decisions in this snapshot.')
         else
           for (final row in _rows('needs_you'))
-            _RecordTile(row: row, onTap: () => _showDecision(row)),
+            _RecordTile(
+                row: row, isDecision: true, onTap: () => _showDecision(row)),
       ];
 
   void _showDecision(PandoraCoreRecord row) {
@@ -1196,6 +1263,14 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
               'open_client_commercial' => 'Commercial',
               _ => 'Summary',
             });
+      } else if (action == 'open_connections') {
+        final platformId = coreText(
+            coreRecord(_snapshot?['operator'])['platform_organization_id'], '');
+        if (organizationId.isEmpty || organizationId == platformId) {
+          widget.onNavigate?.call('connections');
+        } else {
+          _message('Refresh Clients to verify this connection’s organization.');
+        }
       } else {
         widget.onNavigate?.call('administration');
       }
@@ -1373,10 +1448,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       if (!mounted || action == null) return;
       switch (action) {
         case 'users':
-          setState(() {
-            _toolTitle = 'Team & Access';
-            _tool = TeamScreen(organizationId: id);
-          });
+          _openTeam(id);
         case 'capabilities':
           await _capabilityForm(id);
         case 'commercial':
@@ -1565,13 +1637,74 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     );
   }
 
-  List<Widget> _recordList(String key, String empty) {
-    final rows = _rows(key);
+  List<Widget> _recordList(String key, String empty,
+      {bool hidePromotedCandidate = false}) {
+    var rows = _rows(key);
+    if (hidePromotedCandidate) {
+      // Deduplicate only the Simple list. Audit observations remain untouched.
+      (String, String)? identity(PandoraCoreRecord row) {
+        final deployment = coreText(row['provider_deployment_id'], '');
+        final sha =
+            coreText(row['source_sha'], coreText(row['source_commit_sha'], ''));
+        final commit = coreText(row['source_commit_sha'], '');
+        if (deployment.isEmpty ||
+            !RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(sha) ||
+            (commit.isNotEmpty && commit != sha)) {
+          return null;
+        }
+        return (deployment, sha);
+      }
+
+      final production = {
+        for (final row in rows)
+          if (row['release_observation_kind'] == 'canonical_production' &&
+              identity(row) != null)
+            identity(row)!,
+      };
+      rows = rows
+          .where((row) =>
+              row['release_observation_kind'] != 'candidate' ||
+              identity(row) == null ||
+              !production.contains(identity(row)))
+          .toList(growable: false);
+    }
     if (rows.isEmpty) return [_Empty(empty)];
     return [
       for (final row in rows)
-        _RecordTile(row: row, onTap: () => _recordAction(key, row)),
+        _RecordTile(
+          row: row,
+          domain: key,
+          scopeLabel: _recordScopeLabel(row['organization_id']),
+          actorLabel: _recordActorLabel(row),
+          onTap: () => _recordAction(key, row),
+        ),
     ];
+  }
+
+  String _recordScopeLabel(Object? organizationId) {
+    if (organizationId == null) return 'All clients and platform';
+    final id = coreText(organizationId, '');
+    if (id == coreRecord(_snapshot?['operator'])['platform_organization_id']) {
+      return 'Pandora';
+    }
+    for (final client in [..._rows('clients'), _client]) {
+      if (client['organization_id'] == id) {
+        return coreText(client['display_name'], 'Selected client');
+      }
+    }
+    return 'Selected client';
+  }
+
+  String? _recordActorLabel(PandoraCoreRecord row) {
+    final userId = row['user_id'] ?? row['actor_user_id'];
+    if (userId == null) return null;
+    for (final member in _rows('team')) {
+      if (member['user_id'] == userId) {
+        final name = coreText(member['name'], '');
+        if (name.isNotEmpty) return name;
+      }
+    }
+    return null;
   }
 
   void _showRecord(PandoraCoreRecord row,
@@ -1605,13 +1738,26 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                             'request_window_start',
                           }.contains(entry.key))) &&
                   row[entry.key] is! Map &&
-                  row[entry.key] is! List)
+                  row[entry.key] is! List &&
+                  !(entry.key == 'source_sha' &&
+                      row['source_sha'] == row['source_commit_sha']))
                 _StatusLine(
                     entry.value,
                     _displayValue(entry.key, row[entry.key],
                         currency: coreText(row['currency'], '')),
                     preserveExact: const {'candidate', 'canonical_production'}
-                        .contains(row['release_observation_kind'])),
+                            .contains(row['release_observation_kind']) ||
+                        const {
+                          'event_type',
+                          'event_hash',
+                          'organization_id',
+                          'actor_user_id',
+                          'user_id',
+                          'model_id',
+                          'model',
+                          'policy_version',
+                          'evidence_ref',
+                        }.contains(entry.key)),
             if (const {'candidate', 'canonical_production'}
                 .contains(row['release_observation_kind']))
               for (final edge
@@ -2056,8 +2202,28 @@ const _recordFields = <String, String>{
   'industry': 'Industry',
   'provider': 'Provider',
   'provider_key': 'Provider',
+  'provider_name': 'Model provider',
   'model': 'Model',
-  'model_id': 'Model',
+  'model_id': 'Model ID',
+  'region': 'Region',
+  'configured_eligible': 'Routing eligible',
+  'runtime_tested_at': 'Runtime tested',
+  'runtime_verified_at': 'Runtime passed',
+  'runtime_evidence_state': 'Runtime evidence',
+  'availability_reason': 'Availability',
+  'mode': 'Routing mode',
+  'policy_version': 'Policy version',
+  'enabled': 'Routing enabled',
+  'routing_eligible': 'Routing eligible',
+  'fallback_enabled': 'Fallback enabled',
+  'configured_eligible_models': 'Eligible models',
+  'verified_eligible_models': 'With runtime evidence',
+  'fresh_verified_eligible_models': 'Verified within 24 hours',
+  'conversational_models': 'Conversational models',
+  'models_returned': 'Models shown',
+  'policy_observed_at': 'Policy observed',
+  'policy_updated_at': 'Policy changed',
+  'catalog_observed_at': 'Catalog observed',
   'state': 'State',
   'status': 'Status',
   'health': 'Health',
@@ -2075,6 +2241,12 @@ const _recordFields = <String, String>{
   'priority': 'Priority',
   'severity': 'Severity',
   'role': 'Role',
+  'event_type': 'Action',
+  'organization_id': 'Organization ID',
+  'actor_user_id': 'Actor ID',
+  'user_id': 'User ID',
+  'event_hash': 'Audit evidence',
+  'expires_at': 'Expires',
   'email': 'Email',
   'version': 'Version',
   'app_version': 'App version',
@@ -2141,6 +2313,9 @@ const _recordFields = <String, String>{
   'local_evidence_note': 'Local usage coverage',
   'last_observed_at': 'Last observed',
   'requests': 'Requests',
+  'succeeded': 'Successful requests',
+  'tokens': 'Total tokens',
+  'requests_with_cost': 'Requests with estimated cost',
   'input_tokens': 'Input tokens',
   'output_tokens': 'Output tokens',
   'local_requests': 'Local requests',
@@ -2153,6 +2328,20 @@ const _recordFields = <String, String>{
 
 String _displayValue(String key, Object? value, {String currency = ''}) {
   if (value == null) return 'Unknown';
+  if (key == 'state' && value == 'needs_decision') return 'Needs decision';
+  if (key == 'availability_reason') return _modelAvailability(value);
+  if (const {
+    'configured_eligible',
+    'enabled',
+    'routing_eligible',
+    'fallback_enabled'
+  }.contains(key)) {
+    return value == true
+        ? 'Yes'
+        : value == false
+            ? 'No'
+            : 'Unknown';
+  }
   if (key == 'request_admission_enabled') {
     return value == true ? 'On' : 'Off';
   }
@@ -2187,7 +2376,18 @@ String _displayValue(String key, Object? value, {String currency = ''}) {
   return coreText(value);
 }
 
+String _humanizeRecordAction(Object? value) {
+  final words = coreText(value, '')
+      .replaceFirst(RegExp(r'^core[.]'), '')
+      .replaceAll(RegExp(r'[._]+'), ' ')
+      .trim();
+  return words.isEmpty ? '' : '${words[0].toUpperCase()}${words.substring(1)}';
+}
+
 String _recordTitle(PandoraCoreRecord row, String fallback) {
+  if (coreText(row['event_type'], '').isNotEmpty) {
+    return _humanizeRecordAction(row['event_type']);
+  }
   for (final key in const [
     'display_name',
     'title',
@@ -2210,49 +2410,160 @@ String _recordTitle(PandoraCoreRecord row, String fallback) {
   return fallback;
 }
 
+String _modelAvailability(Object? reason) => switch (reason) {
+      'model_not_active' => 'Model not active',
+      'runtime_verification_failed' => 'Runtime verification failed',
+      'runtime_not_verified' => 'Runtime not verified',
+      'not_routable' => 'Routing unavailable',
+      'invocation_unavailable' => 'Invocation unavailable',
+      'eligible_by_current_routing_policy' => 'Eligible for Auto routing',
+      _ => 'Availability unknown',
+    };
+
+String _modelSubtitle(PandoraCoreRecord row) => [
+      coreText(row['provider_name'], coreText(row['provider'], '')),
+      coreText(row['model_id'], ''),
+      switch (row['verification_state']) {
+        'passed' => 'Runtime passed',
+        'failed' => 'Runtime failed',
+        _ => 'Runtime not verified',
+      },
+      switch (row['runtime_evidence_state']) {
+        'fresh' => 'Evidence within 24 hours',
+        'stale' => 'Stale runtime evidence',
+        _ => 'Evidence time unknown',
+      },
+    ].where((value) => value.isNotEmpty).join(' · ');
+
+String _usageSubtitle(PandoraCoreRecord row, String? scopeLabel) {
+  final currency = coreText(row['currency'], '');
+  final estimates = row['estimated_cost_micros'];
+  final billed = row['billed_cost_micros'];
+  return [
+    if (scopeLabel != null) scopeLabel,
+    if (row['requests'] is num) '${row['requests']} requests',
+    if (row['input_tokens'] is num) '${row['input_tokens']} input tokens',
+    if (row['output_tokens'] is num) '${row['output_tokens']} output tokens',
+    if (row['input_tokens'] == null &&
+        row['output_tokens'] == null &&
+        row['tokens'] is num)
+      '${row['tokens']} tokens',
+    if (estimates is num && currency.isNotEmpty)
+      'Estimated $currency ${formatCoreMoneyMicros(estimates)}',
+    if (billed is num && currency.isNotEmpty)
+      'Billed $currency ${formatCoreMoneyMicros(billed)}',
+    if (estimates == null && billed == null)
+      'Cost unavailable'
+    else if (currency.isEmpty)
+      'Cost currency unavailable',
+  ].join(' · ');
+}
+
+String _allowanceSubtitle(PandoraCoreRecord row) => [
+      if (row['request_limit'] is num)
+        '${row['request_limit']} monthly cloud-chat requests',
+      if (row['requests_admitted'] is num)
+        '${row['requests_admitted']} admitted',
+      if (row['requests_remaining'] is num)
+        '${row['requests_remaining']} remaining',
+      if (row['token_limit'] is num) '${row['token_limit']} commercial tokens',
+      if (row['budget_micros'] is num &&
+          coreText(row['currency'], '').isNotEmpty)
+        'Commercial cost allowance ${_displayValue('budget_micros', row['budget_micros'], currency: coreText(row['currency']))}',
+      if (row['request_admission_enabled'] == false)
+        'Request blocking not enabled',
+    ].join(' · ');
+
 class _RecordTile extends StatelessWidget {
-  const _RecordTile({required this.row, required this.onTap});
+  const _RecordTile(
+      {required this.row,
+      required this.onTap,
+      this.isDecision = false,
+      this.domain,
+      this.scopeLabel,
+      this.actorLabel});
   final PandoraCoreRecord row;
   final VoidCallback onTap;
+  final bool isDecision;
+  final String? domain;
+  final String? scopeLabel;
+  final String? actorLabel;
   @override
   Widget build(BuildContext context) {
     final isRelease = const {'candidate', 'canonical_production'}
         .contains(row['release_observation_kind']);
-    final subtitle = isRelease
-        ? [
-            coreText(row['summary'], ''),
-            row['evidence_state'] == 'stale'
-                ? 'Stale provider evidence'
-                : 'Runtime and user flows not verified',
-          ].where((value) => value.isNotEmpty).join(' · ')
-        : [
-            for (final key in const [
-              'client_name',
-              'why',
-              'reason',
-              'next_action',
-              'summary',
-              'provider',
-              'model',
-              'updated_at',
-              'occurred_at',
-              'source_kind',
-              'evidence_state',
-            ])
-              if (coreText(row[key], '').isNotEmpty) coreText(row[key], ''),
-            for (final key in const [
-              'mrr_micros',
-              'monthly_fee_micros',
-              'amount_micros',
-              'estimated_cost_micros'
-            ])
-              if (row[key] != null)
-                _displayValue(key, row[key],
-                    currency: coreText(row['currency'], '')),
-          ].take(3).join(' · ');
+    final isAudit = domain == 'audit';
+    final isOperator = domain == 'operators';
+    final isModel = domain == 'models';
+    final isUsage = domain == 'usage';
+    final isAllowance = domain == 'usage_allowances';
+    final title = isUsage
+        ? [coreText(row['provider'], ''), coreText(row['model'], '')]
+            .where((value) => value.isNotEmpty)
+            .join(' · ')
+        : isAllowance
+            ? '${scopeLabel ?? 'Client'} allowances'
+            : isOperator
+                ? '${_humanizeRecordAction(row['role']).isEmpty ? 'Operator' : _humanizeRecordAction(row['role'])} access'
+                : isAudit
+                    ? _humanizeRecordAction(row['event_type'] ?? row['action'])
+                    : _recordTitle(row, 'Recorded item');
+    final subtitle = isModel
+        ? _modelSubtitle(row)
+        : isUsage
+            ? _usageSubtitle(row, scopeLabel)
+            : isAllowance
+                ? _allowanceSubtitle(row)
+                : isAudit || isOperator
+                    ? [
+                        if (actorLabel != null) actorLabel!,
+                        if (scopeLabel != null) scopeLabel!,
+                        if (isOperator && row['expires_at'] != null)
+                          'Expires ${coreText(row['expires_at'])}',
+                        if (isAudit && row['created_at'] != null)
+                          coreText(row['created_at']),
+                      ].join(' · ')
+                    : isRelease
+                        ? [
+                            coreText(row['summary'], ''),
+                            row['evidence_state'] == 'stale'
+                                ? 'Stale provider evidence'
+                                : 'Runtime and user flows not verified',
+                          ].where((value) => value.isNotEmpty).join(' · ')
+                        : [
+                            for (final key in const [
+                              'client_name',
+                              'why',
+                              'reason',
+                              'next_action',
+                              'summary',
+                              'provider',
+                              'model',
+                              'updated_at',
+                              'occurred_at',
+                              'source_kind',
+                              'evidence_state',
+                            ])
+                              if (coreText(row[key], '').isNotEmpty)
+                                coreText(row[key], ''),
+                            for (final key in const [
+                              'mrr_micros',
+                              'monthly_fee_micros',
+                              'amount_micros',
+                              'estimated_cost_micros'
+                            ])
+                              if (row[key] != null)
+                                _displayValue(key, row[key],
+                                    currency: coreText(row['currency'], '')),
+                          ].take(3).join(' · ');
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
-      title: Text(_recordTitle(row, 'Recorded item'),
+      title: Text(
+          title.isEmpty
+              ? isUsage
+                  ? 'Recorded model usage'
+                  : 'Audit record'
+              : title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
@@ -2260,13 +2571,31 @@ class _RecordTile extends StatelessWidget {
       subtitle: subtitle.isEmpty
           ? null
           : Text(subtitle,
-              maxLines: 3,
+              maxLines: isUsage || isAllowance || isModel ? 5 : 3,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: _muted, fontSize: 12)),
-      trailing: _StatePill(row['state'] ??
-          row['status'] ??
-          row['verification_state'] ??
-          row['outcome']),
+      trailing: isUsage ||
+              (isAllowance && row['request_admission_state'] == null)
+          ? null
+          : isAllowance
+              ? _StatePill(_displayValue(
+                  'request_admission_state', row['request_admission_state']))
+              : isAudit &&
+                      row['state'] == null &&
+                      row['status'] == null &&
+                      row['outcome'] == null
+                  ? null
+                  : _StatePill(isDecision
+                      ? row['needs_decision'] == true ||
+                              row['state'] == 'needs_decision'
+                          ? 'Needs decision'
+                          : row['state'] ??
+                              row['status'] ??
+                              'Decision state unavailable'
+                      : row['state'] ??
+                          row['status'] ??
+                          row['verification_state'] ??
+                          row['outcome']),
       onTap: onTap,
     );
   }

@@ -63,7 +63,12 @@ test('recording 4998: Recent chats owns search lifetime in the exclusive right d
 
 test('recording 4998: owner shell is deterministically Graphite', () => {
   assert.match(shell, /PandoraPalette\.graphite/);
-  assert.match(shell, /extensions: const <ThemeExtension<dynamic>>\[PandoraPalette\.graphite\]/);
+  const theme = shell.slice(shell.indexOf('ThemeData _theme('), shell.indexOf('Widget _presentRoot('));
+  assert.match(theme, /final dark = PandoraTheme\.graphite/);
+  assert.match(theme, /return dark\.copyWith\(/);
+  assert.doesNotMatch(theme, /return base\.copyWith\(/);
+  // Actual enabled controls and input contrast are exercised under both
+  // ambient themes by pandora_core_shell_scope_test.dart.
 });
 
 test('recording 4998: internal ProjectOS rows are excluded from owner project summaries', () => {
