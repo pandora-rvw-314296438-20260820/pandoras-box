@@ -1514,7 +1514,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           )
         : root;
     return PandoraCoreRouteVisibility(
-      active: index == _index && !_chatVisible,
+      // Expanding Pandora must never deactivate, hide, or reconstruct the
+      // current business route. Chat is contextual to the live workspace.
+      active: index == _index,
       child: presented,
     );
   }
@@ -1598,40 +1600,48 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               );
             }
             final chatScopeEpoch = _scopeEpoch;
+            final businessOwnsNavigation = _index != 0 ||
+                _activeEnterpriseContext != null ||
+                _inClientWorkspace;
             Widget activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
-              businessWorkspace: Offstage(
-                offstage: _chatVisible,
-                child: PandoraSharedConversationScope(
-                  submitPrompt: _submitSharedPrompt,
-                  openThread: _openSharedThread,
-                  showConversation: _showSharedConversation,
-                  bindEnterpriseContext: _bindEnterpriseContext,
-                  bindSelectedObject: _bindSelectedObject,
-                  reportFailure: _reportSharedFailure,
-                  child: businessBody,
-                ),
+              businessWorkspace: PandoraSharedConversationScope(
+                submitPrompt: _submitSharedPrompt,
+                openThread: _openSharedThread,
+                showConversation: _showSharedConversation,
+                bindEnterpriseContext: _bindEnterpriseContext,
+                bindSelectedObject: _bindSelectedObject,
+                reportFailure: _reportSharedFailure,
+                child: businessBody,
               ),
-              conversation: AskPandoraScreen(
-                key: _chatKey,
-                onSearchChats: _openRecentChats,
-                onMore: () => _select(3),
-                onHome: () => _select(9),
-                enterpriseContext: _conversationContextForCurrentSurface(),
-                shellOverlay: true,
-                initialHistoryExpanded: _chatVisible,
-                onCoreNavigate: (handoff) {
-                  if (mounted && chatScopeEpoch == _scopeEpoch) {
-                    _handleCoreNavigation(handoff);
-                  }
-                },
-                onHistoryVisibilityChanged: (visible) {
-                  if (mounted &&
-                      chatScopeEpoch == _scopeEpoch &&
-                      _chatVisible != visible) {
-                    setState(() => _chatVisible = visible);
-                  }
-                },
+              conversation: PandoraNavigationScope(
+                // Only standalone Pandora chat owns shell navigation. When a
+                // business page is underneath, that page remains the single
+                // navigation owner and chat is only its contextual layer.
+                openDrawer: constraints.maxWidth >= 900 || businessOwnsNavigation
+                    ? null
+                    : _openDrawer,
+                child: AskPandoraScreen(
+                  key: _chatKey,
+                  onSearchChats: _openRecentChats,
+                  onMore: () => _select(3),
+                  onHome: () => _select(9),
+                  enterpriseContext: _conversationContextForCurrentSurface(),
+                  shellOverlay: true,
+                  initialHistoryExpanded: _chatVisible,
+                  onCoreNavigate: (handoff) {
+                    if (mounted && chatScopeEpoch == _scopeEpoch) {
+                      _handleCoreNavigation(handoff);
+                    }
+                  },
+                  onHistoryVisibilityChanged: (visible) {
+                    if (mounted &&
+                        chatScopeEpoch == _scopeEpoch &&
+                        _chatVisible != visible) {
+                      setState(() => _chatVisible = visible);
+                    }
+                  },
+                ),
               ),
             );
 

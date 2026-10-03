@@ -527,7 +527,8 @@ void main() {
     final history =
         find.byKey(const ValueKey('pandora-active-chat-history-offstage'));
     expect(tester.widget<Offstage>(history).offstage, isFalse);
-    expect(find.byType(SettingsScreen), findsNothing);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(tester.state(find.byType(SettingsScreen)), same(settingsState));
     _expectOwnerComposer(tester, chat, draft: 'Keep the Settings draft');
     // Actual system Back dismisses the shared overlay before touching Settings.
     await tester.binding.handlePopRoute();
