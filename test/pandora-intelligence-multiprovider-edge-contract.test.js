@@ -34,7 +34,13 @@ test('provider choice is server-owned and provider eligibility fails closed',()=
   must(edge,'nextGeminiModels(geminiModel).filter((m:string)=>gcfg.allowedModels.includes(m))');
   must(edge,'rp==="gemini"&&geminiOk&&gcfg.allowedModels.includes(rm)');
   must(edge,'planChatModelCandidates');
+  must(edge,'prioritizeProviderDiversity(routePlan.candidates,6)');
+  mustNot(edge,'routePlan.candidates.slice(0,6)');
   mustNot(edge,'const list=candidates(');
+  const routing=read('supabase/functions/pandora-intelligence-chat/model-routing.ts');
+  must(routing,'export function prioritizeProviderDiversity');
+  must(routing,'const seen=new Set<string>()');
+  must(routing,'return[...first,...remainder].slice(0,limit)');
   must(edge,'cfg.enabled&&cfg.routingEligible');
   must(config,"('kimi','enabled','false',true,now())");
   must(config,"('kimi','default_model','kimi-k3',true,now())");
