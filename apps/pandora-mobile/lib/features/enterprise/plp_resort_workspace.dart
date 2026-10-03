@@ -303,7 +303,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
 
   List<Widget> _sourceUnavailable({
     required String eyebrow,
-    required String title,
     required String detail,
     bool includeWorkspaceRail = false,
   }) {
@@ -341,7 +340,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'RESORT STATUS',
-        title: 'Today',
         detail:
             'Live occupancy, arrivals, room availability, and sales are unavailable until a verified resort source is connected.',
         includeWorkspaceRail: true,
@@ -474,7 +472,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'RESERVATIONS & STAYS',
-        title: 'Stays',
         detail:
             'Live arrivals, departures, in-house guests, and stays are unavailable until a verified resort source is connected.',
       );
@@ -523,7 +520,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'PROPERTY OPERATIONS',
-        title: 'Rooms & housekeeping',
         detail:
             'Live room occupancy and availability are unavailable until a verified resort source is connected.',
       );
@@ -603,7 +599,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'GUEST OPERATIONS',
-        title: 'Guests',
         detail:
             'Live guest presence, arrivals, and requests are unavailable until a verified resort source is connected.',
       );
@@ -768,7 +763,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'COMMERCIAL',
-        title: 'Revenue',
         detail:
             'Live sales, occupancy, channel, and booking-value metrics are unavailable until a verified resort source is connected.',
       );
@@ -844,7 +838,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       return [
         ..._sourceUnavailable(
           eyebrow: 'SERVICE DELIVERY',
-          title: 'Guest experiences',
           detail: 'Live guest requests and preferences are unavailable until a '
               'verified resort source is connected.',
         ),
@@ -1065,7 +1058,6 @@ class _ResortHeader extends StatelessWidget {
       );
 }
 
-class _Metric {
 class _Metric {
   const _Metric(this.label, this.value, this.detail);
   final String label;

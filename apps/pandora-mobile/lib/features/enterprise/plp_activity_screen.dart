@@ -631,41 +631,6 @@ class _ActivityHeader extends StatelessWidget {
       );
 }
 
-class _ActivityHero extends StatelessWidget {
-  const _ActivityHero();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        key: const ValueKey<String>('plp-activity-editorial-hero'),
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 18),
-        child: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recent activity',
-              style: TextStyle(
-                color: _PlpActivityScreenState._ink,
-                fontFamily: 'serif',
-                fontSize: 42,
-                height: .96,
-                fontWeight: FontWeight.w400,
-                letterSpacing: -1.1,
-              ),
-            ),
-            SizedBox(height: 13),
-            Text(
-              'A verified chronology of what changed across the resort.',
-              style: TextStyle(
-                color: _PlpActivityScreenState._muted,
-                fontSize: 13,
-                height: 1.45,
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
 class _ActivityTabs extends StatelessWidget {
   const _ActivityTabs({
     required this.selected,

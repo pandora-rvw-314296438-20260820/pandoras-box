@@ -597,14 +597,6 @@ class PlpResortRecordScreen extends StatelessWidget {
     return _text(record['title'], fallback: 'Resort work');
   }
 
-  String get _eyebrow {
-    if (kind == 'room') return 'ROOM';
-    if (kind == 'stay') return 'STAY';
-    if (kind == 'request') return 'GUEST REQUEST';
-    if (kind == 'conflict' || kind == 'conflict-summary') return 'CHANNELS';
-    return 'WORK ITEM';
-  }
-
   List<(String, Object?)> get _fields {
     if (kind == 'room') {
       return [
@@ -853,7 +845,6 @@ class _ModuleSpec {
   const _ModuleSpec({
     required this.label,
     required this.singularLabel,
-    required this.eyebrow,
     required this.title,
     required this.queueLabel,
     required this.emptyMessage,
@@ -863,7 +854,6 @@ class _ModuleSpec {
 
   final String label;
   final String singularLabel;
-  final String eyebrow;
   final String title;
   final String queueLabel;
   final String emptyMessage;
@@ -875,7 +865,6 @@ class _ModuleSpec {
       case 'housekeeping':
         return const _ModuleSpec(
           label: 'Housekeeping', singularLabel: 'housekeeping task',
-          eyebrow: 'ROOMS & HOUSEKEEPING',
           title: 'Turn rooms over with precision.',
           queueLabel: 'HOUSEKEEPING QUEUE',
           emptyMessage: 'No connected housekeeping work is waiting.',
@@ -884,7 +873,6 @@ class _ModuleSpec {
       case 'maintenance':
         return const _ModuleSpec(
           label: 'Maintenance', singularLabel: 'maintenance task',
-          eyebrow: 'PROPERTY CARE',
           title: 'Protect the guest experience before faults become visible.',
           queueLabel: 'MAINTENANCE QUEUE',
           emptyMessage: 'No connected maintenance work is waiting.',
@@ -893,7 +881,7 @@ class _ModuleSpec {
       case 'linen':
         return const _ModuleSpec(
           label: 'Linen', singularLabel: 'linen task',
-          eyebrow: 'HOUSEKEEPING', title: 'Keep linen readiness visible.',
+          title: 'Keep linen readiness visible.',
           queueLabel: 'LINEN & LAUNDRY',
           emptyMessage: 'No connected linen or laundry work is waiting.',
           unitLabel: 'items', taskCategory: 'housekeeping',
@@ -901,7 +889,6 @@ class _ModuleSpec {
       case 'concierge':
         return const _ModuleSpec(
           label: 'Concierge', singularLabel: 'concierge task',
-          eyebrow: 'GUEST SERVICES',
           title: 'Coordinate the details guests remember.',
           queueLabel: 'CONCIERGE QUEUE',
           emptyMessage: 'No connected concierge request is waiting.',
@@ -910,7 +897,6 @@ class _ModuleSpec {
       case 'vip':
         return const _ModuleSpec(
           label: 'VIP', singularLabel: 'VIP preparation task',
-          eyebrow: 'GUEST SERVICES',
           title: 'Handle high-touch stays deliberately.',
           queueLabel: 'VIP & SPECIAL STAYS',
           emptyMessage:
@@ -920,7 +906,6 @@ class _ModuleSpec {
       case 'transfers':
         return const _ModuleSpec(
           label: 'Transfers', singularLabel: 'transfer task',
-          eyebrow: 'GUEST MOVEMENT',
           title: 'Coordinate every arrival and departure.',
           queueLabel: 'TRANSFER QUEUE',
           emptyMessage: 'No connected transfer work is waiting.',
@@ -929,7 +914,6 @@ class _ModuleSpec {
       case 'property':
         return const _ModuleSpec(
           label: 'Property', singularLabel: 'property task',
-          eyebrow: 'PROPERTY OPERATIONS',
           title: 'Run the physical resort as one system.',
           queueLabel: 'PROPERTY WORK',
           emptyMessage: 'No connected property work is waiting.',
@@ -938,7 +922,6 @@ class _ModuleSpec {
       case 'security':
         return const _ModuleSpec(
           label: 'Security', singularLabel: 'security task',
-          eyebrow: 'SAFETY',
           title: 'Keep safety issues visible and attributable.',
           queueLabel: 'SECURITY & SAFETY',
           emptyMessage: 'No connected security or safety work is waiting.',
@@ -947,7 +930,6 @@ class _ModuleSpec {
       case 'transport':
         return const _ModuleSpec(
           label: 'Transport', singularLabel: 'transport task',
-          eyebrow: 'LOGISTICS',
           title: 'Coordinate movement without losing guest context.',
           queueLabel: 'TRANSPORT QUEUE',
           emptyMessage: 'No connected transport work is waiting.',
@@ -956,7 +938,6 @@ class _ModuleSpec {
       case 'rates':
         return const _ModuleSpec(
           label: 'Rates', singularLabel: 'rate',
-          eyebrow: 'COMMERCIAL',
           title: 'See sellable inventory and current room rates.',
           queueLabel: 'RATE BOARD',
           emptyMessage: 'No connected room rates are available.',
@@ -965,7 +946,6 @@ class _ModuleSpec {
       case 'channels':
         return const _ModuleSpec(
           label: 'Channels', singularLabel: 'channel exception',
-          eyebrow: 'DISTRIBUTION',
           title: 'Keep OTA inventory aligned with the resort.',
           queueLabel: 'CHANNEL EXCEPTIONS',
           emptyMessage: 'No connected OTA exception is open.',
@@ -974,7 +954,6 @@ class _ModuleSpec {
       case 'forecast':
         return const _ModuleSpec(
           label: 'Forecast', singularLabel: 'stay',
-          eyebrow: 'FORWARD VIEW',
           title: 'Read the booked future without pretending it is a prediction.',
           queueLabel: 'UPCOMING STAYS',
           emptyMessage: 'No connected forward stay data is available.',
@@ -983,7 +962,6 @@ class _ModuleSpec {
       case 'dining':
         return const _ModuleSpec(
           label: 'Dining', singularLabel: 'dining task',
-          eyebrow: 'EXPERIENCES',
           title: 'Coordinate dining from the guest context.',
           queueLabel: 'DINING REQUESTS',
           emptyMessage: 'No connected dining request is waiting.',
@@ -992,7 +970,6 @@ class _ModuleSpec {
       case 'wellness':
         return const _ModuleSpec(
           label: 'Wellness', singularLabel: 'wellness task',
-          eyebrow: 'EXPERIENCES',
           title: 'Keep wellness requests organized.',
           queueLabel: 'WELLNESS REQUESTS',
           emptyMessage: 'No connected wellness request is waiting.',
@@ -1001,7 +978,6 @@ class _ModuleSpec {
       case 'activities':
         return const _ModuleSpec(
           label: 'Activities', singularLabel: 'activity task',
-          eyebrow: 'EXPERIENCES',
           title: 'Coordinate activities around each stay.',
           queueLabel: 'ACTIVITY REQUESTS',
           emptyMessage: 'No connected activity request is waiting.',
@@ -1010,7 +986,6 @@ class _ModuleSpec {
       case 'events':
         return const _ModuleSpec(
           label: 'Events', singularLabel: 'event task',
-          eyebrow: 'EXPERIENCES',
           title: 'Coordinate celebrations and events with the stay.',
           queueLabel: 'EVENT REQUESTS',
           emptyMessage: 'No connected event request is waiting.',
@@ -1019,7 +994,7 @@ class _ModuleSpec {
       default:
         return const _ModuleSpec(
           label: 'Resort', singularLabel: 'resort task',
-          eyebrow: 'RESORT', title: 'Operational workspace.',
+          title: 'Operational workspace.',
           queueLabel: 'CONNECTED WORK',
           emptyMessage: 'No connected records are available.',
           unitLabel: 'items',
