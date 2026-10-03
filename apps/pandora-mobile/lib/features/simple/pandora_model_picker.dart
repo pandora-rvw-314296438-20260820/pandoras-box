@@ -177,33 +177,38 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
     final row = SizedBox(
       key: key,
       height: _rowHeight,
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (selected) ...[
-              Container(
-                width: 4,
-                height: 4,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (selected) ...[
+            Container(
+              width: 4,
+              height: 4,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 10),
-            ],
-            if (locked) ...[
-              Icon(
-                Icons.lock_outline_rounded,
-                size: 11,
-                color: Colors.white.withValues(alpha: .30),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Text(label, textAlign: TextAlign.right, style: style),
+            ),
+            const SizedBox(width: 10),
           ],
-        ),
+          if (locked) ...[
+            Icon(
+              Icons.lock_outline_rounded,
+              size: 11,
+              color: Colors.white.withValues(alpha: .30),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: style,
+            ),
+          ),
+        ],
       ),
     );
     if (onTap == null) return row;
@@ -219,36 +224,19 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
     final totalItems =
         selectable.length + 1 + (_unavailableCount > 0 ? 1 : 0);
     return SizedBox(
-      height: _rowHeight * 5,
-      child: ShaderMask(
-        blendMode: BlendMode.dstIn,
-        shaderCallback: (rect) => LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: _atEnd
-              ? const <Color>[
-                  Color(0xFFFFFFFF),
-                  Color(0xFFFFFFFF),
-                  Color(0x00FFFFFF),
-                ]
-              : const <Color>[
-                  Color(0x00FFFFFF),
-                  Color(0xFFFFFFFF),
-                  Color(0xFFFFFFFF),
-                ],
-          stops: _atEnd
-              ? const <double>[0, .20, 1]
-              : const <double>[0, .80, 1],
-        ).createShader(rect),
-        child: ListView.builder(
-          key: const ValueKey<String>('pandora-model-picker-list'),
-          controller: _scrollController,
-          reverse: true,
-          itemExtent: _rowHeight,
-          padding: EdgeInsets.zero,
-          physics: const ClampingScrollPhysics(),
-          itemCount: totalItems,
-          itemBuilder: (context, index) {
+      height: _rowHeight * 6,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ListView.builder(
+              key: const ValueKey<String>('pandora-model-picker-list'),
+              controller: _scrollController,
+              reverse: true,
+              itemExtent: _rowHeight,
+              padding: EdgeInsets.zero,
+              physics: const ClampingScrollPhysics(),
+              itemCount: totalItems,
+              itemBuilder: (context, index) {
             if (index < selectable.length) {
               final model = selectable[index];
               return _selectionRow(
@@ -294,8 +282,40 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
               selected: false,
               unavailableSummary: true,
             );
-          },
-        ),
+              },
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: _atEnd ? null : 0,
+            bottom: _atEnd ? 0 : null,
+            height: 136,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                key: ValueKey<String>(
+                  _atEnd
+                      ? 'pandora-model-picker-bottom-mask'
+                      : 'pandora-model-picker-top-mask',
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: _atEnd
+                        ? Alignment.bottomCenter
+                        : Alignment.topCenter,
+                    end: _atEnd
+                        ? Alignment.topCenter
+                        : Alignment.bottomCenter,
+                    colors: const <Color>[
+                      Color(0xFF0A0A0A),
+                      Color(0x000A0A0A),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

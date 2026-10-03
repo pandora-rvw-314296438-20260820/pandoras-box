@@ -62,8 +62,8 @@ test('mobile can submit redirect constraint and cancel while the active turn rem
   assert.match(chat, /PandoraActivityControlType\.constraint/);
   assert.match(chat, /PandoraActivityControlType\.cancel/);
   assert.match(chat, /Icons\.stop_rounded/);
-  assert.match(chat, /final voiceReady =\s*compact && !submitting && empty/);
+  assert.match(chat, /final voiceReady =\s*!submitting && empty/);
   assert.match(chat, /final cancelReady = submitting && empty/);
-  assert.match(chat, /onPressed:\s*disabled[\s\S]*?voiceReady \? onDictate : onSubmit/);
+  assert.match(chat, /onPressed:\s*disabled \? null : action/);
   assert.doesNotMatch(chat, /onPressed: disabled \|\| submitting \? null : onSubmit/);
 });

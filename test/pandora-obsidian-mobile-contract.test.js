@@ -34,8 +34,8 @@ test('chat landing is logo-only with a bare borderless always-live composer', ()
   );
   assert.match(chat, /Message Pandora…/);
   assert.match(chat, /border:\s*compact[\s\S]*?\? null/);
-  assert.ok((chat.match(/compact:\s*true/g) ?? []).length >= 2);
-  assert.match(chat, /final voiceReady =\s*compact && !submitting && empty/);
+  assert.match(chat, /ask-pandora-composer/);
+  assert.match(chat, /final voiceReady =\s*!submitting && empty/);
   assert.match(chat, /tooltip: voiceReady[\s\S]*?'Voice input'[\s\S]*?'Send'/);
   assert.doesNotMatch(chat, /backgroundColor:\s*Colors\.white/);
   assert.doesNotMatch(chat, /WebView|InAppWebView/);

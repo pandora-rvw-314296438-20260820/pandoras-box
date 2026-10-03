@@ -76,12 +76,12 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   Map<String, Object?>? _activeEnterpriseContext;
   EnterpriseWorkspaceSelection? _activeWorkspaceSelection;
   Map<String, String> _surfaceSelectedObject = const <String, String>{};
-  final Set<int> _visited = <int>{9};
+  final Set<int> _visited = <int>{0};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
   bool _historyLoading = false;
   bool _historyLoaded = false;
-  int _index = 9;
+  int _index = 0;
   final _drawerScrollController = ScrollController();
   final _recentChatsScrollController = ScrollController();
   bool _drawerOpenScheduled = false;
@@ -142,7 +142,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.screenViewed,
-        resultClass: 'enterprise_home',
+        resultClass: 'pandora_chat',
       ),
     );
   }

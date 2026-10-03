@@ -37,7 +37,7 @@ test('mobile composer consumes sent text immediately and preserves a typed follo
   assert.ok(submit.indexOf('_objective.clear();') < submit.indexOf('intelligence.startChatExecution('));
   assert.match(
     chat,
-    /hintText:\s*submitting\s*\?\s*'Follow up'\s*:\s*\(compact[\s\S]*?'Message Pandora…'[\s\S]*?'Message Pandora'\)/s,
+    /hintText:\s*submitting\s*\?\s*'Follow up'\s*:\s*'Message Pandora…'/s,
   );
 });
 

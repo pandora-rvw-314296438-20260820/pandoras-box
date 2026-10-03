@@ -783,6 +783,18 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     String objective, {
     bool forceLocal = false,
   }) async {
+    final localEnabled = await PandoraLocalAiPreference.load();
+    if (!localEnabled) {
+      if (forceLocal) {
+        _recordTurnFailure(
+          objective,
+          'Phone AI is off. Turn it on in Settings or choose Auto.',
+          retryable: false,
+        );
+        return true;
+      }
+      return false;
+    }
     final status = await (() async {
       try {
         return await PandoraLocalAi.instance.status();
@@ -1979,21 +1991,22 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 fit: StackFit.expand,
                 children: [
                   Positioned.fill(child: conversationContent),
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: KeyedSubtree(
-                      key: _headerKey,
-                      child: _ChatHeader(
-                        active: conversationActive,
-                        minimal: true,
-                        onNewChat: newChat,
-                        onSearchChats: widget.onSearchChats,
-                        onMore: widget.onMore,
+                  if (_shellHistoryExpanded)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: KeyedSubtree(
+                        key: _headerKey,
+                        child: _ChatHeader(
+                          active: conversationActive,
+                          minimal: true,
+                          onNewChat: newChat,
+                          onSearchChats: widget.onSearchChats,
+                          onMore: widget.onMore,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

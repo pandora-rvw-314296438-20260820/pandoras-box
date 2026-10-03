@@ -26,10 +26,12 @@ test('Pandora chat is an explicit ProjectOS intake source', () => {
   }
 });
 
-test('mobile chat uses the requested temporary-chat and cube controls', () => {
+test('mobile chat keeps temporary-chat plus approved compact composer controls', () => {
   assert.match(mobile, /tooltip: 'Temporary chat'/);
   assert.match(mobile, /Icons\.history_toggle_off_rounded/);
-  assert.match(mobile, /Icons\.view_in_ar_outlined/);
+  assert.match(mobile, /ask-pandora-plus/);
+  assert.match(mobile, /ask-pandora-model-control/);
+  assert.match(mobile, /Icons\.tune_rounded/);
+  assert.match(mobile, /Icons\.mic_none_rounded/);
   assert.doesNotMatch(mobile, /Icons\.edit_square/);
-  assert.doesNotMatch(mobile, /icon: const Icon\(Icons\.add_rounded\),/);
 });
