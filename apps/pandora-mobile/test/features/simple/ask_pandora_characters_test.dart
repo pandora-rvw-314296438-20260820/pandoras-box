@@ -8,8 +8,7 @@ import '../../helpers/fake_owner_api.dart';
 import '../../helpers/test_app.dart';
 
 void main() {
-  testWidgets('Characters appears in composer and selects Melodee',
-      (tester) async {
+  testWidgets('Characters is not exposed in the composer menu', (tester) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
     await tester.pumpWidget(
       testApp(
@@ -32,27 +31,15 @@ void main() {
       find.byKey(const ValueKey<String>('ask-pandora-plus')),
       findsOneWidget,
     );
+
     await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-plus')));
     await tester.pumpAndSettle();
+
     expect(
       find.byKey(const ValueKey<String>('ask-pandora-menu-characters')),
-      findsOneWidget,
+      findsNothing,
     );
-
-    await tester.tap(
-      find.byKey(const ValueKey<String>('ask-pandora-menu-characters')),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Characters'), findsWidgets);
-    expect(find.text('Melodee'), findsOneWidget);
-
-    await tester.tap(find.text('Melodee'));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey<String>('ask-pandora-character-context')),
-      findsOneWidget,
-    );
-    expect(find.text('Character · Melodee'), findsOneWidget);
+    expect(find.text('Characters'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
