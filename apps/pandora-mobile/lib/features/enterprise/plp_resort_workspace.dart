@@ -4,12 +4,14 @@ class PlpResortSection {
   const PlpResortSection({
     required this.id,
     required this.label,
+    required this.headerTitle,
     required this.icon,
     required this.commandHint,
   });
 
   final String id;
   final String label;
+  final String headerTitle;
   final IconData icon;
   final String commandHint;
 }
@@ -18,46 +20,55 @@ const plpResortSections = <PlpResortSection>[
   PlpResortSection(
       id: 'today',
       label: 'Today',
+      headerTitle: 'RESORT STATUS',
       icon: Icons.wb_sunny_outlined,
       commandHint: 'Ask what matters today…'),
   PlpResortSection(
       id: 'stays',
       label: 'Stays',
+      headerTitle: 'STAYS',
       icon: Icons.event_available_outlined,
       commandHint: 'Ask about a stay or arrival…'),
   PlpResortSection(
       id: 'rooms',
       label: 'Rooms',
+      headerTitle: 'ROOMS & HOUSEKEEPING',
       icon: Icons.bed_outlined,
       commandHint: 'Ask about rooms or housekeeping…'),
   PlpResortSection(
       id: 'guests',
       label: 'Guests',
+      headerTitle: 'GUESTS',
       icon: Icons.person_outline_rounded,
       commandHint: 'Ask about a guest or request…'),
   PlpResortSection(
       id: 'operations',
       label: 'Operations',
+      headerTitle: 'OPERATIONS',
       icon: Icons.hub_outlined,
       commandHint: 'Ask about resort operations…'),
   PlpResortSection(
       id: 'revenue',
       label: 'Revenue',
+      headerTitle: 'REVENUE',
       icon: Icons.insights_outlined,
       commandHint: 'Ask about revenue or availability…'),
   PlpResortSection(
       id: 'experiences',
       label: 'Experiences',
+      headerTitle: 'EXPERIENCES',
       icon: Icons.spa_outlined,
       commandHint: 'Ask about concierge or experiences…'),
   PlpResortSection(
       id: 'team',
       label: 'Team',
+      headerTitle: 'TEAM & ACCESS',
       icon: Icons.groups_outlined,
       commandHint: 'Ask about team or access…'),
   PlpResortSection(
       id: 'activity',
       label: 'Activity',
+      headerTitle: 'ACTIVITY & AUDIT',
       icon: Icons.history_rounded,
       commandHint: 'Ask what changed recently…'),
 ];
@@ -84,6 +95,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     this.onOpenGuestExperience,
     this.onOpenTeam,
     this.onOpenActivity,
+    this.onOpenSourceSettings,
   });
 
   final PlpResortSection section;
@@ -98,6 +110,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   final VoidCallback? onOpenGuestExperience;
   final VoidCallback? onOpenTeam;
   final VoidCallback? onOpenActivity;
+  final VoidCallback? onOpenSourceSettings;
 
   static const canvas = Color(0xFFFAF7F1);
   static const paper = Color(0xFFFFFDFC);
@@ -144,18 +157,8 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
               48 + MediaQuery.viewPaddingOf(context).bottom,
             ),
             children: [
-              _ResortHeader(
-                section: section,
-                propertyName: _text(
-                  _map(bootstrap['organization'])['propertyName'],
-                  fallback: 'Pueblo La Perla',
-                ),
-                sourceState: _text(
-                  _map(bootstrap['sourceHealth'])['state'],
-                  fallback: 'unknown',
-                ),
-              ),
-              const SizedBox(height: 26),
+              _ResortHeader(section: section),
+              const SizedBox(height: 12),
               ...children,
             ],
           ),
@@ -173,27 +176,159 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     return const {'healthy', 'current', 'live', 'ready'}.contains(sourceState);
   }
 
+  bool get _cachedOperationalSnapshot =>
+      bootstrap['offlineBootstrap'] == true;
+
+  bool get _operationalSnapshotAvailable =>
+      _liveOperationalDataAvailable || _cachedOperationalSnapshot;
+
+  List<Widget> _sourceContextPrelude() {
+    if (!_cachedOperationalSnapshot) return const <Widget>[];
+    return const <Widget>[
+      _SourceBand(
+        state: 'cached_offline',
+        message:
+            'Showing the last verified resort snapshot. Live changes are unavailable until the resort source reconnects.',
+      ),
+      SizedBox(height: 14),
+    ];
+  }
+
+  List<Widget> _sourceAvailableActions() {
+    switch (section.id) {
+      case 'stays':
+        if (onCreateReservation == null) return const <Widget>[];
+        return <Widget>[
+          _ActionBar(
+            label: 'New reservation',
+            icon: Icons.add_circle_outline_rounded,
+            onTap: onCreateReservation!,
+          ),
+        ];
+      case 'rooms':
+        return <Widget>[
+          _CapabilityGrid(items: <_Capability>[
+            _Capability(
+              'Housekeeping',
+              Icons.cleaning_services_outlined,
+              onOpenModule == null
+                  ? null
+                  : () => onOpenModule!.call('housekeeping'),
+            ),
+            _Capability(
+              'Maintenance',
+              Icons.build_outlined,
+              onOpenModule == null
+                  ? null
+                  : () => onOpenModule!.call('maintenance'),
+            ),
+            _Capability(
+              'Linen',
+              Icons.local_laundry_service_outlined,
+              onOpenModule == null ? null : () => onOpenModule!.call('linen'),
+            ),
+          ]),
+        ];
+      case 'guests':
+        return <Widget>[
+          _CapabilityGrid(items: <_Capability>[
+            _Capability(
+              'Concierge',
+              Icons.support_agent_outlined,
+              onOpenModule == null
+                  ? null
+                  : () => onOpenModule!.call('concierge'),
+            ),
+            _Capability(
+              'Transfers',
+              Icons.airport_shuttle_outlined,
+              onOpenModule == null
+                  ? null
+                  : () => onOpenModule!.call('transfers'),
+            ),
+          ]),
+        ];
+      case 'revenue':
+        return <Widget>[
+          _CapabilityGrid(items: <_Capability>[
+            _Capability(
+              'Rates',
+              Icons.sell_outlined,
+              onOpenModule == null ? null : () => onOpenModule!.call('rates'),
+            ),
+            _Capability(
+              'Channels',
+              Icons.hub_outlined,
+              onOpenModule == null
+                  ? null
+                  : () => onOpenModule!.call('channels'),
+            ),
+            _Capability(
+              'Forecast',
+              Icons.timeline_outlined,
+              onOpenModule == null
+                  ? null
+                  : () => onOpenModule!.call('forecast'),
+            ),
+          ]),
+        ];
+      case 'experiences':
+        return <Widget>[
+          _CapabilityGrid(items: <_Capability>[
+            _Capability(
+              'Concierge',
+              Icons.support_agent_outlined,
+              onOpenModule == null
+                  ? null
+                  : () => onOpenModule!.call('concierge'),
+            ),
+            _Capability(
+              'Dining',
+              Icons.restaurant_outlined,
+              onOpenModule == null ? null : () => onOpenModule!.call('dining'),
+            ),
+            _Capability(
+              'Wellness',
+              Icons.spa_outlined,
+              onOpenModule == null
+                  ? null
+                  : () => onOpenModule!.call('wellness'),
+            ),
+          ]),
+        ];
+      default:
+        return const <Widget>[];
+    }
+  }
+
   List<Widget> _sourceUnavailable({
     required String eyebrow,
-    required String title,
     required String detail,
     bool includeWorkspaceRail = false,
   }) {
-    final sourceState = _text(
-      _map(bootstrap['sourceHealth'])['state'],
-      fallback: 'unknown',
+    final source = _map(bootstrap['sourceHealth']);
+    final sourceState = _text(source['state'], fallback: 'unknown');
+    final provider = _humanStatus(
+      _text(source['sourceProvider'], fallback: 'Resort source'),
     );
-    return [
-      _HeroLine(eyebrow: eyebrow, title: title),
-      const SizedBox(height: 18),
-      _SourceBand(
+    final availableActions = _sourceAvailableActions();
+    return <Widget>[
+      _SourceRecoveryPanel(
+        source: provider,
         state: sourceState,
-        message: _clientSourceMessage(sourceState),
+        affectedArea: eyebrow,
+        unavailable: detail,
+        remainsAvailable:
+            'Pandora, team access, manual resort work, and verified history remain available.',
+        onRefresh: onRefresh,
+        onOpenSettings: onOpenSourceSettings,
       ),
-      const SizedBox(height: 16),
-      _EmptyState(detail),
+      if (availableActions.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        ...availableActions,
+      ],
       if (includeWorkspaceRail) ...[
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
         const _SectionHeader('RESORT WORKSPACES'),
         const SizedBox(height: 10),
         _SectionLaunchRail(onOpen: onOpenSection),
@@ -202,13 +337,11 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _today() {
-    if (!_liveOperationalDataAvailable) {
+    if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'RESORT STATUS',
-        title: 'Today',
         detail:
-            'Live occupancy, arrivals, room availability, and sales are hidden '
-            'until a verified resort source is connected.',
+            'Live occupancy, arrivals, room availability, and sales are unavailable until a verified resort source is connected.',
         includeWorkspaceRail: true,
       );
     }
@@ -220,30 +353,28 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final source = _map(bootstrap['sourceHealth']);
     final directSourceEmpty =
         _text(source['sourceProvider'], fallback: '').toLowerCase() ==
-            'pandora_direct' &&
-        _number(pulse['total'], fallback: _number(today['rooms_total'])) == 0;
+                'pandora_direct' &&
+            _number(pulse['total'], fallback: _number(today['rooms_total'])) == 0;
     if (directSourceEmpty) {
-      return [
-        const _HeroLine(eyebrow: 'RESORT STATUS', title: 'Today'),
-        const SizedBox(height: 18),
-        _SourceBand(
-          state: _text(source['state'], fallback: 'healthy'),
-          message: _clientSourceMessage(
-            _text(source['state'], fallback: 'healthy'),
-          ),
+      return <Widget>[
+        _SourceRecoveryPanel(
+          source: 'Pandora Direct',
+          state: _text(source['state'], fallback: 'connected'),
+          affectedArea: 'RESORT STATUS',
+          unavailable:
+              'No customer room or reservation records have been entered yet, so occupancy, availability, arrivals, and sales cannot be shown.',
+          remainsAvailable:
+              'Pandora, team access, manual resort work, and setup actions remain available.',
+          onRefresh: onRefresh,
+          onOpenSettings: onOpenSourceSettings,
         ),
-        const SizedBox(height: 16),
-        const _EmptyState(
-          'Pandora Direct is connected and isolated to this resort. '
-          'No customer room or reservation records have been entered yet, '
-          'so Pandora will not invent occupancy, availability, or sales.',
-        ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
         const _SectionHeader('RESORT WORKSPACES'),
         const SizedBox(height: 10),
         _SectionLaunchRail(onOpen: onOpenSection),
       ];
     }
+
     final operations = _map(command['operations']);
     final inHouse = _clientRecords(_maps(guest['inHouse']));
     final arrivals = _clientRecords(_maps(guest['arrivals']));
@@ -268,51 +399,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       fallback: _number(today['open_ota_conflicts']),
     );
 
-    return [
-      const _HeroLine(
-        eyebrow: 'RESORT STATUS',
-        title: 'Today',
-      ),
-      const SizedBox(height: 18),
-      _MetricRail(
-        items: [
-          _Metric(
-            'Occupancy',
-            _text(today['occupancy_percent'], fallback: '0') + '%',
-            _integer(occupied) + ' of ' + _integer(total),
-          ),
-          _Metric('Available', _integer(available), 'rooms'),
-          _Metric(
-            'Arrivals',
-            _integer(
-              _number(today['arrivals_today'], fallback: arrivals.length),
-            ),
-            'today',
-          ),
-          _Metric('Open work', _integer(openWork), 'items'),
-          _Metric('Sales today', _peso(today['sales_today_php']), 'recorded'),
-        ],
-      ),
-      const SizedBox(height: 24),
-      _MovementPair(
-        arrivals: _integer(
-          _number(today['arrivals_today'], fallback: arrivals.length),
-        ),
-        departures: _integer(
-          _number(today['departures_today'], fallback: departing.length),
-        ),
-        onArrivals: () => onOpenSection?.call('stays'),
-        onDepartures: () => onOpenSection?.call('stays'),
-      ),
-      const SizedBox(height: 24),
-      _RoomPulse(
-        total: total,
-        occupied: occupied,
-        available: available,
-        arriving: _number(pulse['arriving'], fallback: arrivals.length),
-        departing: _number(pulse['departing'], fallback: departing.length),
-      ),
-      const SizedBox(height: 26),
+    return <Widget>[
       _SectionHeader(
         'NEEDS ATTENTION',
         action: attention.isNotEmpty ? attention.length.toString() : null,
@@ -328,13 +415,53 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           conflicts: conflicts,
           onOpenRecord: onOpenRecord,
         ),
+      const SizedBox(height: 18),
+      ..._sourceContextPrelude(),
+      _MetricRail(
+        items: <_Metric>[
+          _Metric(
+            'Occupancy',
+            _text(today['occupancy_percent'], fallback: '—') + '%',
+            _integer(occupied) + ' of ' + _integer(total),
+          ),
+          _Metric('Available', _integer(available), 'rooms'),
+          _Metric(
+            'Arrivals',
+            _integer(
+              _number(today['arrivals_today'], fallback: arrivals.length),
+            ),
+            'today',
+          ),
+          _Metric('Open work', _integer(openWork), 'items'),
+          _Metric('Sales today', _peso(today['sales_today_php']), 'recorded'),
+        ],
+      ),
+      const SizedBox(height: 18),
+      _MovementPair(
+        arrivals: _integer(
+          _number(today['arrivals_today'], fallback: arrivals.length),
+        ),
+        departures: _integer(
+          _number(today['departures_today'], fallback: departing.length),
+        ),
+        onArrivals: () => onOpenSection?.call('stays'),
+        onDepartures: () => onOpenSection?.call('stays'),
+      ),
+      const SizedBox(height: 18),
+      _RoomPulse(
+        total: total,
+        occupied: occupied,
+        available: available,
+        arriving: _number(pulse['arriving'], fallback: arrivals.length),
+        departing: _number(pulse['departing'], fallback: departing.length),
+      ),
       if (inHouse.isNotEmpty) ...[
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
         _SectionHeader('IN HOUSE', action: inHouse.length.toString()),
         const SizedBox(height: 10),
         _GuestStrip(items: inHouse),
       ],
-      const SizedBox(height: 28),
+      const SizedBox(height: 20),
       const _SectionHeader('RESORT WORKSPACES'),
       const SizedBox(height: 10),
       _SectionLaunchRail(onOpen: onOpenSection),
@@ -342,10 +469,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _stays() {
-    if (!_liveOperationalDataAvailable) {
+    if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'RESERVATIONS & STAYS',
-        title: 'Stays',
         detail:
             'Live arrivals, departures, in-house guests, and stays are unavailable until a verified resort source is connected.',
       );
@@ -357,11 +483,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final inHouse = _clientRecords(_maps(guest['inHouse']));
     final departing = _clientRecords(_maps(guest['departing']));
     return [
-      const _HeroLine(
-        eyebrow: 'RESERVATIONS & STAYS',
-        title: 'Stays',
-      ),
-      const SizedBox(height: 18),
+      ..._sourceContextPrelude(),
       _MetricRail(
         items: [
           _Metric('Arriving', arrivals.length.toString(), 'today'),
@@ -378,7 +500,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           onTap: onCreateReservation!,
         ),
       ],
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
       _SectionHeader(
         'UPCOMING & ACTIVE',
         action: stays.isNotEmpty ? stays.length.toString() : null,
@@ -395,10 +517,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _rooms() {
-    if (!_liveOperationalDataAvailable) {
+    if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'PROPERTY OPERATIONS',
-        title: 'Rooms & housekeeping',
         detail:
             'Live room occupancy and availability are unavailable until a verified resort source is connected.',
       );
@@ -421,11 +542,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       fallback: _number(today['rooms_available']),
     );
     return [
-      const _HeroLine(
-        eyebrow: 'PROPERTY OPERATIONS',
-        title: 'Rooms & housekeeping',
-      ),
-      const SizedBox(height: 18),
+      ..._sourceContextPrelude(),
       _RoomPulse(
         total: total,
         occupied: occupied,
@@ -433,7 +550,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         arriving: _number(pulse['arriving']),
         departing: _number(pulse['departing']),
       ),
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
       _SectionHeader(
         'ROOM BOARD',
         action: rooms.isNotEmpty ? rooms.length.toString() : null,
@@ -448,7 +565,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           rooms: rooms,
           onOpen: (room) => onOpenRecord?.call('room', room),
         ),
-      const SizedBox(height: 30),
+      const SizedBox(height: 22),
       _CapabilityGrid(
         items: [
           _Capability(
@@ -479,10 +596,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _guests() {
-    if (!_liveOperationalDataAvailable) {
+    if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'GUEST OPERATIONS',
-        title: 'Guests',
         detail:
             'Live guest presence, arrivals, and requests are unavailable until a verified resort source is connected.',
       );
@@ -493,11 +609,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final arrivals = _clientRecords(_maps(guest['arrivals']));
     final requests = _clientRecords(_maps(command['experienceSignals']));
     return [
-      const _HeroLine(
-        eyebrow: 'GUEST OPERATIONS',
-        title: 'Guests',
-      ),
-      const SizedBox(height: 18),
+      ..._sourceContextPrelude(),
       _MetricRail(
         items: [
           _Metric('In house', inHouse.length.toString(), 'guests'),
@@ -506,7 +618,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ],
       ),
       if (inHouse.isNotEmpty) ...[
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         _SectionHeader(
           'CURRENT GUESTS',
           action: inHouse.length.toString(),
@@ -515,7 +627,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         _GuestStrip(items: inHouse),
       ],
       if (arrivals.isNotEmpty) ...[
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         _SectionHeader(
           'ARRIVING TODAY',
           action: arrivals.length.toString(),
@@ -523,7 +635,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         const SizedBox(height: 10),
         _GuestStrip(items: arrivals),
       ],
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
       _SectionHeader(
         'REQUESTS & PREFERENCES',
         action: requests.isNotEmpty ? requests.length.toString() : null,
@@ -536,7 +648,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           items: requests,
           onOpen: (request) => onOpenRecord?.call('request', request),
         ),
-      const SizedBox(height: 30),
+      const SizedBox(height: 22),
       _CapabilityGrid(
         items: [
           _Capability(
@@ -575,11 +687,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final guest = _map(bootstrap['guestExperience']);
     final attention = _clientRecords(_maps(guest['attention']));
     return [
-      const _HeroLine(
-        eyebrow: 'LIVE WORK',
-        title: 'Operations',
-      ),
-      const SizedBox(height: 18),
       _MetricRail(
         items: [
           _Metric(
@@ -601,7 +708,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           ),
         ],
       ),
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
       _SectionHeader(
         'ACTIVE WORK',
         action: attention.isNotEmpty ? attention.length.toString() : null,
@@ -621,7 +728,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           conflicts: _number(operations['channelExceptions']),
           onOpenRecord: onOpenRecord,
         ),
-      const SizedBox(height: 30),
+      const SizedBox(height: 22),
       _CapabilityGrid(
         items: [
           _Capability(
@@ -653,10 +760,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _revenue() {
-    if (!_liveOperationalDataAvailable) {
+    if (!_operationalSnapshotAvailable) {
       return _sourceUnavailable(
         eyebrow: 'COMMERCIAL',
-        title: 'Revenue',
         detail:
             'Live sales, occupancy, channel, and booking-value metrics are unavailable until a verified resort source is connected.',
       );
@@ -666,11 +772,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final finance = _map(command['finance']);
     final operations = _map(command['operations']);
     return [
-      const _HeroLine(
-        eyebrow: 'COMMERCIAL',
-        title: 'Revenue',
-      ),
-      const SizedBox(height: 18),
+      ..._sourceContextPrelude(),
       _MetricRail(
         items: [
           _Metric('Sales today', _peso(today['sales_today_php']), 'recorded'),
@@ -686,7 +788,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           ),
         ],
       ),
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
       const _SectionHeader('NEXT 30 DAYS'),
       const SizedBox(height: 10),
       _MoneyBand(
@@ -703,7 +805,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         value: _peso(finance['paidValue30dPhp']),
         tone: good,
       ),
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
       _CapabilityGrid(
         items: [
           _Capability(
@@ -732,15 +834,14 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _experiences() {
-    if (!_liveOperationalDataAvailable) {
+    if (!_operationalSnapshotAvailable) {
       return [
         ..._sourceUnavailable(
           eyebrow: 'SERVICE DELIVERY',
-          title: 'Guest experiences',
           detail: 'Live guest requests and preferences are unavailable until a '
               'verified resort source is connected.',
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         _CapabilityGrid(
           items: [
             _Capability('Concierge', Icons.support_agent_outlined,
@@ -763,11 +864,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       _maps(_map(bootstrap['resortCommandCenter'])['experienceSignals']),
     );
     return [
-      const _HeroLine(
-        eyebrow: 'SERVICE DELIVERY',
-        title: 'Guest experiences',
-      ),
-      const SizedBox(height: 18),
+      ..._sourceContextPrelude(),
       _CapabilityGrid(
         items: [
           _Capability(
@@ -829,7 +926,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           ),
         ],
       ),
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
       _SectionHeader(
         'GUEST REQUESTS',
         action: requests.isNotEmpty ? requests.length.toString() : null,
@@ -857,11 +954,6 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         )
         .length;
     return [
-      const _HeroLine(
-        eyebrow: 'PEOPLE & PERMISSIONS',
-        title: 'Team & access',
-      ),
-      const SizedBox(height: 18),
       _MetricRail(
         items: [
           _Metric('Active', active.toString(), 'people'),
@@ -869,7 +961,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           _Metric('Admins', administrators.toString(), 'owner / admin'),
         ],
       ),
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
       _SectionHeader('TEAM MEMBERS', action: members.length.toString()),
       const SizedBox(height: 8),
       if (members.isEmpty)
@@ -877,7 +969,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       else
         _MemberStrip(items: members),
       if (activity.isNotEmpty) ...[
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         const _SectionHeader('RECENT TEAM ACTIVITY'),
         const SizedBox(height: 8),
         _ActivityList(items: activity),
@@ -894,55 +986,41 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   List<Widget> _activity() {
-    final source = _map(bootstrap['sourceHealth']);
-    final team = _map(bootstrap['teamAccess']);
-    final teamActivity = _clientRecords(_maps(team['recentActivity']));
-    final auditItems = _maps(_map(bootstrap['resortAudit'])['items'])
+    final rawActivity = bootstrap['verifiedActivity'];
+    final loaded = rawActivity is Map;
+    final verified = loaded
+        ? _clientRecords(_maps(_map(rawActivity)['items']))
+        : const <Map<String, Object?>>[];
+    final rows = verified
         .map(
           (item) => <String, Object?>{
-            'title': _humanStatus(item['action']),
-            'actor': _humanStatus(item['actorRole']),
-            'status': _truthy(item['providerReadbackVerified'])
-                ? 'verified'
-                : 'unverified',
-            'category': item['entityKind'],
-            'updatedAt': item['createdAt'],
+            'title': item['title'],
+            'actor': item['sourceLabel'],
+            'status': 'verified',
+            'category': item['category'],
+            'updatedAt': item['occurredAt'],
           },
         )
         .toList(growable: false);
-    final sourceState = _text(source['state'], fallback: 'unknown');
-    return [
-      const _HeroLine(
-        eyebrow: 'VERIFIED HISTORY',
-        title: 'Activity & audit',
-      ),
-      const SizedBox(height: 18),
-      _SourceBand(
-        state: sourceState,
-        message: _clientSourceMessage(sourceState),
-      ),
-      const SizedBox(height: 24),
+
+    return <Widget>[
       _SectionHeader(
-        'RESORT CHANGES',
-        action: auditItems.isNotEmpty ? auditItems.length.toString() : null,
+        'VERIFIED ACTIVITY',
+        action: rows.isNotEmpty ? rows.length.toString() : null,
       ),
       const SizedBox(height: 8),
-      if (auditItems.isEmpty)
-        const _EmptyState('No verified resort change has been recorded yet.')
+      if (!loaded)
+        const _EmptyState(
+          'Verified resort activity is temporarily unavailable. Refresh or open the activity feed to try again.',
+        )
+      else if (rows.isEmpty)
+        const _EmptyState(
+          'No verified production activity has been recorded yet.',
+        )
       else
-        _ActivityList(items: auditItems),
-      const SizedBox(height: 24),
-      _SectionHeader(
-        'TEAM ACTIVITY',
-        action: teamActivity.isNotEmpty ? teamActivity.length.toString() : null,
-      ),
-      const SizedBox(height: 8),
-      if (teamActivity.isEmpty)
-        const _EmptyState('No recent team activity is available.')
-      else
-        _ActivityList(items: teamActivity),
+        _ActivityList(items: rows),
       if (onOpenActivity != null) ...[
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
         _ActionBar(
           label: 'Open verified activity feed',
           icon: Icons.fact_check_outlined,
@@ -950,139 +1028,33 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ),
       ],
     ];
-  }}
-
-class _ResortHeader extends StatelessWidget {
-  const _ResortHeader({
-    required this.section,
-    required this.propertyName,
-    required this.sourceState,
-  });
-
-  final PlpResortSection section;
-  final String propertyName;
-  final String sourceState;
-
-  @override
-  Widget build(BuildContext context) {
-    final healthy = sourceState.toLowerCase() == 'healthy';
-    return Row(
-      children: [
-        const SizedBox(width: 56),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                propertyName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: PlpResortWorkspaceScreen.ink,
-                  fontFamily: 'serif',
-                  fontSize: 21,
-                  height: 1,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -.35,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                section.label.toUpperCase(),
-                style: const TextStyle(
-                  color: PlpResortWorkspaceScreen.accent,
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.7,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: healthy
-                ? PlpResortWorkspaceScreen.good
-                : PlpResortWorkspaceScreen.warn,
-          ),
-        ),
-      ],
-    );
   }
 }
 
-class _HeroLine extends StatelessWidget {
-  const _HeroLine({
-    required this.eyebrow,
-    required this.title,
-    this.subtitle,
-    this.trailing,
-  });
+class _ResortHeader extends StatelessWidget {
+  const _ResortHeader({required this.section});
 
-  final String eyebrow;
-  final String title;
-  final String? subtitle;
-  final String? trailing;
+  final PlpResortSection section;
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => Row(
         children: [
-          Text(
-            eyebrow,
-            style: const TextStyle(
-              color: PlpResortWorkspaceScreen.accent,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  key: const ValueKey('plp-resort-hero'),
-                  style: const TextStyle(
-                    color: PlpResortWorkspaceScreen.ink,
-                    fontFamily: 'serif',
-                    fontSize: 30,
-                    height: 1.02,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: -.8,
-                  ),
-                ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 12),
-                Text(
-                  trailing!,
-                  style: const TextStyle(
-                    color: PlpResortWorkspaceScreen.ink,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              subtitle!,
+          const SizedBox(width: 56),
+          Expanded(
+            child: Text(
+              section.headerTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: PlpResortWorkspaceScreen.muted,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.7,
+                color: PlpResortWorkspaceScreen.ink,
+                fontFamily: 'serif',
+                fontSize: 21,
+                height: 1,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -.35,
               ),
             ),
-          ],
+          ),
         ],
       );
 }
@@ -1100,7 +1072,7 @@ class _MetricRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 102,
+        height: 92,
         child: ListView.separated(
           key: const ValueKey('plp-metric-rail'),
           scrollDirection: Axis.horizontal,
@@ -1137,7 +1109,7 @@ class _MetricRail extends StatelessWidget {
                     style: const TextStyle(
                       color: PlpResortWorkspaceScreen.ink,
                       fontFamily: 'serif',
-                      fontSize: 25,
+                      fontSize: 23,
                       height: 1,
                     ),
                   ),
@@ -2070,6 +2042,111 @@ class _ActionBar extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      );
+}
+
+class _SourceRecoveryPanel extends StatelessWidget {
+  const _SourceRecoveryPanel({
+    required this.source,
+    required this.state,
+    required this.affectedArea,
+    required this.unavailable,
+    required this.remainsAvailable,
+    required this.onRefresh,
+    this.onOpenSettings,
+  });
+
+  final String source;
+  final String state;
+  final String affectedArea;
+  final String unavailable;
+  final String remainsAvailable;
+  final VoidCallback onRefresh;
+  final VoidCallback? onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const ValueKey<String>('plp-source-recovery'),
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: PlpResortWorkspaceScreen.paper,
+          border: Border.fromBorderSide(
+            BorderSide(color: PlpResortWorkspaceScreen.line),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Needs Attention',
+              style: TextStyle(
+                color: PlpResortWorkspaceScreen.ink,
+                fontFamily: 'serif',
+                fontSize: 21,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -.35,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              affectedArea + ' · ' + source + ' · ' + _humanStatus(state),
+              style: const TextStyle(
+                color: PlpResortWorkspaceScreen.accent,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 9),
+            Text(
+              unavailable,
+              style: const TextStyle(
+                color: PlpResortWorkspaceScreen.ink,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              'Still available: ' + remainsAvailable,
+              style: const TextStyle(
+                color: PlpResortWorkspaceScreen.muted,
+                fontSize: 11.5,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onRefresh,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: PlpResortWorkspaceScreen.ink,
+                    side: const BorderSide(
+                      color: PlpResortWorkspaceScreen.accent,
+                    ),
+                  ),
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                  label: const Text('Refresh status'),
+                ),
+                if (onOpenSettings != null)
+                  TextButton.icon(
+                    onPressed: onOpenSettings,
+                    style: TextButton.styleFrom(
+                      foregroundColor: PlpResortWorkspaceScreen.ink,
+                    ),
+                    icon: const Icon(
+                      Icons.settings_input_component_outlined,
+                      size: 17,
+                    ),
+                    label: const Text('Open infrastructure'),
+                  ),
+              ],
+            ),
+          ],
         ),
       );
 }

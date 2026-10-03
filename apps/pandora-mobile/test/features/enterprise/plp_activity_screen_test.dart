@@ -98,9 +98,10 @@ void main() {
       find.byKey(const ValueKey<String>('plp-activity-light-page')),
       findsOneWidget,
     );
-    expect(find.text('Recent activity'), findsOneWidget);
+    expect(find.text('ACTIVITY & AUDIT'), findsOneWidget);
+    expect(find.text('Recent activity'), findsNothing);
     expect(find.text('Verified payment recorded'), findsOneWidget);
-    expect(find.text('Housekeeping completed'), findsOneWidget);
+    expect(find.text('Housekeeping completed'), findsNothing);
     expect(find.text('Booking confirmed'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
@@ -108,7 +109,7 @@ void main() {
       find.byKey(const ValueKey<String>('plp-activity-tab-team')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Housekeeping completed'), findsOneWidget);
+    expect(find.text('Housekeeping completed'), findsNothing);
     expect(find.text('Booking confirmed'), findsNothing);
     expect(tester.takeException(), isNull);
 
