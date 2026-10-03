@@ -15,6 +15,8 @@ class OfflineEvidenceScreen extends StatefulWidget {
 }
 
 class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
+  static const _readTimeout = Duration(seconds: 6);
+
   PandoraRepository? _repository;
   PandoraAuth? _auth;
   StreamSubscription<PandoraSession?>? _authChanges;
@@ -68,48 +70,140 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
       _loading = true;
       _error = null;
     });
-    try {
-      // Independent read-only snapshots share one UI generation. The repository
-      // remains responsible for whether an authorized cached read is allowed.
-      final reads = await Future.wait<_EvidenceRead>([
-        repo.projects(allowCached: true).then(_EvidenceRead.fromSnapshot),
-        repo.connections(allowCached: true).then(_EvidenceRead.fromSnapshot),
-        repo.activity(allowCached: true).then(_EvidenceRead.fromSnapshot),
-      ], eagerError: true);
-      if (!mounted || generation != _generation) return;
+
+    final cacheSource = repo is ReadOnlyEvidenceCacheSource
+        ? repo as ReadOnlyEvidenceCacheSource
+        : null;
+    final reads = <_EvidenceRead?>[
+      _EvidenceRead.fromSnapshotOrNull(cacheSource?.cachedProjects),
+      _EvidenceRead.fromSnapshotOrNull(cacheSource?.cachedConnections),
+      _EvidenceRead.fromSnapshotOrNull(cacheSource?.cachedActivity),
+    ];
+    var completed = 0;
+    var failed = 0;
+    var terminal = false;
+    final done = Completer<void>();
+
+    final cachedPacket = _packetFromReads(reads, incomplete: false);
+    if (cachedPacket != null) {
       setState(() {
-        _packet = _EvidencePacket(
-          projects: reads[0].count,
-          connections: reads[1].count,
-          activity: reads[2].count,
-          cached: reads.any((read) => read.cached),
-          oldestObservation: reads
-              .map((read) => read.fetchedAt)
-              .reduce((left, right) => left.isBefore(right) ? left : right),
-        );
-        _loading = false;
-      });
-    } catch (error) {
-      if (!mounted || generation != _generation) return;
-      setState(() {
-        _loading = false;
-        // Never retain a packet after a failed read, including denied access.
-        // Legitimate offline snapshots are supplied by the repository itself.
-        _packet = null;
-        _error = switch (error) {
-          PandoraApiError(kind: PandoraApiErrorKind.sessionExpired) =>
-            'Sign in again to view evidence.',
-          PandoraApiError(kind: PandoraApiErrorKind.forbidden) =>
-            'Access to this evidence is no longer available.',
-          StaleAuthenticatedIdentityException() =>
-            'Your account changed. Reopen Saved evidence.',
-          _ =>
-            'Evidence could not be refreshed. Check your connection and try again.',
-        };
+        _packet = cachedPacket;
+        _loading = true;
       });
     }
+
+    Future<_EvidenceOutcome> read<T>(
+      int index,
+      Future<RepositorySnapshot<List<T>>> future,
+    ) async {
+      try {
+        final snapshot = await future.timeout(_readTimeout);
+        return _EvidenceOutcome.success(
+            index, _EvidenceRead.fromSnapshot(snapshot));
+      } catch (error) {
+        return _EvidenceOutcome.failure(index, error);
+      }
+    }
+
+    void finish() {
+      if (!done.isCompleted) done.complete();
+    }
+
+    void handle(_EvidenceOutcome outcome) {
+      if (terminal) return;
+      if (!mounted || generation != _generation) {
+        finish();
+        return;
+      }
+      completed++;
+
+      final terminalError = _terminalEvidenceError(outcome.error);
+      if (terminalError != null) {
+        terminal = true;
+        setState(() {
+          _packet = null;
+          _loading = false;
+          _error = terminalError;
+        });
+        finish();
+        return;
+      }
+
+      if (outcome.read != null) {
+        reads[outcome.index] = outcome.read;
+      } else {
+        failed++;
+      }
+
+      final packet = _packetFromReads(reads, incomplete: failed > 0);
+      if (packet != null) {
+        setState(() {
+          _packet = packet;
+          _loading = completed < reads.length;
+          _error = failed > 0
+              ? 'Some evidence could not be refreshed. Available observations are shown below.'
+              : null;
+        });
+      } else if (completed == reads.length) {
+        setState(() {
+          _packet = null;
+          _loading = false;
+          _error =
+              'Evidence could not be refreshed. Check your connection and try again.';
+        });
+      }
+
+      if (completed == reads.length) finish();
+    }
+
+    final pending = <Future<_EvidenceOutcome>>[
+      read(0, repo.projects(allowCached: true)),
+      read(1, repo.connections(allowCached: true)),
+      read(2, repo.activity(allowCached: true)),
+    ];
+    for (final future in pending) {
+      unawaited(future.then(handle));
+    }
+
+    await done.future;
+    if (!mounted || generation != _generation || terminal) return;
+    setState(() {
+      _loading = false;
+      if (_packet != null && failed > 0) {
+        _packet = _packet!.copyWith(incomplete: true);
+        _error =
+            'Some evidence could not be refreshed. Available observations are shown below.';
+      }
+    });
   }
 
+  _EvidencePacket? _packetFromReads(
+    List<_EvidenceRead?> reads, {
+    required bool incomplete,
+  }) {
+    final available = reads.whereType<_EvidenceRead>().toList(growable: false);
+    if (available.isEmpty) return null;
+    return _EvidencePacket(
+      projects: reads[0]?.count,
+      connections: reads[1]?.count,
+      activity: reads[2]?.count,
+      cached: available.any((read) => read.cached),
+      oldestObservation: available
+          .map((read) => read.fetchedAt)
+          .reduce((left, right) => left.isBefore(right) ? left : right),
+      incomplete: incomplete,
+    );
+  }
+
+  String? _terminalEvidenceError(Object? error) => switch (error) {
+        PandoraApiError(kind: PandoraApiErrorKind.sessionExpired) =>
+          'Sign in again to view evidence.',
+        PandoraApiError(kind: PandoraApiErrorKind.forbidden) =>
+          'Access to this evidence is no longer available.',
+        StaleAuthenticatedIdentityException() =>
+          'Your account changed. Reopen Saved evidence.',
+        _ => null,
+      };
   @override
   Widget build(BuildContext context) => PandoraSimplePage(
         header: PandoraOwnerHeader(
@@ -171,7 +265,21 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
           if (_loading) ...[
             const LinearProgressIndicator(),
             const SizedBox(height: 8),
-            const Text('Refreshing evidence…'),
+            const Text('Refreshing remaining evidence…'),
+            const SizedBox(height: 12),
+          ],
+          if (_error != null) ...[
+            PandoraSimpleCard(
+              backgroundColor: PandoraSimpleColors.amberWash,
+              shadow: false,
+              child: Text(
+                _error!,
+                style: const TextStyle(
+                  color: PandoraSimpleColors.ink,
+                  height: 1.35,
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
           ],
           PandoraSimpleCard(
@@ -190,9 +298,11 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
                 ),
                 const SizedBox(height: 7),
                 Text(
-                  p.cached
-                      ? 'Showing earlier observations held in this session. They may be out of date.'
-                      : 'Read-only observations from the latest successful refresh.',
+                  p.incomplete
+                      ? 'Showing the observations that are available. Missing sections are not treated as verified.'
+                      : p.cached
+                          ? 'Showing earlier observations held in this session. They may be out of date.'
+                          : 'Read-only observations from the latest successful refresh.',
                   style: const TextStyle(
                     color: PandoraSimpleColors.muted,
                     height: 1.35,
@@ -242,7 +352,7 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
         ],
       );
 
-  Widget _row(String label, int count) => Padding(
+  Widget _row(String label, int? count) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
@@ -256,10 +366,12 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
               ),
             ),
             Text(
-              '$count',
-              style: const TextStyle(
-                color: PandoraSimpleColors.ink,
-                fontSize: 18,
+              count == null ? 'Unavailable' : '$count',
+              style: TextStyle(
+                color: count == null
+                    ? PandoraSimpleColors.muted
+                    : PandoraSimpleColors.ink,
+                fontSize: count == null ? 13 : 18,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -275,27 +387,55 @@ class _EvidencePacket {
     required this.activity,
     required this.cached,
     required this.oldestObservation,
+    required this.incomplete,
   });
-  final int projects;
-  final int connections;
-  final int activity;
+  final int? projects;
+  final int? connections;
+  final int? activity;
   final bool cached;
   final DateTime oldestObservation;
+  final bool incomplete;
+
+  _EvidencePacket copyWith({bool? incomplete}) => _EvidencePacket(
+        projects: projects,
+        connections: connections,
+        activity: activity,
+        cached: cached,
+        oldestObservation: oldestObservation,
+        incomplete: incomplete ?? this.incomplete,
+      );
 }
 
 class _EvidenceRead {
   const _EvidenceRead(this.count, this.cached, this.fetchedAt);
 
-  static _EvidenceRead fromSnapshot(
-          RepositorySnapshot<List<Object?>> snapshot) =>
+  static _EvidenceRead fromSnapshot<T>(
+          RepositorySnapshot<List<T>> snapshot) =>
       _EvidenceRead(
           snapshot.data.length, snapshot.isCached, snapshot.fetchedAt);
+
+  static _EvidenceRead? fromSnapshotOrNull<T>(
+          RepositorySnapshot<List<T>>? snapshot) =>
+      snapshot == null ? null : fromSnapshot(snapshot);
 
   final int count;
   final bool cached;
   final DateTime fetchedAt;
 }
 
+class _EvidenceOutcome {
+  const _EvidenceOutcome._(this.index, this.read, this.error);
+
+  const _EvidenceOutcome.success(int index, _EvidenceRead read)
+      : this._(index, read, null);
+
+  const _EvidenceOutcome.failure(int index, Object error)
+      : this._(index, null, error);
+
+  final int index;
+  final _EvidenceRead? read;
+  final Object? error;
+}
 String _observationTime(DateTime value) {
   final utc = value.toUtc();
   String two(int number) => number.toString().padLeft(2, '0');

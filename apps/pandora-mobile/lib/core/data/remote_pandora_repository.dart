@@ -14,7 +14,8 @@ class RemotePandoraRepository
         AuthenticatedIdentityBoundary,
         GovernedConnectionActionSource,
         OperationalConflictResolutionSource,
-        UserConnectAuthorizationSource {
+        UserConnectAuthorizationSource,
+        ReadOnlyEvidenceCacheSource {
   RemotePandoraRepository({
     required PandoraApiClient client,
     ReadOnlyMemoryCache? cache,
@@ -40,6 +41,18 @@ class RemotePandoraRepository
   @override
   Stream<AuthorizationInvalidation> get authorizationInvalidations =>
       _authorizationInvalidations.stream;
+
+  @override
+  RepositorySnapshot<List<ProjectSummary>>? get cachedProjects =>
+      _cache.projects?.asDegradedCache('Refreshing current evidence.');
+
+  @override
+  RepositorySnapshot<List<ConnectionSummary>>? get cachedConnections =>
+      _cache.connections?.asDegradedCache('Refreshing current evidence.');
+
+  @override
+  RepositorySnapshot<List<AuditEvent>>? get cachedActivity =>
+      _cache.activity?.asDegradedCache('Refreshing current evidence.');
 
   @override
   Future<RepositorySnapshot<HomeSummary>> home() async {
