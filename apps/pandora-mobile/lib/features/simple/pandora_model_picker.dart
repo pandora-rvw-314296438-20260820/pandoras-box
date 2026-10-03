@@ -442,7 +442,7 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
                         height: 1,
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    SizedBox(height: widget.compactLeftAnchored ? 18 : 24),
                     Text(
                       'Reasoning',
                       textAlign: widget.compactLeftAnchored
@@ -462,13 +462,13 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
                           PandoraIntelligenceMode.auto,
                           const ValueKey<String>('reasoning-picker-balanced'),
                         ),
-                        const SizedBox(width: 14),
+                        SizedBox(width: widget.compactLeftAnchored ? 14 : 18),
                         _reasoningChoice(
                           'Fast',
                           PandoraIntelligenceMode.fast,
                           const ValueKey<String>('reasoning-picker-fast'),
                         ),
-                        const SizedBox(width: 14),
+                        SizedBox(width: widget.compactLeftAnchored ? 14 : 18),
                         _reasoningChoice(
                           'Deep',
                           PandoraIntelligenceMode.deep,
