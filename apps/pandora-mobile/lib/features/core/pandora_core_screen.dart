@@ -2477,10 +2477,22 @@ String _modelSubtitle(PandoraCoreRecord row) => [
     ].where((value) => value.isNotEmpty).join(' · ');
 
 String _releaseObservationState(PandoraCoreRecord row) {
+  final runtime = row['runtime_verified'];
+  final owner = row['owner_flow_verified'];
+  final client = row['client_flow_verified'];
+  final production = row['production_verified'];
+  if (production == true) return 'Production verified';
+  if (runtime == true && owner == true && client == true) {
+    return 'Runtime and user flows verified';
+  }
+
   final state = coreText(row['provider_state'],
           coreText(row['status'], coreText(row['state'], '')))
+      .trim()
       .toLowerCase();
-  return state.isEmpty ? 'Deployment observed' : 'Deployment $state';
+  if (state == 'ready') return 'Deployed · verification pending';
+  if (state.isEmpty) return 'Deployment observed · verification pending';
+  return 'Deployment ${_humanizeRecordAction(state)}';
 }
 
 String _releaseVerificationSummary(PandoraCoreRecord row) {

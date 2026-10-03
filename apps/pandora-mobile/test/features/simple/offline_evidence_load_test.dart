@@ -66,6 +66,25 @@ class _Repository extends FakeRepository {
   }
 }
 
+class _CachedRepository extends _Repository
+    implements ReadOnlyEvidenceCacheSource {
+  _CachedRepository(
+    super.batches, {
+    this.cachedProjects,
+    this.cachedConnections,
+    this.cachedActivity,
+  });
+
+  @override
+  final RepositorySnapshot<List<ProjectSummary>>? cachedProjects;
+
+  @override
+  final RepositorySnapshot<List<ConnectionSummary>>? cachedConnections;
+
+  @override
+  final RepositorySnapshot<List<AuditEvent>>? cachedActivity;
+}
+
 class _Auth extends FakeAuth {
   final controller = StreamController<PandoraSession?>.broadcast(sync: true);
   PandoraSession? session = const PandoraSession(userId: 'first-user');
@@ -103,6 +122,42 @@ void _expectSystems(int count) {
 
 void main() {
   testWidgets(
+      'identity-scoped cached evidence renders immediately while slow refresh is bounded',
+      (tester) async {
+    await setTestSurface(tester, logicalSize: const Size(390, 844));
+    final pending = _Batch();
+    final repository = _CachedRepository(
+      [pending],
+      cachedProjects:
+          _snapshot(List.filled(3, fixtureProject), day: 3, cached: true),
+      cachedConnections:
+          _snapshot(<ConnectionSummary>[], day: 1, cached: true),
+      cachedActivity: _snapshot(<AuditEvent>[], day: 2, cached: true),
+    );
+
+    await tester.pumpWidget(_app(repository));
+
+    _expectSystems(3);
+    expect(find.text('Loading evidence…'), findsNothing);
+    expect(find.text('Refreshing remaining evidence…'), findsOneWidget);
+    expect(
+        find.text(
+            'Showing earlier observations held in this session. They may be out of date.'),
+        findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump();
+
+    _expectSystems(3);
+    expect(find.text('Evidence unavailable'), findsNothing);
+    expect(
+        find.text(
+            'Some evidence could not be refreshed. Available observations are shown below.'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
       'all independent reads begin together and show actual oldest observation',
       (tester) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
@@ -119,7 +174,13 @@ void main() {
       1
     ]);
     expect(find.text('Loading evidence…'), findsOneWidget);
-    batch.complete(2, cached: true);
+    batch.projects.complete(_snapshot(List.filled(2, fixtureProject), day: 3));
+    await tester.pump();
+    _expectSystems(2);
+    expect(find.text('Refreshing remaining evidence…'), findsOneWidget);
+    batch.connections
+        .complete(_snapshot(<ConnectionSummary>[], day: 1, cached: true));
+    batch.activity.complete(_snapshot(<AuditEvent>[], day: 2));
     await tester.pumpAndSettle();
     _expectSystems(2);
     expect(
@@ -162,7 +223,7 @@ void main() {
     _expectSystems(2);
     final refresh = _refresh(tester);
     await tester.pump();
-    expect(find.text('Refreshing evidence…'), findsOneWidget);
+    expect(find.text('Refreshing remaining evidence…'), findsOneWidget);
     await tester.pumpWidget(_app(_Repository([nextScope])));
     expect(find.text('Systems'), findsNothing);
     expect(find.text('Loading evidence…'), findsOneWidget);
@@ -205,20 +266,19 @@ void main() {
     });
   }
 
-  testWidgets('unknown failures clear stale claims and Check again recovers',
+  testWidgets('one unknown read failure preserves available evidence',
       (tester) async {
-    final failed = _Batch(), recovered = _Batch();
-    await tester.pumpWidget(_app(_Repository([failed, recovered])));
+    final failed = _Batch();
+    await tester.pumpWidget(_app(_Repository([failed])));
     failed.fail(StateError('RAW_PRIVATE_ERROR'));
     await tester.pumpAndSettle();
-    expect(find.text('Evidence unavailable'), findsOneWidget);
-    expect(find.textContaining('RAW_PRIVATE_ERROR'), findsNothing);
-    await tester.tap(find.text('Check again'));
-    await tester.pump();
-    recovered.complete(1);
-    await tester.pumpAndSettle();
-    _expectSystems(1);
     expect(find.text('Evidence unavailable'), findsNothing);
+    expect(find.text('Unavailable'), findsOneWidget);
+    expect(
+        find.text(
+            'Some evidence could not be refreshed. Available observations are shown below.'),
+        findsOneWidget);
+    expect(find.textContaining('RAW_PRIVATE_ERROR'), findsNothing);
   });
 
   testWidgets(

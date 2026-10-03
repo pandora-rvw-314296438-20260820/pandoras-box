@@ -335,4 +335,56 @@ void main() {
     expect(partial.writes, 0);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('deployment status never promotes provider READY to verified',
+      (tester) async {
+    final gateway = _EvidenceGateway(<String, dynamic>{
+      'deployments': <PandoraCoreRecord>[
+        <String, dynamic>{
+          'display_name': 'Candidate deployment',
+          'release_observation_kind': 'candidate',
+          'provider_state': 'READY',
+          'runtime_verified': false,
+          'owner_flow_verified': false,
+          'client_flow_verified': false,
+          'provider_deployment_id': 'dpl_candidate',
+          'source_sha': '1111111111111111111111111111111111111111',
+        },
+        <String, dynamic>{
+          'display_name': 'Verified deployment',
+          'release_observation_kind': 'canonical_production',
+          'provider_state': 'READY',
+          'runtime_verified': true,
+          'owner_flow_verified': true,
+          'client_flow_verified': true,
+          'production_verified': true,
+          'provider_deployment_id': 'dpl_verified',
+          'source_sha': '2222222222222222222222222222222222222222',
+        },
+      ],
+    });
+    await _mount(tester, gateway, section: 'platform', tab: 'Deployments');
+
+    final candidate = _tile('Candidate deployment');
+    expect(
+        find.descendant(
+            of: candidate,
+            matching: find.text('Deployed · verification pending')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: candidate,
+            matching: find.text('Runtime and user flows not verified')),
+        findsOneWidget);
+    expect(
+        find.descendant(of: candidate, matching: find.textContaining('ready')),
+        findsNothing);
+
+    final verified = _tile('Verified deployment');
+    expect(
+        find.descendant(
+            of: verified, matching: find.text('Production verified')),
+        findsOneWidget);
+    expect(gateway.writes, 0);
+    expect(tester.takeException(), isNull);
+  });
 }
