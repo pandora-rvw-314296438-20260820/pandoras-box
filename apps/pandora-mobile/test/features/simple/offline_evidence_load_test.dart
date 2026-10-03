@@ -119,7 +119,13 @@ void main() {
       1
     ]);
     expect(find.text('Loading evidence…'), findsOneWidget);
-    batch.complete(2, cached: true);
+    batch.projects.complete(_snapshot(List.filled(2, fixtureProject), day: 3));
+    await tester.pump();
+    _expectSystems(2);
+    expect(find.text('Refreshing remaining evidence…'), findsOneWidget);
+    batch.connections
+        .complete(_snapshot(<ConnectionSummary>[], day: 1, cached: true));
+    batch.activity.complete(_snapshot(<AuditEvent>[], day: 2));
     await tester.pumpAndSettle();
     _expectSystems(2);
     expect(
@@ -205,20 +211,19 @@ void main() {
     });
   }
 
-  testWidgets('unknown failures clear stale claims and Check again recovers',
+  testWidgets('one unknown read failure preserves available evidence',
       (tester) async {
-    final failed = _Batch(), recovered = _Batch();
-    await tester.pumpWidget(_app(_Repository([failed, recovered])));
+    final failed = _Batch();
+    await tester.pumpWidget(_app(_Repository([failed])));
     failed.fail(StateError('RAW_PRIVATE_ERROR'));
     await tester.pumpAndSettle();
-    expect(find.text('Evidence unavailable'), findsOneWidget);
-    expect(find.textContaining('RAW_PRIVATE_ERROR'), findsNothing);
-    await tester.tap(find.text('Check again'));
-    await tester.pump();
-    recovered.complete(1);
-    await tester.pumpAndSettle();
-    _expectSystems(1);
     expect(find.text('Evidence unavailable'), findsNothing);
+    expect(find.text('Unavailable'), findsOneWidget);
+    expect(
+        find.text(
+            'Some evidence could not be refreshed. Available observations are shown below.'),
+        findsOneWidget);
+    expect(find.textContaining('RAW_PRIVATE_ERROR'), findsNothing);
   });
 
   testWidgets(
