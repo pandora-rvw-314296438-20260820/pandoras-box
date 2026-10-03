@@ -71,15 +71,30 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
       _error = null;
     });
 
-    final reads = <_EvidenceRead?>[null, null, null];
+    final cacheSource = repo is ReadOnlyEvidenceCacheSource
+        ? repo as ReadOnlyEvidenceCacheSource
+        : null;
+    final reads = <_EvidenceRead?>[
+      _EvidenceRead.fromSnapshotOrNull(cacheSource?.cachedProjects),
+      _EvidenceRead.fromSnapshotOrNull(cacheSource?.cachedConnections),
+      _EvidenceRead.fromSnapshotOrNull(cacheSource?.cachedActivity),
+    ];
     var completed = 0;
     var failed = 0;
     var terminal = false;
     final done = Completer<void>();
 
-    Future<_EvidenceOutcome> read(
+    final cachedPacket = _packetFromReads(reads, incomplete: false);
+    if (cachedPacket != null) {
+      setState(() {
+        _packet = cachedPacket;
+        _loading = true;
+      });
+    }
+
+    Future<_EvidenceOutcome> read<T>(
       int index,
-      Future<RepositorySnapshot<List<Object?>>> future,
+      Future<RepositorySnapshot<List<T>>> future,
     ) async {
       try {
         final snapshot = await future.timeout(_readTimeout);
@@ -120,19 +135,10 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
         failed++;
       }
 
-      final available = reads.whereType<_EvidenceRead>().toList(growable: false);
-      if (available.isNotEmpty) {
+      final packet = _packetFromReads(reads, incomplete: failed > 0);
+      if (packet != null) {
         setState(() {
-          _packet = _EvidencePacket(
-            projects: reads[0]?.count,
-            connections: reads[1]?.count,
-            activity: reads[2]?.count,
-            cached: available.any((read) => read.cached),
-            oldestObservation: available
-                .map((read) => read.fetchedAt)
-                .reduce((left, right) => left.isBefore(right) ? left : right),
-            incomplete: failed > 0 || completed < reads.length,
-          );
+          _packet = packet;
           _loading = completed < reads.length;
           _error = failed > 0
               ? 'Some evidence could not be refreshed. Available observations are shown below.'
@@ -151,39 +157,9 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
     }
 
     final pending = <Future<_EvidenceOutcome>>[
-      read(
-        0,
-        repo.projects(allowCached: true)
-            .then<RepositorySnapshot<List<Object?>>>((snapshot) =>
-                RepositorySnapshot<List<Object?>>(
-                  data: snapshot.data,
-                  source: snapshot.source,
-                  fetchedAt: snapshot.fetchedAt,
-                  degradedReason: snapshot.degradedReason,
-                )),
-      ),
-      read(
-        1,
-        repo.connections(allowCached: true)
-            .then<RepositorySnapshot<List<Object?>>>((snapshot) =>
-                RepositorySnapshot<List<Object?>>(
-                  data: snapshot.data,
-                  source: snapshot.source,
-                  fetchedAt: snapshot.fetchedAt,
-                  degradedReason: snapshot.degradedReason,
-                )),
-      ),
-      read(
-        2,
-        repo.activity(allowCached: true)
-            .then<RepositorySnapshot<List<Object?>>>((snapshot) =>
-                RepositorySnapshot<List<Object?>>(
-                  data: snapshot.data,
-                  source: snapshot.source,
-                  fetchedAt: snapshot.fetchedAt,
-                  degradedReason: snapshot.degradedReason,
-                )),
-      ),
+      read(0, repo.projects(allowCached: true)),
+      read(1, repo.connections(allowCached: true)),
+      read(2, repo.activity(allowCached: true)),
     ];
     for (final future in pending) {
       unawaited(future.then(handle));
@@ -200,6 +176,25 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
       }
     });
   }
+
+  _EvidencePacket? _packetFromReads(
+    List<_EvidenceRead?> reads, {
+    required bool incomplete,
+  }) {
+    final available = reads.whereType<_EvidenceRead>().toList(growable: false);
+    if (available.isEmpty) return null;
+    return _EvidencePacket(
+      projects: reads[0]?.count,
+      connections: reads[1]?.count,
+      activity: reads[2]?.count,
+      cached: available.any((read) => read.cached),
+      oldestObservation: available
+          .map((read) => read.fetchedAt)
+          .reduce((left, right) => left.isBefore(right) ? left : right),
+      incomplete: incomplete,
+    );
+  }
+
   String? _terminalEvidenceError(Object? error) => switch (error) {
         PandoraApiError(kind: PandoraApiErrorKind.sessionExpired) =>
           'Sign in again to view evidence.',
@@ -414,10 +409,14 @@ class _EvidencePacket {
 class _EvidenceRead {
   const _EvidenceRead(this.count, this.cached, this.fetchedAt);
 
-  static _EvidenceRead fromSnapshot(
-          RepositorySnapshot<List<Object?>> snapshot) =>
+  static _EvidenceRead fromSnapshot<T>(
+          RepositorySnapshot<List<T>> snapshot) =>
       _EvidenceRead(
           snapshot.data.length, snapshot.isCached, snapshot.fetchedAt);
+
+  static _EvidenceRead? fromSnapshotOrNull<T>(
+          RepositorySnapshot<List<T>>? snapshot) =>
+      snapshot == null ? null : fromSnapshot(snapshot);
 
   final int count;
   final bool cached;
