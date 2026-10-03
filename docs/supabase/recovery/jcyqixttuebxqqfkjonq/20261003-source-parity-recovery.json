@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "classification": "recovery_candidate",
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+  "repositoryId": 1345495177,
+  "projectRef": "jcyqixttuebxqqfkjonq",
+  "observedMainSha": "81ced6e3c900b978e28b09f6b44dd7125bbc1769",
+  "observedMainTree": "a0201d7ebe99a872085165ffde9fe24b97c9378a",
+  "purpose": "Restore exact executable source for two already-applied canonical provider migrations; preserve source/ledger identities without applying live SQL or changing recovered behavior.",
+  "authorization": "User authorized implementation and deployment after verification; root delivery owner explicitly authorized an isolated reversible source-parity recovery candidate only.",
+  "originalAuthor": null,
+  "originalApplicationExecutor": null,
+  "originalApplicationSourceCommit": null,
+  "exporter": "Canonical Supabase read-only execute_sql connector; exact schema_migrations statements read on 2026-10-03.",
+  "capturedAt": "2026-10-03T20:24:24.790912Z",
+  "mode": "provider_exact_executable_source_recovery",
+  "providerHistoryMutated": false,
+  "productionLiveSchemaReplayed": false,
+  "recoveredSqlModified": false,
+  "canonicalSourceAdopted": false,
+  "githubPublished": false,
+  "allowedUses": [
+    "inspection",
+    "comparison",
+    "recovery_input",
+    "isolated_testing_candidate"
+  ],
+  "excludedUses": [
+    "production_execution",
+    "mutation_routing",
+    "main_merge",
+    "canonical_authority_claim_without_review"
+  ],
+  "sourceAuthority": {
+    "decisionOwner": "root delivery owner",
+    "state": "recovery_candidate",
+    "originalParentLineage": "unknown",
+    "basis": "Exact canonical project migration ledger statement bytes and current live function/hash readback; runtime evidence is not automatic source authority.",
+    "requiredGates": [
+      "independent security/source review",
+      "active-lane reconciliation",
+      "exact-candidate checks",
+      "explicit source-authority adoption decision",
+      "Pandora provenance writeback and verified readback before canonical baseline claim"
+    ],
+    "memoryReadback": "Read-only canonical-context attempt returned internal error; no durable recovery-baseline claim.",
+    "recheckOn": [
+      "main_change",
+      "remote_ledger_change",
+      "target_function_hash_change",
+      "active_lane_change",
+      "executor_policy_change"
+    ]
+  },
+  "entries": [
+    {
+      "version": "20261003190317",
+      "name": "pandora_direct_tenant_owner_access_v1",
+      "path": "supabase/migrations/20261003190317_pandora_direct_tenant_owner_access_v1.sql",
+      "statementCount": 1,
+      "bytes": 6986,
+      "sha256": "adc35c58d30f5e7782dca2d66dfe4aa5eb1c459b104e9f14d388452f8fda45bc",
+      "md5": "ef1e0311f4f95bb63354d3a2b97e8a2c",
+      "replayMode": "provider_exact_executable",
+      "transformation": "none",
+      "parentCommit": null,
+      "previousSourcePath": null,
+      "liveBehavior": "Internal actors with active owner/admin membership in an eligible tenant may enter member scope directly; explicit entries still validate; other internal roles retain operator-entry requirement; tenant access does not grant Core execution.",
+      "freshEnvironmentEffect": "Reproduces the already-live four authorization functions and their existing grants/revokes.",
+      "functionReceipts": [
+        {
+          "observed_at": "2026-10-03 20:24:24.790912+00",
+          "schema_name": "private",
+          "function_name": "pandora_enterprise_assert_v1",
+          "signature": "p_organization_id uuid, p_entry_id uuid, p_write boolean",
+          "body_md5": "c1432ef238e4fae658ac0f43cf03c9e8",
+          "definition_md5": "4c94c70c83366afa92a6639ff6851f4a",
+          "security_definer": true,
+          "configuration": [
+            "search_path=\"\""
+          ],
+          "anon_execute": false,
+          "authenticated_execute": false,
+          "service_role_execute": false
+        },
+        {
+          "observed_at": "2026-10-03 20:24:24.790912+00",
+          "schema_name": "private",
+          "function_name": "pandora_enterprise_session_scope_v1",
+          "signature": "p_organization_id uuid",
+          "body_md5": "04cd077ff63e8c1bfa761bbdb9b7c0b7",
+          "definition_md5": "75c1a7beb0b60edbbfcea4f57d9949c1",
+          "security_definer": true,
+          "configuration": [
+            "search_path=\"\""
+          ],
+          "anon_execute": false,
+          "authenticated_execute": false,
+          "service_role_execute": false
+        },
+        {
+          "observed_at": "2026-10-03 20:24:24.790912+00",
+          "schema_name": "public",
+          "function_name": "pandora_enterprise_chat_authority_v1",
+          "signature": "p_organization_id uuid, p_entry_id uuid",
+          "body_md5": "b945bef8aeecf1f164bc6cab726b048a",
+          "definition_md5": "b83f429e3cacfc7011f5ec0ca46cfa28",
+          "security_definer": true,
+          "configuration": [
+            "search_path=\"\""
+          ],
+          "anon_execute": false,
+          "authenticated_execute": true,
+          "service_role_execute": true
+        },
+        {
+          "observed_at": "2026-10-03 20:24:24.790912+00",
+          "schema_name": "public",
+          "function_name": "pandora_enterprise_my_workspaces_v1",
+          "signature": "",
+          "body_md5": "32658db4cac9feb2579d653565fa543b",
+          "definition_md5": "9e48bf264f5f1ef625789bcd672929cf",
+          "security_definer": true,
+          "configuration": [
+            "search_path=\"\""
+          ],
+          "anon_execute": false,
+          "authenticated_execute": true,
+          "service_role_execute": true
+        }
+      ]
+    },
+    {
+      "version": "20261003201314",
+      "name": "plp_production_activity_isolation_v1",
+      "path": "supabase/migrations/20261003201314_plp_production_activity_isolation_v1.sql",
+      "statementCount": 1,
+      "bytes": 10939,
+      "sha256": "49ab29aabded20e0f1eeddcfdafc3d3f1f9e9f166abd3682bf369478b035db17",
+      "md5": "b450eae68bf73b00c5e76cc3e8504d7a",
+      "replayMode": "provider_exact_executable",
+      "transformation": "none",
+      "parentCommit": null,
+      "previousSourcePath": null,
+      "liveBehavior": "Recovers the two already-live PLP activity read functions, including their tenant/test isolation and authorization gates; no new PLP feature is introduced by this source-parity task.",
+      "freshEnvironmentEffect": "Reproduces the already-live two PLP activity functions and their existing grants/revokes.",
+      "functionReceipts": [
+        {
+          "observed_at": "2026-10-03 20:24:24.790912+00",
+          "schema_name": "public",
+          "function_name": "plp_pandora_activity_logs_v2",
+          "signature": "p_before_at timestamp with time zone, p_before_job_id uuid, p_before_sequence bigint, p_limit integer, p_query text",
+          "body_md5": "ad801028836977ac6ea60df7e717a630",
+          "definition_md5": "68f324d974bf0a4e42cde2eb5a10fd2f",
+          "security_definer": true,
+          "configuration": [
+            "search_path=\"\""
+          ],
+          "anon_execute": false,
+          "authenticated_execute": true,
+          "service_role_execute": true
+        },
+        {
+          "observed_at": "2026-10-03 20:24:24.790912+00",
+          "schema_name": "public",
+          "function_name": "plp_recent_business_activity_v1",
+          "signature": "p_limit integer",
+          "body_md5": "3d794b1ba60b8e369e140f4af8daa156",
+          "definition_md5": "0d7b962491813e97244de15d21c0f702",
+          "security_definer": true,
+          "configuration": [
+            "search_path=\"\""
+          ],
+          "anon_execute": false,
+          "authenticated_execute": true,
+          "service_role_execute": true
+        }
+      ]
+    }
+  ],
+  "originalPreservation": {
+    "immutableCaptureRetained": true,
+    "sqlBodiesInProvenance": false,
+    "credentialPatternMatches": 0,
+    "credentialScanScope": [
+      "JWT",
+      "private_key_PEM",
+      "GitHub_token",
+      "AWS_access_ID",
+      "Supabase_secret"
+    ],
+    "manifestPolicy": "recover-canonical-project-source manifest v2; no original file transformations"
+  },
+  "activeLanes": {
+    "coreMobilePR": 949,
+    "coreFoundationPR": 950,
+    "notIncludedInCoreCandidate": "8c419966facd010b4666c69cc2eb8528f268fa7f",
+    "relatedPRPathChecks": [
+      {
+        "number": 951,
+        "paths": [
+          "apps/pandora-mobile/lib/app/pandora_chat_shell.dart",
+          "apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart",
+          "apps/pandora-mobile/test/app/pandora_core_shell_scope_test.dart",
+          "test/pandora-global-active-chat-shell-v1.test.js"
+        ]
+      },
+      {
+        "number": 952,
+        "paths": [
+          "apps/pandora-mobile/lib/app/pandora_chat_shell.dart",
+          "apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart",
+          "apps/pandora-mobile/test/app/pandora_core_shell_scope_test.dart",
+          "test/pandora-global-active-chat-shell-v1.test.js"
+        ]
+      },
+      {
+        "number": 953,
+        "paths": [
+          "apps/pandora-mobile/lib/app/pandora_chat_shell.dart",
+          "apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart",
+          "apps/pandora-mobile/test/app/pandora_core_shell_scope_test.dart",
+          "test/pandora-global-active-chat-shell-v1.test.js"
+        ]
+      },
+      {
+        "number": 955,
+        "paths": [
+          "apps/pandora-mobile/lib/app/pandora_admin_shell.dart"
+        ]
+      },
+      {
+        "number": 956,
+        "paths": [
+          "apps/pandora-mobile/lib/app/plp_navigation_drawer.dart",
+          "apps/pandora-mobile/lib/features/enterprise/enterprise_workspace_home.dart",
+          "apps/pandora-mobile/test/app/plp_navigation_drawer_test.dart"
+        ]
+      }
+    ],
+    "migrationPathOverlapInCheckedRelatedPRs": false
+  },
+  "sourceComparison": {
+    "comparedBase": "81ced6e3c900b978e28b09f6b44dd7125bbc1769",
+    "bothExactPathsAbsentAtBase": true,
+    "remoteLedgerVersionCount": 936,
+    "missingRemoteVersionsAfterAddingRecoveryFiles": [],
+    "pendingSourceVersionsAfterAddingRecoveryFiles": [],
+    "scope": "Version-identity comparison only; existing history-only receipt files do not establish complete fresh-schema parity.",
+    "finalLedgerReadback": {
+      "observed_at": "2026-10-03 20:30:01.969627+00",
+      "ledger_count": 936,
+      "latest_version": "20261003201314",
+      "core_candidate_count": 0,
+      "recovery_entries": [
+        {
+          "md5": "ef1e0311f4f95bb63354d3a2b97e8a2c",
+          "name": "pandora_direct_tenant_owner_access_v1",
+          "bytes": 6986,
+          "version": "20261003190317",
+          "statement_count": 1
+        },
+        {
+          "md5": "b450eae68bf73b00c5e76cc3e8504d7a",
+          "name": "plp_production_activity_isolation_v1",
+          "bytes": 10939,
+          "version": "20261003201314",
+          "statement_count": 1
+        }
+      ]
+    }
+  },
+  "executor": {
+    "authoritativeWriter": "Supabase GitHub integration declared in canonical supabase/config.toml and confirmed bound to canonical owner/repo/main in current action metadata.",
+    "currentActionId": "9bd06f967b714f5dbf0e18199f06ecde",
+    "checkRunId": 111279639989,
+    "currentObservedFailure": "Remote migration versions not found in local migrations directory.",
+    "hostedIncludeAllQualified": false,
+    "hostedMigrationCLIVersion": null,
+    "belowTipCandidateVersions": [
+      "20261003170000",
+      "20261003170100",
+      "20261003170200",
+      "20261003170300"
+    ],
+    "nativeApplyMigrationExplicitVersionSupported": false,
+    "noLedgerRepair": true,
+    "noConcurrentWriterIntroduced": true
+  },
+  "validation": {
+    "exactBytes": "SHA256/MD5/bytes compared to unchanged preserved ledger captures.",
+    "isolatedTests": [
+      "test/pandora-direct-tenant-owner-access-source-recovery.test.js",
+      "test/pandora-plp-activity-source-recovery.test.js"
+    ],
+    "testResults": "Recorded separately against final patch content; this receipt is not a test-pass or release claim.",
+    "notVerified": [
+      "full production-schema clean replay",
+      "hosted include-all ordering policy",
+      "authenticated v2 backend journey",
+      "production execution or deployment"
+    ],
+    "recovery": "Drop the isolated unmerged recovery patch; preserve original provider evidence. Do not reverse or repair live migration history.",
+    "limitations": [
+      "PGlite PostgreSQL18 is not production PostgreSQL17/provider equivalence.",
+      "190317 uses the existing Core baseline fixture and explicit previously-observed public service_role grants; this isolated behavior fixture is not the full live authorization history.",
+      "201314 models the existing private legacy-scope helper as a fail-closed seam; actual helper implementation is outside this recovery patch.",
+      "PLP-specific plp_runtime staff and booking tables depend on their dedicated-schema isolation; test fixtures do not prove arbitrary mixed-tenant safety in those dedicated tables."
+    ]
+  }
+}
