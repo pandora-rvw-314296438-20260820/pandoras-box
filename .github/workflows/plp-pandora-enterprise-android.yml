@@ -252,9 +252,25 @@ jobs:
             'system-images;android-35;google_apis;x86_64'
 
       - name: Boot exact-APK acceptance emulator
+        timeout-minutes: 10
         shell: bash
         run: |
           set -euo pipefail
+          evidence=.plp-android-build/plp-emulator-evidence
+          mkdir -p "$evidence"
+          boot_log="$evidence/emulator-boot.log"
+          adb="$ANDROID_SDK_ROOT/platform-tools/adb"
+          serial=emulator-5554
+          deadline=$((SECONDS + 420))
+          record_boot_failure() {
+            boot_status=$?
+            if (( boot_status != 0 )); then
+              echo "Emulator startup failed (exit $boot_status)." >&2
+              tail -n 120 "$boot_log" >&2 || true
+            fi
+          }
+          trap record_boot_failure EXIT
+
           if [[ -e /dev/kvm ]]; then
             sudo chmod 666 /dev/kvm
             accel='-accel on'
@@ -269,29 +285,48 @@ jobs:
             --package 'system-images;android-35;google_apis;x86_64' \
             --device 'pixel_7'
 
+          timeout 20s "$ANDROID_SDK_ROOT/emulator/emulator" -accel-check \
+            > "$evidence/emulator-acceleration.txt" 2>&1 || true
+          timeout 15s "$adb" start-server
           nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
             -avd plp-owner-acceptance \
+            -port 5554 \
             -no-window \
             -noaudio \
             -no-boot-anim \
             -no-snapshot \
-            -gpu swiftshader_indirect \
+            -gpu swiftshader \
+            -memory 2048 \
+            -cores 2 \
             $accel \
-            > .plp-android-build/emulator.log 2>&1 &
+            > "$boot_log" 2>&1 < /dev/null &
+          emulator_pid=$!
 
-          "$ANDROID_SDK_ROOT/platform-tools/adb" wait-for-device
-          deadline=$((SECONDS + 420))
-          until [[ "$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop sys.boot_completed | tr -d '\r')" == "1" ]]; do
+          # ADB may never discover an emulator that exits during startup. Bound
+          # every readiness call and check the process before waiting again.
+          while true; do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo 'Emulator process exited before Android became ready.' >&2
+              exit 40
+            fi
             if (( SECONDS >= deadline )); then
-              cat .plp-android-build/emulator.log >&2
+              echo 'Android boot or Package Manager did not become ready within 420 seconds.' >&2
               exit 41
+            fi
+
+            boot_completed="$(timeout 5s "$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [[ "$boot_completed" == "1" ]] && \
+              timeout 10s "$adb" -s "$serial" shell cmd package path android \
+                > "$evidence/package-manager-ready.txt" 2>/dev/null && \
+              grep -q '^package:' "$evidence/package-manager-ready.txt"; then
+              break
             fi
             sleep 2
           done
 
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell settings put global window_animation_scale 0
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell settings put global transition_animation_scale 0
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell settings put global animator_duration_scale 0
+          timeout 10s "$adb" -s "$serial" shell settings put global window_animation_scale 0
+          timeout 10s "$adb" -s "$serial" shell settings put global transition_animation_scale 0
+          timeout 10s "$adb" -s "$serial" shell settings put global animator_duration_scale 0
 
       - name: Exercise installed PLP APK lifecycle and unauthenticated client flow
         shell: bash
