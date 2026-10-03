@@ -7,7 +7,7 @@ const {test}=require("node:test");
 const {PGlite}=require("@electric-sql/pglite");
 const {pgcrypto}=require("@electric-sql/pglite/contrib/pgcrypto");
 const read=(p)=>readFileSync(join(__dirname,p),"utf8");
-const sql=read("../supabase/migrations/20261003080000_pandora_chat_request_admission_v1.sql");
+const sql=read("../supabase/migrations/20261003083738_pandora_chat_request_admission_v1.sql");
 const owner="a0d6f184-3039-4735-8d11-63ce403636e2";
 const customer="f17558e4-e1b2-4b8d-a215-b96775b1a470";
 const platform="2270b266-59da-4c39-bfd9-9f8d08352af0";
@@ -75,9 +75,9 @@ test.before(async()=>{
  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$3,'owner','active',now()),($2,$3,'owner','active',now()),($2,$4,'owner','active',now())",[platform,client,owner,customer]);
  await db.query("insert into public.enterprise_properties(id,organization_id,slug,display_name,source_status,source_observed_at) values('ada9befb-b821-4ae6-86bf-a6d93376815b',$1,'plp-boracay','PLP Boracay','healthy',now())",[client]);
  for(const [name,script] of [
-  ["Core",read("../supabase/migrations/20261003044349_pandora_core_owner_system_v1.sql")],
+  ["Core",read("../supabase/migrations/20261003065936_pandora_core_owner_system_v1.sql")],
   ["audit",read("fixtures/pandora-core-release-audit-schema.sql")],
-  ["release",read("../supabase/migrations/20261003073000_pandora_core_release_observations_v1.sql")],
+  ["release",read("../supabase/migrations/20261003074407_pandora_core_release_observations_v1.sql")],
   ["admission",sql]])try{await db.exec(script);}catch(error){throw new Error(name+" SQL: "+error.message);}
 });
 test.after(async()=>{if(db)await db.close();});

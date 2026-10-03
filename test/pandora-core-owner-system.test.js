@@ -9,7 +9,7 @@ const { PGlite } = require("@electric-sql/pglite");
 const { pgcrypto } = require("@electric-sql/pglite/contrib/pgcrypto");
 
 const migration = readFileSync(join(__dirname,
-  "../supabase/migrations/20261003044349_pandora_core_owner_system_v1.sql"), "utf8");
+  "../supabase/migrations/20261003065936_pandora_core_owner_system_v1.sql"), "utf8");
 const fixture = readFileSync(join(__dirname,
   "fixtures/pandora-core-owner-schema.sql"), "utf8");
 const composerFixture = readFileSync(join(__dirname,
