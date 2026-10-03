@@ -341,7 +341,6 @@ void main() {
       );
       await tester.pumpAndSettle();
       final semantics = tester.ensureSemantics();
-      addTearDown(semantics.dispose);
 
       await tester.enterText(
         find.byKey(const ValueKey<String>('ask' '-pandora-objective')),
@@ -386,6 +385,7 @@ void main() {
 
       expect(find.text(longReply), findsOneWidget);
       expect(find.bySemanticsLabel('Pandora: $longReply'), findsOneWidget);
+      semantics.dispose();
       expect(tester.takeException(), isNull);
     },
   );

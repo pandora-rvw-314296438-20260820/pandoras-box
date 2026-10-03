@@ -313,7 +313,7 @@ void main() {
 
     final assistantSemantics = find.byWidgetPredicate((widget) =>
         widget is Semantics &&
-        widget.properties.label == 'Pandora: ${reply.substring(0, 4000)}…');
+        widget.properties.label == 'Pandora: $reply');
     expect(assistantSemantics, findsOneWidget);
     final inspect = find.byKey(const ValueKey('pandora-core-inspect-action'));
     expect(inspect, findsOneWidget);
