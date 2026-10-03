@@ -44,8 +44,11 @@ def identifier(node: ET.Element) -> str:
     return node.get("resource-id", "").removeprefix(ANDROID_PACKAGE + ":id/")
 
 
-def text_of(node: ET.Element) -> str:
-    return "\n".join(value for item in node.iter() for key in ("text", "content-desc")
+def text_of(node: ET.Element, *, include_hints: bool = False) -> str:
+    # The pinned native dumper exposes Flutter field validation as Android
+    # hintText. Read it explicitly for sign-in checks, not as response content.
+    keys = ("text", "content-desc", "hint") if include_hints else ("text", "content-desc")
+    return "\n".join(value for item in node.iter() for key in keys
                      if (value := item.get(key, "")))
 
 
@@ -354,7 +357,8 @@ class Journey:
         self.record("platform-1", "Cold launch exact installed APK", self.launch)
         require("pandora.chat.input" not in self.snapshot()["nodes"], "PLATFORM_MODE_REQUIRES_SIGNED_OUT_DEVICE")
         self.record("platform-2", "Empty sign-in validates locally", lambda: self.exact_text("Sign in"))
-        self.wait(lambda: "Enter your email." in text_of(self.snapshot()["root"]), "EMAIL_VALIDATION_ABSENT")
+        self.wait(lambda: "Enter your email." in text_of(self.snapshot()["root"], include_hints=True),
+                  "EMAIL_VALIDATION_ABSENT")
         for index in range(3):
             def cycle():
                 self.device(className="android.widget.EditText", instance=0).click()

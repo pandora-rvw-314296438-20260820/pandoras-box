@@ -9,7 +9,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from core_android_device import DeviceFailure
-from core_android_journey import Journey, bounds, semantic_snapshot
+from core_android_journey import Journey, bounds, semantic_snapshot, text_of
 
 TURN = "12345678-1234-1234-1234-123456789012"
 THREAD = "87654321-4321-4321-4321-210987654321"
@@ -44,6 +44,14 @@ class NativeEvidenceParsingTest(unittest.TestCase):
         journey = Journey.__new__(Journey)
         leaf = ET.Element("node")
         self.assertIs(journey.wait(lambda: leaf, "UNREACHED", seconds=.01), leaf)
+
+    def test_native_validation_hint_requires_explicit_observation(self):
+        native = ET.fromstring('<hierarchy><node class="android.widget.EditText" '
+                               'text="" content-desc="" hint="Email, Enter your email."/></hierarchy>')
+        self.assertEqual(text_of(native), "")
+        self.assertIn("Enter your email.", text_of(native, include_hints=True))
+        missing = ET.fromstring('<hierarchy><node text="" hint="Email"/></hierarchy>')
+        self.assertNotIn("Enter your email.", text_of(missing, include_hints=True))
 
     def test_draft_identity_binds_once_to_the_server_admitted_thread(self):
         journey = Journey.__new__(Journey)
