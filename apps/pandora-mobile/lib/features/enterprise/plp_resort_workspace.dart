@@ -1029,6 +1029,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ],
     ];
   }
+}
 
 class _ResortHeader extends StatelessWidget {
   const _ResortHeader({required this.section});
