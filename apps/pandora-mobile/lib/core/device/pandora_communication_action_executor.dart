@@ -63,6 +63,7 @@ class PandoraCommunicationActionExecutor {
     PandoraContactsClient? contacts,
     PandoraCommunicationActivityReporter? reporter,
     PandoraResolvedContactObserver? resolvedContactObserver,
+    bool Function()? beforeEffect,
     DateTime Function()? clock,
     Duration statusDelay = const Duration(milliseconds: 250),
     int maxStatusPolls = 8,
@@ -70,6 +71,7 @@ class PandoraCommunicationActionExecutor {
         _contacts = contacts ?? PandoraContactsClient(),
         _reporter = reporter,
         _resolvedContactObserver = resolvedContactObserver,
+        _beforeEffect = beforeEffect,
         _clock = clock ?? DateTime.now,
         _statusDelay = statusDelay,
         _maxStatusPolls = maxStatusPolls;
@@ -78,6 +80,9 @@ class PandoraCommunicationActionExecutor {
   final PandoraContactsClient _contacts;
   final PandoraCommunicationActivityReporter? _reporter;
   final PandoraResolvedContactObserver? _resolvedContactObserver;
+  // Contact lookup and Activity reporting may await. Fence the actual native
+  // dispatch or handoff only after they finish, with no await after this check.
+  final bool Function()? _beforeEffect;
   final DateTime Function() _clock;
   final Duration _statusDelay;
   final int _maxStatusPolls;
@@ -138,6 +143,7 @@ class PandoraCommunicationActionExecutor {
 
     PandoraDirectCommunicationResult result;
     try {
+      if (_beforeEffect?.call() == false) return await _cancelled(capability);
       result = await _communications.executeDirect(request);
     } on TimeoutException {
       return _recoverAfterAmbiguousFailure(
@@ -357,6 +363,7 @@ class PandoraCommunicationActionExecutor {
         ? PandoraCommunicationRequest.call(recipient)
         : PandoraCommunicationRequest.sms(recipient, message: null);
     try {
+      if (_beforeEffect?.call() == false) return await _cancelled(capability);
       final handoff = await _communications.open(request);
       if (handoff.opened && handoff.userConfirmationRequired) {
         return await _finish(
@@ -399,6 +406,13 @@ class PandoraCommunicationActionExecutor {
     );
   }
 
+  Future<PandoraCommunicationExecutionResult> _cancelled(String capability) =>
+      _finish(
+        capability,
+        'cancelled',
+        'Cancelled before a message was sent or a call was placed.',
+      );
+
   Future<void> _report(
     String capability,
     String stage,
@@ -406,12 +420,17 @@ class PandoraCommunicationActionExecutor {
   ) async {
     final reporter = _reporter;
     if (reporter == null) return;
-    await reporter(
-      PandoraCommunicationActivityFact(
-        capability: capability,
-        stage: stage,
-        observedAt: observedAt,
-      ),
-    );
+    try {
+      await reporter(
+        PandoraCommunicationActivityFact(
+          capability: capability,
+          stage: stage,
+          observedAt: observedAt,
+        ),
+      );
+    } catch (_) {
+      // Activity transport cannot replace a native result or a known
+      // cancellation with an ambiguous failure that could invite a resend.
+    }
   }
 }
