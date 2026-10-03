@@ -10,6 +10,7 @@ const picker = read("apps/pandora-mobile/lib/features/simple/pandora_model_picke
 const resort = read("apps/pandora-mobile/lib/features/enterprise/plp_resort_workspace.dart");
 const activity = read("apps/pandora-mobile/lib/features/enterprise/plp_activity_screen.dart");
 const team = read("apps/pandora-mobile/lib/features/enterprise/plp_team_management_screen.dart");
+const teamAccess = read("apps/pandora-mobile/lib/features/enterprise/plp_team_access_screen.dart");
 const operational = read("apps/pandora-mobile/lib/features/enterprise/plp_resort_operational_screens.dart");
 const editorial = read("apps/pandora-mobile/lib/features/enterprise/plp_editorial_surfaces.dart");
 const guests = read("apps/pandora-mobile/lib/features/enterprise/plp_guests_screen.dart");
@@ -47,5 +48,7 @@ test("PLP contextual headers use the accepted editorial title typography", () =>
   assert.doesNotMatch(editorial.slice(editorial.indexOf("class PlpEditorialHeader"), editorial.indexOf("class PlpEditorialPage")), /PUEBLO LA PERLA/);
   assert.doesNotMatch(guests.slice(guests.indexOf("class _GuestHeader")), /PUEBLO LA PERLA/);
   assert.doesNotMatch(infrastructure.slice(infrastructure.indexOf("class _Header")), /Pueblo La Perla/);
+  assert.doesNotMatch(teamAccess, /PUEBLO LA PERLA/);
+  assert.match(teamAccess, /'TEAM & ACCESS'[\s\S]{0,220}fontSize: 16[\s\S]{0,120}letterSpacing: 2\.6/);
   assert.match(tax, /'TAX & COMPLIANCE'[\s\S]{0,220}fontSize: 16[\s\S]{0,120}letterSpacing: 2\.6/);
 });
