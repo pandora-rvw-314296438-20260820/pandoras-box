@@ -330,7 +330,10 @@ class _PlpResortOperationalScreenState
                 onCreate: _createTask,
               ),
               const SizedBox(height: 18),
-              _SectionLabel(_spec.queueLabel, count: records.length),
+              _SectionLabel(
+                _spec.queueLabel,
+                count: _queueKnown || records.isNotEmpty ? records.length : null,
+              ),
               const SizedBox(height: 8),
               if (records.isEmpty)
                 _TruthfulEmptyState(

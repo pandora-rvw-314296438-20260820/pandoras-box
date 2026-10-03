@@ -301,7 +301,10 @@ void main() {
     final dock = tester.getRect(find.byKey(const ValueKey('plp-command-dock')));
     for (final section in const ['stays', 'rooms', 'guests', 'revenue', 'team']) {
       await _openSection(tester, section);
-      final contextual = tester.widget<Text>(titleFinder);
+      final contextual = tester.widget<Text>(find.descendant(
+        of: find.byKey(ValueKey<String>('plp-resort-' + section)),
+        matching: titleFinder,
+      ));
       expect(contextual.style?.fontFamily, 'serif');
       expect(contextual.style?.fontSize, 21);
       expect(find.text('PLP Boracay'), findsNothing);
