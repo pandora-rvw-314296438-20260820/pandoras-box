@@ -2063,8 +2063,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
                 onAttach: _attach,
-                onCharacters:
-                    widget.allowCharacterContext ? _pickCharacterContext : null,
                 onServices: _pickServiceContext,
                 onProjectContext:
                     widget.allowProjectContext ? _pickProjectContext : null,
@@ -2144,8 +2142,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
                 onAttach: _attach,
-                onCharacters:
-                    widget.allowCharacterContext ? _pickCharacterContext : null,
                 onServices: _pickServiceContext,
                 onProjectContext:
                     widget.allowProjectContext ? _pickProjectContext : null,
@@ -2697,7 +2693,6 @@ class _Composer extends StatelessWidget {
     required this.onCamera,
     required this.onPhotos,
     required this.onAttach,
-    required this.onCharacters,
     required this.onServices,
     required this.onProjectContext,
     required this.onDictate,
@@ -2726,7 +2721,6 @@ class _Composer extends StatelessWidget {
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
-  final VoidCallback? onCharacters;
   final VoidCallback onServices;
   final VoidCallback? onProjectContext;
   final VoidCallback onDictate;
@@ -2818,7 +2812,6 @@ class _Composer extends StatelessWidget {
                         onCamera: onCamera,
                         onPhotos: onPhotos,
                         onAttach: onAttach,
-                        onCharacters: onCharacters,
                         onServices: onServices,
                         onProjectContext: onProjectContext,
                       ),
@@ -2921,7 +2914,6 @@ class _CompactAttachmentMenu extends StatelessWidget {
     required this.onCamera,
     required this.onPhotos,
     required this.onAttach,
-    required this.onCharacters,
     required this.onServices,
     required this.onProjectContext,
   });
@@ -2930,7 +2922,6 @@ class _CompactAttachmentMenu extends StatelessWidget {
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
-  final VoidCallback? onCharacters;
   final VoidCallback onServices;
   final VoidCallback? onProjectContext;
 
@@ -2967,13 +2958,6 @@ class _CompactAttachmentMenu extends StatelessWidget {
             icon: Icons.insert_drive_file_outlined,
             onPressed: onAttach,
           ),
-          if (onCharacters != null)
-            _ComposerMenuItem(
-              key: const ValueKey<String>('ask-pandora-menu-characters'),
-              label: 'Characters',
-              icon: Icons.face_retouching_natural_outlined,
-              onPressed: onCharacters!,
-            ),
           _ComposerMenuItem(
             key: const ValueKey<String>('ask-pandora-menu-services'),
             label: 'Services',

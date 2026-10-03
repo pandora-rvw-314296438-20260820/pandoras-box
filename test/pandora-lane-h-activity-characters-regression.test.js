@@ -20,10 +20,9 @@ test("Lane H send path does not block on phone-AI preference IO",()=>{
   assert.doesNotMatch(local,/await PandoraLocalAiPreference\.load\(\)/);
 });
 
-test("Characters remains available and selected context stays visible",()=>{
-  assert.match(chat,/ask-pandora-menu-characters/);
-  assert.match(chat,/ask-pandora-character-context/);
-  assert.match(chat,/Character · \$\{characterContext!\.name\}/);
+test("Characters selector stays out of the global composer",()=>{
+  assert.doesNotMatch(chat,/ask-pandora-menu-characters/);
+  assert.doesNotMatch(chat,/label: 'Characters'/);
 });
 
 test("approved picker Phone AI gate remains exact",()=>{
