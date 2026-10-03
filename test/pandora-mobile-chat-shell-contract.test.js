@@ -43,3 +43,21 @@ test('Pandora chat keeps model access behind governed server routing', async () 
   assert.match(intelligence, /pandora_worker_b_gemini_request_20260829/);
   assert.match(intelligence, /credentialsAvailableToModel:false/);
 });
+
+
+test('restores actual accepted old Pandora chat composition from 73cd688a', () => {
+  assert.ok(!shell.includes('businessWorkspace: Offstage('));
+  assert.ok(!shell.includes('active: index == _index && !_chatVisible'));
+  assert.match(shell, /businessWorkspace: PandoraSharedConversationScope\(/);
+  assert.match(ask, /final historyTop = topInset \+ 60/);
+  assert.match(ask, /left: 8,[\s\S]*right: 8,[\s\S]*borderRadius: BorderRadius\.circular\(24\)/);
+});
+
+test('restores old Pandora composer source with model selection only inside its old menu', () => {
+  assert.match(ask, /EdgeInsets\.fromLTRB\(12, 2, 8, 6\)/);
+  assert.match(ask, /Icons\.add_rounded/);
+  assert.match(ask, /Icons\.view_in_ar_outlined/);
+  assert.match(ask, /ask-pandora-menu-model/);
+  assert.match(ask, /ask-pandora-menu-reasoning/);
+  assert.ok(!ask.includes("height: 54,\n                  decoration: BoxDecoration(\n                    color: const Color(0xFF151515)"));
+});

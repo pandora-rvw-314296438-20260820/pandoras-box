@@ -2063,44 +2063,90 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
               );
 
     if (widget.shellOverlay) {
-      final snapshot = _pickerSnapshot;
+      final historyTop = topInset + 60;
+      final historyBottom = keyboardInset + composerHeight + 8;
+      final rawHistoryHeight = media.size.height - historyTop - historyBottom;
+      final historyHeight = rawHistoryHeight > 0 ? rawHistoryHeight : 0.0;
       return Stack(
         fit: StackFit.expand,
         children: [
-          Offstage(
-            key: const ValueKey<String>('pandora-active-chat-history-offstage'),
-            offstage: !_shellHistoryExpanded,
-            child: Material(
-              key: const ValueKey<String>('pandora-active-chat-history'),
-              color: const Color(0xFF0A0A0A),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Positioned.fill(child: conversationContent),
-                  if (_shellHistoryExpanded)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: KeyedSubtree(
-                        key: _headerKey,
-                        child: _ChatHeader(
-                          active: conversationActive,
-                          minimal: true,
-                          onNewChat: newChat,
-                          onSearchChats: widget.onSearchChats,
-                          onMore: widget.onMore,
-                        ),
-                      ),
+          Positioned(
+            top: historyTop,
+            left: 8,
+            right: 8,
+            height: historyHeight,
+            child: Offstage(
+              key: const ValueKey<String>(
+                'pandora-active-chat-history-offstage',
+              ),
+              offstage: !_shellHistoryExpanded,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: PandoraSimpleColors.canvas,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFF303030)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x66000000),
+                      blurRadius: 24,
+                      offset: Offset(0, 8),
                     ),
-                ],
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Material(
+                    key: const ValueKey<String>(
+                      'pandora-active-chat-history',
+                    ),
+                    color: PandoraSimpleColors.canvas,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(child: conversationContent),
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Semantics(
+                              button: true,
+                              label: 'Minimize conversation',
+                              child: InkWell(
+                                key: const ValueKey<String>(
+                                  'pandora-active-chat-minimize',
+                                ),
+                                onTap: minimizeHistory,
+                                borderRadius: BorderRadius.circular(18),
+                                child: SizedBox(
+                                  width: 48,
+                                  height: 32,
+                                  child: Center(
+                                    child: Container(
+                                      width: 30,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                        color: PandoraSimpleColors.muted
+                                            .withValues(alpha: .55),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-          if (_pickerOpen && snapshot != null)
+          if (_pickerOpen && _pickerSnapshot != null)
             Positioned.fill(
               child: PandoraModelPickerOverlay(
-                models: snapshot.models,
+                models: _pickerSnapshot!.models,
                 selection: _modelSelection,
                 reasoningMode: _reasoningMode,
                 localAiEnabled: _pickerLocalAiEnabled,
@@ -2134,10 +2180,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                 pickerOpen: _pickerOpen,
                 onModel: _pickModel,
                 onReasoning: () => _pickModel(startAtEnd: true),
-                showModelControl: !_isCommonWorkspace,
-                showContextControls: !_isCommonWorkspace,
+                showModelControl: true,
+                showContextControls: true,
+                compact: true,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
+                  _scheduleOverlayMeasure();
                 },
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
@@ -2219,8 +2267,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                 pickerOpen: _pickerOpen,
                 onModel: _pickModel,
                 onReasoning: () => _pickModel(startAtEnd: true),
-                showModelControl: !_isCommonWorkspace,
-                showContextControls: !_isCommonWorkspace,
+                showModelControl: true,
+                showContextControls: true,
+                compact: true,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                 },
@@ -2815,6 +2864,7 @@ class _Composer extends StatelessWidget {
     required this.onRemoveCharacterContext,
     required this.onRemoveServiceContext,
     required this.onRemoveProjectContext,
+    this.compact = false,
   });
 
   final TextEditingController controller;
@@ -2848,160 +2898,381 @@ class _Composer extends StatelessWidget {
   final VoidCallback onRemoveCharacterContext;
   final VoidCallback onRemoveServiceContext;
   final VoidCallback onRemoveProjectContext;
-
-  bool get _hasContext =>
-      attachment != null ||
-      imageAttachment != null ||
-      projectContext != null ||
-      serviceContext != null ||
-      characterContext != null;
+  final bool compact;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-        top: false,
-        minimum: const EdgeInsets.only(bottom: 4),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_hasContext)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 7),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    reverse: true,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (attachment != null)
-                          _CompactContextToken(
-                            icon: Icons.description_outlined,
-                            label: attachment!.name,
-                            onRemove: onRemoveAttachment,
-                          ),
-                        if (imageAttachment != null)
-                          _CompactContextToken(
-                            icon: Icons.image_outlined,
-                            label: imageAttachment!.name,
-                            onRemove: onRemoveImage,
-                          ),
-                        if (characterContext != null)
-                          KeyedSubtree(
-                            key: const ValueKey<String>(
-                              'ask-pandora-character-context',
-                            ),
-                            child: _CompactContextToken(
-                              icon: Icons.face_retouching_natural_outlined,
-                              label: 'Character · ${characterContext!.name}',
-                              onRemove: onRemoveCharacterContext,
-                            ),
-                          ),
-                        if (serviceContext != null)
-                          _CompactContextToken(
-                            icon: Icons.extension_outlined,
-                            label: serviceContext!.label,
-                            onRemove: onRemoveServiceContext,
-                          ),
-                        if (projectContext != null)
-                          _CompactContextToken(
-                            icon: Icons.workspaces_outline,
-                            label: projectContext!.name,
-                            onRemove: onRemoveProjectContext,
-                          ),
+  Widget build(BuildContext context) => ColoredBox(
+        color: compact ? const Color(0xFF050505) : Colors.transparent,
+        child: SafeArea(
+          top: false,
+          child: ClipRect(
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(
+              sigmaX: compact ? 0 : 14,
+              sigmaY: compact ? 0 : 14,
+            ),
+            child: Container(
+              key: const ValueKey<String>('ask-pandora-composer-dock'),
+              constraints: compact
+                  ? const BoxConstraints(
+                      minHeight: PandoraConversationLayer.compactComposerHeight,
+                    )
+                  : null,
+              padding: compact
+                  ? const EdgeInsets.fromLTRB(12, 2, 8, 6)
+                  : const EdgeInsets.fromLTRB(14, 8, 14, 12),
+              decoration: compact
+                  ? const BoxDecoration(color: Color(0xFF050505))
+                  : BoxDecoration(
+                      color:
+                          PandoraSimpleColors.canvas.withValues(alpha: .88),
+                      border: const Border(
+                        top: BorderSide(color: Color(0x14FFFFFF)),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x66000000),
+                          blurRadius: 18,
+                          offset: Offset(0, -4),
+                        ),
                       ],
                     ),
-                  ),
-                ),
-              KeyedSubtree(
-                key: const ValueKey<String>('ask-pandora-composer-dock'),
-                child: Container(
-                  key: const ValueKey<String>('ask-pandora-composer'),
-                  height: 54,
+              child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (error != null) ...[
+                Container(
+                  margin: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF151515),
-                    borderRadius: BorderRadius.circular(27),
+                    color: const Color(0xFFFFF1F0),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF7D5D1)),
                   ),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 1),
+                        child: Icon(
+                          Icons.info_outline_rounded,
+                          size: 17,
+                          color: Color(0xFFB42318),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          error!,
+                          style: const TextStyle(
+                            color: Color(0xFF8F2D24),
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (attachment != null ||
+                  imageAttachment != null ||
+                  projectContext != null ||
+                  serviceContext != null ||
+                  characterContext != null) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (attachment != null)
+                      InputChip(
+                        avatar:
+                            const Icon(Icons.description_outlined, size: 17),
+                        label: Text(attachment!.name),
+                        onDeleted:
+                            submitting || disabled ? null : onRemoveAttachment,
+                      ),
+                    if (imageAttachment != null)
+                      InputChip(
+                        avatar: const Icon(Icons.image_outlined, size: 17),
+                        label: Text(imageAttachment!.name),
+                        onDeleted:
+                            submitting || disabled ? null : onRemoveImage,
+                      ),
+                    if (characterContext != null)
+                      InputChip(
+                        key: const ValueKey<String>(
+                          'ask' '-pandora-character-context',
+                        ),
+                        avatar: const Icon(
+                          Icons.face_retouching_natural_outlined,
+                          size: 17,
+                        ),
+                        label: Text('Character · ${characterContext!.name}'),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveCharacterContext,
+                      ),
+                    if (serviceContext != null)
+                      InputChip(
+                        key: const ValueKey<String>(
+                            'ask' '-pandora-service-context'),
+                        avatar: const Icon(Icons.extension_outlined, size: 17),
+                        label: Text(
+                          '${serviceContext!.label} · ${serviceContext!.state}',
+                        ),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveServiceContext,
+                      ),
+                    if (projectContext != null)
+                      InputChip(
+                        key: const ValueKey<String>(
+                            'ask' '-pandora-project-context'),
+                        avatar: const Icon(Icons.workspaces_outline, size: 17),
+                        label: Text(projectContext!.name),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveProjectContext,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+              ],
+              DecoratedBox(
+                key: const ValueKey<String>('ask' '-pandora-composer'),
+                decoration: BoxDecoration(
+                  color: compact ? Colors.transparent : PandoraSimpleColors.surface,
+                  borderRadius: BorderRadius.circular(compact ? 0 : 30),
+                  border: compact
+                      ? null
+                      : Border.all(color: PandoraSimpleColors.line),
+                  boxShadow: compact
+                      ? const <BoxShadow>[]
+                      : const [
+                          BoxShadow(
+                            color: Color(0xB3000000),
+                            blurRadius: 24,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                ),
+                child: Padding(
+                  padding: compact
+                      ? const EdgeInsets.symmetric(horizontal: 2, vertical: 2)
+                      : const EdgeInsets.fromLTRB(6, 6, 6, 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       if (showContextControls)
-                        _CompactAttachmentMenu(
-                          disabled: disabled || submitting,
-                          modelLabel: modelLabel,
-                          reasoningLabel: reasoningLabel,
-                          pickerOpen: pickerOpen,
-                          onModel: showModelControl ? onModel : null,
-                          onReasoning:
-                              showModelControl ? onReasoning : null,
-                          onCamera: onCamera,
-                          onPhotos: onPhotos,
-                          onAttach: onAttach,
-                          onCharacters: onCharacters,
-                          onServices: onServices,
-                          onProjectContext: onProjectContext,
+                        ListenableBuilder(
+                        listenable: focusNode,
+                        builder: (context, child) =>
+                            compact && !focusNode.hasFocus
+                                ? const SizedBox(width: 4)
+                                : MenuAnchor(
+                        alignmentOffset: const Offset(0, -8),
+                        style: MenuStyle(
+                          backgroundColor: const WidgetStatePropertyAll(
+                            PandoraSimpleColors.surface,
+                          ),
+                          elevation: const WidgetStatePropertyAll(10),
+                          padding: const WidgetStatePropertyAll(
+                            EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          shape: WidgetStatePropertyAll(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              side: const BorderSide(
+                                color: PandoraSimpleColors.line,
+                              ),
+                            ),
+                          ),
                         ),
+                        menuChildren: [
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                                'ask' '-pandora-menu-camera'),
+                            label: 'Camera',
+                            icon: Icons.camera_alt_outlined,
+                            onPressed: onCamera,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                                'ask' '-pandora-menu-photos'),
+                            label: 'Photos',
+                            icon: Icons.photo_outlined,
+                            onPressed: onPhotos,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                                'ask' '-pandora-menu-files'),
+                            label: 'Files',
+                            icon: Icons.insert_drive_file_outlined,
+                            onPressed: onAttach,
+                          ),
+                          if (showModelControl)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask-pandora-menu-model',
+                              ),
+                              label: 'Model · ' + modelLabel,
+                              icon: Icons.tune_rounded,
+                              onPressed: onModel,
+                            ),
+                          if (showModelControl)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask-pandora-menu-reasoning',
+                              ),
+                              label: 'Reasoning · ' + reasoningLabel,
+                              icon: Icons.psychology_alt_outlined,
+                              onPressed: onReasoning,
+                            ),
+                          if (onCharacters != null)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask' '-pandora-menu-characters',
+                              ),
+                              label: 'Characters',
+                              icon: Icons.face_retouching_natural_outlined,
+                              onPressed: onCharacters!,
+                            ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask' '-pandora-menu-services',
+                            ),
+                            label: 'Services',
+                            icon: Icons.extension_outlined,
+                            onPressed: onServices,
+                          ),
+                          if (onProjectContext != null)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask' '-pandora-menu-project-context',
+                              ),
+                              label: 'Project context',
+                              icon: Icons.workspaces_outline,
+                              onPressed: onProjectContext!,
+                            ),
+                        ],
+                        builder: (context, controller, child) =>
+                            SizedBox.square(
+                          dimension: compact ? 40 : 44,
+                          child: IconButton(
+                            key: const ValueKey<String>('ask' '-pandora-plus'),
+                            tooltip: 'Open menu',
+                            padding: EdgeInsets.zero,
+                            onPressed: disabled || submitting
+                                ? null
+                                : () {
+                                    if (controller.isOpen) {
+                                      controller.close();
+                                    } else {
+                                      controller.open();
+                                    }
+                                  },
+                            icon: Icon(
+                              compact
+                                  ? Icons.add_rounded
+                                  : Icons.view_in_ar_outlined,
+                              size: compact ? 22 : 24,
+                            ),
+                            color: PandoraSimpleColors.ink,
+                          ),
+                        ),
+                              ),
+                      ),
+                      const SizedBox(width: 2),
                       Expanded(
                         child: TextField(
-                          key: const ValueKey<String>('ask-pandora-objective'),
+                          key: const ValueKey<String>(
+                              'ask' '-pandora-objective'),
                           controller: controller,
                           focusNode: focusNode,
                           readOnly: disabled,
                           minLines: 1,
-                          maxLines: 5,
+                          maxLines: compact ? 5 : 6,
                           maxLength: 4000,
                           keyboardType: TextInputType.multiline,
                           textInputAction: TextInputAction.newline,
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
-                            hintText:
-                                submitting ? 'Follow up' : 'Message Pandora…',
-                            hintStyle: TextStyle(
-                              color: Colors.white.withValues(alpha: .40),
-                              fontSize: 16.5,
-                              fontWeight: FontWeight.w400,
-                            ),
+                            hintText: submitting
+                                ? 'Follow up'
+                                : (compact
+                                    ? 'Message Pandora…'
+                                    : 'Message Pandora'),
                             counterText: '',
                             filled: false,
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
-                            contentPadding:
-                                const EdgeInsets.fromLTRB(3, 10, 3, 10),
+                            contentPadding: compact
+                                ? const EdgeInsets.fromLTRB(4, 9, 4, 8)
+                                : const EdgeInsets.fromLTRB(4, 11, 4, 10),
                           ),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.5,
-                            height: 1.25,
+                          style: TextStyle(
+                            color: PandoraSimpleColors.ink,
+                            fontSize: compact ? 15.5 : 16,
+                            height: 1.35,
                           ),
                           onChanged: (_) => onChanged(),
                         ),
                       ),
+                      if (!compact) ...[
+                        const SizedBox(width: 2),
+                        SizedBox.square(
+                          dimension: 44,
+                          child: IconButton(
+                            key: const ValueKey<String>('ask' '-pandora-voice'),
+                            tooltip: 'Voice input',
+                            padding: EdgeInsets.zero,
+                            onPressed:
+                                disabled || submitting ? null : onDictate,
+                            icon: const Icon(Icons.mic_none_rounded),
+                            color: PandoraSimpleColors.ink,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 2),
                       ValueListenableBuilder<TextEditingValue>(
                         valueListenable: controller,
                         builder: (context, value, child) {
                           final empty = value.text.trim().isEmpty;
-                          final voiceReady = !submitting && empty;
+                          final voiceReady =
+                              compact && !submitting && empty;
                           final cancelReady = submitting && empty;
-                          final VoidCallback action = () {
-                            if (disabled) return;
-                            final current = controller.text.trim();
-                            if (!submitting && current.isEmpty) {
-                              onDictate();
+                          final VoidCallback onDictate = () {
+                            if (controller.text.trim().isNotEmpty) {
+                              this.onSubmit();
                               return;
                             }
-                            onSubmit();
+                            this.onDictate();
+                          };
+                          final VoidCallback onSubmit = () {
+                            if (compact &&
+                                !submitting &&
+                                controller.text.trim().isEmpty) {
+                              this.onDictate();
+                              return;
+                            }
+                            this.onSubmit();
                           };
                           return SizedBox.square(
-                            dimension: 40,
+                            dimension: compact ? 36 : 40,
                             child: IconButton(
-                              key: const ValueKey<String>('ask-pandora-submit'),
+                              key: const ValueKey<String>(
+                                  'ask' '-pandora-submit'),
                               tooltip: voiceReady
                                   ? 'Voice input'
                                   : (cancelReady ? 'Stop' : 'Send'),
                               padding: EdgeInsets.zero,
-                              splashRadius: 20,
-                              onPressed: disabled ? null : action,
+                              onPressed: disabled
+                                  ? null
+                                  : (voiceReady ? onDictate : onSubmit),
                               icon: Icon(
                                 voiceReady
                                     ? Icons.mic_none_rounded
@@ -3009,17 +3280,60 @@ class _Composer extends StatelessWidget {
                                         ? Icons.stop_rounded
                                         : Icons.arrow_upward_rounded,
                                 color: disabled
-                                    ? Colors.white.withValues(alpha: .28)
-                                    : Colors.white.withValues(alpha: .86),
-                                size: voiceReady ? 21 : 20,
+                                    ? PandoraSimpleColors.muted
+                                    : PandoraSimpleColors.ink,
+                                size: compact ? 20 : 21,
                               ),
                             ),
                           );
                         },
                       ),
-                      const SizedBox(width: 5),
                     ],
                   ),
+                ),
+              ),
+                ],
+              ),
+            ),
+          ),
+          ),
+        ),
+      );
+}
+
+class _CharacterContextSheet extends StatelessWidget {
+  const _CharacterContextSheet();
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Characters',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Private character conversations use prepared memory and the local model.',
+                style: TextStyle(color: PandoraSimpleColors.muted),
+              ),
+              const SizedBox(height: 12),
+              ...PandoraCharacterApi.availableCharacters.map(
+                (character) => ListTile(
+                  key: ValueKey<String>('character-${character.id}'),
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.face_retouching_natural_outlined),
+                  ),
+                  title: Text(character.name),
+                  subtitle: Text(character.description),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).pop(character),
                 ),
               ),
             ],
@@ -3027,6 +3341,148 @@ class _Composer extends StatelessWidget {
         ),
       );
 }
+
+class _ServiceContextSheet extends StatelessWidget {
+  const _ServiceContextSheet({required this.providers});
+
+  final List<PandoraCapabilityProvider> providers;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 520),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  'Services',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: providers.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No verified service state is available.',
+                          style: TextStyle(color: PandoraSimpleColors.muted),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                        itemCount: providers.length,
+                        separatorBuilder: (_, __) => const Divider(
+                          height: 1,
+                          color: PandoraSimpleColors.line,
+                        ),
+                        itemBuilder: (context, index) {
+                          final provider = providers[index];
+                          return ListTile(
+                            title: Text(
+                              provider.label,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.ink,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              provider.state,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.muted,
+                              ),
+                            ),
+                            trailing: provider.canUseNow
+                                ? const Icon(
+                                    Icons.check_circle_outline,
+                                    color: PandoraSimpleColors.ink,
+                                  )
+                                : const Icon(
+                                    Icons.info_outline_rounded,
+                                    color: PandoraSimpleColors.muted,
+                                  ),
+                            onTap: () => Navigator.of(context).pop(provider),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ProjectContextSheet extends StatelessWidget {
+  const _ProjectContextSheet({required this.projects});
+
+  final List<PandoraProjectContext> projects;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 560),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  'Project context',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: projects.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No existing projects are available.',
+                          style: TextStyle(color: PandoraSimpleColors.muted),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                        itemCount: projects.length,
+                        separatorBuilder: (_, __) => const Divider(
+                          height: 1,
+                          color: PandoraSimpleColors.line,
+                        ),
+                        itemBuilder: (context, index) {
+                          final project = projects[index];
+                          return ListTile(
+                            title: Text(
+                              project.name,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.ink,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              project.repository ?? project.projectKey,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.muted,
+                              ),
+                            ),
+                            onTap: () => Navigator.of(context).pop(project),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
 
 class _CompactAttachmentMenu extends StatelessWidget {
   const _CompactAttachmentMenu({
