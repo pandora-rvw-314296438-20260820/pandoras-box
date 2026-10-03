@@ -119,18 +119,23 @@ test("workspace scope is passed to Ask Pandora without visible message injection
 
 
 test("control revisions preserve workspace scope across every provider body", () => {
-  assert.ok(!backend.includes(
-    "request(effectiveMessage,i.attachments,prior,ctx,tctx)",
-  ));
-  assert.ok(!backend.includes(
-    "kimiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass)",
-  ));
-  assert.ok(!backend.includes(
-    "openaiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass)",
-  ));
-  assert.ok(backend.includes(
-    "request(effectiveMessage,i.attachments,prior,ctx,i.enterpriseContext,tctx)",
-  ));
+  assert.match(backend, /modelAttachments=repositoryContext\?\.attachments\?\?i\.attachments/);
+  for (const [body, builder, modelClass] of [
+    ["gbody", "request", false],
+    ["kbody", "kimiBody", true],
+    ["obody", "openaiBody", true],
+  ]) {
+    const calls = [...backend.matchAll(new RegExp(`${body}\\s*=\\s*${builder}\\(([^)]+)\\)`, "g"))];
+    assert.ok(calls.length >= 3, `${body} must be rebuilt initially and for both control-revision paths`);
+    const expected = ["effectiveMessage", "modelAttachments", "prior", "ctx", "i.enterpriseContext", "tctx"];
+    if (modelClass) expected.push("modelClass");
+    for (const [, args] of calls) {
+      assert.deepEqual(args.split(",").map(arg => arg.trim()), expected,
+        `${body} must retain workspace and repository context after every control revision`);
+    }
+  }
+  assert.ok([...backend.matchAll(/bbody\s*=\s*bedrockBodyFromOpenAi\(obody\)/g)].length >= 3,
+    "Bedrock must derive each revised body from the same scoped OpenAI body");
 });
 
 

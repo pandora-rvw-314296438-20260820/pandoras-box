@@ -42,15 +42,20 @@ class PandoraCalendarActionExecutor {
     PandoraCalendarRuntime? runtime,
     PandoraCalendarActivityReporter? reporter,
     PandoraLocalStateCache? localCache,
+    bool Function()? beforeEffect,
     DateTime Function()? clock,
   })  : _runtime = runtime ?? PandoraCalendarRuntime(),
         _reporter = reporter,
         _localCache = localCache,
+        _beforeEffect = beforeEffect,
         _clock = clock ?? DateTime.now;
 
   final PandoraCalendarRuntime _runtime;
   final PandoraCalendarActivityReporter? _reporter;
   final PandoraLocalStateCache? _localCache;
+  // Invoked synchronously after preparation and immediately before each native
+  // write. A turn can be cancelled while permission or calendar reads await.
+  final bool Function()? _beforeEffect;
   final DateTime Function() _clock;
 
   Future<PandoraCalendarExecutionResult> execute(
@@ -142,6 +147,7 @@ class PandoraCalendarActionExecutor {
     if (gap != null) return gap;
     final selection = await _selectWritableCalendar();
     if (selection.result != null) return selection.result!;
+    if (_beforeEffect?.call() == false) return _cancelled('calendar.events');
     final result = await _runtime.createEvent(
       operationId: operationId,
       calendarId: _int(selection.calendar!['id']),
@@ -167,6 +173,7 @@ class PandoraCalendarActionExecutor {
     final oldStart = _date(event['startEpochMs']);
     final oldEnd = _date(event['endEpochMs']);
     final newStart = command.start!;
+    if (_beforeEffect?.call() == false) return _cancelled('calendar.events');
     final result = await _runtime.updateEvent(
       operationId: operationId,
       eventId: _int(event['id']),
@@ -195,6 +202,7 @@ class PandoraCalendarActionExecutor {
     final match = await _findUnique(command);
     if (match.result != null) return match.result!;
     final title = _text(match.event!['title'], fallback: 'Event');
+    if (_beforeEffect?.call() == false) return _cancelled('calendar.events');
     final result = await _runtime.deleteEvent(
       operationId: operationId,
       eventId: _int(match.event!['id']),
@@ -223,6 +231,7 @@ class PandoraCalendarActionExecutor {
         needsUserAction: true,
       );
     }
+    if (_beforeEffect?.call() == false) return _cancelled('reminder.local');
     final scheduled = await _runtime.scheduleLocalReminder(
       operationId: operationId,
       title: command.title!,
@@ -456,6 +465,15 @@ class PandoraCalendarActionExecutor {
       needsUserAction: needsUserAction,
     );
   }
+
+  Future<PandoraCalendarExecutionResult> _cancelled(String capability) =>
+      _finish(
+        capability,
+        'cancelled',
+        capability == 'reminder.local'
+            ? 'Cancelled before a reminder was scheduled.'
+            : 'Cancelled before any calendar change was made.',
+      );
 
   Future<void> _report(String capability, String stage, DateTime at) async {
     final reporter = _reporter;

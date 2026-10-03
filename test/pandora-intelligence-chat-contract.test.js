@@ -97,9 +97,10 @@ test('mobile chat uses a full-height floating overlay with keyboard-aware bottom
 });
 
 test('internal Enterprise context is sanitized before persistence, API response, and mobile rendering', () => {
-  assert.match(edge, /const cleanReply=visibleReply\(v\.reply\)/);
+  assert.match(edge, /const cleanReply=visibleModelReply\(v\.reply,handoff\)/);
   assert.match(edge, /author_role:"assistant",content:cleanReply/);
-  assert.match(edge, /responsePayload=\{threadId:tid,reply:cleanReply/);
+  assert.match(edge, /completionResult=\{threadId:tid,reply:cleanReply/);
+  assert.match(edge, /responsePayload=\{\.\.\.completionResult,assistantMessageId\}/);
   assert.match(askPandoraScreen, /_sanitizeVisiblePandoraText/);
   assert.match(askPandoraScreen, /bounded enterprise page context:/i);
 });
@@ -107,7 +108,7 @@ test('internal Enterprise context is sanitized before persistence, API response,
 
 test('owner-facing Pandora injects canonical M5 Memory through the server workload boundary', () => {
   assert.match(edge, /https:\/\/mcpmaster\.vercel\.app\/api\/operations-memory/);
-  assert.match(edge, /combinedTrustedContext\(req,c\.admin,c\.organizationId,i\.projectId,effectiveInitial\)/);
+  assert.match(edge, /combinedTrustedContext\(req,c\.admin,c\.organizationId,i\.projectId,effectiveInitial,turn\?\.timings\?\?null\)/);
   assert.match(edge, /Use relevant prior failure lessons, procedures, outcomes, and provider evidence to avoid repeating known mistakes/);
   assert.match(edge, /canonicalMemoryItemIds/);
   assert.match(edge, /retrievalDoesNotGrantExecutionAuthority===true/);

@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+import ts from 'typescript';
 
 const migrationPath = new URL(
   '../supabase/migrations/20260913083557_pandora_chat_execution_truth_v10.sql',
@@ -13,6 +15,11 @@ const edgePath = new URL(
 
 const migration = await readFile(migrationPath, 'utf8');
 const edge = await readFile(edgePath, 'utf8');
+const replySafety = await readFile(new URL('../supabase/functions/pandora-intelligence-chat/reply-safety.ts', import.meta.url), 'utf8');
+const replyExports = {};
+vm.runInNewContext(ts.transpileModule(replySafety, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, { exports: replyExports });
 
 test('accepted intake is never represented as running execution or a verified ETA', () => {
   assert.match(migration, /there is no persisted evidence that execution has started/);
@@ -35,7 +42,16 @@ test('model fallback cannot turn a handoff into execution theatre', () => {
   assert.match(edge, /model handoff only proposes or records requested work; it is not execution evidence/);
   assert.match(edge, /A handoff is an execution proposal or receipt, never proof that work started/);
   assert.match(edge, /Never invent an ETA or time estimate/);
-  assert.match(edge, /executionClaim=handoff\?\.required/);
-  assert.match(edge, /this response does not contain persisted execution evidence/);
-  assert.match(edge, /will not claim that it started, is running in the background, is verifying, or give an ETA/);
+  assert.match(edge, /cleanReply=visibleModelReply\(v\.reply,handoff\)/);
+  const reply = replyExports.visibleModelReply(
+    "I've started the deployment. It is running in the background and will finish in three minutes.",
+    { required: true, kind: 'capability_request', request: 'Deploy the application' },
+  );
+  assert.equal(reply, "I've captured the requested action, but I haven't carried it out yet.");
+  assert.doesNotMatch(reply, /started|running|finish in|runtime evidence|execution evidence|capability registry/);
+  assert.equal(replyExports.visibleModelReply('Here is the explanation.', null), 'Here is the explanation.');
+  assert.equal(replyExports.visibleModelReply('Here is the explanation.', { required: false }), 'Here is the explanation.');
+  // A separate verified-capability path must still be able to describe a real
+  // persisted effect; the model-only guard does not remove that capability.
+  assert.equal(replyExports.sanitizeVisibleReply('The event was created.'), 'The event was created.');
 });
