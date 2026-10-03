@@ -284,6 +284,32 @@ test("unbound or stale releases do not become verified live deployments", async 
   assert.doesNotMatch(result.reply, /Live|production verified|deployed successfully/);
 });
 
+test("protected request allowance uses admitted turns and leaves other commercial limits unenforced", async () => {
+  const result = await tryCoreOwnerCommand(caller(snapshot({ usage_allowances: [
+    { client_name: "PLP Boracay", request_admission_enabled: true, request_admission_state: "enforcing", requests_admitted: 8,
+      request_limit: 10, requests_remaining: 2, requests_recorded: 500, tokens_recorded: 99999, token_limit: 100,
+      request_effective_from: "2026-10-03T08:00:00Z", request_reset_at: "2026-11-01T00:00:00Z" },
+    { client_name: "BOK", request_admission_enabled: true, request_admission_state: "policy_unavailable", requests_remaining: null },
+    { client_name: "Not enrolled", request_admission_enabled: false, request_limit: 1, requests_recorded: 1000 },
+  ] })), platform, "Which customers are nearing their allowance?", noScope);
+  assert.match(result.reply, /PLP Boracay — 8 of 10 cloud-chat requests admitted; 2 remaining/);
+  assert.match(result.reply, /Effective from 2026-10-03T08:00:00Z; resets 2026-11-01T00:00:00Z/);
+  assert.match(result.reply, /BOK — cloud-chat requests are blocked/);
+  assert.match(result.reply, /Token, cost, seat and device allowances remain commercial records, not runtime hard limits/);
+  assert.doesNotMatch(result.reply, /500|99999|1000|Not enrolled/);
+});
+
+test("missing protected quota evidence stays unknown and zero limit blocks admission", async () => {
+  const result = await tryCoreOwnerCommand(caller(snapshot({ usage_allowances: [
+    { client_name: "Missing evidence", request_admission_enabled: true, request_admission_state: "enforcing", requests_admitted: null,
+      request_limit: 10, requests_remaining: null },
+    { client_name: "Zero allowance", request_admission_enabled: true, request_admission_state: "limit_reached", requests_admitted: 0,
+      request_limit: 0, requests_remaining: 0 },
+  ] })), platform, "Which clients are nearing their limit?", noScope);
+  assert.match(result.reply, /Missing evidence — request admission evidence is unavailable; remaining allowance is unknown/);
+  assert.match(result.reply, /Zero allowance — 0 of 0 cloud-chat requests admitted; 0 remaining; further requests blocked/);
+});
+
 test("release observations keep candidate and serving production source separate", async () => {
   const user = caller(snapshot({ deployments: [
     { release_observation_kind: "candidate", provider_state: "READY", source_commit_sha: "b".repeat(40), last_observed_at: "2026-10-03T07:12:00Z", evidence_state: "deployment_ready", runtime_verified: false, owner_flow_verified: false, client_flow_verified: false },
@@ -308,8 +334,8 @@ test("model recommendations and local savings remain unproven without comparable
   assert.doesNotMatch(local.reply, /\d+%|saved \$/);
 });
 
-test("new-client and proposal requests hand off to governed UI without mutation", async () => {
-  for (const [message, action] of [["Create a new enterprise client", "create_client"], ["Prepare a proposal for this prospect", "prepare_proposal"]]) {
+test("new-client and unselected proposal requests hand off to governed UI without mutation", async () => {
+  for (const [message, action] of [["Create a new enterprise client", "create_client"], ["Prepare a proposal for this prospect", "inspect"]]) {
     const user = caller();
     const result = await tryCoreOwnerCommand(user, platform, message, noScope);
     assert.equal(result.handoff.kind, "core_navigation");
@@ -318,6 +344,68 @@ test("new-client and proposal requests hand off to governed UI without mutation"
     assert.ok(result.handoff.request);
     assert.equal(result.providerReadback.actionExecuted, false);
     assert.ok(user.calls.every((call) => call.name === "pandora_core_snapshot_v1"));
+  }
+});
+
+const proposalRecords = (overrides = {}) => snapshot({
+  pipeline: [{ id: client, company_name: "Harbor Logistics", stage: "proposal", estimated_value_micros: 987654321000000 }],
+  plans: [{ id: second, code: "managed", name: "Managed", state: "active", currency: "PHP", monthly_fee_micros: 2500000000,
+    entitlements: ["documents.read"], support_tier: "standard" }], ...overrides,
+});
+
+test("proposal preparation uses only the explicitly selected prospect and active plan terms", async () => {
+  const user = caller(proposalRecords());
+  const result = await tryCoreOwnerCommand(user, platform, "Prepare a proposal for Harbor Logistics using plan Managed", noScope);
+  assert.match(result.reply, /Draft proposal — Harbor Logistics/);
+  assert.match(result.reply, /Monthly fee: PHP 2500\.00/);
+  assert.match(result.reply, /Recorded entitlements: documents\.read/);
+  assert.match(result.reply, /provider connections require separate verification/);
+  assert.match(result.reply, /Source: manually maintained/);
+  assert.match(result.reply, /no proposal was sent and no agreement or subscription was created/);
+  assert.doesNotMatch(result.reply, /987654321/);
+  assert.equal(result.providerReadback.draftPrepared, true);
+  assert.equal(result.providerReadback.prospectId, client);
+  assert.equal(result.providerReadback.planId, second);
+  assert.equal(result.providerReadback.actionExecuted, false);
+  assert.equal(result.providerReadback.financialActionExecuted, false);
+  assert.deepEqual(user.calls.map((call) => call.name), ["pandora_core_snapshot_v1"]);
+});
+
+test("proposal drafts never substitute prospect estimates for absent fees or fabricate terms", async () => {
+  const data = proposalRecords();
+  data.plans[0].monthly_fee_micros = null;
+  const result = await tryCoreOwnerCommand(caller(data), platform, "Draft a proposal for Harbor Logistics using Managed", noScope);
+  assert.match(result.reply, /Monthly fee: not recorded/);
+  assert.match(result.reply, /Contract dates, setup fees, taxes, discounts and payment terms are not specified/);
+  assert.doesNotMatch(result.reply, /987654321|PHP 0|12.month|30.day|99\.9%/);
+});
+
+test("ambiguous or missing commercial selections cannot produce a quoted proposal", async () => {
+  const cases = [
+    proposalRecords({ pipeline: [] }),
+    proposalRecords({ pipeline: [...proposalRecords().pipeline, { ...proposalRecords().pipeline[0], id: entry }] }),
+    proposalRecords({ plans: [...proposalRecords().plans, { ...proposalRecords().plans[0], id: entry }] }),
+    proposalRecords({ plans: [{ ...proposalRecords().plans[0], state: "draft" }] }),
+    proposalRecords({ pipeline: [{ ...proposalRecords().pipeline[0], stage: "won" }] }),
+  ];
+  for (const data of cases) {
+    const result = await tryCoreOwnerCommand(caller(data), platform, "Prepare a proposal for Harbor Logistics using Managed", noScope);
+    assert.match(result.reply, /one matching current Pipeline prospect and one matching active plan/);
+    assert.doesNotMatch(result.reply, /Draft proposal —|2500\.00/);
+    assert.equal(result.providerReadback.draftPrepared, undefined);
+  }
+  const unspecified = await tryCoreOwnerCommand(caller(proposalRecords()), platform, "Prepare a proposal for Harbor Logistics", noScope);
+  assert.match(unspecified.reply, /Choose the prospect and an active plan by name/);
+  assert.doesNotMatch(unspecified.reply, /2500\.00/);
+});
+
+test("proposal data stays behind owner commercial and exact conversation scope", async () => {
+  for (const [organizationId, data, error] of [[client, proposalRecords(), null],
+    [platform, proposalRecords({ operator: { role: "support", platform_organization_id: platform } }), null],
+    [platform, null, { code: "42501", message: "private commercial data" }]]) {
+    const result = await tryCoreOwnerCommand(caller(data, error), organizationId, "Prepare a proposal for Harbor Logistics using Managed", noScope);
+    assert.doesNotMatch(result.reply, /2500\.00|documents\.read|private commercial data/);
+    assert.equal(result.providerReadback.draftPrepared, undefined);
   }
 });
 

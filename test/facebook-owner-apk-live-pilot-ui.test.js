@@ -13,9 +13,9 @@ const businessAttribution = readFileSync('supabase/migrations/20260930235134_pan
 const tracking = readFileSync('src/pandora-tracking-http.js','utf8');
 const ownerControls = readFileSync('supabase/migrations/20261001001911_pandora_growth_owner_pilot_controls_v1.sql','utf8');
 
-test('owner Android entrypoint reaches the live Marketing & Growth workspace', () => {
+test('authorized owner Android Home retains the live Marketing & Growth route', () => {
   assert.ok(main.includes('PandoraApp('));
-  assert.ok(auth.includes('PandoraChatShell()'));
+  assert.match(auth, /snapshot\.data != true[\s\S]*PandoraMemberWorkspaceGate\([\s\S]*dependencies\.intelligence == null[\s\S]*PandoraShell\(\)[\s\S]*PandoraChatShell\(\s*startPage: PandoraStartPage\.home/);
   assert.ok(home.includes("key: 'pandora-marketing-growth'"));
   assert.ok(shell.includes("'pandora-marketing-growth'"));
   assert.ok(shell.includes('MarketingGrowthWorkspaceScreen('));

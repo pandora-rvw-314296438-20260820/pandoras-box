@@ -217,6 +217,23 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(value)));
 
+  String _organizationName(String? organizationId) {
+    if (organizationId == null ||
+        organizationId ==
+            coreRecord(_snapshot?['operator'])['platform_organization_id']) {
+      return 'Pandora';
+    }
+    if (_client['organization_id'] == organizationId) {
+      return coreText(_client['display_name'], 'Organization $organizationId');
+    }
+    for (final client in _rows('clients')) {
+      if (client['organization_id'] == organizationId) {
+        return coreText(client['display_name'], 'Organization $organizationId');
+      }
+    }
+    return 'Organization $organizationId';
+  }
+
   Future<void> _form(
     String operation,
     String title,
@@ -225,6 +242,8 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     PandoraCoreRecord initial = const {},
     String submitLabel = 'Save',
     bool financial = false,
+    String? notice,
+    String? successMessage,
   }) async {
     final result = await showModalBottomSheet<PandoraCoreRecord>(
       context: context,
@@ -241,15 +260,14 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
         initial: initial,
         submitLabel: submitLabel,
         financial: financial,
-        scopeLabel: _clientId == null
-            ? 'Pandora'
-            : coreText(_client['display_name'], 'Selected client'),
+        notice: notice,
+        scopeLabel: _organizationName(organizationId),
         identity:
             context.getInheritedWidgetOfExactType<PandoraDependencies>()?.auth,
       ),
     );
     if (!mounted || result == null) return;
-    _message(
+    _message(successMessage ??
         coreText(result['next_action'], 'Saved. Current state refreshed.'));
     final created = coreText(result['organization_id'], '');
     if (operation == 'client.register' && created.isNotEmpty) {
@@ -261,6 +279,19 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     }
     await _load();
   }
+
+  Future<void> _requestWorkspaceAccess(String organizationId) => _form(
+        'access.request',
+        'Request workspace access',
+        const [
+          CoreFormField('reason', 'Reason', required: true, multiline: true),
+        ],
+        organizationId: organizationId,
+        submitLabel: 'Request access',
+        notice: 'Scope: ${_organizationName(organizationId)}. '
+            'This request needs review; it does not grant workspace access.',
+        successMessage: 'Workspace access request pending review.',
+      );
 
   Future<void> _registerClient() => _form(
         'client.register',
@@ -544,6 +575,12 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                 : null,
             child: const Text('Enter client workspace'),
           ),
+          if (client['can_enter'] != true)
+            TextButton(
+              key: ValueKey('core-request-access-$id'),
+              onPressed: () => _requestWorkspaceAccess(id),
+              child: const Text('Request workspace access'),
+            ),
         ]),
       ]),
     );
@@ -581,6 +618,13 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
               ? () => _enter(client)
               : null,
         ),
+        if (client['can_enter'] != true)
+          _Action(
+            key: ValueKey('core-request-access-$id'),
+            label: 'Request workspace access',
+            icon: Icons.lock_open_outlined,
+            onPressed: () => _requestWorkspaceAccess(id),
+          ),
       ]),
       if (client['can_enter'] != true)
         const Padding(
@@ -797,31 +841,48 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                       'included_allowance_micros', 'Included cost allowance',
                       money: true),
                   CoreFormField('entitlements', 'Capability entitlements',
-                      list: true, hint: 'Comma-separated capability keys'),
-                  CoreFormField('limits.users', 'User limit', integer: true),
-                  CoreFormField('limits.devices', 'Device limit',
+                      list: true,
+                      hint:
+                          'Commercial terms; comma-separated capability keys'),
+                  CoreFormField(
+                      'request_admission_policy', 'Cloud-chat request control',
+                      options: {
+                        'record_only': 'Record requests only',
+                        'block': 'Block at monthly request limit',
+                      }),
+                  CoreFormField(
+                      'limits.monthly_requests', 'Monthly cloud-chat requests',
+                      integer: true,
+                      requiredWhenField: 'request_admission_policy',
+                      requiredWhenValue: 'block'),
+                  CoreFormField('limits.users', 'Commercial seat allowance',
+                      integer: true),
+                  CoreFormField('limits.devices', 'Commercial device allowance',
                       integer: true),
                   CoreFormField(
-                      'limits.monthly_requests', 'Monthly request limit',
+                      'limits.monthly_tokens', 'Commercial token allowance',
                       integer: true),
-                  CoreFormField('limits.monthly_tokens', 'Monthly token limit',
-                      integer: true),
-                  CoreFormField('limits.budget_micros', 'Monthly cost limit',
+                  CoreFormField(
+                      'limits.budget_micros', 'Commercial cost allowance',
                       money: true),
                   CoreFormField('state', 'Availability',
                       options: {'draft': 'Draft', 'active': 'Active'}),
-                  CoreFormField('overage_policy', 'Overage policy', options: {
-                    'approval_required': 'Ask for approval',
-                    'blocked': 'Block overage',
-                    'contracted': 'Contracted overage',
-                  }),
+                  CoreFormField('overage_policy', 'Commercial overage terms',
+                      options: {
+                        'approval_required': 'Approval clause',
+                        'blocked': 'No-overage clause',
+                        'contracted': 'Contracted overage',
+                      }),
                   CoreFormField('support_tier', 'Support tier', options: {
                     'standard': 'Standard',
                     'priority': 'Priority',
                     'dedicated': 'Dedicated',
                   }),
                 ],
-                financial: true)),
+                financial: true,
+                notice: 'Only cloud-chat request blocking is enforced for '
+                    'enabled subscriptions. Other allowances, entitlements '
+                    'and overage terms are commercial records.')),
       if (tab == 'Partners')
         _Action(
             label: 'Add vendor or partner',
@@ -881,6 +942,14 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                     'past_due': 'Past due',
                     'cancelled': 'Cancelled',
                   }),
+                  const CoreFormField('request_admission_enabled',
+                      'Apply cloud-chat request limit',
+                      boolean: true,
+                      hint: 'Requires an active plan with request blocking.',
+                      options: {
+                        'false': 'Off',
+                        'true': 'On — enforce request limit',
+                      }),
                   const CoreFormField('currency', 'Currency', options: {
                     'PHP': 'PHP',
                     'USD': 'USD',
@@ -898,7 +967,10 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                 ],
                 organizationId: id,
                 initial: coreRecord(_snapshot?['subscription']),
-                financial: true)),
+                financial: true,
+                notice: 'Applies only to cloud-chat request admission. '
+                    'Server-recorded coverage dates cannot be edited or reset '
+                    'here. Other allowances remain commercial terms.')),
         _Action(
             label: 'Link contract',
             icon: Icons.description_outlined,
@@ -1070,22 +1142,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
         _Action(
             label: 'Record incident',
             icon: Icons.add_rounded,
-            onPressed: () => _form('incident.save', 'Record incident', const [
-                  CoreFormField('title', 'Title', required: true),
-                  CoreFormField('severity', 'Severity', options: {
-                    'low': 'Low',
-                    'medium': 'Medium',
-                    'high': 'High',
-                    'critical': 'Critical',
-                  }),
-                  CoreFormField('state', 'State', options: {
-                    'investigating': 'Investigating',
-                    'identified': 'Identified',
-                    'recovering': 'Recovering',
-                  }),
-                  CoreFormField('impact', 'Impact',
-                      required: true, multiline: true),
-                ])),
+            onPressed: () => _incidentForm()),
         const SizedBox(height: 12),
         ..._recordList('incidents', 'No incidents recorded.'),
       ],
@@ -1136,6 +1193,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
               'open_connections' => 'Connections',
               'open_onboarding' => 'Onboarding',
               'open_case' => 'Support',
+              'open_client_commercial' => 'Commercial',
               _ => 'Summary',
             });
       } else {
@@ -1147,29 +1205,75 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   Future<void> _prospectForm({PandoraCoreRecord initial = const {}}) => _form(
       'prospect.save',
       initial['id'] == null ? 'Add prospect' : 'Update prospect',
-      const [
-        CoreFormField('company_name', 'Company', required: true),
-        CoreFormField('contact_name', 'Contact'),
-        CoreFormField('contact_email', 'Contact email', email: true),
-        CoreFormField('industry', 'Industry'),
-        CoreFormField('source', 'Source'),
-        CoreFormField('stage', 'Stage', options: {
+      [
+        const CoreFormField('company_name', 'Company', required: true),
+        const CoreFormField('contact_name', 'Contact'),
+        const CoreFormField('contact_email', 'Contact email', email: true),
+        const CoreFormField('industry', 'Industry'),
+        const CoreFormField('source', 'Source'),
+        const CoreFormField('stage', 'Stage', options: {
           'prospect': 'Prospect',
           'qualified': 'Qualified',
           'demo': 'Demo',
           'proposal': 'Proposal',
           'contracting': 'Contracting',
+          'won': 'Won',
           'lost': 'Lost'
         }),
-        CoreFormField('currency', 'Currency',
+        CoreFormField('converted_organization_id', 'Converted client',
+            requiredWhenField: 'stage',
+            requiredWhenValue: 'won',
+            hint: 'Register the client in Clients before marking won.',
+            options: {
+              '': 'Not linked',
+              for (final client in _rows('clients'))
+                coreText(client['organization_id']):
+                    coreText(client['display_name']),
+            }),
+        const CoreFormField('currency', 'Currency',
             options: {'PHP': 'PHP', 'USD': 'USD'}),
-        CoreFormField('estimated_value_micros', 'Estimated value', money: true),
-        CoreFormField('next_action', 'Next action', required: true),
-        CoreFormField('follow_up_at', 'Follow up', hint: 'YYYY-MM-DD'),
-        CoreFormField('decision_on', 'Decision date', hint: 'YYYY-MM-DD'),
-        CoreFormField('notes', 'Notes', multiline: true),
+        const CoreFormField('estimated_value_micros', 'Estimated value',
+            money: true),
+        const CoreFormField('next_action', 'Next action', required: true),
+        const CoreFormField('follow_up_at', 'Follow up', hint: 'YYYY-MM-DD'),
+        const CoreFormField('decision_on', 'Decision date', hint: 'YYYY-MM-DD'),
+        const CoreFormField('notes', 'Notes', multiline: true),
       ],
       initial: initial);
+
+  Future<void> _incidentForm({PandoraCoreRecord initial = const {}}) => _form(
+      'incident.save',
+      initial['id'] == null ? 'Record incident' : 'Update incident',
+      const [
+        CoreFormField('title', 'Title', required: true),
+        CoreFormField('severity', 'Severity', options: {
+          'low': 'Low',
+          'medium': 'Medium',
+          'high': 'High',
+          'critical': 'Critical',
+        }),
+        CoreFormField('state', 'State', options: {
+          'investigating': 'Investigating',
+          'identified': 'Identified',
+          'recovering': 'Recovering',
+          'resolved': 'Resolved',
+        }),
+        CoreFormField('impact', 'Impact', required: true, multiline: true),
+        CoreFormField('diagnosis', 'Diagnosis', multiline: true),
+        CoreFormField('resolution', 'Resolution',
+            multiline: true,
+            requiredWhenField: 'state',
+            requiredWhenValue: 'resolved'),
+        CoreFormField('verification_ref', 'Recovery evidence',
+            requiredWhenField: 'state', requiredWhenValue: 'resolved'),
+      ],
+      organizationId: coreText(initial['organization_id'], '').isEmpty
+          ? null
+          : coreText(initial['organization_id']),
+      initial: initial,
+      notice:
+          'Scope: ${_organizationName(coreText(initial['organization_id'], '').isEmpty ? null : coreText(initial['organization_id']))}',
+      submitLabel: 'Save incident');
 
   Future<void> _capabilityForm(String id) async {
     final packs = _rows('available_capability_packs');
@@ -1344,42 +1448,67 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       _caseForm(_clientId!, initial: row);
       return;
     }
+    if (key == 'incidents') {
+      _incidentForm(initial: row);
+      return;
+    }
     _showRecord(row);
   }
 
-  Future<void> _caseForm(String id, {PandoraCoreRecord initial = const {}}) =>
-      _form(
-          'case.save',
-          'Add support case',
-          const [
-            CoreFormField('subject', 'Title', required: true),
-            CoreFormField('kind', 'Kind', options: {
-              'issue': 'Support issue',
-              'request': 'Request',
-              'feature': 'Feature request',
-              'onboarding': 'Onboarding blocker',
-            }),
-            CoreFormField('priority', 'Priority', options: {
-              'normal': 'Normal',
-              'high': 'High',
-              'urgent': 'Urgent',
-            }),
-            CoreFormField('description', 'Details',
-                multiline: true, required: true),
-            CoreFormField('due_at', 'Due date', hint: 'YYYY-MM-DD'),
-            CoreFormField('needs_owner', 'Owner decision needed',
-                boolean: true, options: {'false': 'No', 'true': 'Yes'}),
-            CoreFormField('state', 'Status', options: {
-              'open': 'Open',
-              'in_progress': 'In progress',
-              'blocked': 'Blocked',
-              'completed': 'Resolved',
-              'cancelled': 'Cancelled'
-            }),
-            CoreFormField('resolution', 'Resolution', multiline: true),
-          ],
-          organizationId: id,
-          initial: initial);
+  Future<void> _caseForm(String id, {PandoraCoreRecord initial = const {}}) {
+    final assignedUserId = coreText(initial['assigned_user_id'], '');
+    final assignees = <String, String>{
+      '': 'Unassigned',
+      if (assignedUserId.isNotEmpty)
+        assignedUserId: 'Current assignee (unchanged)',
+      for (final member in _rows('members'))
+        if (member['status'] == 'active' &&
+            coreText(member['user_id'], '').isNotEmpty &&
+            (member['organization_id'] == null ||
+                member['organization_id'] == id))
+          coreText(member['user_id']):
+              coreText(member['name'], 'Client member'),
+    };
+    return _form(
+        'case.save',
+        initial['id'] == null ? 'Add support case' : 'Update support case',
+        [
+          const CoreFormField('subject', 'Title', required: true),
+          const CoreFormField('kind', 'Kind', options: {
+            'issue': 'Support issue',
+            'request': 'Request',
+            'feature': 'Feature request',
+            'onboarding': 'Onboarding blocker',
+            'training': 'Training',
+            'access': 'Access request',
+          }),
+          const CoreFormField('priority', 'Priority', options: {
+            'normal': 'Normal',
+            'low': 'Low',
+            'high': 'High',
+            'urgent': 'Urgent',
+          }),
+          CoreFormField('assigned_user_id', 'Assigned to',
+              options: assignees,
+              hint: 'New assignments use active members of this client.'),
+          const CoreFormField('description', 'Details',
+              multiline: true, required: true),
+          const CoreFormField('due_at', 'Due date', hint: 'YYYY-MM-DD'),
+          const CoreFormField('needs_owner', 'Owner decision needed',
+              boolean: true, options: {'false': 'No', 'true': 'Yes'}),
+          const CoreFormField('state', 'Status', options: {
+            'open': 'Open',
+            'in_progress': 'In progress',
+            'blocked': 'Blocked',
+            'completed': 'Resolved',
+            'cancelled': 'Cancelled'
+          }),
+          const CoreFormField('resolution', 'Resolution', multiline: true),
+        ],
+        organizationId: id,
+        initial: initial,
+        notice: 'Scope: ${_organizationName(id)}');
+  }
 
   Future<void> _run(String operation, String? organizationId,
       PandoraCoreRecord payload) async {
@@ -1465,7 +1594,16 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                     color: _ink, fontSize: 20, fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
             for (final entry in _recordFields.entries)
-              if (row[entry.key] != null &&
+              if ((row[entry.key] != null ||
+                      (row.containsKey(entry.key) &&
+                          const {
+                            'requests_admitted',
+                            'requests_remaining',
+                            'request_effective_from',
+                            'request_admission_started_at',
+                            'request_reset_at',
+                            'request_window_start',
+                          }.contains(entry.key))) &&
                   row[entry.key] is! Map &&
                   row[entry.key] is! List)
                 _StatusLine(
@@ -1476,7 +1614,8 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                         .contains(row['release_observation_kind'])),
             if (const {'candidate', 'canonical_production'}
                 .contains(row['release_observation_kind']))
-              for (final edge in coreRecords(row['edge_functions']).take(8)) ...[
+              for (final edge
+                  in coreRecords(row['edge_functions']).take(8)) ...[
                 const SizedBox(height: 12),
                 _Heading(coreText(edge['slug'], 'Edge Function')),
                 for (final field in const {
@@ -1513,6 +1652,8 @@ class CoreFormField {
     this.keyName,
     this.label, {
     this.required = false,
+    this.requiredWhenField,
+    this.requiredWhenValue,
     this.multiline = false,
     this.email = false,
     this.url = false,
@@ -1526,6 +1667,8 @@ class CoreFormField {
   final String keyName;
   final String label;
   final bool required;
+  final String? requiredWhenField;
+  final String? requiredWhenValue;
   final bool multiline;
   final bool email;
   final bool url;
@@ -1548,6 +1691,7 @@ class PandoraCoreOperationForm extends StatefulWidget {
     this.initial = const {},
     this.submitLabel = 'Save',
     this.financial = false,
+    this.notice,
     this.identity,
     this.scopeLabel,
   });
@@ -1559,6 +1703,7 @@ class PandoraCoreOperationForm extends StatefulWidget {
   final PandoraCoreRecord initial;
   final String submitLabel;
   final bool financial;
+  final String? notice;
   final PandoraAuth? identity;
   final String? scopeLabel;
 
@@ -1643,6 +1788,16 @@ class _PandoraCoreOperationFormState extends State<PandoraCoreOperationForm> {
     return result;
   }
 
+  bool _required(CoreFormField field) =>
+      field.required ||
+      (field.requiredWhenField != null &&
+          _choices[field.requiredWhenField] == field.requiredWhenValue);
+
+  Object? _fieldValue(CoreFormField field, PandoraCoreRecord record) =>
+      field.keyName.startsWith('limits.')
+          ? coreRecord(record['limits'])[field.keyName.substring(7)]
+          : record[field.keyName];
+
   Future<void> _save() async {
     if (_saving || _confirming || !(_form.currentState?.validate() ?? false)) {
       return;
@@ -1664,20 +1819,24 @@ class _PandoraCoreOperationFormState extends State<PandoraCoreOperationForm> {
                 const Text('Manual commercial record'),
                 const SizedBox(height: 8),
                 for (final field in widget.fields)
-                  if (payload[field.keyName] != null &&
+                  if (_fieldValue(field, payload) != null &&
                       (field.money ||
                           const {
                             'name',
+                            'plan_id',
                             'invoice_number',
                             'currency',
                             'state',
                             'payment_kind',
                             'starts_on',
                             'ends_on',
-                            'renews_on'
+                            'renews_on',
+                            'request_admission_policy',
+                            'request_admission_enabled',
+                            'limits.monthly_requests',
                           }.contains(field.keyName)))
                     Text(
-                        '${field.label}: ${field.options?[payload[field.keyName]] ?? _displayValue(field.keyName, payload[field.keyName], currency: coreText(payload['currency'], ''))}'),
+                        '${field.label}: ${field.options?[_fieldValue(field, payload)] ?? _displayValue(field.keyName, _fieldValue(field, payload), currency: coreText(payload['currency'], ''))}'),
               ])),
           actions: [
             TextButton(
@@ -1762,6 +1921,11 @@ class _PandoraCoreOperationFormState extends State<PandoraCoreOperationForm> {
                   const Text('Manual record · identity verification required',
                       style: TextStyle(color: _muted, fontSize: 12)),
                 ],
+                if (widget.notice != null) ...[
+                  const SizedBox(height: 8),
+                  Text(widget.notice!,
+                      style: const TextStyle(color: _muted, fontSize: 12)),
+                ],
                 const SizedBox(height: 16),
                 for (final field in widget.fields)
                   Padding(
@@ -1771,7 +1935,10 @@ class _PandoraCoreOperationFormState extends State<PandoraCoreOperationForm> {
                             key: ValueKey('core-field-${field.keyName}'),
                             initialValue: _choices[field.keyName],
                             isExpanded: true,
-                            decoration: InputDecoration(labelText: field.label),
+                            decoration: InputDecoration(
+                                labelText: field.label,
+                                helperText: field.hint,
+                                helperMaxLines: 2),
                             items: [
                               for (final entry in field.options!.entries)
                                 DropdownMenuItem(
@@ -1784,7 +1951,7 @@ class _PandoraCoreOperationFormState extends State<PandoraCoreOperationForm> {
                                 : (value) => setState(() {
                                       _choices[field.keyName] = value ?? '';
                                     }),
-                            validator: (value) => field.required &&
+                            validator: (value) => _required(field) &&
                                     (value == null || value.isEmpty)
                                 ? 'Choose ${field.label.toLowerCase()}.'
                                 : null,
@@ -1811,7 +1978,7 @@ class _PandoraCoreOperationFormState extends State<PandoraCoreOperationForm> {
                                 counterText: ''),
                             validator: (value) {
                               final text = value?.trim() ?? '';
-                              if (field.required && text.isEmpty) {
+                              if (_required(field) && text.isEmpty) {
                                 return 'Enter ${field.label.toLowerCase()}.';
                               }
                               if (text.isEmpty) return null;
@@ -1954,9 +2121,18 @@ const _recordFields = <String, String>{
   'amount_micros': 'Amount',
   'estimated_cost_micros': 'Estimated cost',
   'billed_cost_micros': 'Billed cost',
-  'request_limit': 'Request allowance',
-  'token_limit': 'Token allowance',
-  'budget_micros': 'Cost allowance',
+  'request_limit': 'Monthly cloud-chat requests',
+  'request_admission_policy': 'Cloud-chat request policy',
+  'request_admission_enabled': 'Cloud-chat request control',
+  'request_admission_state': 'Request admission',
+  'request_admission_started_at': 'First enabled (UTC)',
+  'request_effective_from': 'Counting from (UTC)',
+  'request_window_start': 'Window starts (UTC)',
+  'request_reset_at': 'Resets (UTC)',
+  'requests_admitted': 'Admitted cloud-chat requests',
+  'requests_remaining': 'Requests remaining',
+  'token_limit': 'Commercial token allowance',
+  'budget_micros': 'Commercial cost allowance',
   'included_allowance_micros': 'Included cost allowance',
   'requests_recorded': 'Recorded requests',
   'tokens_recorded': 'Recorded tokens',
@@ -1976,6 +2152,26 @@ const _recordFields = <String, String>{
 };
 
 String _displayValue(String key, Object? value, {String currency = ''}) {
+  if (value == null) return 'Unknown';
+  if (key == 'request_admission_enabled') {
+    return value == true ? 'On' : 'Off';
+  }
+  if (key == 'request_admission_policy') {
+    return switch (value) {
+      'block' => 'Block at monthly cloud-chat request limit',
+      'record_only' => 'Record requests only',
+      _ => 'Unknown',
+    };
+  }
+  if (key == 'request_admission_state') {
+    return switch (value) {
+      'enforcing' => 'Enforced',
+      'limit_reached' => 'Monthly request limit reached',
+      'not_enrolled' => 'Not enabled',
+      'policy_unavailable' => 'Blocked: request policy needs attention',
+      _ => 'Unknown',
+    };
+  }
   if (const {
     'runtime_verified',
     'owner_flow_verified',
@@ -1985,7 +2181,7 @@ String _displayValue(String key, Object? value, {String currency = ''}) {
     return value == true ? 'Verified' : 'Not verified';
   }
   if (key.endsWith('_micros')) {
-    if (value == null || currency.isEmpty) return 'Unknown';
+    if (currency.isEmpty) return 'Unknown';
     return '$currency ${formatCoreMoneyMicros(value)}';
   }
   return coreText(value);
@@ -2030,29 +2226,30 @@ class _RecordTile extends StatelessWidget {
                 : 'Runtime and user flows not verified',
           ].where((value) => value.isNotEmpty).join(' · ')
         : [
-      for (final key in const [
-        'client_name',
-        'why',
-        'reason',
-        'next_action',
-        'summary',
-        'provider',
-        'model',
-        'updated_at',
-        'occurred_at',
-        'source_kind',
-        'evidence_state',
-      ])
-        if (coreText(row[key], '').isNotEmpty) coreText(row[key], ''),
-      for (final key in const [
-        'mrr_micros',
-        'monthly_fee_micros',
-        'amount_micros',
-        'estimated_cost_micros'
-      ])
-        if (row[key] != null)
-          _displayValue(key, row[key], currency: coreText(row['currency'], '')),
-    ].take(3).join(' · ');
+            for (final key in const [
+              'client_name',
+              'why',
+              'reason',
+              'next_action',
+              'summary',
+              'provider',
+              'model',
+              'updated_at',
+              'occurred_at',
+              'source_kind',
+              'evidence_state',
+            ])
+              if (coreText(row[key], '').isNotEmpty) coreText(row[key], ''),
+            for (final key in const [
+              'mrr_micros',
+              'monthly_fee_micros',
+              'amount_micros',
+              'estimated_cost_micros'
+            ])
+              if (row[key] != null)
+                _displayValue(key, row[key],
+                    currency: coreText(row['currency'], '')),
+          ].take(3).join(' · ');
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
       title: Text(_recordTitle(row, 'Recorded item'),
@@ -2165,9 +2362,10 @@ class _StatusLine extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
               flex: 3,
-              child: Text(preserveExact
-                  ? coreText(value)
-                  : coreText(value).replaceAll('_', ' '),
+              child: Text(
+                  preserveExact
+                      ? coreText(value)
+                      : coreText(value).replaceAll('_', ' '),
                   textAlign: TextAlign.right,
                   style: const TextStyle(color: _ink, fontSize: 12))),
         ]),

@@ -148,6 +148,8 @@ class PandoraCoreFailure implements Exception {
       );
     }
     const actionable = <String, String>{
+      'ASSIGNEE_NOT_AUTHORIZED':
+          'Choose an active client member or clear the assignment.',
       'CURRENCY_MISMATCH': 'Use the same currency as the plan or invoice.',
       'AMOUNT_EXCEEDS_BALANCE':
           'The amount exceeds the recorded balance. Review the invoice first.',

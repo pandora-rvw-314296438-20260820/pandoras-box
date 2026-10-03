@@ -9,6 +9,39 @@ import '../../helpers/test_app.dart';
 
 const _northClientId = '11111111-1111-4111-8111-111111111111';
 const _southClientId = '22222222-2222-4222-8222-222222222222';
+const _planId = '33333333-3333-4333-8333-333333333333';
+const _subscriptionId = '44444444-4444-4444-8444-444444444444';
+const _incidentId = '55555555-5555-4555-8555-555555555555';
+const _prospectId = '66666666-6666-4666-8666-666666666666';
+const _caseId = '77777777-7777-4777-8777-777777777777';
+const _currentAssigneeId = '88888888-8888-4888-8888-888888888888';
+const _availableAssigneeId = '99999999-9999-4999-8999-999999999999';
+
+PandoraCoreRecord _plan() => <String, dynamic>{
+      'id': _planId,
+      'code': 'managed-growth',
+      'name': 'Managed Growth',
+      'state': 'active',
+      'currency': 'PHP',
+      'monthly_fee_micros': 1250000000,
+      'request_admission_policy': 'block',
+      'limits': <String, dynamic>{'monthly_requests': 4000},
+    };
+
+PandoraCoreRecord _commercialClient() => <String, dynamic>{
+      ..._clientDetail(_client()),
+      'plans': <PandoraCoreRecord>[_plan()],
+      'subscription': <String, dynamic>{
+        'id': _subscriptionId,
+        'organization_id': _northClientId,
+        'plan_id': _planId,
+        'state': 'active',
+        'currency': 'PHP',
+        'monthly_fee_micros': 1250000000,
+        'request_admission_enabled': false,
+        'request_admission_started_at': '2026-10-01T00:00:00Z',
+      },
+    };
 
 PandoraCoreRecord _client({
   String id = _northClientId,
@@ -194,6 +227,130 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
+Future<Finder> _coreField(WidgetTester tester, String key) async {
+  final field = find.byKey(ValueKey('core-field-$key'));
+  final scroll = find
+      .descendant(
+        of: find.byType(PandoraCoreOperationForm),
+        matching: find.byType(Scrollable),
+      )
+      .first;
+  final position = tester.state<ScrollableState>(scroll).position;
+  position.jumpTo(position.minScrollExtent);
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(field, 200, scrollable: scroll);
+  await tester.pumpAndSettle();
+  return field;
+}
+
+Future<void> _enterCoreField(
+    WidgetTester tester, String key, String value) async {
+  final field = await _coreField(tester, key);
+  await tester.enterText(field, value);
+  await tester.pump();
+}
+
+Future<String> _chooseCoreField(
+    WidgetTester tester, String key, String value) async {
+  final field = await _coreField(tester, key);
+  final dropdown = _renderedDropdown(tester, field);
+  final option = dropdown.items!.singleWhere((item) => item.value == value);
+  final label = (option.child as Text).data!;
+  await _tap(tester, field);
+  await _tap(tester, find.text(label).last);
+  return label;
+}
+
+DropdownButton<String> _renderedDropdown(WidgetTester tester, Finder field) =>
+    tester.widget<DropdownButton<String>>(find.descendant(
+      of: field,
+      matching: find.byType(DropdownButton<String>),
+    ));
+
+Future<void> _submitCoreForm(WidgetTester tester) async {
+  final submit = find.byKey(const ValueKey('core-submit'));
+  final scroll = find
+      .descendant(
+        of: find.byType(PandoraCoreOperationForm),
+        matching: find.byType(Scrollable),
+      )
+      .first;
+  await tester.scrollUntilVisible(submit, 240, scrollable: scroll);
+  await _tap(tester, submit);
+}
+
+Future<void> _commercialDecision(WidgetTester tester, String label) => _tap(
+      tester,
+      find.descendant(of: find.byType(AlertDialog), matching: find.text(label)),
+    );
+
+Future<void> _openClientSubscription(
+    WidgetTester tester, _FakeCoreGateway gateway) async {
+  gateway.onSnapshot = (request) async =>
+      request.organizationId == null ? _snapshot() : _commercialClient();
+  await _mount(tester, gateway, section: 'clients', size: const Size(360, 740));
+  await _tap(tester, find.byKey(const ValueKey('core-manage-$_northClientId')));
+  await _tap(tester, find.text('Commercial'));
+  await _tap(tester, find.text('Set subscription'));
+}
+
+PandoraCoreRecord _incidentSnapshot() => <String, dynamic>{
+      ..._snapshot(),
+      'incidents': <PandoraCoreRecord>[
+        <String, dynamic>{
+          'id': _incidentId,
+          'organization_id': _northClientId,
+          'title': 'Northwind connection interrupted',
+          'severity': 'high',
+          'state': 'investigating',
+          'impact': 'New customer requests cannot reach the provider.',
+          'diagnosis': 'The connected provider timed out.',
+        },
+      ],
+    };
+
+Future<void> _openIncident(
+    WidgetTester tester, _FakeCoreGateway gateway) async {
+  gateway.data = _incidentSnapshot();
+  await _mount(tester, gateway, section: 'administration');
+  await _tap(tester, find.text('Incidents'));
+  await _tap(tester, find.text('Northwind connection interrupted'));
+  expect(find.text('Update incident'), findsOneWidget);
+}
+
+PandoraCoreRecord _supportCase({String kind = 'access'}) => <String, dynamic>{
+      'id': _caseId,
+      'organization_id': _northClientId,
+      'subject': 'Review Northwind access request',
+      'kind': kind,
+      'priority': 'low',
+      'assigned_user_id': _currentAssigneeId,
+      'description': 'Review the access needed for the reception team.',
+      'state': 'open',
+      'needs_owner': true,
+      'due_at': '2026-10-15',
+    };
+
+Future<void> _openSupportCase(
+  WidgetTester tester,
+  _FakeCoreGateway gateway, {
+  String kind = 'access',
+  List<PandoraCoreRecord> members = const [],
+}) async {
+  gateway.data = <String, dynamic>{
+    ..._clientDetail(_client()),
+    'cases': <PandoraCoreRecord>[_supportCase(kind: kind)],
+    'members': members,
+  };
+  await _mount(tester, gateway,
+      section: 'client',
+      organizationId: _northClientId,
+      size: const Size(360, 740));
+  await _tap(tester, find.text('Support'));
+  await _tap(tester, find.text('Review Northwind access request'));
+  expect(find.byType(PandoraCoreOperationForm), findsOneWidget);
+}
+
 Future<void> _fillRegistration(WidgetTester tester) async {
   for (final entry in <String, String>{
     'name': 'Mistral Hotel',
@@ -232,6 +389,606 @@ Future<void> _fillRegistration(WidgetTester tester) async {
 }
 
 void main() {
+  for (final kind in ['access', 'training']) {
+    testWidgets(
+        'editing a $kind case retains its low priority and existing assignee',
+        (tester) async {
+      final gateway = _FakeCoreGateway();
+      await _openSupportCase(tester, gateway, kind: kind);
+      final kindField = await _coreField(tester, 'kind');
+      expect(_renderedDropdown(tester, kindField).value, kind);
+      final priority = await _coreField(tester, 'priority');
+      expect(_renderedDropdown(tester, priority).value, 'low');
+      final assignee = await _coreField(tester, 'assigned_user_id');
+      expect(_renderedDropdown(tester, assignee).value, _currentAssigneeId);
+      expect(find.text('Current assignee (unchanged)'), findsOneWidget);
+
+      await _enterCoreField(
+          tester, 'subject', 'Reviewed Northwind reception access');
+      await _submitCoreForm(tester);
+      final request = gateway.operations.single;
+      expect(request.operation, 'case.save');
+      expect(request.organizationId, _northClientId);
+      expect(request.payload['id'], _caseId);
+      expect(request.payload['subject'], 'Reviewed Northwind reception access');
+      expect(request.payload['kind'], kind);
+      expect(request.payload['priority'], 'low');
+      expect(request.payload['assigned_user_id'], _currentAssigneeId);
+      expect(request.payload['needs_owner'], isTrue);
+      expect(request.payload['state'], 'open');
+      expect(request.payload['description'],
+          'Review the access needed for the reception team.');
+      expect(gateway.entries, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('cancelling a case edit does not save changed classification',
+      (tester) async {
+    final gateway = _FakeCoreGateway();
+    await _openSupportCase(tester, gateway);
+    await _chooseCoreField(tester, 'kind', 'training');
+    await _chooseCoreField(tester, 'priority', 'high');
+    await _enterCoreField(tester, 'subject', 'Unsubmitted support changes');
+    await tester.scrollUntilVisible(find.text('Cancel'), 240,
+        scrollable: find
+            .descendant(
+              of: find.byType(PandoraCoreOperationForm),
+              matching: find.byType(Scrollable),
+            )
+            .first);
+    await _tap(tester, find.text('Cancel'));
+    expect(gateway.operations, isEmpty);
+    expect(find.byType(PandoraCoreOperationForm), findsNothing);
+    expect(find.text('Review Northwind access request'), findsOneWidget);
+    expect(find.text('Unsubmitted support changes'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('uncertain case save retries the same assignment and payload',
+      (tester) async {
+    final gateway = _FakeCoreGateway();
+    gateway.onOperate = (request) async {
+      if (gateway.operations.length == 1) {
+        throw StateError('PRIVATE_CASE_TRANSPORT_DETAILS');
+      }
+      return <String, dynamic>{
+        'organization_id': _northClientId,
+        'id': _caseId,
+      };
+    };
+    await _openSupportCase(tester, gateway, kind: 'training');
+    await _enterCoreField(
+        tester, 'description', 'Confirmed the reception training time.');
+    await _submitCoreForm(tester);
+    expect(gateway.operations, hasLength(1));
+    expect(find.textContaining('same request'), findsOneWidget);
+    expect(find.textContaining('PRIVATE_CASE_TRANSPORT_DETAILS'), findsNothing);
+    await _submitCoreForm(tester);
+    expect(gateway.operations, hasLength(2));
+    final first = gateway.operations.first;
+    final retry = gateway.operations.last;
+    expect(first.operation, 'case.save');
+    expect(first.organizationId, _northClientId);
+    expect(first.payload['id'], _caseId);
+    expect(first.payload['assigned_user_id'], _currentAssigneeId);
+    expect(first.payload['kind'], 'training');
+    expect(first.payload['priority'], 'low');
+    expect(
+        first.payload['description'], 'Confirmed the reception training time.');
+    expect(first.idempotencyKey, isNotEmpty);
+    expect(retry.idempotencyKey, first.idempotencyKey);
+    expect(retry.organizationId, first.organizationId);
+    expect(retry.payload, first.payload);
+    expect(find.byType(PandoraCoreOperationForm), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'rejected case assignee can be explicitly cleared before resubmitting',
+      (tester) async {
+    final gateway = _FakeCoreGateway();
+    gateway.onOperate = (request) async {
+      if (gateway.operations.length == 1) {
+        throw PandoraCoreFailure.fromServer('22023', 'ASSIGNEE_NOT_AUTHORIZED');
+      }
+      return <String, dynamic>{
+        'organization_id': _northClientId,
+        'id': _caseId,
+      };
+    };
+    await _openSupportCase(tester, gateway);
+    await _submitCoreForm(tester);
+    expect(gateway.operations, hasLength(1));
+    expect(gateway.operations.single.payload['assigned_user_id'],
+        _currentAssigneeId);
+    expect(find.text('Choose an active client member or clear the assignment.'),
+        findsOneWidget);
+    expect(find.textContaining('ASSIGNEE_NOT_AUTHORIZED'), findsNothing);
+    await _chooseCoreField(tester, 'assigned_user_id', '');
+    await _submitCoreForm(tester);
+    expect(gateway.operations, hasLength(2));
+    final corrected = gateway.operations.last;
+    expect(corrected.operation, 'case.save');
+    expect(corrected.organizationId, _northClientId);
+    expect(corrected.payload['id'], _caseId);
+    expect(corrected.payload.containsKey('assigned_user_id'), isFalse,
+        reason: 'The existing RPC treats explicit Unassigned as clearing it.');
+    expect(corrected.payload['kind'], 'access');
+    expect(corrected.payload['priority'], 'low');
+    expect(find.byType(PandoraCoreOperationForm), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'case assignment offers active client members and excludes foreign or inactive users',
+      (tester) async {
+    const inactiveId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab';
+    const foreignId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaac';
+    const scopedProjectionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaad';
+    final gateway = _FakeCoreGateway();
+    await _openSupportCase(tester, gateway, members: [
+      <String, dynamic>{
+        'user_id': _availableAssigneeId,
+        'organization_id': _northClientId,
+        'name': 'Northwind active teammate',
+        'status': 'active',
+      },
+      <String, dynamic>{
+        'user_id': scopedProjectionId,
+        'name': 'Member from the scoped client projection',
+        'status': 'active',
+      },
+      <String, dynamic>{
+        'user_id': inactiveId,
+        'organization_id': _northClientId,
+        'name': 'Suspended Northwind user',
+        'status': 'suspended',
+      },
+      <String, dynamic>{
+        'user_id': foreignId,
+        'organization_id': _southClientId,
+        'name': 'Foreign client user',
+        'status': 'active',
+      },
+    ]);
+    final assignee = await _coreField(tester, 'assigned_user_id');
+    final available = _renderedDropdown(tester, assignee)
+        .items!
+        .map((item) => item.value)
+        .toList();
+    expect(available, contains(_currentAssigneeId));
+    expect(available, contains(_availableAssigneeId));
+    expect(available, contains(scopedProjectionId));
+    expect(available, isNot(contains(inactiveId)));
+    expect(available, isNot(contains(foreignId)));
+    expect(_renderedDropdown(tester, assignee).value, _currentAssigneeId);
+    await _chooseCoreField(tester, 'assigned_user_id', _availableAssigneeId);
+    expect(gateway.operations, isEmpty,
+        reason: 'Selecting an assignee alone must not send a write.');
+    await _submitCoreForm(tester);
+    final request = gateway.operations.single;
+    expect(request.operation, 'case.save');
+    expect(request.organizationId, _northClientId);
+    expect(request.payload['id'], _caseId);
+    expect(request.payload['assigned_user_id'], _availableAssigneeId);
+    expect(request.payload['kind'], 'access');
+    expect(request.payload['priority'], 'low');
+    expect(gateway.snapshots.every((r) => r.organizationId == _northClientId),
+        isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'client card access request requires a reason and cancel does not change authority',
+      (tester) async {
+    final clientWithoutEntryProof =
+        _client(id: _southClientId, name: 'Harbor Logistics', canEnter: false)
+          ..remove('can_enter');
+    final gateway = _FakeCoreGateway()
+      ..data = _snapshot(clients: [_client(), clientWithoutEntryProof]);
+    final entered = <PandoraCoreRecord>[];
+    await _mount(tester, gateway,
+        section: 'clients',
+        size: const Size(360, 740),
+        onEnterClient: (client) async => entered.add(client));
+    expect(find.byKey(const ValueKey('core-request-access-$_northClientId')),
+        findsNothing);
+    await _tap(tester,
+        find.byKey(const ValueKey('core-request-access-$_southClientId')));
+    expect(find.byType(PandoraCoreOperationForm), findsOneWidget);
+    await _submitCoreForm(tester);
+    expect(gateway.operations, isEmpty,
+        reason: 'An unexplained request must not reach the server.');
+    expect(find.byType(PandoraCoreOperationForm), findsOneWidget);
+    await _enterCoreField(
+        tester, 'reason', 'Investigate the Harbor support escalation.');
+    await _tap(tester, find.text('Cancel'));
+    expect(find.byType(PandoraCoreOperationForm), findsNothing);
+    expect(gateway.operations, isEmpty);
+    expect(gateway.entries, isEmpty);
+    expect(entered, isEmpty);
+    expect(
+        tester
+            .widget<TextButton>(
+                find.byKey(const ValueKey('core-enter-$_southClientId')))
+            .onPressed,
+        isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'client detail access request stays pending and never locally enables entry',
+      (tester) async {
+    final pending = Completer<PandoraCoreRecord>();
+    final gateway = _FakeCoreGateway()
+      ..data = _clientDetail(_client(
+          id: _southClientId, name: 'Harbor Logistics', canEnter: false));
+    gateway.onOperate = (_) => pending.future;
+    final entered = <PandoraCoreRecord>[];
+    await _mount(tester, gateway,
+        section: 'client',
+        organizationId: _southClientId,
+        onEnterClient: (client) async => entered.add(client));
+    final enter = find.widgetWithText(OutlinedButton, 'Enter client workspace');
+    expect(tester.widget<OutlinedButton>(enter).onPressed, isNull);
+    await _tap(tester,
+        find.byKey(const ValueKey('core-request-access-$_southClientId')));
+    await _enterCoreField(tester, 'reason',
+        'Review the failed Harbor connection with customer approval.');
+    await _submitCoreForm(tester);
+    expect(gateway.operations, hasLength(1));
+    final request = gateway.operations.single;
+    expect(request.operation, 'access.request');
+    expect(request.organizationId, _southClientId);
+    expect(request.payload, <String, dynamic>{
+      'reason': 'Review the failed Harbor connection with customer approval.'
+    });
+    expect(request.idempotencyKey, isNotEmpty);
+    expect(entered, isEmpty);
+    expect(gateway.entries, isEmpty);
+    pending.complete(<String, dynamic>{
+      'organization_id': _southClientId,
+      'request_id': '77777777-7777-4777-8777-777777777777',
+      'state': 'pending',
+    });
+    await tester.pumpAndSettle();
+    expect(find.byType(PandoraCoreOperationForm), findsNothing);
+    expect(find.textContaining(RegExp('pending review', caseSensitive: false)),
+        findsOneWidget);
+    expect(gateway.snapshots, hasLength(2));
+    expect(
+        gateway.snapshots.every((read) =>
+            read.section == 'client' && read.organizationId == _southClientId),
+        isTrue);
+    expect(tester.widget<OutlinedButton>(enter).onPressed, isNull);
+    expect(find.byKey(const ValueKey('core-request-access-$_southClientId')),
+        findsOneWidget);
+    expect(gateway.operations.map((operation) => operation.operation),
+        ['access.request']);
+    expect(gateway.entries, isEmpty);
+    expect(entered, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'missing admission counts and coverage dates remain Unknown in readback',
+      (tester) async {
+    final gateway = _FakeCoreGateway()
+      ..data = <String, dynamic>{
+        ..._snapshot(),
+        'usage_allowances': <PandoraCoreRecord>[
+          <String, dynamic>{
+            'title': 'Northwind request allowance',
+            'organization_id': _northClientId,
+            'request_admission_enabled': false,
+            'requests_admitted': null,
+            'requests_remaining': null,
+            'request_admission_started_at': null,
+            'request_effective_from': null,
+            'request_window_start': null,
+            'request_reset_at': null,
+          },
+        ],
+      };
+    await _mount(tester, gateway, section: 'business');
+    await _tap(tester, find.text('Usage & Costs'));
+    await _tap(tester, find.text('Northwind request allowance'));
+    final sheet = find.byType(BottomSheet);
+    final scroll =
+        find.descendant(of: sheet, matching: find.byType(Scrollable)).first;
+    for (final label in <String>[
+      'Admitted cloud-chat requests',
+      'Requests remaining',
+      'First enabled (UTC)',
+      'Counting from (UTC)',
+      'Window starts (UTC)',
+      'Resets (UTC)',
+    ]) {
+      final line = find.descendant(of: sheet, matching: find.text(label));
+      final position = tester.state<ScrollableState>(scroll).position;
+      position.jumpTo(position.minScrollExtent);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(line, 160, scrollable: scroll);
+      final row = find.ancestor(of: line, matching: find.byType(Row)).first;
+      expect(find.descendant(of: row, matching: find.text('Unknown')),
+          findsOneWidget,
+          reason: label);
+    }
+    expect(find.descendant(of: sheet, matching: find.text('0')), findsNothing);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'quota decision opens the exact client Commercial tab without a mutation',
+      (tester) async {
+    final owner = <String, dynamic>{
+      ..._snapshot(clients: [
+        _client(),
+        _client(id: _southClientId, name: 'Harbor Logistics')
+      ]),
+      'needs_you': <PandoraCoreRecord>[
+        <String, dynamic>{
+          'id': 'quota-harbor',
+          'kind': 'usage_allowance',
+          'organization_id': _southClientId,
+          'client_name': 'Harbor Logistics',
+          'title': 'Harbor cloud-chat request allowance reached',
+          'why': 'Review the customer request allowance.',
+          'risk': 'medium',
+          'action': 'open_client_commercial',
+        },
+      ],
+    };
+    final gateway = _FakeCoreGateway()
+      ..onSnapshot = (request) async => request.organizationId == null
+          ? owner
+          : _clientDetail(
+              _client(id: request.organizationId!, name: 'Harbor Logistics'));
+    await _mount(tester, gateway);
+    await _tap(
+        tester, find.text('Harbor cloud-chat request allowance reached'));
+    await _tap(tester, find.text('Open action'));
+    expect(gateway.snapshots.last.section, 'client');
+    expect(gateway.snapshots.last.organizationId, _southClientId);
+    expect(find.text('Harbor Logistics'), findsOneWidget);
+    expect(find.text('Set subscription'), findsOneWidget);
+    expect(find.byType(PandoraCoreOperationForm), findsNothing);
+    expect(gateway.operations, isEmpty);
+    expect(gateway.entries, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'new plan defaults to recording requests and cancel does not save',
+      (tester) async {
+    final gateway = _FakeCoreGateway()..data = _snapshot();
+    await _mount(tester, gateway,
+        section: 'business', size: const Size(360, 740));
+    await _tap(tester, find.text('Plans'));
+    await _tap(tester, find.text('Create plan'));
+    expect(find.textContaining('Only cloud-chat request blocking is enforced'),
+        findsOneWidget);
+    final policy = await _coreField(tester, 'request_admission_policy');
+    expect(tester.widget<DropdownButtonFormField<String>>(policy).initialValue,
+        'record_only');
+    final overage = await _coreField(tester, 'overage_policy');
+    final overageLabels = _renderedDropdown(tester, overage)
+        .items!
+        .map((item) => (item.child as Text).data)
+        .toList();
+    expect(overageLabels, isNot(contains('Block overage')));
+    expect(find.byType(PandoraCoreOperationForm), findsOneWidget);
+    await _tap(tester, find.text('Cancel'));
+    expect(gateway.operations, isEmpty);
+    expect(find.byType(PandoraCoreOperationForm), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'request-blocking plan saves the request ceiling only after commercial confirmation',
+      (tester) async {
+    final gateway = _FakeCoreGateway()..data = _snapshot();
+    await _mount(tester, gateway,
+        section: 'business', size: const Size(360, 740));
+    await _tap(tester, find.text('Plans'));
+    await _tap(tester, find.text('Create plan'));
+    await _enterCoreField(tester, 'code', 'managed-growth');
+    await _enterCoreField(tester, 'name', 'Managed Growth');
+    await _enterCoreField(tester, 'monthly_fee_micros', '1250.00');
+    await _enterCoreField(tester, 'limits.monthly_requests', '4000');
+    final policyLabel =
+        await _chooseCoreField(tester, 'request_admission_policy', 'block');
+    await _submitCoreForm(tester);
+    expect(find.text('Confirm commercial record'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.textContaining(policyLabel)),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.textContaining('4000')),
+        findsOneWidget);
+    expect(gateway.operations, isEmpty);
+    await _commercialDecision(tester, 'Confirm');
+    final request = gateway.operations.single;
+    expect(request.operation, 'plan.save');
+    expect(request.organizationId, isNull);
+    expect(request.payload['code'], 'managed-growth');
+    expect(request.payload['name'], 'Managed Growth');
+    expect(request.payload['monthly_fee_micros'], 1250000000);
+    expect(request.payload['request_admission_policy'], 'block');
+    expect(
+        request.payload['limits'], <String, dynamic>{'monthly_requests': 4000});
+    expect(request.idempotencyKey, isNotEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'client request admission needs explicit enable and confirmation can be cancelled',
+      (tester) async {
+    final gateway = _FakeCoreGateway();
+    await _openClientSubscription(tester, gateway);
+    final admission = await _coreField(tester, 'request_admission_enabled');
+    expect(
+        tester.widget<DropdownButtonFormField<String>>(admission).initialValue,
+        'false');
+    expect(find.byKey(const ValueKey('core-field-started_at')), findsNothing);
+    expect(
+        find.byKey(const ValueKey('core-field-request_admission_started_at')),
+        findsNothing);
+    await _chooseCoreField(tester, 'request_admission_enabled', 'true');
+    await _submitCoreForm(tester);
+    expect(find.text('Confirm commercial record'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.text('Northwind Guest House')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.text('Apply cloud-chat request limit: On')),
+        findsOneWidget);
+    expect(gateway.operations, isEmpty);
+    await _commercialDecision(tester, 'Cancel');
+    expect(gateway.operations, isEmpty);
+    expect(find.byType(PandoraCoreOperationForm), findsOneWidget);
+    await _tap(tester, find.text('Cancel'));
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'uncertain subscription update retries the same explicit admission request',
+      (tester) async {
+    final gateway = _FakeCoreGateway();
+    gateway.onOperate = (request) async {
+      if (gateway.operations.length == 1) {
+        throw StateError('PRIVATE_TRANSPORT_DETAILS');
+      }
+      return <String, dynamic>{
+        'organization_id': _northClientId,
+        'id': _subscriptionId
+      };
+    };
+    await _openClientSubscription(tester, gateway);
+    await _chooseCoreField(tester, 'request_admission_enabled', 'true');
+    await _submitCoreForm(tester);
+    expect(gateway.operations, isEmpty);
+    await _commercialDecision(tester, 'Confirm');
+    expect(gateway.operations, hasLength(1));
+    expect(find.textContaining('same request'), findsOneWidget);
+    expect(find.textContaining('PRIVATE_TRANSPORT_DETAILS'), findsNothing);
+    await _submitCoreForm(tester);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(gateway.operations, hasLength(2));
+    final first = gateway.operations.first;
+    final retry = gateway.operations.last;
+    expect(first.operation, 'subscription.save');
+    expect(first.organizationId, _northClientId);
+    expect(first.payload['id'], _subscriptionId);
+    expect(first.payload['plan_id'], _planId);
+    expect(first.payload['request_admission_enabled'], isTrue);
+    expect(first.payload.containsKey('started_at'), isFalse);
+    expect(first.payload.containsKey('request_admission_started_at'), isFalse);
+    expect(retry.idempotencyKey, first.idempotencyKey);
+    expect(retry.payload, first.payload);
+    expect(retry.organizationId, first.organizationId);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'resolving an existing incident requires resolution and verification before writing',
+      (tester) async {
+    final gateway = _FakeCoreGateway();
+    await _openIncident(tester, gateway);
+    await _chooseCoreField(tester, 'state', 'resolved');
+    await _submitCoreForm(tester);
+    expect(gateway.operations, isEmpty);
+    await _enterCoreField(
+        tester, 'resolution', 'Reauthorized the provider connection.');
+    await _submitCoreForm(tester);
+    expect(gateway.operations, isEmpty);
+    await _enterCoreField(
+        tester, 'verification_ref', 'evidence://connection-readback-42');
+    await _submitCoreForm(tester);
+    final request = gateway.operations.single;
+    expect(request.operation, 'incident.save');
+    expect(request.organizationId, _northClientId);
+    expect(request.payload['id'], _incidentId);
+    expect(request.payload['title'], 'Northwind connection interrupted');
+    expect(request.payload['state'], 'resolved');
+    expect(
+        request.payload['resolution'], 'Reauthorized the provider connection.');
+    expect(request.payload['verification_ref'],
+        'evidence://connection-readback-42');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'cancelling an incident update leaves the existing incident unchanged',
+      (tester) async {
+    final gateway = _FakeCoreGateway();
+    await _openIncident(tester, gateway);
+    await _chooseCoreField(tester, 'state', 'recovering');
+    await _enterCoreField(
+        tester, 'diagnosis', 'Testing a new connection route.');
+    await _tap(tester, find.text('Cancel'));
+    expect(gateway.operations, isEmpty);
+    expect(find.byType(PandoraCoreOperationForm), findsNothing);
+    expect(find.text('Northwind connection interrupted'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'won prospect requires an existing client link and preserves the prospect identity',
+      (tester) async {
+    final gateway = _FakeCoreGateway()
+      ..data = <String, dynamic>{
+        ..._snapshot(clients: [
+          _client(),
+          _client(id: _southClientId, name: 'Harbor Logistics')
+        ]),
+        'pipeline': <PandoraCoreRecord>[
+          <String, dynamic>{
+            'id': _prospectId,
+            'company_name': 'Harbor opportunity',
+            'contact_name': 'Avery Owner',
+            'stage': 'contracting',
+            'next_action': 'Complete signed onboarding',
+            'currency': 'PHP',
+          },
+        ],
+      };
+    await _mount(tester, gateway, section: 'business');
+    await _tap(tester, find.text('Harbor opportunity'));
+    expect(find.text('Update prospect'), findsOneWidget);
+    await _chooseCoreField(tester, 'stage', 'won');
+    await _submitCoreForm(tester);
+    expect(gateway.operations, isEmpty);
+    final target = await _coreField(tester, 'converted_organization_id');
+    final clientOptions = _renderedDropdown(tester, target)
+        .items!
+        .map((item) => item.value)
+        .where((id) => id != null && id.isNotEmpty)
+        .toSet();
+    expect(clientOptions, {_northClientId, _southClientId});
+    await _chooseCoreField(tester, 'converted_organization_id', _southClientId);
+    await _submitCoreForm(tester);
+    final request = gateway.operations.single;
+    expect(request.operation, 'prospect.save');
+    expect(request.organizationId, isNull);
+    expect(request.payload['id'], _prospectId);
+    expect(request.payload['stage'], 'won');
+    expect(request.payload['converted_organization_id'], _southClientId);
+    expect(gateway.entries, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('release facts keep candidate and production acceptance distinct',
       (tester) async {
     final data = _snapshot();
@@ -269,7 +1026,8 @@ void main() {
       },
     ];
     final gateway = _FakeCoreGateway()..data = data;
-    await _mount(tester, gateway, section: 'platform', size: const Size(360, 740));
+    await _mount(tester, gateway,
+        section: 'platform', size: const Size(360, 740));
     await _tap(tester, find.text('Deployments'));
     expect(find.text('Canonical production'), findsOneWidget);
     expect(find.text('Latest candidate'), findsOneWidget);

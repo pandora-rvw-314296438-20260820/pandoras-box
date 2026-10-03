@@ -374,6 +374,30 @@ function providerSummary(snapshot: Row): string {
 function allowanceSummary(snapshot: Row): string {
   if (snapshot.usage_allowances === undefined) return "Remaining allowance is not yet reconciled with recorded usage in this view. Open Business to review configured limits and recorded costs.";
   const allowances = rows(snapshot, "usage_allowances");
+  if (allowances.some((allowance) => Object.hasOwn(allowance, "request_admission_enabled"))) {
+    const protectedRows = allowances.filter((allowance) => allowance.request_admission_enabled === true);
+    const lines: string[] = [];
+    let comparable = 0;
+    for (const allowance of protectedRows) {
+      const name = label(allowance.client_name, "Client");
+      const state = text(allowance.request_admission_state);
+      const used = integer(allowance.requests_admitted), limit = integer(allowance.request_limit);
+      const remaining = integer(allowance.requests_remaining);
+      if (state === "policy_unavailable") {
+        lines.push(`• ${name} — cloud-chat requests are blocked while its subscription or request policy needs review.`);
+      } else if (!["enforcing", "limit_reached"].includes(state) || used === null || limit === null || remaining === null) {
+        lines.push(`• ${name} — request admission evidence is unavailable; remaining allowance is unknown.`);
+      } else {
+        comparable++;
+        if (state === "limit_reached" || limit === 0n || used * 100n >= limit * 80n) {
+          lines.push(`• ${name} — ${used} of ${limit} cloud-chat requests admitted; ${remaining} remaining${state === "limit_reached" ? "; further requests blocked" : ""}. Effective from ${label(allowance.request_effective_from, "time unavailable")}; resets ${label(allowance.request_reset_at, "time unavailable")}.`);
+        }
+      }
+    }
+    return `${lines.length ? `Cloud-chat request limits needing attention:\n\n${lines.slice(0, 12).join("\n")}`
+      : comparable ? "No enabled cloud-chat request allowance reaches 80% of its current limit."
+      : "No customer has verified cloud-chat request protection enabled in this view."}\n\nProtected turns count once, including failures and provider fallbacks. Coverage starts at explicit enrollment; requests while protection is off are excluded. Token, cost, seat and device allowances remain commercial records, not runtime hard limits.`;
+  }
   const approaching: string[] = [];
   let comparable = 0;
   for (const allowance of allowances) {
@@ -390,6 +414,40 @@ function allowanceSummary(snapshot: Row): string {
   }
   if (!comparable) return "No active customer allowance can be compared with recorded usage yet. Open Business to configure terms and inspect the available usage evidence.";
   return `${approaching.length ? `Recorded usage at or above 80% of a configured limit:\n\n${approaching.slice(0, 12).join("\n")}` : "No recorded request or token total reaches 80% of its configured limit in this view."}\n\nOnly recorded model runs are included. Missing telemetry can understate consumption; this does not establish remaining billed allowance or an enforced execution quota.`;
+}
+
+function proposalDraft(snapshot: Row, message: string): CoreOwnerReply {
+  const prospects = snapshot.pipeline === undefined ? [] : rows(snapshot, "pipeline");
+  const plans = snapshot.plans === undefined ? [] : rows(snapshot, "plans");
+  const selected = /\bproposal\s+for\s+(.+?)\s+using\s+(?:the\s+)?(?:plan\s+)?(.+?)[.!?]*$/i.exec(message.trim());
+  const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const handoff = navigation("business", "inspect", "Review Pipeline and Plans");
+  if (!selected) return reply('Choose the prospect and an active plan by name: “Prepare a proposal for [company] using plan [name].” Review the recorded companies in Business → Pipeline and terms in Plans.', snapshot, handoff);
+  const matchingProspects = prospects.filter((prospect) => !["won", "lost"].includes(text(prospect.stage)) &&
+    normalize(text(prospect.company_name)) === normalize(selected[1]));
+  const matchingPlans = plans.filter((plan) => plan.state === "active" &&
+    [text(plan.name), text(plan.code)].some((name) => !!name && normalize(name) === normalize(selected[2])));
+  if (matchingProspects.length !== 1 || matchingPlans.length !== 1) return reply(
+    "I need one matching current Pipeline prospect and one matching active plan before preparing this draft. Review their exact names in Business; no commercial terms have been selected.", snapshot, handoff);
+  const prospect = matchingProspects[0], plan = matchingPlans[0];
+  if (!uuid(text(prospect.id)) || !uuid(text(plan.id))) throw Error("CORE_CONTEXT_UNAVAILABLE");
+  const currency = /^[A-Z]{3}$/.test(text(plan.currency)) ? text(plan.currency) : "";
+  const fee = integer(plan.monthly_fee_micros), allowance = integer(plan.included_allowance_micros);
+  const entitlements = Array.isArray(plan.entitlements) ? plan.entitlements.filter((item) => typeof item === "string").slice(0, 12) : [];
+  const content = [
+    `Draft proposal — ${label(prospect.company_name, "Prospect")}`,
+    `Plan: ${label(plan.name, "Selected plan")}.`,
+    `Monthly fee: ${fee === null || !currency ? "not recorded" : money(fee, currency)}.`,
+    ...(allowance !== null && currency ? [`Included commercial cost allowance: ${money(allowance, currency)}; execution cost protection is not established by this allowance.`] : []),
+    ...(entitlements.length ? [`Recorded entitlements: ${entitlements.map((item) => label(item, "Unspecified entitlement")).join(", ")}. Technical availability and provider connections require separate verification.`] : []),
+    ...(text(plan.support_tier) ? [`Recorded support tier: ${label(plan.support_tier, "not recorded")}; SLA terms require review.`] : []),
+    "Contract dates, setup fees, taxes, discounts and payment terms are not specified by these records.",
+    "Source: manually maintained Pipeline and plan records. This is a draft for commercial review; no proposal was sent and no agreement or subscription was created.",
+  ].join("\n\n");
+  const result = reply(content, snapshot, handoff);
+  result.providerReadback = { ...result.providerReadback, draftPrepared: true, draftKind: "commercial_proposal",
+    prospectId: prospect.id, planId: plan.id, termsSource: "recorded_plan", financialActionExecuted: false };
+  return result;
 }
 
 function workspaceReply(content: string, snapshot: Row): CoreOwnerReply {
@@ -480,8 +538,7 @@ export async function tryCoreOwnerCommand(user: CoreRpcClient, organizationId: s
   }
   if (intent === "create") return reply("Open Clients → Add Enterprise Client to register the business and resume its verified onboarding steps.", snapshot,
     navigation("clients", "create_client", "Add Enterprise Client"));
-  if (intent === "proposal") return reply("Open Business → Pipeline to select the prospect and prepare the proposal with its commercial records. Nothing has been sent.", snapshot,
-    navigation("business", "prepare_proposal", "Prepare proposal", target));
+  if (intent === "proposal") return proposalDraft(snapshot, message);
   if (intent === "team") {
     const matches = clientMatch(message, rows(snapshot, "clients"));
     if (matches.length > 1) return reply("Select the client in Clients before changing access. This request matches more than one customer.", snapshot,
