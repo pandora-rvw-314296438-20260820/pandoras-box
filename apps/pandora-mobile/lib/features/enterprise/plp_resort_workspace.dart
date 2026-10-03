@@ -325,16 +325,19 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     );
     final availableActions = _sourceAvailableActions();
     return <Widget>[
-      _SourceRecoveryPanel(
-        source: provider,
-        state: sourceState,
-        affectedArea: eyebrow,
-        unavailable: detail,
-        remainsAvailable:
-            'Pandora, team access, manual resort work, and verified history remain available.',
-        onRefresh: onRefresh,
-        onOpenSettings: onOpenSourceSettings,
-      ),
+      if (includeWorkspaceRail)
+        _SourceRecoveryPanel(
+          source: provider,
+          state: sourceState,
+          affectedArea: eyebrow,
+          unavailable: detail,
+          remainsAvailable:
+              'Pandora, team access, manual resort work, and verified history remain available.',
+          onRefresh: onRefresh,
+          onOpenSettings: onOpenSourceSettings,
+        )
+      else
+        _EmptyState(detail),
       if (availableActions.isNotEmpty) ...[
         const SizedBox(height: 16),
         ...availableActions,
