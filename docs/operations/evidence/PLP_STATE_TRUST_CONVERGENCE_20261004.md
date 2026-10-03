@@ -2,7 +2,7 @@
 
 Baseline: canonical main 130f8915dd78647dd2c5174ef752297fa166f171, merged PR #960.
 
-PR #960 was cut from the earlier #958 checkpoint and already contains the approved PLP identity, contextual serif headers, operational layout, system-bar treatment, and reviewed chat goldens. Its newer conditional command-dock hint cap and shorter infrastructure cue are preserved byte-for-byte; neither the chat implementation nor golden images are changed here.
+PR #960 was cut from the earlier #958 checkpoint and already contains the approved PLP identity, contextual serif headers, operational layout, system-bar treatment, and reviewed chat goldens. Its shorter infrastructure cue and existing composer controls are preserved. The initial convergence also preserved its character-count-based hint cap, but the continuous PLP journey at 1a0fa47c86866570cd081cca464fc7813cd84854 exposed a real 42-pixel dock-height jump (109px on Today versus 67px on another page). The correction caps every placeholder to one line while preserving multiline typed input. The cross-page rectangle-equality assertion remains strict. Neither the separate chat implementation nor golden images are changed to mask this failure.
 
 This follow-up carries forward the later state-ownership fixes from tested #958 candidate c5458eb82c882116c103b3a6aee82b62c60b9e70 that were not in that cut: lazy shared activity evidence, coalesced bootstrap reads, bounded parallel independent projections, retained parent route state, callback fencing, verified cache admission, persistent last-loaded Team counts, header/hamburger clearance, and unknown operational queue metrics/badges. Their journey tests remain in place.
 

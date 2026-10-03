@@ -167,7 +167,8 @@ test("PLP deep surfaces preserve parent navigation and contextual Pandora", () =
   assert.match(shell, /toolKey == 'team-management'/);
   assert.match(shell, /toolKey == 'activity-feed'/);
   assert.match(shell, /Ask about infrastructure…/);
-  assert.match(shell, /hintText\.length > 28 \? 1 : null/);
+  assert.match(shell, /hintMaxLines: 1/);
+  assert.doesNotMatch(shell, /hintText\.length > 28/);
   assert.match(shell, /AnnotatedRegion<SystemUiOverlayStyle>/);
 });
 

@@ -1467,7 +1467,9 @@ class PlpCommandDock extends StatelessWidget {
                               ),
                               decoration: InputDecoration(
                                 hintText: hintText,
-                                hintMaxLines: hintText.length > 28 ? 1 : null,
+                                // Context hints never resize the command bar.
+                                // Typed messages retain their existing multiline input.
+                                hintMaxLines: 1,
                                 hintStyle: const TextStyle(
                                   color: Color(0xFFB6B0A7),
                                   fontSize: 15.5,
