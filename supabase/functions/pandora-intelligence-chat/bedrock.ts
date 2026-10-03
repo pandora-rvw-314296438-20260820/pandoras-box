@@ -62,6 +62,19 @@ export async function bedrockCall(c:any,model:string,body:R,options:{stream?:boo
   if(issued.error)throw fail("provider_unavailable",true,true);
   const ticket=txt(rec(issued.data).ticket);
   if(!ticketPattern.test(ticket))throw fail("provider_unavailable",true,true);
+  const deadline=AbortSignal.timeout(150000);
+  const signal=options.signal?AbortSignal.any([options.signal,deadline]):deadline;
+  const transportFailure=(error:unknown)=>{
+    if(options.signal?.aborted)return Error("REQUEST_CANCELLED");
+    const value=rec(error);
+    if(deadline.aborted||value.name==="TimeoutError")return fail("timeout",true,true);
+    if(value.message==="PROVIDER_UNAVAILABLE"&&typeof value.code==="string")return error;
+    const failure=fail("provider_unavailable",true,true);
+    // Keep a bounded protocol diagnostic, never a parser exception's raw input.
+    Object.assign(failure,{transportCode:/^PROVIDER_STREAM_(?:MISSING|INVALID|TRUNCATED)$/.test(String(value.message))
+      ?value.message:"PROVIDER_STREAM_INVALID"});
+    return failure;
+  };
   let response:Response;
   try{
     response=await fetch(BEDROCK_CHAT_URL,{
@@ -69,30 +82,40 @@ export async function bedrockCall(c:any,model:string,body:R,options:{stream?:boo
       headers:{"content-type":"application/json","accept":options.stream?"text/event-stream":"application/json"},
       body:JSON.stringify({ticket}),
       redirect:"error",
-      signal:options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(150000)]):AbortSignal.timeout(150000),
+      signal,
     });
-  }catch{
-    if(options.signal?.aborted)throw Error("REQUEST_CANCELLED");
-    throw fail("provider_unavailable",true,true);
+  }catch(error){
+    throw transportFailure(error);
   }
   if(response.ok&&response.headers.get("content-type")?.includes("text/event-stream")){
     let final:R|null=null;let firstDelta:number|null=null;
-    await consumeServerEvents(response,async event=>{
+    let downstreamFailed=false,downstreamError:unknown;
+    try{await consumeServerEvents(response,async event=>{
       if(final)throw Error("PROVIDER_STREAM_INVALID");
       if(event.type==="delta"){
         if(typeof event.text!=="string")throw Error("PROVIDER_STREAM_INVALID");
         firstDelta??=Date.now()-started;
-        await options.onDelta?.(event.text);
+        try{await options.onDelta?.(event.text);}catch(error){
+          downstreamFailed=true;downstreamError=error;throw error;
+        }
       }else if(event.type==="completed")final=rec(event.body);
       else if(event.type==="failed")classify(event);
       else throw Error("PROVIDER_STREAM_INVALID");
     });
     if(!final)throw Error("PROVIDER_STREAM_TRUNCATED");
+    }catch(error){
+      if(options.signal?.aborted)throw Error("REQUEST_CANCELLED");
+      // Generation fences, output guards and persistence errors belong to the
+      // caller. Reclassifying them as transport failures could trigger fallback.
+      if(downstreamFailed&&error===downstreamError)throw error;
+      throw transportFailure(error);
+    }
     const b=final as R,raw=txt(b.text);if(!raw)throw Error("INVALID_MODEL_OUTPUT");
     let valueRaw:unknown;try{valueRaw=JSON.parse(raw)}catch{throw Error("INVALID_MODEL_OUTPUT")}
     return{body:{...b,transportLatencyMs:Date.now()-started,timeToFirstTokenMs:b.timeToFirstTokenMs??firstDelta},raw,valueRaw};
   }
-  const rawEnvelope=await response.text();
+  let rawEnvelope:string;
+  try{rawEnvelope=await response.text();}catch(error){throw transportFailure(error);}
   let e:R;try{e=rec(rawEnvelope?JSON.parse(rawEnvelope):{})}catch{throw fail("provider_unavailable",true,true)}
   const status=Number(e.status||response.status||0);
   if(!response.ok||e.ok!==true||status<200||status>=300)classify(e);

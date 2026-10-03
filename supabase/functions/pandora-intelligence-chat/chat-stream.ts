@@ -1,81 +1,90 @@
 type Row = Record<string, unknown>;
 
-/** Incremental JSON string decoding restricted to the top-level `reply` field.
- * No handoff, tool proposal, chain of thought, or raw partial JSON enters chat.
- * The final object must still pass the existing complete response validator. */
-export class ReplyDeltaDecoder {
-  private raw = "";
-  private delivered = "";
-  constructor(private readonly requireSafeMetadata=false) {}
-  push(fragment: string): string {
-    this.raw += fragment;
-    if (this.raw.length > 262144) throw Error("INVALID_MODEL_OUTPUT");
-    const text = extractReplyPrefix(this.raw,this.requireSafeMetadata);
-    if (text === null) return "";
-    if (!text.startsWith(this.delivered)) throw Error("INVALID_MODEL_OUTPUT");
-    const next = text.slice(this.delivered.length);
-    this.delivered = text;
-    return next;
+/** Decode a JSON string once, including escapes fragmented between chunks. */
+class JsonStringCursor {
+  private escape=0;private hex="";private high:number|null=null;private rawHigh=false;
+  push(char:string):string|null {
+    const code=char.charCodeAt(0);
+    if(this.rawHigh){
+      if(code<0xdc00||code>0xdfff)throw Error("INVALID_MODEL_OUTPUT");
+      const value=String.fromCharCode(this.high!,code);this.high=null;this.rawHigh=false;return value;
+    }
+    if(this.escape===3){if(char!=="\\")throw Error("INVALID_MODEL_OUTPUT");this.escape=4;return "";}
+    if(this.escape===4){if(char!=="u")throw Error("INVALID_MODEL_OUTPUT");this.escape=5;return "";}
+    if(this.escape===2||this.escape===5){
+      if(!/^[0-9a-f]$/i.test(char))throw Error("INVALID_MODEL_OUTPUT");
+      this.hex+=char;if(this.hex.length<4)return "";
+      const scalar=parseInt(this.hex,16),pair=this.escape===5;this.hex="";this.escape=0;
+      if(pair){
+        if(scalar<0xdc00||scalar>0xdfff)throw Error("INVALID_MODEL_OUTPUT");
+        const value=String.fromCharCode(this.high!,scalar);this.high=null;return value;
+      }
+      if(scalar>=0xd800&&scalar<=0xdbff){this.high=scalar;this.escape=3;return "";}
+      if(scalar>=0xdc00&&scalar<=0xdfff)throw Error("INVALID_MODEL_OUTPUT");
+      return String.fromCharCode(scalar);
+    }
+    if(this.escape===1){
+      this.escape=0;
+      if(char==="u"){this.escape=2;return "";}
+      const simple:Record<string,string>={'"':'"','\\':'\\','/':'/','b':'\b','f':'\f','n':'\n','r':'\r','t':'\t'};
+      if(!(char in simple))throw Error("INVALID_MODEL_OUTPUT");return simple[char];
+    }
+    if(char==='"')return null;
+    if(char==="\\"){this.escape=1;return "";}
+    if(code<32||code>=0xdc00&&code<=0xdfff)throw Error("INVALID_MODEL_OUTPUT");
+    if(code>=0xd800&&code<=0xdbff){this.high=code;this.rawHigh=true;return "";}
+    return char;
   }
-  get visibleText() { return this.delivered; }
 }
 
-function readString(raw: string, start: number): {value:string,end:number,complete:boolean} {
-  let value="";
-  for (let i=start+1;i<raw.length;i++) {
-    const char=raw[i];
-    if(char==='"')return{value,end:i+1,complete:true};
-    if(char==='\\') {
-      if(i+1>=raw.length)return{value,end:raw.length,complete:false};
-      const escaped=raw[++i];
-      const simple:Record<string,string>={'"':'"','\\':'\\','/':'/','b':'\b','f':'\f','n':'\n','r':'\r','t':'\t'};
-      if(escaped in simple){value+=simple[escaped];continue;}
-      if(escaped!=='u')throw Error("INVALID_MODEL_OUTPUT");
-      if(i+4>=raw.length)return{value,end:raw.length,complete:false};
-      const digits=raw.slice(i+1,i+5);if(!/^[0-9a-f]{4}$/i.test(digits))throw Error("INVALID_MODEL_OUTPUT");
-      const code=parseInt(digits,16);i+=4;
-      // Do not emit an unpaired high surrogate between provider chunks.
-      if(code>=0xd800&&code<=0xdbff){
-        if(i+6>=raw.length)return{value,end:raw.length,complete:false};
-        const pair=raw.slice(i+1,i+7);if(!/^\\u[dD][c-fC-F][0-9a-fA-F]{2}$/.test(pair))throw Error("INVALID_MODEL_OUTPUT");
-        value+=String.fromCharCode(code,parseInt(pair.slice(2),16));i+=6;
-      }else if(code>=0xdc00&&code<=0xdfff)throw Error("INVALID_MODEL_OUTPUT");
-      else value+=String.fromCharCode(code);
-    }else{
-      if(char.charCodeAt(0)<32)throw Error("INVALID_MODEL_OUTPUT");
-      const code=char.charCodeAt(0);
-      if(code>=0xd800&&code<=0xdbff&&i+1>=raw.length)return{value,end:raw.length,complete:false};
-      value+=char;
+/** Only the top-level reply string is decoded for incremental delivery. The
+ * cursor never revisits prior input; metadata is parsed once before delivery.
+ * The complete response still goes through the existing final validator. */
+export class ReplyDeltaDecoder {
+  private size=0;private depth=0;
+  private mode:"scan"|"string"|"colon"|"value"|"reply"|"done"|"buffered"="scan";
+  private prefix:string[]=[];private token:string[]=[];private text:string[]=[];
+  private cursor=new JsonStringCursor();
+  constructor(private readonly requireSafeMetadata=false) {}
+  push(fragment:string):string {
+    this.size+=fragment.length;if(this.size>262144)throw Error("INVALID_MODEL_OUTPUT");
+    const delta:string[]=[];
+    for(const char of fragment.split("")){
+      if(this.mode==="done"||this.mode==="buffered")break;
+      if(this.requireSafeMetadata&&this.mode!=="reply")this.prefix.push(char);
+      if(this.mode==="reply"||this.mode==="string"){
+        const value=this.cursor.push(char);
+        if(value===null){
+          if(this.mode==="reply")this.mode="done";
+          else{this.mode=this.depth===1&&this.token.join("")==="reply"?"colon":"scan";this.token=[];}
+        }else if(this.mode==="reply"){if(value)delta.push(value);}
+        else if(this.depth===1&&value)this.token.push(value);
+        continue;
+      }
+      if(this.mode==="colon"){
+        if(/\s/.test(char))continue;
+        if(char===":"){this.mode="value";continue;}
+        this.mode="scan";
+      }
+      if(this.mode==="value"){
+        if(/\s/.test(char))continue;
+        if(char!=='"')throw Error("INVALID_MODEL_OUTPUT");
+        if(this.requireSafeMetadata){
+          let meta;
+          try{meta=JSON.parse(this.prefix.join("")+'"}');}catch{this.mode="buffered";this.prefix=[];continue;}
+          this.prefix=[];
+          if(!["chat","clarify","other"].includes(meta.intent)||meta.handoff!==null||
+            !Array.isArray(meta.toolProposals)||meta.toolProposals.length){this.mode="buffered";continue;}
+        }
+        this.cursor=new JsonStringCursor();this.mode="reply";continue;
+      }
+      if(char==="{"||char==="["){this.depth++;continue;}
+      if(char==="}"||char==="]"){this.depth--;continue;}
+      if(char==='"'){this.cursor=new JsonStringCursor();this.token=[];this.mode="string";}
     }
+    const next=delta.join("");if(next)this.text.push(next);return next;
   }
-  return{value,end:raw.length,complete:false};
-}
-function extractReplyPrefix(raw:string,requireSafeMetadata=false):string|null {
-  let depth=0;
-  for(let i=0;i<raw.length;i++){
-    const c=raw[i];
-    if(c==='{'||c==='['){depth++;continue;}
-    if(c==='}'||c===']'){depth--;continue;}
-    if(c!=='"')continue;
-    const s=readString(raw,i);if(!s.complete)return null;
-    i=s.end-1;
-    if(depth!==1||s.value!=="reply")continue;
-    let k=s.end;while(/\s/.test(raw[k]??"")&&k<raw.length)k++;
-    if(raw[k]!==':')continue;
-    k++;while(/\s/.test(raw[k]??"")&&k<raw.length)k++;
-    if(k>=raw.length)return null;
-    if(raw[k]!=='"')throw Error("INVALID_MODEL_OUTPUT");
-    if(requireSafeMetadata){
-      // Require the non-executing classification before exposing partial prose.
-      // A provider that sends reply first is safely buffered for full validation.
-      let meta;
-      try{meta=JSON.parse(raw.slice(0,k)+'""}');}catch{return null;}
-      if(!["chat","clarify","other"].includes(meta.intent)||meta.handoff!==null||
-        !Array.isArray(meta.toolProposals)||meta.toolProposals.length)return null;
-    }
-    return readString(raw,k).value;
-  }
-  return null;
+  get visibleText(){return this.text.join("");}
 }
 
 export type ChatEventSink = (event: Row) => void;

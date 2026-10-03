@@ -2,6 +2,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { createHash } = require('node:crypto');
+const { spawnSync } = require('node:child_process');
 const { mkdtemp, writeFile, rm, readFile } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
@@ -223,18 +224,112 @@ test('network error text and untrusted CLI arguments never appear in diagnostics
   assert.equal(await runCli(['--validate-candidate-url', `${candidate}\n${canonical}`], sink), 1);
 });
 
-test('workflow verifies candidate bytes before binding and then verifies the canonical alias', async () => {
+test('workflow stages without domains, verifies bytes, promotes, binds and verifies the canonical alias', async () => {
   const workflow = await readFile(join(__dirname, '../.github/workflows/task-146-prebuilt-vercel-deploy.yml'), 'utf8');
+  const stageStep = workflow.indexOf('- name: Stage prebuilt production output without domain assignment');
   const candidateStep = workflow.indexOf('- name: Verify candidate source and served artifact bytes');
+  const promoteStep = workflow.indexOf('- name: Promote verified candidate to production');
   const aliasStep = workflow.indexOf('- name: Bind verified deployment to canonical production alias');
   const canonicalStep = workflow.indexOf('- name: Verify canonical source and served artifact bytes');
   const evidenceStep = workflow.indexOf('- name: Record exact deployment evidence');
-  assert.ok(candidateStep > 0 && aliasStep > candidateStep && canonicalStep > aliasStep && evidenceStep > canonicalStep);
-  assert.match(workflow.slice(candidateStep, aliasStep), /set -euo pipefail[\s\S]*--source-sha "\$SOURCE_SHA"[\s\S]*--target candidate/);
+  assert.ok(stageStep > 0 && candidateStep > stageStep && promoteStep > candidateStep
+    && aliasStep > promoteStep && canonicalStep > aliasStep && evidenceStep > canonicalStep);
+  assert.match(workflow.slice(stageStep, candidateStep), /vercel@59\.10\.0 deploy[\s\S]*--prebuilt[\s\S]*--prod\s*\\\n\s*--skip-domain/);
+  assert.doesNotMatch(workflow.slice(stageStep, candidateStep), /vercel@59\.10\.0 (?:promote|alias)/);
+  assert.match(workflow.slice(candidateStep, promoteStep), /set -euo pipefail[\s\S]*--source-sha "\$SOURCE_SHA"[\s\S]*--target candidate/);
+  assert.match(workflow.slice(promoteStep, aliasStep), /vercel@59\.10\.0 promote "\$DEPLOYMENT_URL"[\s\S]*--scope "\$VERCEL_ORG_ID"[\s\S]*--timeout=3m[\s\S]*--token="\$VERCEL_TOKEN"/);
   assert.match(workflow.slice(aliasStep, canonicalStep), /vercel@59\.10\.0 alias set "\$DEPLOYMENT_URL" mcpmaster\.vercel\.app[\s\S]*--scope "\$VERCEL_ORG_ID"[\s\S]*--token="\$VERCEL_TOKEN"/);
   assert.match(workflow.slice(canonicalStep, evidenceStep), /--url https:\/\/mcpmaster\.vercel\.app[\s\S]*--source-sha "\$SOURCE_SHA"[\s\S]*--target canonical/);
-  assert.doesNotMatch(workflow.slice(candidateStep, evidenceStep), /continue-on-error|always\(\)|\/health|--location/);
+  assert.doesNotMatch(workflow.slice(stageStep, evidenceStep), /continue-on-error|always\(\)|\/health|--location|--no-wait|--timeout=0/);
   assert.match(workflow, /test "\$\(git rev-parse HEAD\)" = "\$SOURCE_SHA"/);
   assert.match(workflow, /--prebuilt[\s\S]*--prod/);
   assert.match(workflow, /contents: read/);
+});
+
+async function runReleaseSteps(t, failedTarget = '') {
+  const f = await fixture(t);
+  const workflow = await readFile(join(__dirname, '../.github/workflows/task-146-prebuilt-vercel-deploy.yml'), 'utf8');
+  const stepNames = [
+    'Stage prebuilt production output without domain assignment',
+    'Verify candidate source and served artifact bytes',
+    'Promote verified candidate to production',
+    'Bind verified deployment to canonical production alias',
+    'Verify canonical source and served artifact bytes',
+  ];
+  const blocks = workflow.split(/^      - name: /m).slice(1);
+  const scripts = stepNames.map((name) => {
+    const block = blocks.find((value) => value.split('\n')[0] === name);
+    assert.ok(block, `missing release step: ${name}`);
+    const body = block.split('        run: |\n')[1];
+    assert.ok(body);
+    return body.split('\n').filter((line) => line.startsWith('          '))
+      .map((line) => line.slice(10)).join('\n');
+  });
+  // Execute the actual workflow shell blocks. Both external commands are
+  // replaced locally; this fixture cannot deploy or authenticate to Vercel.
+  const harness = `
+    set -euo pipefail
+    npx() {
+      test "$1" = --yes && test "$2" = vercel@59.10.0 || return 71
+      case "$3" in
+        deploy)
+          for required in --prebuilt --prod --skip-domain; do
+            case " $* " in *" $required "*) ;;
+              *) printf 'premature-domain-assignment\\n' >> "$EVENTS"; return 72;; esac
+          done
+          printf 'staged-without-domains\\n' >> "$EVENTS"
+          printf '%s\\n' "$DEPLOYMENT_URL"
+          ;;
+        promote)
+          test -f "$RUNNER_TEMP/candidate-verified" || return 73
+          test "$4" = "$DEPLOYMENT_URL" || return 74
+          printf 'promoted\\n' >> "$EVENTS"
+          ;;
+        alias)
+          test -f "$RUNNER_TEMP/candidate-verified" || return 75
+          test "$4" = set && test "$5" = "$DEPLOYMENT_URL" && test "$6" = mcpmaster.vercel.app || return 76
+          printf 'canonical-bound\\n' >> "$EVENTS"
+          ;;
+        *) return 77;;
+      esac
+    }
+    node() {
+      if test "$2" = --validate-candidate-url; then
+        command node "$@"
+        return
+      fi
+      test "$2" = --url && test "$4" = --source-sha && test "$5" = "$SOURCE_SHA" && test "$6" = --target || return 78
+      printf 'verify-%s\\n' "$7" >> "$EVENTS"
+      test "$7" != "$FAILED_TARGET" || return 79
+      if test "$7" = candidate; then : > "$RUNNER_TEMP/candidate-verified"; fi
+      printf '{"verified":true}\\n'
+    }
+  `;
+  const eventsPath = join(f.localRoot, 'events');
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-c', harness + scripts.join('\n')], {
+    cwd: join(__dirname, '..'), encoding: 'utf8', timeout: 10_000,
+    env: { PATH: process.env.PATH, SOURCE_SHA: source, DEPLOYMENT_URL: candidate,
+      VERCEL_ORG_ID: 'team-test-fixture', VERCEL_TOKEN: 'test-placeholder',
+      RUNNER_TEMP: f.localRoot, GITHUB_OUTPUT: join(f.localRoot, 'github-output'),
+      EVENTS: eventsPath, FAILED_TARGET: failedTarget },
+  });
+  assert.equal(result.error, undefined);
+  const events = (await readFile(eventsPath, 'utf8')).trim().split('\n');
+  return { result, events };
+}
+
+test('failed candidate verification leaves the workflow unable to promote or assign an alias', async (t) => {
+  const { result, events } = await runReleaseSteps(t, 'candidate');
+  assert.notEqual(result.status, 0);
+  assert.deepEqual(events, ['staged-without-domains', 'verify-candidate']);
+});
+
+test('successful verification promotes only the staged candidate and still fails on a stale canonical readback', async (t) => {
+  const passed = await runReleaseSteps(t);
+  assert.equal(passed.result.status, 0, passed.result.stderr);
+  const expected = ['staged-without-domains', 'verify-candidate', 'promoted', 'canonical-bound', 'verify-canonical'];
+  assert.deepEqual(passed.events, expected);
+  const stale = await runReleaseSteps(t, 'canonical');
+  assert.notEqual(stale.result.status, 0);
+  assert.deepEqual(stale.events, expected);
 });

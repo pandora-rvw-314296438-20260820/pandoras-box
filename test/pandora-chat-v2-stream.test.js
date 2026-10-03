@@ -68,7 +68,10 @@ test("upstream SSE delivers true partial deltas and keeps provider receipts",asy
 });
 test("truncated provider stream never produces a completed assistant",async()=>{
  const module=load("bedrock.ts",{fetch:async()=>new Response('event: delta\ndata: {"type":"delta","text":"partial"}\n\n',{headers:{"content-type":"text/event-stream"}})});
- await assert.rejects(module.bedrockCall({rpc:async()=>({data:{ticket:"b".repeat(64)}})},"fixture",{},{stream:true}),/TRUNCATED/);
+ await assert.rejects(module.bedrockCall({rpc:async()=>({data:{ticket:"b".repeat(64)}})},"fixture",{},{stream:true}),error=>{
+   assert.equal(error.message,"PROVIDER_UNAVAILABLE");assert.equal(error.code,"provider_unavailable");
+   assert.equal(error.transportCode,"PROVIDER_STREAM_TRUNCATED");assert.equal(error.retryable,true);assert.equal(error.crossProviderEligible,true);return true;
+ });
 });
 test("every split credential prefix is held before any sensitive character can be painted",()=>{
  const synthetic="gh"+"p_"+"notarealcredential".repeat(3);
