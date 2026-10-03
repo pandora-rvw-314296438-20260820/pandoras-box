@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/data/pandora_user_admin_api.dart';
@@ -94,7 +96,47 @@ class _FakeAdminGateway implements PandoraUserAdminGateway {
   }
 }
 
+class _DelayedAdminGateway extends _FakeAdminGateway {
+  final Completer<List<PandoraTeamMember>> pending =
+      Completer<List<PandoraTeamMember>>();
+
+  @override
+  Future<List<PandoraTeamMember>> loadMembers(String organizationId) =>
+      pending.future;
+}
+
 void main() {
+  testWidgets('team loading preserves verified summary instead of showing zero',
+      (tester) async {
+    final gateway = _DelayedAdminGateway();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlpTeamManagementScreen(
+          organizationId: 'org-plp',
+          gateway: gateway,
+          initialActiveCount: 2,
+          initialTotalCount: 2,
+          onBack: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('0'), findsNothing);
+    expect(find.text('2'), findsNWidgets(2));
+    expect(find.text('—'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    gateway.pending.complete(
+      List<PandoraTeamMember>.from(gateway.members),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('—'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('owner can invite a PLP team member through normal admin UI', (tester) async {
     final gateway = _FakeAdminGateway();
 

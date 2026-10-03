@@ -112,7 +112,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('RESORT STATUS'), findsOneWidget);
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('Today'), findsNothing);
       expect(
         find.byKey(const ValueKey('plp-metric-rail')),
         findsOneWidget,
@@ -142,7 +142,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('Today'), findsNothing);
     expect(find.text('The resort is composed.'), findsNothing);
     expect(
       find.text('No guest or channel exception needs owner attention.'),
@@ -197,21 +197,24 @@ void main() {
       'message':
           'Demo/staging PLP data. Customer production tenant is not connected.',
     };
-    data['teamAccess'] = <String, Object?>{
-      'members': const <Object?>[],
-      'recentActivity': <Object?>[
+    data['verifiedActivity'] = <String, Object?>{
+      'testDataExcluded': true,
+      'items': <Object?>[
         <String, Object?>{
           'title': 'QA transfer',
-          'actor': 'Alfred QA',
-          'status': 'in_progress',
-          'isMock': true
+          'summary': '[MOCK QA] Synthetic transfer',
+          'sourceLabel': 'qa_mock',
+          'category': 'arrival',
+          'occurredAt': '2026-10-01T06:31:00+08:00',
+          'isMock': true,
         },
         <String, Object?>{
           'title': 'Confirm guest transfer',
-          'actor': 'Front Desk',
-          'status': 'in_progress',
+          'summary': 'Verified transfer update',
+          'sourceLabel': 'Front Desk',
           'category': 'arrival',
-          'updatedAt': '2026-10-01T06:30:00+08:00',
+          'occurredAt': '2026-10-01T06:30:00+08:00',
+          'isMock': false,
         },
       ],
     };
@@ -225,9 +228,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Demo/staging'), findsNothing);
     expect(find.textContaining('Customer production tenant'), findsNothing);
-    expect(find.textContaining('Alfred QA'), findsNothing);
-    expect(find.textContaining('in_progress'), findsNothing);
-    expect(find.textContaining('In progress'), findsWidgets);
+    expect(find.textContaining('QA transfer'), findsNothing);
+    expect(find.textContaining('Synthetic transfer'), findsNothing);
     expect(find.text('Confirm guest transfer'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -243,9 +245,13 @@ void main() {
     await tester.pumpWidget(mount(data));
     await tester.pumpAndSettle();
 
-    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('Today'), findsNothing);
     expect(find.byKey(const ValueKey('plp-metric-rail')), findsNothing);
     expect(find.text('ROOM PULSE'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('plp-source-recovery')),
+      findsOneWidget,
+    );
     expect(find.textContaining('Live occupancy'), findsOneWidget);
     expect(find.text('RESORT WORKSPACES'), findsOneWidget);
     expect(find.text('₱0'), findsNothing);

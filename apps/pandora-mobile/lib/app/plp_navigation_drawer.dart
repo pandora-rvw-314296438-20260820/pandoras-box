@@ -124,7 +124,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: DecoratedBox(
-        decoration: const BoxDecoration(color: Color(0xFF000000), border: Border(right: BorderSide(color: Color(0x1FFFFFFF)))),
+        decoration: const BoxDecoration(color: Color(0xFF000000)),
         child: SafeArea(child: Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
           child: PandoraNavigationLayout(
@@ -135,16 +135,16 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
               key: const ValueKey<String>('plp-drawer-header-overlay'),
               mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(padding: const EdgeInsets.fromLTRB(18, 14, 8, 10), child: Row(children: [
-                  const PandoraMark(size: 42), const SizedBox(width: 12),
+                Padding(padding: const EdgeInsets.fromLTRB(18, 10, 10, 8), child: Row(children: [
+                  const PandoraMark(size: 34), const SizedBox(width: 10),
                   const Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-                    child: Text('Pandora', style: TextStyle(color: Color(0xFFF2EEE7), fontSize: 29,
-                        height: 1, fontWeight: FontWeight.w700, letterSpacing: -.6)))),
+                    child: Text('Pandora', style: TextStyle(color: Color(0xFFF2EEE7), fontSize: 24,
+                        height: 1, fontWeight: FontWeight.w700, letterSpacing: -.5)))),
                   IconButton(
                     key: const ValueKey<String>('plp-drawer-search'),
                     tooltip: _searchOpen ? 'Close navigation search' : 'Search navigation and chats',
                     onPressed: _toggleSearch,
-                    icon: Icon(_searchOpen ? Icons.close_rounded : Icons.search_rounded, size: 24, color: const Color(0xFFD4CDC3)),
+                    icon: Icon(_searchOpen ? Icons.close_rounded : Icons.search_rounded, size: 22, color: const Color(0xFFD4CDC3)),
                   ),
                 ])),
                 if (_searchOpen)
@@ -165,11 +165,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
             ),
             body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               if (!searching) ...[
-                _expandableRow(semanticTitle: 'PLP Boracay', title: 'PLP Boracay', subtitle: 'Owner workspace',
-                    expanded: _workspaceExpanded, leading: _plpLogo(), onTap: () => setState(() => _workspaceExpanded = !_workspaceExpanded)),
-                if (_workspaceExpanded)
-                  const Padding(padding: EdgeInsets.fromLTRB(12, 4, 8, 8), child: Text('Luxury resort command center',
-                      style: TextStyle(color: Color(0xFFAAA39A), fontSize: 12))),
+                _workspaceIdentityRow(),
               ],
               if (_workspaceExpanded || searching)
                 for (final item in visibleBusiness) _navigationRow(item),
@@ -225,9 +221,9 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   }
 
   Widget _plpLogo() => ClipRRect(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(10),
         child: SizedBox.square(
-          dimension: 34,
+          dimension: 40,
           child: Image.asset(
             'assets/workspaces/plp.webp',
             fit: BoxFit.cover,
@@ -247,6 +243,74 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
           ),
         ),
       );
+
+  Widget _workspaceIdentityRow() {
+    final expanded = _workspaceExpanded;
+    return Semantics(
+      button: true,
+      excludeSemantics: true,
+      label:
+          'Pueblo La Perla Boracay, Luxury Resort, ${expanded ? 'expanded' : 'collapsed'}',
+      child: InkWell(
+        key: const ValueKey<String>('plp-workspace-identity'),
+        onTap: () =>
+            setState(() => _workspaceExpanded = !_workspaceExpanded),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(width: 40, child: Center(child: _plpLogo())),
+              const SizedBox(width: 14),
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 236),
+                  child: const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pueblo La Perla Boracay',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Color(0xFFF2EEE7),
+                          fontSize: 17,
+                          height: 1.14,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -.2,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Luxury Resort',
+                        style: TextStyle(
+                          color: Color(0xFFAAA39A),
+                          fontSize: 13,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              AnimatedRotation(
+                turns: expanded ? .5 : 0,
+                duration: const Duration(milliseconds: 150),
+                child: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF989188),
+                  size: 22,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _expandableRow({
     required String semanticTitle,

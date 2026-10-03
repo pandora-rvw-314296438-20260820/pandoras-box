@@ -10,6 +10,8 @@ class PlpTeamManagementScreen extends StatefulWidget {
     this.onChanged,
     this.gateway,
     this.openInviteOnLoad = false,
+    this.initialActiveCount,
+    this.initialTotalCount,
   });
 
   final String organizationId;
@@ -17,6 +19,8 @@ class PlpTeamManagementScreen extends StatefulWidget {
   final VoidCallback? onChanged;
   final PandoraUserAdminGateway? gateway;
   final bool openInviteOnLoad;
+  final int? initialActiveCount;
+  final int? initialTotalCount;
 
   @override
   State<PlpTeamManagementScreen> createState() =>
@@ -233,6 +237,14 @@ class _PlpTeamManagementScreenState extends State<PlpTeamManagementScreen> {
   Widget build(BuildContext context) {
     final active = _members.where((member) => member.isActive).length;
     final invited = _members.where((member) => member.isInvited).length;
+    final resolved = !_loading && _failure == null && _organization != null;
+    final activeValue = resolved
+        ? '$active'
+        : (widget.initialActiveCount?.toString() ?? '—');
+    final invitedValue = resolved ? '$invited' : '—';
+    final totalValue = resolved
+        ? '${_members.length}'
+        : (widget.initialTotalCount?.toString() ?? '—');
     return Scaffold(
       backgroundColor: _canvas,
       body: SafeArea(
@@ -248,46 +260,24 @@ class _PlpTeamManagementScreenState extends State<PlpTeamManagementScreen> {
                 onRefresh: () => _load(),
                 child: ListView(
                   key: const ValueKey<String>('plp-team-management-page'),
-                  padding: const EdgeInsets.fromLTRB(22, 22, 22, 120),
+                  padding: const EdgeInsets.fromLTRB(22, 12, 22, 28),
                   children: [
                     const Text(
-                      'TEAM & ACCESS',
-                      style: TextStyle(
-                        color: _gold,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2.1,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Manage your people',
-                      style: TextStyle(
-                        color: _ink,
-                        fontFamily: 'serif',
-                        fontSize: 38,
-                        height: .98,
-                        fontWeight: FontWeight.w400,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'One PLP directory for invitations, roles and access status.',
+                      'Invitations, roles and access status.',
                       style: TextStyle(
                         color: _muted,
-                        fontSize: 13,
-                        height: 1.45,
+                        fontSize: 12.5,
+                        height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 14),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _Metric(label: 'Active', value: '$active'),
-                        _Metric(label: 'Invited', value: '$invited'),
-                        _Metric(label: 'Total', value: '${_members.length}'),
+                        _Metric(label: 'Active', value: activeValue),
+                        _Metric(label: 'Invited', value: invitedValue),
+                        _Metric(label: 'Total', value: totalValue),
                       ],
                     ),
                     const SizedBox(height: 18),
@@ -381,37 +371,39 @@ class _Header extends StatelessWidget {
   final VoidCallback? onRefresh;
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: const BoxDecoration(
-          color: _PlpTeamManagementScreenState._paper,
-          border: Border(
-            bottom: BorderSide(color: _PlpTeamManagementScreenState._line),
-          ),
-        ),
-        padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(18, 8, 10, 8),
         child: Row(
           children: [
-            IconButton(
-              key: const ValueKey<String>('plp-team-management-back'),
-              onPressed: onBack,
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 56),
             const Expanded(
               child: Text(
-                'PUEBLO LA PERLA',
+                'TEAM & ACCESS',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Color(0xFF4C3020),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
+                  color: _PlpTeamManagementScreenState._ink,
+                  fontFamily: 'serif',
+                  fontSize: 21,
+                  height: 1,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -.35,
                 ),
               ),
             ),
             IconButton(
               key: const ValueKey<String>('plp-team-management-refresh'),
               onPressed: onRefresh,
+              tooltip: 'Refresh team',
+              color: _PlpTeamManagementScreenState._ink,
               icon: const Icon(Icons.refresh_rounded),
+            ),
+            IconButton(
+              key: const ValueKey<String>('plp-team-management-back'),
+              onPressed: onBack,
+              tooltip: 'Back',
+              color: _PlpTeamManagementScreenState._ink,
+              icon: const Icon(Icons.arrow_back_rounded),
             ),
           ],
         ),
