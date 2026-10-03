@@ -14,6 +14,8 @@ import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
 import 'package:pandora_mobile/core/platform/pandora_native_io.dart';
 import 'package:pandora_mobile/core/security/pandora_auth.dart';
+import 'package:pandora_mobile/features/auth/auth_gate.dart';
+import 'package:pandora_mobile/features/core/pandora_core_screen.dart';
 import 'package:pandora_mobile/features/enterprise/pandora_enterprise_workspace_screen.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
 import 'package:pandora_mobile/pandora_config.dart';
@@ -131,6 +133,32 @@ class _MemberAuth extends FakeAuth {
     signOutCalls++;
     session = null;
   }
+}
+
+class _LaunchAuth extends FakeAuth implements PandoraWorkspaceAccessSource {
+  final _changes = StreamController<PandoraSession?>.broadcast(sync: true);
+  bool operatorMode = true;
+  PandoraSession session = const PandoraSession(userId: 'fixture-operator');
+
+  @override
+  Stream<PandoraSession?> get changes => _changes.stream;
+  @override
+  PandoraSession get currentSession => session;
+  @override
+  Future<bool> hasActiveOwnerAccess() async => operatorMode;
+  @override
+  Future<PandoraWorkspaceAccess> loadWorkspaceAccess() async =>
+      PandoraWorkspaceAccess(
+          operatorMode: operatorMode, workspaces: [_membership()]);
+
+  void refreshSession() => _changes.add(session);
+  void switchToCustomer() {
+    operatorMode = false;
+    session = const PandoraSession(userId: 'fixture-customer');
+    _changes.add(session);
+  }
+
+  Future<void> close() => _changes.close();
 }
 
 class _EnterpriseGateway implements PandoraEnterpriseGateway {
@@ -279,6 +307,7 @@ Future<void> _mount(
   PandoraEnterpriseMembership? memberWorkspace,
   PandoraWorkspaceAccessSource? workspaceAccess,
   PandoraAuth? auth,
+  bool throughAuthGate = false,
 }) async {
   PandoraLocalAiPreference.setCachedForTesting(false);
   addTearDown(PandoraLocalAiPreference.resetForTesting);
@@ -304,19 +333,21 @@ Future<void> _mount(
       repository: repository ?? FakeRepository(),
       diagnostics: DiagnosticsStore(),
       intelligence: intelligence,
-      child: workspaceAccess != null
-          ? PandoraMemberWorkspaceGate(
-              auth: auth ?? const FakeAuth(),
-              accessSource: workspaceAccess,
-              coreGateway: gateway,
-              enterpriseGateway: enterpriseGateway,
-              clientRuntimeFactory: factory,
-            )
-          : PandoraChatShell(
-              coreGateway: gateway,
-              clientRuntimeFactory: factory,
-              enterpriseGateway: enterpriseGateway,
-              memberWorkspace: memberWorkspace),
+      child: throughAuthGate
+          ? AuthGate(coreGateway: gateway)
+          : workspaceAccess != null
+              ? PandoraMemberWorkspaceGate(
+                  auth: auth ?? const FakeAuth(),
+                  accessSource: workspaceAccess,
+                  coreGateway: gateway,
+                  enterpriseGateway: enterpriseGateway,
+                  clientRuntimeFactory: factory,
+                )
+              : PandoraChatShell(
+                  coreGateway: gateway,
+                  clientRuntimeFactory: factory,
+                  enterpriseGateway: enterpriseGateway,
+                  memberWorkspace: memberWorkspace),
     ),
   ));
   await _settle(tester);
@@ -372,6 +403,58 @@ Future<void> _openGeneric(WidgetTester tester, _CoreGateway gateway,
 }
 
 void main() {
+  testWidgets(
+      'AuthGate launches operator Home with composer, preserves active chat '
+      'on token refresh, and keeps customer launch in own workspace chooser',
+      (tester) async {
+    final auth = _LaunchAuth();
+    addTearDown(auth.close);
+    final gateway = _CoreGateway();
+    await _mount(tester, gateway,
+        auth: auth, intelligence: _History('Owner'), throughAuthGate: true);
+
+    expect(gateway.snapshots, ['home']);
+    expect(find.byType(PandoraCoreScreen), findsOneWidget);
+    expect(find.text('Add Enterprise Client'), findsOneWidget);
+    final composer = find.byKey(const ValueKey('ask-pandora-objective'));
+    expect(composer.hitTestable(), findsOneWidget);
+    expect(
+        tester
+            .widget<AskPandoraScreen>(find.byType(AskPandoraScreen))
+            .initialHistoryExpanded,
+        isFalse);
+    final conversation =
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    await tester.enterText(composer, 'Keep this operator draft');
+    await tester.tap(find.byTooltip('Open navigation'));
+    await _settle(tester);
+    final chat = find.descendant(
+        of: find.byKey(const ValueKey('pandora-primary-navigation-drawer')),
+        matching: find.widgetWithText(ListTile, 'Pandora'));
+    await tester.ensureVisible(chat);
+    await tester.tap(chat);
+    await _settle(tester);
+    auth.refreshSession();
+    await _settle(tester);
+    expect(find.text('Keep this operator draft'), findsOneWidget);
+    expect(find.byType(PandoraCoreScreen), findsNothing);
+    expect(tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen)),
+        same(conversation));
+
+    auth.switchToCustomer();
+    await _settle(tester);
+    expect(find.byType(PandoraMemberWorkspaceGate), findsOneWidget);
+    expect(find.text('My workspaces'), findsOneWidget);
+    expect(find.text('Scoped trading fixture'), findsOneWidget);
+    expect(find.byType(PandoraCoreScreen), findsNothing);
+    expect(find.byType(AskPandoraScreen), findsNothing);
+    expect(find.text('Keep this operator draft'), findsNothing);
+    expect(gateway.snapshots, ['home']);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'an unresolved owner action prevents client entry before authorization',
       (tester) async {

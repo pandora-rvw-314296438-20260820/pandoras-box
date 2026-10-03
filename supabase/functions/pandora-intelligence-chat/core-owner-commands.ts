@@ -353,10 +353,16 @@ function deploymentSummary(snapshot: Row, message: string): string {
   const failedQuestion = /\b(why|cause)\b/i.test(message);
   const lines = deployments.slice(0, 8).map((deployment) => {
     const commit = /^[0-9a-f]{40}$/i.test(text(deployment.source_commit_sha)) ? text(deployment.source_commit_sha).slice(0, 12) : "source unknown";
+    if (deployment.release_observation_kind === "candidate" || deployment.release_observation_kind === "canonical_production") {
+      const kind = deployment.release_observation_kind === "candidate" ? "Latest candidate" : "Canonical production";
+      const observedAt = text(deployment.last_observed_at);
+      const observed = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(observedAt) ? `; observed ${label(observedAt, "time unavailable")}` : "; observation time unavailable";
+      return `• ${kind} — ${label(deployment.provider_state, "provider state unknown")}; ${commit}${observed}; ${deployment.evidence_state === "stale" ? "stale provider evidence; " : ""}runtime and owner/client flow verification not established by this observation.`;
+    }
     const state = deployment.evidence_state === "stale" ? "stale provider evidence" : deployment.evidence_state === "source_unbound" ? "source not linked" : "provider evidence only";
     return `• ${label(deployment.provider, "Provider")} · ${label(deployment.environment, "environment unknown")} — ${label(deployment.status, "unknown")}; ${commit}; ${state}.`;
   });
-  return `${failedQuestion ? "These records do not establish a verified cause for the failure.\n\n" : ""}Recorded deployments:\n\n${lines.join("\n")}\n\nA recorded build or merge does not prove which version is serving customers. Open Platform → Deployments for verification evidence.`;
+  return `${failedQuestion ? "These records do not establish a verified cause for the failure.\n\n" : ""}Recorded deployments:\n\n${lines.join("\n")}\n\nA candidate being READY does not promote it to canonical production or verify user flows. Open Platform → Deployments for source and provider evidence.`;
 }
 
 function providerSummary(snapshot: Row): string {

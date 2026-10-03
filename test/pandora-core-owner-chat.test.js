@@ -284,6 +284,20 @@ test("unbound or stale releases do not become verified live deployments", async 
   assert.doesNotMatch(result.reply, /Live|production verified|deployed successfully/);
 });
 
+test("release observations keep candidate and serving production source separate", async () => {
+  const user = caller(snapshot({ deployments: [
+    { release_observation_kind: "candidate", provider_state: "READY", source_commit_sha: "b".repeat(40), last_observed_at: "2026-10-03T07:12:00Z", evidence_state: "deployment_ready", runtime_verified: false, owner_flow_verified: false, client_flow_verified: false },
+    { release_observation_kind: "canonical_production", provider_state: "READY", source_commit_sha: "a".repeat(40), last_observed_at: "2026-10-03T07:13:00Z", evidence_state: "stale", runtime_verified: false, owner_flow_verified: false, client_flow_verified: false },
+  ] }));
+  const result = await tryCoreOwnerCommand(user, platform, "Which version is deployed?", noScope);
+  assert.match(result.reply, /Latest candidate — READY; bbbbbbbbbbbb; observed 2026-10-03T07:12:00Z/);
+  assert.match(result.reply, /Canonical production — READY; aaaaaaaaaaaa; observed 2026-10-03T07:13:00Z; stale provider evidence/);
+  assert.match(result.reply, /runtime and owner\/client flow verification not established/);
+  assert.match(result.reply, /READY does not promote it to canonical production/);
+  assert.equal(user.calls.length, 1);
+  assert.equal(user.calls[0].name, "pandora_core_snapshot_v1");
+});
+
 test("model recommendations and local savings remain unproven without comparable evidence", async () => {
   const provider = await tryCoreOwnerCommand(caller(snapshot({ models: [{ provider: "outdated-provider", evidence_state: "stale", success_count: 999 }] })), platform, "Which provider should we stop using?", noScope);
   assert.match(provider.reply, /cannot support a stop-or-switch recommendation/);

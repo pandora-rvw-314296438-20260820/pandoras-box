@@ -1471,7 +1471,24 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                 _StatusLine(
                     entry.value,
                     _displayValue(entry.key, row[entry.key],
-                        currency: coreText(row['currency'], ''))),
+                        currency: coreText(row['currency'], '')),
+                    preserveExact: const {'candidate', 'canonical_production'}
+                        .contains(row['release_observation_kind'])),
+            if (const {'candidate', 'canonical_production'}
+                .contains(row['release_observation_kind']))
+              for (final edge in coreRecords(row['edge_functions']).take(8)) ...[
+                const SizedBox(height: 12),
+                _Heading(coreText(edge['slug'], 'Edge Function')),
+                for (final field in const {
+                  'version': 'Provider version',
+                  'source_sha': 'Source version',
+                  'source_sha256': 'Source digest',
+                  'observed_at': 'Observed',
+                }.entries)
+                  if (edge[field.key] is String || edge[field.key] is num)
+                    _StatusLine(field.value, coreText(edge[field.key]),
+                        preserveExact: true),
+              ],
             const SizedBox(height: 14),
             if (actionLabel != null && onAction != null)
               FilledButton(
@@ -1896,6 +1913,20 @@ const _recordFields = <String, String>{
   'app_version': 'App version',
   'source_commit_sha': 'Source version',
   'source_sha': 'Source version',
+  'source_tree_sha': 'Source tree',
+  'provider_deployment_id': 'Provider deployment',
+  'provider_state': 'Provider state',
+  'audit_receipt_id': 'Audit receipt',
+  'runtime_verified': 'Runtime verification',
+  'owner_flow_verified': 'Owner flow verification',
+  'client_flow_verified': 'Client flow verification',
+  'production_verified': 'Production verification',
+  'supabase_project_ref': 'Database project',
+  'supabase_migration_version': 'Applied migration version',
+  'supabase_migration_name': 'Applied migration',
+  'supabase_source_file_version': 'Source migration version',
+  'supabase_source_sha256': 'Migration source digest',
+  'supabase_statements_sha256': 'Applied statements digest',
   'verification_status': 'Verification',
   'deployment_url': 'Deployment',
   'last_verified_at': 'Last verified',
@@ -1945,6 +1976,14 @@ const _recordFields = <String, String>{
 };
 
 String _displayValue(String key, Object? value, {String currency = ''}) {
+  if (const {
+    'runtime_verified',
+    'owner_flow_verified',
+    'client_flow_verified',
+    'production_verified',
+  }.contains(key)) {
+    return value == true ? 'Verified' : 'Not verified';
+  }
   if (key.endsWith('_micros')) {
     if (value == null || currency.isEmpty) return 'Unknown';
     return '$currency ${formatCoreMoneyMicros(value)}';
@@ -1981,7 +2020,16 @@ class _RecordTile extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    final subtitle = [
+    final isRelease = const {'candidate', 'canonical_production'}
+        .contains(row['release_observation_kind']);
+    final subtitle = isRelease
+        ? [
+            coreText(row['summary'], ''),
+            row['evidence_state'] == 'stale'
+                ? 'Stale provider evidence'
+                : 'Runtime and user flows not verified',
+          ].where((value) => value.isNotEmpty).join(' · ')
+        : [
       for (final key in const [
         'client_name',
         'why',
@@ -2102,9 +2150,10 @@ class _StatePill extends StatelessWidget {
 }
 
 class _StatusLine extends StatelessWidget {
-  const _StatusLine(this.label, this.value);
+  const _StatusLine(this.label, this.value, {this.preserveExact = false});
   final String label;
   final Object? value;
+  final bool preserveExact;
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 5),
@@ -2116,7 +2165,9 @@ class _StatusLine extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
               flex: 3,
-              child: Text(coreText(value).replaceAll('_', ' '),
+              child: Text(preserveExact
+                  ? coreText(value)
+                  : coreText(value).replaceAll('_', ' '),
                   textAlign: TextAlign.right,
                   style: const TextStyle(color: _ink, fontSize: 12))),
         ]),

@@ -39,9 +39,12 @@ import 'pandora_dependencies.dart';
 import 'pandora_shared_conversation_scope.dart';
 import 'plp_enterprise_shell.dart';
 
+enum PandoraStartPage { chat, home }
+
 class PandoraChatShell extends StatefulWidget {
   const PandoraChatShell(
       {super.key,
+      this.startPage = PandoraStartPage.chat,
       this.coreGateway,
       this.clientRuntimeFactory,
       this.enterpriseGateway,
@@ -50,6 +53,7 @@ class PandoraChatShell extends StatefulWidget {
       this.onLeaveMemberWorkspace,
       this.onMemberSignOut});
 
+  final PandoraStartPage startPage;
   final PandoraCoreGateway? coreGateway;
   final PandoraClientRuntimeFactory? clientRuntimeFactory;
   final PandoraEnterpriseGateway? enterpriseGateway;
@@ -210,6 +214,13 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     _enterpriseGateway =
         widget.enterpriseGateway ?? SupabasePandoraEnterpriseGateway();
     final membership = widget.memberWorkspace;
+    if (membership == null && widget.startPage == PandoraStartPage.home) {
+      _index = 9;
+      _chatVisible = false;
+      _visited
+        ..clear()
+        ..add(9);
+    }
     if (membership != null) {
       try {
         final entry = widget.initialEntry;
@@ -245,7 +256,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.screenViewed,
-        resultClass: 'pandora_chat',
+        resultClass: _index == 9 ? 'pandora_home' : 'pandora_chat',
       ),
     );
   }

@@ -232,6 +232,70 @@ Future<void> _fillRegistration(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('release facts keep candidate and production acceptance distinct',
+      (tester) async {
+    final data = _snapshot();
+    data['deployments'] = <PandoraCoreRecord>[
+      <String, dynamic>{
+        'title': 'Canonical production',
+        'release_observation_kind': 'canonical_production',
+        'status': 'READY',
+        'summary': 'Serving mcpmaster.vercel.app',
+        'source_sha': 'a' * 40,
+        'evidence_state': 'stale',
+      },
+      <String, dynamic>{
+        'title': 'Latest candidate',
+        'release_observation_kind': 'candidate',
+        'status': 'READY',
+        'summary': 'Candidate; canonical production remains separate',
+        'source_sha': 'b' * 40,
+        'source_tree_sha': 'c' * 40,
+        'provider_deployment_id': 'dpl_test_candidate',
+        'runtime_verified': false,
+        'owner_flow_verified': false,
+        'client_flow_verified': false,
+        'production_verified': false,
+        'supabase_migration_version': '20261003080000',
+        'edge_functions': <PandoraCoreRecord>[
+          <String, dynamic>{
+            'slug': 'pandora-intelligence-chat',
+            'version': 82,
+            'source_sha': 'b' * 40,
+            'observed_at': '2026-10-03T08:00:00Z',
+            'unexpected_raw_payload': 'must-never-render',
+          },
+        ],
+      },
+    ];
+    final gateway = _FakeCoreGateway()..data = data;
+    await _mount(tester, gateway, section: 'platform', size: const Size(360, 740));
+    await _tap(tester, find.text('Deployments'));
+    expect(find.text('Canonical production'), findsOneWidget);
+    expect(find.text('Latest candidate'), findsOneWidget);
+    expect(find.text('READY'), findsNWidgets(2));
+    expect(find.textContaining('Stale provider evidence'), findsOneWidget);
+    expect(find.textContaining('Runtime and user flows not verified'),
+        findsOneWidget);
+    await _tap(tester, find.text('Latest candidate'));
+    expect(find.text('Not verified'), findsNWidgets(4));
+    expect(find.text('Verified'), findsNothing);
+    expect(find.text('dpl_test_candidate'), findsOneWidget);
+    expect(find.text('c' * 40), findsOneWidget);
+    expect(find.text('20261003080000'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('pandora-intelligence-chat'),
+      150,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('pandora-intelligence-chat'), findsOneWidget);
+    expect(find.text('82'), findsOneWidget);
+    expect(find.text('must-never-render'), findsNothing);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'commercial confirmation shows the exact client currency and amount',
       (tester) async {

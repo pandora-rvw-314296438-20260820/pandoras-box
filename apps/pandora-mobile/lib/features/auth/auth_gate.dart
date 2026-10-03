@@ -6,6 +6,7 @@ import '../../app/pandora_chat_shell.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../app/pandora_member_workspace_gate.dart';
 import '../../app/pandora_shell.dart';
+import '../../core/data/pandora_core_api.dart';
 import '../../core/data/pandora_enterprise_api.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_tokens.dart';
@@ -15,7 +16,9 @@ import '../../core/widgets/pandora_surface.dart';
 import 'sign_in_screen.dart';
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+  const AuthGate({super.key, this.coreGateway});
+
+  final PandoraCoreGateway? coreGateway;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -250,10 +253,14 @@ class _AuthGateState extends State<AuthGate> {
         final dependencies = PandoraDependencies.of(context);
         final Widget authenticatedHome = snapshot.data != true
             ? PandoraMemberWorkspaceGate(
-                auth: _auth!, accessSource: memberAccess!)
+                auth: _auth!,
+                accessSource: memberAccess!,
+                coreGateway: widget.coreGateway)
             : dependencies.intelligence == null
                 ? const PandoraShell()
-                : const PandoraChatShell();
+                : PandoraChatShell(
+                    startPage: PandoraStartPage.home,
+                    coreGateway: widget.coreGateway);
         return NavigatorPopHandler(
           onPopWithResult: (_) {
             unawaited(
