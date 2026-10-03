@@ -159,6 +159,38 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
         .contains(value?.toString().trim().toLowerCase());
   }
 
+  bool _isTestOnlyActivity(Map<String, Object?> item) {
+    final explicit = <Object?>[
+      item['isMock'],
+      item['isTest'],
+      item['synthetic'],
+      item['mock'],
+    ].any((value) => value == true ||
+        const {'true', '1', 'yes'}
+            .contains(value?.toString().trim().toLowerCase()));
+    if (explicit) return true;
+    final sourceLabel = _text(item['sourceLabel'], fallback: '').toLowerCase();
+    final sourceType = _text(item['sourceType'], fallback: '').toLowerCase();
+    final title = _text(item['title'], fallback: '').toLowerCase();
+    final summary = _text(item['summary'], fallback: '').toLowerCase();
+    final message = _text(item['message'], fallback: '').toLowerCase();
+    return sourceLabel.startsWith('qa_') ||
+        sourceLabel.contains('mock') ||
+        sourceType.startsWith('qa_') ||
+        sourceType.contains('mock') ||
+        sourceType.contains('synthetic') ||
+        title.contains('[mock qa]') ||
+        summary.contains('[mock qa]') ||
+        summary.contains('synthetic') ||
+        message.contains('[mock qa]') ||
+        message.contains('synthetic');
+  }
+
+  List<Map<String, Object?>> _productionActivity(Object? value) =>
+      _maps(value)
+          .where((item) => !_isTestOnlyActivity(item))
+          .toList(growable: false);
+
   int? _int(Object? value) {
     if (value is int) return value;
     return int.tryParse(value?.toString() ?? '');
@@ -205,8 +237,9 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
     });
     try {
       final payload = await (widget.businessLoader ?? _providerBusinessLoader)();
+      final page = _productionActivity(payload['items']);
       if (!mounted) return;
-      setState(() => _business = _maps(payload['items']));
+      setState(() => _business = page);
     } catch (_) {
       if (!mounted) return;
       setState(
@@ -232,7 +265,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
         query: query.isEmpty ? null : query,
       );
       if (!mounted) return;
-      final page = _maps(payload['items']);
+      final page = _productionActivity(payload['items']);
       setState(() {
         _logs = append
             ? <Map<String, Object?>>[..._logs, ...page]
@@ -368,7 +401,6 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
                       ),
                     ),
                   ),
-                const _ActivityHero(),
                 _ActivityTabs(
                   selected: _tab,
                   onSelect: _selectTab,
@@ -417,7 +449,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
     final earlier = items.where((item) => !_isToday(item, 'occurredAt')).toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 6),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -497,7 +529,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
     final earlier = _logs.where((item) => !_isToday(item, 'occurredAt')).toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 6),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -571,30 +603,18 @@ class _ActivityHeader extends StatelessWidget {
             const SizedBox.square(dimension: 44),
           const SizedBox(width: 12),
           const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'PUEBLO LA PERLA',
-                  style: TextStyle(
-                    color: _PlpActivityScreenState._ink,
-                    fontFamily: 'serif',
-                    fontSize: 16,
-                    letterSpacing: 2.6,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'ACTIVITY',
-                  style: TextStyle(
-                    color: _PlpActivityScreenState._gold,
-                    fontSize: 8.5,
-                    letterSpacing: 2.2,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            child: Text(
+              'ACTIVITY & AUDIT',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _PlpActivityScreenState._ink,
+                fontFamily: 'serif',
+                fontSize: 21,
+                height: 1,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -.35,
+              ),
             ),
           ),
           IconButton(
@@ -682,7 +702,7 @@ class _ActivityTabs extends StatelessWidget {
                 onTap: () => onSelect(index),
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 11),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: FittedBox(
@@ -701,7 +721,7 @@ class _ActivityTabs extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 13),
+                    const SizedBox(height: 9),
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 160),
                       height: 2,

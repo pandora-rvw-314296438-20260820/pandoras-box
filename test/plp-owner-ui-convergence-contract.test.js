@@ -10,6 +10,9 @@ const shell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
 const migration = read("supabase/migrations/20261001044500_plp_resort_command_center_v1.sql");
 const operationsMigration = read("supabase/migrations/20261001070000_plp_resort_operations_v1.sql");
 const operational = read("apps/pandora-mobile/lib/features/enterprise/plp_resort_operational_screens.dart");
+const activity = read("apps/pandora-mobile/lib/features/enterprise/plp_activity_screen.dart");
+const teamManagement = read("apps/pandora-mobile/lib/features/enterprise/plp_team_management_screen.dart");
+const productionActivityIsolation = read("supabase/migrations/20261003201314_plp_production_activity_isolation_v1.sql");
 const plpAuthGate = read("apps/pandora-mobile/lib/features/auth/plp_auth_gate.dart");
 const signIn = read("apps/pandora-mobile/lib/features/auth/sign_in_screen.dart");
 const failClosedTruth = read("supabase/migrations/20261001070517_plp_fail_closed_source_truth_v1.sql");
@@ -144,4 +147,42 @@ test("PLP live business truth fails closed while the source is unavailable", () 
   assert.match(failClosedTruth, /when not live_operational_data_available then 'unknown'/);
   assert.match(failClosedTruth, /available'.*case when live_operational_data_available/s);
   assert.match(failClosedTruth, /bookedValue30dPhp'.*case when live_operational_data_available/s);
+});
+
+
+test("PLP uses one compact contextual page header instead of repeating resort and page names", () => {
+  assert.match(resort, /headerTitle: 'RESORT STATUS'/);
+  assert.match(resort, /section\.headerTitle/);
+  assert.doesNotMatch(resort, /class _HeroLine/);
+  assert.doesNotMatch(operational, /const Text\('PLP Boracay'/);
+  assert.match(activity, /'ACTIVITY & AUDIT'/);
+  assert.match(teamManagement, /'TEAM & ACCESS'/);
+  assert.doesNotMatch(activity, /'PUEBLO LA PERLA'/);
+  assert.doesNotMatch(teamManagement, /'PUEBLO LA PERLA'/);
+});
+
+test("PLP deep surfaces preserve parent navigation and contextual Pandora", () => {
+  assert.match(shell, /'activity-feed'/);
+  assert.match(shell, /onOpenActivity: _openActivityFeed/);
+  assert.match(shell, /toolKey == 'team-management'/);
+  assert.match(shell, /toolKey == 'activity-feed'/);
+  assert.match(shell, /hintMaxLines: 1/);
+  assert.match(shell, /AnnotatedRegion<SystemUiOverlayStyle>/);
+});
+
+test("PLP verified production activity excludes mock QA and synthetic history at provider and UI boundaries", () => {
+  assert.match(productionActivityIsolation, /and not is_mock/);
+  assert.match(productionActivityIsolation, /'testDataExcluded',true/);
+  assert.match(productionActivityIsolation, /not like '%synthetic%'/);
+  assert.match(activity, /_productionActivity/);
+  assert.match(operational, /_productionRecords/);
+  assert.match(operational, /reference\.startsWith\('mock-'\)/);
+});
+
+test("PLP source outages remain actionable without manufacturing current business values", () => {
+  assert.match(resort, /class _SourceRecoveryPanel/);
+  assert.match(resort, /Refresh status/);
+  assert.match(resort, /Open infrastructure/);
+  assert.match(resort, /_cachedOperationalSnapshot/);
+  assert.match(resort, /_sourceAvailableActions/);
 });

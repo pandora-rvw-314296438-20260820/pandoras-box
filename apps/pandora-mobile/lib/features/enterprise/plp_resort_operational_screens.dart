@@ -57,14 +57,45 @@ class _PlpResortOperationalScreenState
       _map(widget.bootstrap['resortCommandCenter']);
   Map<String, Object?> get _operations =>
       _operationsOverride ?? _map(widget.bootstrap['resortOperations']);
+  bool _isTestRecord(Map<String, Object?> item) {
+    final explicit = <Object?>[
+      item['isTestData'],
+      item['isMock'],
+      item['isTest'],
+      item['synthetic'],
+    ].any((value) => value == true ||
+        const {'true', '1', 'yes'}
+            .contains(value?.toString().trim().toLowerCase()));
+    if (explicit) return true;
+    final source = _text(item['source'], fallback: '').toLowerCase();
+    final actor = _text(item['actor'], fallback: '').toLowerCase();
+    final reference =
+        _text(item['bookingReference'], fallback: '').toLowerCase();
+    final note = _text(item['note'], fallback: '').toLowerCase();
+    return source.startsWith('qa_') ||
+        source.contains('mock') ||
+        actor.startsWith('qa ') ||
+        actor.endsWith(' qa') ||
+        reference.startsWith('mock-') ||
+        note.contains('[mock qa]') ||
+        note.contains('synthetic');
+  }
+
+  List<Map<String, Object?>> _productionRecords(Object? value) =>
+      _maps(value)
+          .where((item) => !_isTestRecord(item))
+          .toList(growable: false);
+
   List<Map<String, Object?>> get _workItems =>
-      _maps(_operations['workItems']);
+      _productionRecords(_operations['workItems']);
   List<Map<String, Object?>> get _conflicts =>
-      _maps(_operations['channelConflicts']);
-  List<Map<String, Object?>> get _rooms => _maps(_command['rooms']);
-  List<Map<String, Object?>> get _stays => _maps(_command['stays']);
+      _productionRecords(_operations['channelConflicts']);
+  List<Map<String, Object?>> get _rooms =>
+      _productionRecords(_command['rooms']);
+  List<Map<String, Object?>> get _stays =>
+      _productionRecords(_command['stays']);
   List<Map<String, Object?>> get _requests =>
-      _maps(_command['experienceSignals']);
+      _productionRecords(_command['experienceSignals']);
 
   bool _containsAny(Map<String, Object?> item, List<String> words) {
     final haystack = <Object?>[
@@ -234,29 +265,34 @@ class _PlpResortOperationalScreenState
           child: ListView(
             key: ValueKey<String>('plp-module-' + widget.moduleId),
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 190),
+            padding: EdgeInsets.fromLTRB(
+              18,
+              12,
+              18,
+              32 + MediaQuery.viewPaddingOf(context).bottom,
+            ),
             children: [
-              _ModuleHeader(label: _spec.label, onBack: widget.onBack),
-              const SizedBox(height: 28),
-              Text(_spec.eyebrow,
-                  style: const TextStyle(
-                    color: accent, fontSize: 10,
-                    fontWeight: FontWeight.w700, letterSpacing: 2,
-                  )),
-              const SizedBox(height: 10),
-              Text(_spec.title,
-                  style: const TextStyle(
-                    color: ink, fontFamily: 'serif', fontSize: 38,
-                    height: .98, fontWeight: FontWeight.w400,
-                    letterSpacing: -1.15,
-                  )),
-              const SizedBox(height: 22),
+              _ModuleHeader(
+                label: _spec.label.toUpperCase(),
+                onBack: widget.onBack,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _spec.title,
+                style: const TextStyle(
+                  color: muted,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 14),
               _MetricBand(items: [
                 _Metric('Visible', records.length.toString(), _spec.unitLabel),
                 _Metric('Open work', openWork.toString(), 'resort'),
                 _moduleMetric(),
               ]),
-              const SizedBox(height: 28),
+              const SizedBox(height: 18),
               _ModuleControls(
                 controller: _search,
                 showCompleted: _showCompleted,
@@ -267,7 +303,7 @@ class _PlpResortOperationalScreenState
                     setState(() => _showCompleted = !_showCompleted),
                 onCreate: _createTask,
               ),
-              const SizedBox(height: 26),
+              const SizedBox(height: 18),
               _SectionLabel(_spec.queueLabel, count: records.length),
               const SizedBox(height: 8),
               if (records.isEmpty)
@@ -282,7 +318,7 @@ class _PlpResortOperationalScreenState
                         ),
                       ),
                     ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 22),
               ..._secondaryContext(),
             ],
           ),
@@ -724,23 +760,18 @@ class PlpResortRecordScreen extends StatelessWidget {
           bottom: false,
           child: ListView(
             key: ValueKey<String>('plp-record-' + kind),
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 190),
+            padding: EdgeInsets.fromLTRB(
+              18,
+              12,
+              18,
+              32 + MediaQuery.viewPaddingOf(context).bottom,
+            ),
             children: [
-              _ModuleHeader(label: _eyebrow, onBack: onBack),
-              const SizedBox(height: 30),
-              Text(_eyebrow,
-                  style: const TextStyle(
-                    color: _PlpResortOperationalScreenState.accent,
-                    fontSize: 10, fontWeight: FontWeight.w700,
-                    letterSpacing: 2,
-                  )),
-              const SizedBox(height: 10),
-              Text(_title,
-                  style: const TextStyle(
-                    color: _PlpResortOperationalScreenState.ink,
-                    fontFamily: 'serif', fontSize: 39, height: .98,
-                    fontWeight: FontWeight.w400, letterSpacing: -1.1,
-                  )),
+              _ModuleHeader(
+                label: _title.toUpperCase(),
+                onBack: onBack,
+              ),
+              const SizedBox(height: 14),
               if (_actions.isNotEmpty) ...[
                 const SizedBox(height: 22),
                 const _SectionLabel('ACTIONS'),
@@ -1007,23 +1038,18 @@ class _ModuleHeader extends StatelessWidget {
         children: [
           const SizedBox(width: 56),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('PLP Boracay',
-                    style: TextStyle(
-                      color: _PlpResortOperationalScreenState.ink,
-                      fontFamily: 'serif', fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    )),
-                const SizedBox(height: 3),
-                Text(label.toUpperCase(),
-                    style: const TextStyle(
-                      color: _PlpResortOperationalScreenState.accent,
-                      fontSize: 8.5, fontWeight: FontWeight.w700,
-                      letterSpacing: 1.7,
-                    )),
-              ],
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _PlpResortOperationalScreenState.ink,
+                fontFamily: 'serif',
+                fontSize: 20,
+                height: 1,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -.35,
+              ),
             ),
           ),
           IconButton(
@@ -1120,9 +1146,19 @@ class _ModuleControls extends StatelessWidget {
             key: const ValueKey('plp-module-search'),
             controller: controller,
             onChanged: onSearchChanged,
+            style: const TextStyle(
+              color: _PlpResortOperationalScreenState.ink,
+              fontSize: 14,
+            ),
             decoration: const InputDecoration(
               hintText: 'Search this workspace',
-              prefixIcon: Icon(Icons.search_rounded),
+              hintStyle: TextStyle(
+                color: _PlpResortOperationalScreenState.muted,
+              ),
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: _PlpResortOperationalScreenState.accent,
+              ),
               filled: true,
               fillColor: _PlpResortOperationalScreenState.paper,
               enabledBorder: OutlineInputBorder(
@@ -1144,6 +1180,9 @@ class _ModuleControls extends StatelessWidget {
             builder: (context, constraints) {
               final history = TextButton.icon(
                 onPressed: onToggleCompleted,
+                style: TextButton.styleFrom(
+                  foregroundColor: _PlpResortOperationalScreenState.ink,
+                ),
                 icon: Icon(
                   showCompleted
                       ? Icons.visibility_off_outlined
@@ -1232,7 +1271,6 @@ class _OperationalRow extends StatelessWidget {
                         _text(record['priority'], fallback: 'normal')
                             .toUpperCase(),
                         _text(record['status'], fallback: 'open'),
-                        if (record['isTestData'] == true) 'QA',
                       ].join(' · ');
 
     return Material(

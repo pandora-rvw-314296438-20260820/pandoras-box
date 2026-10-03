@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/data/pandora_intelligence_api.dart';
@@ -222,6 +223,15 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         normalized['resortAudit'] = _normalizeBootstrap(audit);
       } catch (_) {
         // Audit projection is additive; core workspace truth remains usable.
+      }
+      try {
+        final activity = await Supabase.instance.client.rpc(
+          'plp_recent_business_activity_v1',
+          params: const <String, Object?>{'p_limit': 40},
+        );
+        normalized['verifiedActivity'] = _normalizeBootstrap(activity);
+      } catch (_) {
+        // Verified activity is additive. Absence remains unknown, never zero.
       }
       _ensureRealtime(normalized);
       if (cache != null) {
@@ -593,6 +603,12 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   String get _commandHint {
     final toolKey = _routedToolKey;
+    if (toolKey == 'team-management') return 'Ask about team or access…';
+    if (toolKey == 'activity-feed') return 'Ask about activity or audit…';
+    if (toolKey == 'source-infrastructure') {
+      return 'Ask about resort infrastructure…';
+    }
+    if (toolKey == 'operations-room') return 'Ask about resort operations…';
     if (toolKey != null && toolKey.startsWith('resort:')) {
       final section = plpResortSectionById(toolKey.substring('resort:'.length));
       if (section != null) return section.commandHint;
@@ -769,9 +785,35 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         },
         onOpenGuestExperience: () => _open(6),
         onOpenTeam: () => _openTeamManagement(bootstrap),
-        onOpenActivity: () => _open(10),
+        onOpenActivity: _openActivityFeed,
+        onOpenSourceSettings: _openSourceInfrastructure,
       ),
       replaceHistory: replaceHistory,
+    );
+  }
+
+  void _openActivityFeed() {
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    _openTool(
+      'activity-feed',
+      PlpActivityScreen(
+        organizationId: _organizationId(bootstrap),
+        onOpenNavigation: _openDrawer,
+      ),
+    );
+  }
+
+  void _openSourceInfrastructure() {
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    _openTool(
+      'source-infrastructure',
+      PlpConnectivityInfrastructureScreen(
+        bootstrap: bootstrap,
+        onOpenNavigation: _openDrawer,
+        onAskPandora: (prompt) {
+          unawaited(_submitCommand(prompt));
+        },
+      ),
     );
   }
 
@@ -781,11 +823,21 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }) {
     final organizationId = _organizationId(bootstrap);
     if (organizationId == null || organizationId.isEmpty) return;
+    final rawTeam = bootstrap['teamAccess'];
+    final team = rawTeam is Map ? rawTeam : const <Object?, Object?>{};
+    final rawMembers = team['members'];
+    final initialActive =
+        int.tryParse(team['activeMemberCount']?.toString() ?? '');
+    final initialTotal =
+        int.tryParse(team['totalMemberCount']?.toString() ?? '') ??
+            (rawMembers is List ? rawMembers.length : null);
     _openTool(
       'team-management',
       PlpTeamManagementScreen(
         organizationId: organizationId,
         openInviteOnLoad: invite,
+        initialActiveCount: initialActive,
+        initialTotalCount: initialTotal,
         onBack: _closeTool,
         onChanged: _refresh,
       ),
@@ -952,6 +1004,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenSection: _openResortSection,
               onOpenModule: _openResortModule,
               onOpenRecord: (kind, record) => _openResortRecord(kind, record),
+              onOpenSourceSettings: _openSourceInfrastructure,
             ),
             if (widget.embeddedRouteSlug != null)
               const SizedBox.shrink()
@@ -1012,7 +1065,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               },
               onOpenGuestExperience: () => _open(6),
               onOpenTeam: () => _openTeamManagement(bootstrap),
-              onOpenActivity: () => _open(10),
+              onOpenActivity: _openActivityFeed,
+              onOpenSourceSettings: _openSourceInfrastructure,
             ),
             PlpRevenueScreen(
               key: const ValueKey('plp-revenue'),
@@ -1047,7 +1101,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               organizationId: _organizationId(bootstrap),
               key: const ValueKey('plp-tax-compliance'),
               workspaceKey: 'plp-boracay',
-              workspaceName: 'PLP Boracay',
+              workspaceName: 'Pueblo La Perla Boracay',
               enterpriseContext: const <String, Object?>{
                 'surface': 'enterprise_tax',
                 'route': '/enterprise/workspaces/plp-boracay/tax-compliance',
@@ -1055,7 +1109,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 'identityScope': 'enterprise_workspace',
                 'selectedObject': <String, String>{
                   'workspaceKey': 'plp-boracay',
-                  'workspaceName': 'PLP Boracay',
+                  'workspaceName': 'Pueblo La Perla Boracay',
                   'workspaceType': 'Luxury Resort',
                   'section': 'Tax & Compliance',
                 },
@@ -1096,7 +1150,24 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onPopInvokedWithResult: (didPop, result) {
                 if (!didPop) _handleWorkspaceBack();
               },
-              child: Scaffold(
+              child: AnnotatedRegion<SystemUiOverlayStyle>(
+                value: SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: (_index == 1 || _drawerOpen)
+                      ? Brightness.light
+                      : Brightness.dark,
+                  statusBarBrightness: (_index == 1 || _drawerOpen)
+                      ? Brightness.dark
+                      : Brightness.light,
+                  systemNavigationBarColor:
+                      (_index == 1 || _drawerOpen) ? Colors.black : _canvas,
+                  systemNavigationBarIconBrightness:
+                      (_index == 1 || _drawerOpen)
+                          ? Brightness.light
+                          : Brightness.dark,
+                  systemNavigationBarDividerColor: Colors.transparent,
+                ),
+                child: Scaffold(
                 key: _scaffoldKey,
                 backgroundColor: _canvas,
                 drawerEnableOpenDragGesture: true,
@@ -1197,6 +1268,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                         },
                         onOpenChat: () => _open(1),
                       ),
+              ),
+                ),
               ),
             ),
           );
@@ -1343,6 +1416,7 @@ class PlpCommandDock extends StatelessWidget {
                               ),
                               decoration: InputDecoration(
                                 hintText: hintText,
+                                hintMaxLines: 1,
                                 hintStyle: const TextStyle(
                                   color: Color(0xFFB6B0A7),
                                   fontSize: 15.5,
