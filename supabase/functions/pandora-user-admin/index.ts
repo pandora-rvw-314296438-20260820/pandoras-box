@@ -194,6 +194,40 @@ async function jsonBody(req: Request): Promise<Json> {
   }
 }
 
+async function authorizeUserAdmin(
+  userClient: Client,
+  organizationId: string,
+  write: boolean,
+): Promise<"owner" | "admin"> {
+  // This caller-JWT function distinguishes external tenant administrators from
+  // internal Pandora operators, including actors with both kinds of membership.
+  // A target owner role is never a shortcut around operator/MFA authorization.
+  let result;
+  try {
+    result = await userClient.rpc("pandora_core_authorize_user_admin_v1", {
+      p_organization_id: organizationId,
+      p_write: write,
+    });
+  } catch {
+    throw new ApiError(503, "AUTHORITY_UNAVAILABLE", "User administration is temporarily unavailable.");
+  }
+  if (result.error) {
+    const stepUp = result.error.message === "STEP_UP_REQUIRED";
+    if (stepUp || result.error.code === "42501") {
+      throw new ApiError(403, stepUp ? "STEP_UP_REQUIRED" : "ADMIN_ROLE_REQUIRED",
+        stepUp ? "Verify your security code to manage customer access." : "An authorized administrator role is required.");
+    }
+    throw new ApiError(503, "AUTHORITY_UNAVAILABLE", "User administration is temporarily unavailable.");
+  }
+  const authority = record(result.data);
+  if (authority.organization_id !== organizationId ||
+    !["owner", "admin"].includes(String(authority.role || "")) ||
+    !["explicit_operator_grant", "tenant_membership"].includes(String(authority.authority || ""))) {
+    throw new ApiError(403, "ADMIN_ROLE_REQUIRED", "An authorized administrator role is required.");
+  }
+  return authority.role as "owner" | "admin";
+}
+
 async function authenticate(req: Request): Promise<Context> {
   const authorization = req.headers.get("authorization") || "";
   if (!/^Bearer\s+\S+$/i.test(authorization)) {
@@ -214,26 +248,12 @@ async function authenticate(req: Request): Promise<Context> {
     throw new ApiError(401, "SIGN_IN_REQUIRED", "A signed-in account is required.");
   }
 
-  const { data: membership, error: membershipError } = await userClient
-    .from("memberships")
-    .select("role, status")
-    .eq("organization_id", organizationId)
-    .eq("user_id", authData.user.id)
-    .eq("status", "active")
-    .maybeSingle();
-  const membershipRole = String(membership?.role || "");
-  if (membershipError || !["owner", "admin"].includes(membershipRole)) {
-    throw new ApiError(
-      403,
-      "ADMIN_ROLE_REQUIRED",
-      "An active owner or administrator role is required.",
-    );
-  }
+  const authorizedRole = await authorizeUserAdmin(userClient, organizationId, req.method !== "GET");
 
   return {
     userId: authData.user.id,
     organizationId,
-    role: membershipRole as "owner" | "admin",
+    role: authorizedRole,
     userClient,
     adminClient: createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -285,6 +305,19 @@ async function findUser(adminClient: Client, targetEmail: string): Promise<Json 
   throw new ApiError(503, "USER_DIRECTORY_LIMIT_REACHED", "The user directory could not be searched safely.");
 }
 
+async function invitationAudit(context: Context, event: string, requestId: string, payload: Json): Promise<void> {
+  const { data, error } = await context.adminClient.rpc("record_audit_event", {
+    p_organization_id: context.organizationId,
+    p_event_type: `core.user_invitation.${event}`,
+    p_actor_type: "human",
+    p_actor_user_id: context.userId,
+    p_payload_redacted: { ...payload, request_id: requestId, source: FUNCTION_NAME },
+  });
+  if (error || data == null) {
+    throw new ApiError(503, "INVITATION_AUDIT_UNAVAILABLE", "Pandora could not record invitation evidence.");
+  }
+}
+
 function inviteRedirect(): string | undefined {
   const raw = Deno.env.get("PANDORA_INVITE_REDIRECT_URL")?.trim();
   if (!raw) return undefined;
@@ -302,6 +335,7 @@ async function createOrFindUser(
   displayName: string | null,
   timezone: string,
   targetRole: MemberRole,
+  requestId: string,
 ): Promise<{ user: Json; created: boolean; inviteSent: boolean }> {
   const existing = await findUser(context.adminClient, targetEmail);
   if (existing) return { user: existing, created: false, inviteSent: false };
@@ -318,9 +352,28 @@ async function createOrFindUser(
   const redirectTo = inviteRedirect();
   if (redirectTo) options.redirectTo = redirectTo;
 
+  // Directory reads may take time. Recheck the caller's live authority directly
+  // before the external Auth invitation, then preserve the role-grant boundary.
+  const currentRole = await authorizeUserAdmin(context.userClient, context.organizationId, true);
+  if (currentRole === "admin" && ["owner", "admin"].includes(targetRole)) {
+    throw new ApiError(403, "ROLE_GRANT_NOT_ALLOWED", "Only an owner can grant this role.");
+  }
+  await invitationAudit(context, "requested", requestId, {
+    target_email_sha256: await sha256(targetEmail), target_role: targetRole,
+    authorization: currentRole, outcome: "authorized_pending_auth",
+  });
   const { data, error } = await context.adminClient.auth.admin
     .inviteUserByEmail(targetEmail, options);
   if (!error && data.user) {
+    try {
+      await invitationAudit(context, "accepted_by_auth", requestId, {
+        target_user_id: data.user.id, target_role: targetRole,
+        outcome: "auth_accepted_invitation", delivery_verification: "not_confirmed",
+      });
+    } catch {
+      throw new ApiError(409, "INVITATION_ACCEPTED_EVIDENCE_PENDING",
+        "Auth accepted the invitation, but its audit result could not be confirmed. Retry to finish the existing account.");
+    }
     return { user: data.user as unknown as Json, created: true, inviteSent: true };
   }
 
@@ -362,6 +415,19 @@ function membershipError(error: { message?: string } | null): ApiError {
   return new ApiError(500, "MEMBERSHIP_CHANGE_FAILED", "Pandora could not change this organization membership.");
 }
 
+function verifiedMembership(value: unknown, context: Context, targetUserId: string,
+  targetRole: MemberRole | null, targetStatus: MemberStatus | null = null): Json {
+  const membership = record(value);
+  if (membership.organizationId !== context.organizationId || membership.userId !== targetUserId ||
+    !ROLES.includes(membership.role as MemberRole) ||
+    ![...MEMBER_STATUSES, "invited"].includes(String(membership.status)) ||
+    (targetRole !== null && membership.role !== targetRole) || (targetStatus !== null && membership.status !== targetStatus)) {
+    throw new ApiError(503, "MEMBERSHIP_RESULT_UNCONFIRMED",
+      "Workspace access could not be confirmed. Retry to check the same account.");
+  }
+  return membership;
+}
+
 async function invite(req: Request, context: Context, requestId: string, origin: string | null): Promise<Response> {
   await rateLimit(context, "POST");
   const body = await jsonBody(req);
@@ -379,38 +445,55 @@ async function invite(req: Request, context: Context, requestId: string, origin:
     displayName,
     timezone,
     targetRole,
+    requestId,
   );
   const targetUserId = String(authResult.user.id || "");
   if (!uuid(targetUserId)) {
     throw new ApiError(502, "AUTH_USER_INVALID", "Pandora received an invalid user record from Auth.");
   }
 
-  const { data, error } = await context.adminClient.rpc(
-    "pandora_admin_add_organization_member",
-    {
-      p_actor_user_id: context.userId,
-      p_organization_id: context.organizationId,
-      p_target_user_id: targetUserId,
-      p_role: targetRole,
-    },
-  );
-  if (error) {
-    if (authResult.created) {
-      const membershipCheck = await context.adminClient
-        .from("memberships")
-        .select("organization_id")
-        .eq("organization_id", context.organizationId)
-        .eq("user_id", targetUserId)
-        .maybeSingle();
-      // Delete only when we positively proved that no membership persisted.
-      if (!membershipCheck.error && !membershipCheck.data) {
-        await context.adminClient.auth.admin.deleteUser(targetUserId);
-      }
+  let membership: Json;
+  try {
+    // The broker rechecks role under its organization lock. The caller-JWT check
+    // also keeps live MFA/session authorization at this final write boundary.
+    const currentRole = await authorizeUserAdmin(context.userClient, context.organizationId, true);
+    if (currentRole === "admin" && ["owner", "admin"].includes(targetRole)) {
+      throw new ApiError(403, "ROLE_GRANT_NOT_ALLOWED", "Only an owner can grant this role.");
     }
-    throw membershipError(error);
+    const { data, error } = await context.adminClient.rpc(
+      "pandora_admin_add_organization_member",
+      {
+        p_actor_user_id: context.userId,
+        p_organization_id: context.organizationId,
+        p_target_user_id: targetUserId,
+        p_role: targetRole,
+      },
+    );
+    if (error) throw membershipError(error);
+    membership = verifiedMembership(data, context, targetUserId, targetRole);
+  } catch (error) {
+    const safe = error instanceof ApiError ? error : new ApiError(503, "MEMBERSHIP_RESULT_UNCONFIRMED",
+      "Workspace access could not be confirmed. Retry to check the same account.");
+    if (authResult.created) {
+      // The Auth account may already have another concurrent tenant membership.
+      // Preserve it: retry resolves the same account and resumes the broker step.
+      try {
+        await invitationAudit(context, "access_pending", requestId, {
+          target_user_id: targetUserId, target_role: targetRole,
+          outcome: "membership_not_confirmed", reason_code: safe.code,
+          next_action: "retry_existing_account",
+        });
+      } catch {
+        // Earlier requested/accepted audit records remain; never invent a saved
+        // failure receipt or delete an account after an external side effect.
+        console.error(JSON.stringify({ requestId, code: "INVITATION_PENDING_AUDIT_UNAVAILABLE" }));
+      }
+      throw new ApiError(409, "INVITATION_SENT_ACCESS_PENDING",
+        "Auth accepted the invitation, but workspace access is not confirmed. Retry to finish the existing account.");
+    }
+    throw safe;
   }
 
-  const membership = record(data);
   return response(
     {
       user: { id: targetUserId, email: targetEmail, displayName },
@@ -458,6 +541,11 @@ async function updateMember(
     );
   }
 
+  const currentRole = await authorizeUserAdmin(context.userClient, context.organizationId, true);
+  if (currentRole === "admin" && targetRole !== null && ["owner", "admin"].includes(targetRole)) {
+    throw new ApiError(403, "ROLE_GRANT_NOT_ALLOWED", "Only an owner can grant this role.");
+  }
+
   const { data, error } = await context.adminClient.rpc(
     "pandora_admin_update_organization_member",
     {
@@ -469,10 +557,11 @@ async function updateMember(
     },
   );
   if (error) throw membershipError(error);
+  const membership = verifiedMembership(data, context, targetUserId, targetRole, targetStatus);
 
   return response(
     {
-      membership: record(data),
+      membership,
       requestId,
     },
     200,
@@ -483,7 +572,9 @@ async function updateMember(
 
 async function members(context: Context, requestId: string, origin: string | null): Promise<Response> {
   await rateLimit(context, "GET");
-  const { data: memberships, error } = await context.userClient
+  // The unified authority function already authorized this exact organization.
+  // Explicit operators need not grant themselves customer membership to inspect it.
+  const { data: memberships, error } = await context.adminClient
     .from("memberships")
     .select("user_id, role, status, invited_by, joined_at, created_at, updated_at")
     .eq("organization_id", context.organizationId)

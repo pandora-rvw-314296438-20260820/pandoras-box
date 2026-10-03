@@ -186,6 +186,9 @@ function portableSql(filename, source) {
 }
 
 async function bootstrap(db) {
+  // Match the hosted PostgreSQL session. PGlite otherwise inherits the runner's
+  // local timezone, changing legacy timestamp-without-time-zone comparisons.
+  await db.exec("set timezone = 'UTC'");
   await db.exec(`
     create schema if not exists extensions;
     create extension if not exists pgcrypto with schema extensions;
@@ -219,7 +222,11 @@ async function bootstrap(db) {
       id uuid primary key,
       raw_user_meta_data jsonb not null default '{}'::jsonb,
       is_anonymous boolean not null default false,
-      email_confirmed_at timestamptz
+      email_confirmed_at timestamptz,
+      email text,
+      last_sign_in_at timestamptz,
+      banned_until timestamptz,
+      deleted_at timestamptz
     );
     create table auth.sessions (
       id uuid primary key,
@@ -3153,7 +3160,7 @@ async function catalogAssertions(db, migrationFiles) {
   const rollback = await rollbackSmoke(db);
   return {
     schema_version: '1.0.0',
-    engine: { name: 'pglite', package_version: '0.5.4', postgres_server_version_num: server.rows[0].server_version_num },
+    engine: { name: 'pglite', package_version: JSON.parse(await readFile(join(repositoryRoot, 'node_modules/@electric-sql/pglite/package.json'), 'utf8')).version, postgres_server_version_num: server.rows[0].server_version_num },
     provider_equivalence: false,
     migration_count: migrationFiles.length,
     chain_sha256: sha256(
@@ -3209,6 +3216,11 @@ async function main() {
     ['20260731122011_projectos_product_intelligence_schema.sql', await readFile(join(fixtureRoot, 'after-20260731122011.sql'), 'utf8')],
     ['20260825085155_pandora_canonical_control_plane_foundation_v1.sql', await readFile(join(fixtureRoot, 'after-20260825085155.sql'), 'utf8')],
   ]);
+  // Existing provider-owned table shape is required by the Core RLS migration.
+  // This remains an explicit emulator supplement, never production DDL.
+  const beforeFixtures = new Map([
+    ['20261003044349_pandora_core_owner_system_v1.sql', await readFile(join(repositoryRoot, 'test', 'fixtures', 'pandora-core-live-provider-baseline.sql'), 'utf8')],
+  ]);
 
   const db = new PGlite({ extensions: { pgcrypto } });
   let currentMigration = 'bootstrap';
@@ -3217,6 +3229,7 @@ async function main() {
     await bootstrap(db);
     for (const migration of migrationFiles) {
       currentMigration = migration.filename;
+      if (beforeFixtures.has(migration.filename)) await db.exec(beforeFixtures.get(migration.filename));
       await db.exec(portableSql(migration.filename, migration.source));
       if (fixtures.has(migration.filename)) await db.exec(fixtures.get(migration.filename));
     }

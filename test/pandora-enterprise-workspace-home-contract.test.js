@@ -11,6 +11,12 @@ const shell = fs.readFileSync(
   "apps/pandora-mobile/lib/app/pandora_chat_shell.dart",
   "utf8",
 );
+const core = fs.readFileSync(
+  "apps/pandora-mobile/lib/features/core/pandora_core_screen.dart", "utf8",
+);
+const coreApi = fs.readFileSync(
+  "apps/pandora-mobile/lib/core/data/pandora_core_api.dart", "utf8",
+);
 const ask = fs.readFileSync(
   "apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart",
   "utf8",
@@ -32,19 +38,13 @@ const plpShell = fs.readFileSync(
   "utf8",
 );
 
-test("owner workspace home exposes the four requested businesses", () => {
-  for (const value of [
-    "PLP Boracay",
-    "Luxury Resort",
-    "1064 euro-fish traders",
-    "Import/Export",
-    "Batalla & Associates",
-    "Law & Business Offices",
-    "BOK",
-    "Food & Hospitality Group",
-  ]) {
-    assert.ok(hub.includes(value), "missing " + value);
-  }
+test("owner Home uses canonical customer projections rather than the template directory", () => {
+  assert.ok(/9 => _coreScreen\('home'\)/.test(shell), 'Home must use the Core projection');
+  assert.ok(/_coreScreen[\s\S]*PandoraCoreScreen\(/.test(shell), 'Core stays inside the existing shell');
+  assert.doesNotMatch(shell, /9 => EnterpriseWorkspaceHome\(/);
+  assert.match(coreApi, /pandora_core_snapshot_v1/);
+  assert.match(coreApi, /p_organization_id/);
+  assert.doesNotMatch(core, /enterpriseWorkspaces|workspace-tax-quick/);
 });
 
 test("Euro-fish workspace keeps Home first and the requested business order", () => {
@@ -76,16 +76,16 @@ test("Euro-fish workspace keeps Home first and the requested business order", ()
 });
 
 
-test("every enterprise workspace exposes the tax command center", () => {
-  assert.ok((hub.match(/'Tax & Compliance'/g) ?? []).length >= 5);
-  assert.equal((hub.match(/'enterprise_tax', 'tax-compliance'/g) ?? []).length, 5);
+test("customer tax routes remain tenant scoped and separate from owner Home", () => {
+  assert.doesNotMatch(core, /workspace-tax-quick/);
   assert.match(shell, /TaxComplianceScreen\(/);
   assert.match(shell, /section\.routeSlug ==\s*'tax-compliance'/);
 });
 
 test("tax command center reads live tenant-scoped backend truth and preserves legal action gates", () => {
   assert.match(tax, /pandora_tax_command_center_v1/);
-  assert.match(tax, /PandoraConfig\.organizationId/);
+  assert.match(tax, /organizationId/);
+  assert.doesNotMatch(tax, /PandoraConfig\.organizationId/);
   assert.doesNotMatch(tax, /Message Pandora about taxes|AskPandoraScreen/);
   assert.match(tax, /filingSubmission/);
   assert.match(tax, /paymentExecution/);
@@ -103,7 +103,8 @@ test("workspace navigation uses admitted structured Enterprise context", () => {
 test("shell boots to the logo-only Pandora landing and preserves Home plus Operations Room", () => {
   assert.match(shell, /final Set<int> _visited = <int>\{0\};/);
   assert.match(shell, /int _index = 0;/);
-  assert.match(shell, /9 => EnterpriseWorkspaceHome\(/);
+  assert.ok(/9 => _coreScreen\('home'\)/.test(shell), 'Home must use the Core projection');
+  assert.ok(/_coreScreen[\s\S]*PandoraCoreScreen\(/.test(shell), 'Core stays inside the existing shell');
   assert.match(
     shell,
     /8 => PandoraOperationsRoomScreen\([\s\S]*?onHome: \(\) => _select\(9\),[\s\S]*?globalConversation:\s*true/,
@@ -155,13 +156,10 @@ test("workspace home keeps the hamburger fixed without a redundant app title", (
 });
 
 
-test("tax stays visible without duplicated or cross-workspace readiness claims", () => {
-  assert.match(hub, /String\? _expandedKey;/);
-  assert.match(hub, /if \(!expanded\)[\s\S]*workspace-tax-quick-/);
-  assert.match(hub, /if \(expanded\)[\s\S]*workspace\.sections/);
-  assert.doesNotMatch(hub, /pandora_tax_command_center_v1|Professional review gate|Calculation ready/);
-  assert.match(hub, /onTap: \(\) => onOpen\(tax\)/);
-  assert.match(hub, /final tax = workspace\.sections\.firstWhere/);
+test("owner clients do not inherit repeated customer business quick actions", () => {
+  assert.doesNotMatch(core, /Tax & Compliance|workspace-tax-quick/);
+  assert.match(core, /Manage client/);
+  assert.match(core, /Enter client workspace/);
 });
 
 

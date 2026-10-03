@@ -50,23 +50,26 @@ class PandoraRuntimeBootstrap {
     SupabaseClient supabase, {
     required PandoraLocalStore localStore,
     String? organizationId,
+    bool installGlobalErrorHandling = true,
   }) {
     final resolvedOrganizationId =
         organizationId ?? PandoraConfig.organizationId;
     final diagnostics = DiagnosticsStore();
-    installPandoraErrorHandling(
-      record: (summary) => diagnostics.record(
-        DiagnosticEvent(
-          occurredAt: DateTime.now().toUtc(),
-          operation: 'app.uncaughtError',
-          method: 'APP',
-          routeTemplate: 'app',
-          outcome: DiagnosticOutcome.failed,
-          duration: Duration.zero,
-          errorCode: summary,
+    if (installGlobalErrorHandling) {
+      installPandoraErrorHandling(
+        record: (summary) => diagnostics.record(
+          DiagnosticEvent(
+            occurredAt: DateTime.now().toUtc(),
+            operation: 'app.uncaughtError',
+            method: 'APP',
+            routeTemplate: 'app',
+            outcome: DiagnosticOutcome.failed,
+            duration: Duration.zero,
+            errorCode: summary,
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     final tokenProvider = SupabaseSessionTokenProvider(supabase);
     final ownerClient = PandoraApiClient(

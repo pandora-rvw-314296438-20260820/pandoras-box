@@ -15,7 +15,7 @@ const intelligencePath = new URL(
   import.meta.url,
 );
 
-test('mobile runtime enters Pandora chat and uses side navigation', async () => {
+test('authorized owner launches Home inside the shared Pandora chat shell', async () => {
   const shell = await readFile(shellPath, 'utf8');
   const gate = await readFile(gatePath, 'utf8');
 
@@ -25,9 +25,10 @@ test('mobile runtime enters Pandora chat and uses side navigation', async () => 
   assert.doesNotMatch(shell, /class _PandoraMobileRail/);
   assert.match(shell, /PandoraNavigationScope/);
   assert.doesNotMatch(shell, /bottomNavigationBar\s*:/);
+  assert.match(shell, /this\.startPage = PandoraStartPage\.chat/);
   assert.match(
     gate,
-    /dependencies\.intelligence == null[\s\S]*PandoraShell\(\)[\s\S]*PandoraChatShell\(\)/,
+    /snapshot\.data != true[\s\S]*PandoraMemberWorkspaceGate\([\s\S]*dependencies\.intelligence == null[\s\S]*PandoraShell\(\)[\s\S]*PandoraChatShell\(\s*startPage: PandoraStartPage\.home/,
   );
 });
 

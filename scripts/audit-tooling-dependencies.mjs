@@ -9,11 +9,76 @@ export const TEMPORARY_AUDIT_EXCEPTION = Object.freeze({
 
 const BLOCKING_SEVERITIES = new Set(['high','critical']);
 const isBlocking = (value) => BLOCKING_SEVERITIES.has(String(value || '').toLowerCase());
+const SEVERITIES = ['info', 'low', 'moderate', 'high', 'critical'];
+const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+function assertAuditReport(report) {
+  const invalid = () => {
+    throw new Error('npm audit returned an incomplete or unsupported audit report.');
+  };
+  if (!isRecord(report) || report.error || report.auditReportVersion !== 2
+    || !isRecord(report.vulnerabilities)
+    || !isRecord(report.metadata) || !isRecord(report.metadata.vulnerabilities)) {
+    invalid();
+  }
+  const vulnerabilities = report.vulnerabilities;
+  const counts = Object.fromEntries(SEVERITIES.map((severity) => [severity, 0]));
+  for (const [name, vulnerability] of Object.entries(vulnerabilities)) {
+    if (!name || !isRecord(vulnerability)
+      || !SEVERITIES.includes(vulnerability.severity) || !Array.isArray(vulnerability.via)) {
+      invalid();
+    }
+    counts[vulnerability.severity] += 1;
+    for (const via of vulnerability.via) {
+      if (typeof via === 'string') {
+        if (!via || !Object.hasOwn(vulnerabilities, via)) invalid();
+      } else if (!isRecord(via) || !SEVERITIES.includes(via.severity)
+        || typeof via.url !== 'string' || !via.url.trim()) {
+        invalid();
+      }
+    }
+  }
+  for (const vulnerability of Object.values(vulnerabilities)) {
+    for (const via of vulnerability.via) {
+      const severity = typeof via === 'string' ? vulnerabilities[via].severity : via.severity;
+      if (SEVERITIES.indexOf(severity) > SEVERITIES.indexOf(vulnerability.severity)) invalid();
+    }
+  }
+  const summary = report.metadata.vulnerabilities;
+  for (const severity of SEVERITIES) {
+    if (!Number.isSafeInteger(summary[severity]) || summary[severity] !== counts[severity]) invalid();
+  }
+  if (!Number.isSafeInteger(summary.total)
+    || summary.total !== Object.keys(vulnerabilities).length) invalid();
+}
+
+export function parseAuditProcessResult(run) {
+  if (!run || run.error || run.signal || (run.status !== 0 && run.status !== 1)) {
+    throw new Error('npm audit did not complete successfully.');
+  }
+  if (typeof run.stdout !== 'string' || !run.stdout.trim()) {
+    throw new Error('npm audit returned no report.');
+  }
+  let report;
+  try {
+    report = JSON.parse(run.stdout);
+  } catch {
+    throw new Error('npm audit did not return valid JSON.');
+  }
+  assertAuditReport(report);
+  const hasBlockingFindings = Object.values(report.vulnerabilities)
+    .some((vulnerability) => isBlocking(vulnerability.severity));
+  // Exit 1 is npm's expected result for findings at the requested audit level.
+  // Any disagreement between the process result and report is not audit proof.
+  if ((run.status === 1) !== hasBlockingFindings) {
+    throw new Error('npm audit exit status does not match its reported findings.');
+  }
+  return report;
+}
 
 export function evaluateAuditReport(report, now = new Date()) {
-  const vulnerabilities = report?.vulnerabilities && typeof report.vulnerabilities === 'object'
-    ? report.vulnerabilities
-    : {};
+  assertAuditReport(report);
+  const vulnerabilities = report.vulnerabilities;
   const expiry = new Date(TEMPORARY_AUDIT_EXCEPTION.expiresOn + 'T23:59:59.999Z');
   const exceptionActive = Number.isFinite(expiry.getTime()) && now.getTime() <= expiry.getTime();
   const memo = new Map();
@@ -59,19 +124,11 @@ function main() {
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024
   });
-  if (run.error) {
-    console.error('[tooling-audit] npm audit execution failed:', run.error.message);
-    process.exit(2);
-  }
   let report;
   try {
-    report = JSON.parse(run.stdout || '{}');
-  } catch {
-    console.error('[tooling-audit] npm audit did not return valid JSON.');
-    process.exit(2);
-  }
-  if (report?.error) {
-    console.error('[tooling-audit] npm audit returned an audit error.');
+    report = parseAuditProcessResult(run);
+  } catch (error) {
+    console.error('[tooling-audit]', error.message);
     process.exit(2);
   }
   const verdict = evaluateAuditReport(report);
