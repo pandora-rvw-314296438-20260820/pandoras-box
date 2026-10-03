@@ -113,6 +113,11 @@ class AndroidDevice:
         text = self.shell("dumpsys", "input_method")
         return parse_ime_visibility(text)
 
+    def window_insets(self) -> dict:
+        # Read the live display controller, not historical window/request logs.
+        # Only numeric geometry leaves this method; the dump is never persisted.
+        return parse_window_insets(self.shell("dumpsys", "window", "displays"))
+
     def metrics(self) -> dict:
         graphics = self.shell("dumpsys", "gfxinfo", ANDROID_PACKAGE, check=False)
         memory = self.shell("dumpsys", "meminfo", ANDROID_PACKAGE, check=False)
@@ -165,6 +170,53 @@ def parse_ime_visibility(value: str) -> bool:
         if match:
             return match.group(1) == "true"
     return bool(re.search(r"\bimeVisible=true\b", value))
+
+
+def parse_window_insets(value: str, display_id: int = 0) -> dict:
+    """Parse Android 15 DisplayContent/InsetsStateController.dump geometry.
+
+    Format is pinned to AOSP android-15.0.0_r1 InsetsState/InsetsSource dump;
+    control-map copies and other displays cannot substitute current state.
+    """
+    displays = list(re.finditer(r"^\s*Display: mDisplayId=(\d+)[^\n]*$", value, re.MULTILINE))
+    selected = [i for i, match in enumerate(displays) if int(match.group(1)) == display_id]
+    require(len(selected) == 1, "ANDROID_DISPLAY_INSETS_NOT_OBSERVABLE")
+    index = selected[0]
+    section = value[displays[index].end():displays[index + 1].start() if index + 1 < len(displays) else len(value)]
+    controllers = re.findall(r"^\s*WindowInsetsStateController\s*\n(.*?)^\s*Control map:",
+                             section, re.MULTILINE | re.DOTALL)
+    require(len(controllers) == 1, "ANDROID_INSETS_CONTROLLER_AMBIGUOUS")
+    current = controllers[0]
+    rectangle = r"Rect\(\s*(-?\d+),\s*(-?\d+)\s*-\s*(-?\d+),\s*(-?\d+)\s*\)"
+    frame = re.search(r"\bmDisplayFrame=" + rectangle, current)
+    cutout = re.search(r"\bmDisplayCutout=DisplayCutout\{insets=" + rectangle, current)
+    require(frame is not None and cutout is not None, "ANDROID_SAFE_AREA_GEOMETRY_UNAVAILABLE")
+    display = tuple(int(part) for part in frame.groups())
+    cutout_insets = tuple(int(part) for part in cutout.groups())
+    require(display[0] < display[2] and display[1] < display[3]
+            and all(part >= 0 for part in cutout_insets), "INVALID_ANDROID_SAFE_AREA_GEOMETRY")
+    sources = []
+    for match in re.finditer(r"^\s*InsetsSource id=[a-fA-F0-9]+ type=(\w+) "
+                             r"frame=\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]"
+                             r"[^\n]*?\bvisible=(true|false)\b", current, re.MULTILINE):
+        kind, *parts, visible = match.groups()
+        sources.append({"type": kind, "frame": tuple(int(part) for part in parts),
+                        "visible": visible == "true"})
+    require({"statusBars", "navigationBars"}.issubset({source["type"] for source in sources}),
+            "ANDROID_SYSTEM_BAR_GEOMETRY_UNAVAILABLE")
+    return {"display": display, "cutout_insets": cutout_insets, "sources": sources}
+
+
+def require_unoccluded(rect: tuple[int, int, int, int], insets: dict, code: str) -> None:
+    left, top, right, bottom = rect
+    dl, dt, dr, db = insets["display"]
+    cl, ct, cr, cb = insets["cutout_insets"]
+    require(dl + cl <= left < right <= dr - cr and dt + ct <= top < bottom <= db - cb, code)
+    for source in insets["sources"]:
+        if source["visible"] and source["type"] in {"statusBars", "navigationBars", "ime", "displayCutout"}:
+            sl, st, sr, sb = source["frame"]
+            if sl < sr and st < sb:
+                require(not (left < sr and right > sl and top < sb and bottom > st), code)
 
 
 def parse_metrics(graphics: str, memory: str) -> dict:

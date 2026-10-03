@@ -22,7 +22,9 @@ class PandoraConversationSnapshot {
   final bool truncated;
   final Set<String> requiresRequestReviewTurnIds;
 
-  bool get requiresReconciliation => state.hasUnresolvedOutcome;
+  bool get requiresReconciliation =>
+      state.hasUnresolvedOutcome ||
+      state.turns.any((turn) => turn.phase == PandoraChatPhase.reconciling);
 }
 
 /// Persists the active conversation and explicit thread history in the existing
@@ -71,6 +73,9 @@ class PandoraConversationStore {
   /// stale draft or conversation as the latest state after restart.
   Future<bool> save(PandoraChatSessionState state) {
     _validateState(state, scopeId);
+    // Loading/failed history is a navigation projection, never a replacement
+    // for the last verified active snapshot or the destination thread cache.
+    if (!state.historyReady) return Future.value(false);
     if (state.scopeEpoch < _lane.scopeEpoch) return Future.value(false);
     final retired = '${state.scopeEpoch}:${state.conversationId}';
     if (_lane.retiredConversations.contains(retired)) {
@@ -393,6 +398,7 @@ Map<String, Object?>? _receiptJson(PandoraChatExecutionReceipt? receipt) {
     'model': receipt.model,
     'providerRequestId': receipt.providerRequestId,
     'assistantMessageId': receipt.assistantMessageId,
+    if (receipt.outcomeUnknownAcknowledged) 'outcomeUnknownAcknowledged': true,
     if (receipt.inspection != null) 'inspection': receipt.inspection,
     // Preserve factual execution outcome separately from a stopped display.
     if (executionStatus != null) 'executionStatus': executionStatus,
@@ -416,6 +422,7 @@ String? _executionStatus(Object? value) => const {
       'failed_recoverably',
       'failed_permanently',
       'reconciling',
+      'outcome_unknown',
       'superseded',
     }.contains(value)
         ? value as String
@@ -618,11 +625,17 @@ PandoraChatExecutionReceipt? _receipt(Object? value) {
   final executionStatus = _executionStatus(data['executionStatus']);
   final conversationLane = _conversationLane(data['conversationLane']);
   final needsClarification = data['needsClarification'];
+  final acknowledged = _bool(data['outcomeUnknownAcknowledged'] ?? false);
+  if (acknowledged &&
+      !const {'outcome_unknown', 'completed'}.contains(executionStatus)) {
+    throw const FormatException('Unknown outcome acknowledgement is invalid.');
+  }
   return PandoraChatExecutionReceipt(
     provider: _optionalString(data['provider']),
     model: _optionalString(data['model']),
     providerRequestId: _optionalString(data['providerRequestId']),
     assistantMessageId: _optionalString(data['assistantMessageId']),
+    outcomeUnknownAcknowledged: acknowledged,
     inspection: data['inspection'] is Map ? _map(data['inspection']) : null,
     routing: {
       if (executionStatus != null) 'executionStatus': executionStatus,
@@ -676,7 +689,9 @@ void _validateState(PandoraChatSessionState state, String expectedScope) {
     if (turn.assistantMessageId != null) {
       requireLocalIdentifier(turn.assistantMessageId!, 'assistant message id');
     }
+    _validateReceipt(turn.receipt);
     for (final attempt in turn.attempts) {
+      _validateReceipt(attempt.receipt);
       requireLocalIdentifier(attempt.token.attemptId, 'attempt id');
       if (!attemptIds.add(attempt.token.attemptId) ||
           attempt.token.scopeId != state.scopeId ||
@@ -704,6 +719,14 @@ void _validateState(PandoraChatSessionState state, String expectedScope) {
       (state.queuedTurnId != null && !turnIds.contains(state.queuedTurnId))) {
     throw const FormatException(
         'Conversation active turn identity is invalid.');
+  }
+}
+
+void _validateReceipt(PandoraChatExecutionReceipt? receipt) {
+  if (receipt?.outcomeUnknownAcknowledged == true &&
+      !const {'outcome_unknown', 'completed'}
+          .contains(receipt!.routing['executionStatus'])) {
+    throw const FormatException('Unknown outcome acknowledgement is invalid.');
   }
 }
 

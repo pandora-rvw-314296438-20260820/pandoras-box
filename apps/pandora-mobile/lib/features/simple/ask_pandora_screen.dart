@@ -290,7 +290,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
       );
     }
     _updateComposerProjection();
-    for (final turn in state.turns.where((t) => t.phase.isTerminal)) {
+    for (final turn in state.turns
+        .where((t) => t.phase.isTerminal || t.outcomeUnknownAcknowledged)) {
       final completion = _completions.remove(turn.id);
       if (completion != null && !completion.isCompleted) {
         completion.complete(turn.phase == PandoraChatPhase.completed
@@ -303,8 +304,13 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
   }
 
   void _scheduleSave() {
-    if (!_persistenceReady || _resetting || _store == null) return;
     _saveTimer?.cancel();
+    if (!_persistenceReady ||
+        _resetting ||
+        _store == null ||
+        !_chat.state.historyReady) {
+      return;
+    }
     final store = _store!;
     final controller = _chat;
     _saveTimer = Timer(const Duration(milliseconds: 200), () {
@@ -328,7 +334,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                 : PandoraComposerPhase.idle;
     _composerState.value = PandoraComposerState(
       phase: phase,
-      enabled: !state.loadingHistory,
+      enabled: state.historyReady,
       voiceActive: _voiceActive,
       generationIdentity: state.activeTurn?.attempt == null
           ? null
@@ -682,6 +688,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
           code: event.errorCode,
           recoverable: event.recoverable,
           outcomeUnknown: event.outcomeUnknown,
+          receipt: _wireReceipt(event),
           sequence: event.sequence);
     }
   }
@@ -700,6 +707,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
           routing['resolvedModel']?.toString() ??
           routing['model']?.toString(),
       assistantMessageId: event.assistantMessageId,
+      outcomeUnknownAcknowledged: event.outcomeUnknownAcknowledged,
       inspection: turn?.handoff?.kind == 'core_navigation' &&
               turn?.handoff?.action == 'inspect'
           ? PandoraIntelligenceHandoff.inspectFromJson(
@@ -735,6 +743,40 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     if (dispatch != null) {
       _timings[turnId] = _ChatTimingObservation();
       unawaited(_execute(dispatch));
+    }
+  }
+
+  Future<void> _continueAfterUnknown(String turnId) async {
+    final token = _chat.state.turn(turnId)?.attempt?.token;
+    final intelligence = _dependencies.intelligence;
+    if (token == null ||
+        intelligence == null ||
+        !_chat.requestUnknownAcknowledgement(token)) {
+      return;
+    }
+    try {
+      final event = await intelligence.cancelChatTurn(
+          turnId: token.turnId,
+          generation: token.generation,
+          attemptId: token.attemptId,
+          acknowledgeUnknown: true);
+      if (!_current(token)) return;
+      await _applyWireEvent(_dispatchFor(token), event, reconciled: true);
+      if (_current(token) &&
+          event.outcomeUnknown &&
+          !event.outcomeUnknownAcknowledged) {
+        await _reconcile(token);
+      }
+    } catch (_) {
+      if (_current(token)) {
+        _chat.fail(token,
+            message: 'Checking whether you can continue this conversation…',
+            outcomeUnknown: true,
+            recoverable: false);
+        await _reconcile(token);
+      }
+    } finally {
+      if (_sameAttempt(token)) _drainQueued();
     }
   }
 
@@ -956,7 +998,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
   }
 
   Future<void> loadThread(String threadId) async {
-    if (threadId == _chat.state.threadId ||
+    final previous = _chat.state;
+    if ((threadId == previous.threadId && previous.historyReady) ||
         _dependencies.intelligence == null) {
       return;
     }
@@ -964,6 +1007,13 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     if (token == null) {
       _notice('Resolve the current message before changing conversations.');
       return;
+    }
+    // Retain even a just-completed conversation whose debounce has not fired.
+    // The unverified destination must not displace this restart checkpoint.
+    if (_persistenceReady && _store != null && previous.historyReady) {
+      unawaited(_store!
+          .save(previous)
+          .then<void>((_) {}, onError: (Object _, StackTrace __) {}));
     }
     _presentation.closeSurface();
     _pickerRequest += 1;
@@ -978,8 +1028,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
       if (!mounted || !_chat.matchesLoad(token)) return;
       if (!_replaceVerifiedHistory(token, history, cached)) {
         _chat.failHistoryLoad(token);
-        _notice(
-            'This conversation could not be verified. Please open it again.');
       } else {
         unawaited(_reconcilePending());
       }
@@ -989,9 +1037,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
         _characterSessionId = null;
       });
     } catch (_) {
-      if (mounted && _chat.failHistoryLoad(token)) {
-        _notice('This conversation could not be loaded. Try opening it again.');
-      }
+      if (mounted) _chat.failHistoryLoad(token);
     }
   }
 
@@ -1018,7 +1064,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     }
   }
 
-  Future<void> _pickModel() async {
+  Future<void> _pickModel({bool startAtEnd = false}) async {
     if (_isCommonWorkspace || _dependencies.intelligence == null) return;
     if (_pickerOpen ||
         _presentation.value.pendingSurface == PandoraChatSurface.picker) {
@@ -1028,6 +1074,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     final request = ++_pickerRequest;
     final epoch = _chat.state.scopeEpoch;
     _pickerError = null;
+    _pickerStartAtEnd = startAtEnd;
     final showing = _presentation.showPicker();
     unawaited(_loadPicker(request, epoch));
     await showing;
@@ -1324,6 +1371,26 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
           child:
               const Center(child: CircularProgressIndicator(strokeWidth: 2)));
     }
+    if (state.historyPhase == PandoraChatHistoryPhase.failed) {
+      return Padding(
+          padding: padding,
+          child: Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('This conversation could not be loaded.',
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            const Text('Try again to continue from its saved history.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: PandoraSimpleColors.muted)),
+            const SizedBox(height: 12),
+            TextButton(
+                key: const ValueKey<String>('pandora-chat-history-retry'),
+                onPressed: state.threadId == null
+                    ? null
+                    : () => unawaited(loadThread(state.threadId!)),
+                child: const Text('Try again')),
+          ])));
+    }
     if (state.history.isEmpty && state.turns.isEmpty) {
       return Padding(padding: padding, child: const _EmptyConversation());
     }
@@ -1361,6 +1428,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                 final token = turn.attempt?.token;
                 if (token != null) unawaited(_reconcile(token));
               },
+              onContinue: turn.canAcknowledgeUnknownOutcome &&
+                      _dependencies.intelligence != null
+                  ? () => unawaited(_continueAfterUnknown(turn.id))
+                  : null,
               onCancelQueued: () => _chat.cancelQueued(turn.id),
               onCancelHeld: turn.failure?.code == 'CHAT_NOT_ADMITTED'
                   ? () => unawaited(_cancelHeld(turn.id))
@@ -1452,10 +1523,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                   controller: _objective,
                   focusNode: _objectiveFocus,
                   state: _composerState,
-                  modelLabel: state.preferences.label,
-                  pickerOpen: _pickerOpen,
-                  onModelOptions:
-                      _isCommonWorkspace ? null : () => unawaited(_pickModel()),
                   onSend: (text) {
                     unawaited(_submitText(text));
                   },
@@ -1470,7 +1537,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                   leading: _isCommonWorkspace
                       ? null
                       : _CompactAttachmentMenu(
-                          disabled: state.loadingHistory,
+                          disabled: !state.historyReady,
                           onOpen: () => unawaited(_showAttachmentActions()),
                         ),
                 ))),
@@ -1621,6 +1688,7 @@ class _ChatTurnView extends StatelessWidget {
       required this.onRetry,
       required this.onCheck,
       required this.onCancelQueued,
+      this.onContinue,
       this.authorizationUrl,
       this.onDetails,
       this.onCancelHeld,
@@ -1632,6 +1700,7 @@ class _ChatTurnView extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onCheck;
   final VoidCallback onCancelQueued;
+  final VoidCallback? onContinue;
   final Uri? authorizationUrl;
   final VoidCallback? onDetails;
   final VoidCallback? onCancelHeld;
@@ -1643,7 +1712,8 @@ class _ChatTurnView extends StatelessWidget {
         turn.phase == PandoraChatPhase.failedPermanently;
     final pending = turn.phase.isGenerating && turn.reply.isEmpty;
     final checking = turn.phase == PandoraChatPhase.reconciling ||
-        turn.phase == PandoraChatPhase.cancelling;
+        turn.phase == PandoraChatPhase.cancelling ||
+        turn.phase == PandoraChatPhase.acknowledgingUnknown;
     return Semantics(
         identifier: 'pandora.chat.turn.${turn.id}',
         container: true,
@@ -1682,20 +1752,48 @@ class _ChatTurnView extends StatelessWidget {
                   const _ChatTurnStatus(
                       text: 'Pandora is working…', busy: true),
                 if (checking)
-                  Row(children: [
-                    Expanded(
-                        child: _ChatTurnStatus(
-                            text: turn.phase == PandoraChatPhase.cancelling
-                                ? 'Stopping…'
-                                : 'Checking this message…',
-                            busy: turn.phase == PandoraChatPhase.cancelling)),
-                    if (turn.phase == PandoraChatPhase.reconciling)
-                      Semantics(
-                          identifier: 'pandora.chat.check.${turn.id}',
-                          child: TextButton(
-                              onPressed: onCheck,
-                              child: const Text('Check again'))),
-                  ]),
+                  Semantics(
+                    identifier: turn.receipt?.routing['executionStatus'] ==
+                            'outcome_unknown'
+                        ? 'pandora.chat.outcome-unknown.${turn.id}.${turn.outcomeUnknownAcknowledged ? 'acknowledged' : 'unacknowledged'}'
+                        : 'pandora.chat.reconciling.${turn.id}',
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _ChatTurnStatus(
+                              text: turn.phase == PandoraChatPhase.cancelling
+                                  ? 'Stopping…'
+                                  : turn.phase ==
+                                          PandoraChatPhase.acknowledgingUnknown
+                                      ? 'Continuing…'
+                                      : turn.outcomeUnknownAcknowledged
+                                          ? 'Outcome still unconfirmed. This message will not be sent again.'
+                                          : turn.canAcknowledgeUnknownOutcome
+                                              ? 'The outcome is still unconfirmed. You can continue without repeating this request.'
+                                              : 'Checking this message…',
+                              busy: turn.phase == PandoraChatPhase.cancelling ||
+                                  turn.phase ==
+                                      PandoraChatPhase.acknowledgingUnknown),
+                          if (turn.phase == PandoraChatPhase.reconciling)
+                            Wrap(spacing: 8, children: [
+                              Semantics(
+                                  identifier: 'pandora.chat.check.${turn.id}',
+                                  child: TextButton(
+                                      onPressed: onCheck,
+                                      child: const Text('Check again'))),
+                              if (onContinue != null)
+                                Semantics(
+                                    identifier:
+                                        'pandora.chat.continue.${turn.id}',
+                                    child: TextButton(
+                                        key: const ValueKey<String>(
+                                            'pandora-chat-continue'),
+                                        onPressed: onContinue,
+                                        child: const Text(
+                                            'Continue conversation'))),
+                            ]),
+                        ]),
+                  ),
                 if (failed)
                   Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                     Expanded(
@@ -1858,15 +1956,19 @@ class _CompactAttachmentMenu extends StatelessWidget {
   final bool disabled;
   final VoidCallback onOpen;
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-      dimension: 48,
-      child: IconButton(
-          key: const ValueKey<String>('ask-pandora-plus'),
-          tooltip: 'Open menu',
-          padding: EdgeInsets.zero,
-          onPressed: disabled ? null : onOpen,
-          icon: const Icon(Icons.add_rounded,
-              color: PandoraSimpleColors.ink, size: 25)));
+  Widget build(BuildContext context) => KeyedSubtree(
+      key: const ValueKey<String>('ask-pandora-model-control'),
+      child: Semantics(
+          identifier: 'pandora.chat.menu',
+          child: SizedBox.square(
+              dimension: 48,
+              child: IconButton(
+                  key: const ValueKey<String>('ask-pandora-plus'),
+                  tooltip: 'Open Pandora menu',
+                  padding: EdgeInsets.zero,
+                  onPressed: disabled ? null : onOpen,
+                  icon: const Icon(Icons.view_in_ar_outlined,
+                      color: PandoraSimpleColors.ink, size: 25)))));
 }
 
 class _CompactContextToken extends StatelessWidget {

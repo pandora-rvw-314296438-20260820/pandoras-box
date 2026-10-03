@@ -222,6 +222,7 @@ void main() {
       'retryable': false,
     });
     expect(unknown.outcomeUnknown, isTrue);
+    expect(unknown.outcomeUnknownAcknowledged, isFalse);
     expect(unknown.recoverable, isFalse);
     expect(unknown.isTerminal, isFalse);
     final failed = PandoraChatWireEvent.fromJson({
@@ -231,5 +232,94 @@ void main() {
     expect(failed.recoverable, isTrue);
     expect(failed.isTerminal, isTrue);
     expect(failed.turn, isNull);
+  });
+
+  test(
+      'unknown receipts cannot become retryable through omitted or stale flags',
+      () {
+    for (final status in [
+      'outcome_unknown',
+      'reconciling',
+      'reconciliation_required',
+    ]) {
+      for (final flags in <Map<String, dynamic>>[
+        {},
+        {'retryable': true, 'recoverable': true},
+        {'outcomeUnknownAcknowledged': false},
+      ]) {
+        final event = PandoraChatWireEvent.fromJson({
+          ...receipt(status: status),
+          ...flags,
+        });
+        expect(event.outcomeUnknown, isTrue);
+        expect(event.recoverable, isFalse);
+        expect(event.isTerminal, isFalse);
+        expect(event.outcomeUnknownAcknowledged, isFalse);
+      }
+    }
+  });
+
+  test('durable acknowledgement retains unknown outcome and its exact identity',
+      () {
+    final acknowledged = PandoraChatWireEvent.fromJson({
+      ...receipt(status: 'outcome_unknown'),
+      'outcomeUnknownAcknowledged': true,
+      'cancellationRequested': true,
+      'retryable': false,
+    });
+    expect(acknowledged.status, 'outcome_unknown');
+    expect(acknowledged.outcomeUnknownAcknowledged, isTrue);
+    expect(acknowledged.outcomeUnknown, isTrue);
+    expect(acknowledged.recoverable, isFalse);
+    expect(acknowledged.isTerminal, isFalse);
+    expect(acknowledged.turn, isNull);
+    acknowledged.requireIdentity(
+      organizationId: 'scope-a',
+      threadId: 'thread-a',
+      turnId: 'turn-a',
+      attemptId: 'attempt-a',
+      generation: 1,
+    );
+
+    final completed = PandoraChatWireEvent.fromJson({
+      ...acknowledged.data,
+      'status': 'completed',
+      'reply': 'The original verified result arrived.',
+      'sequence': acknowledged.sequence + 1,
+    });
+    expect(completed.outcomeUnknownAcknowledged, isTrue);
+    expect(completed.outcomeUnknown, isFalse);
+    expect(completed.isTerminal, isTrue);
+    expect(completed.recoverable, isFalse);
+    expect(completed.turn!.reply, 'The original verified result arrived.');
+  });
+
+  test('malformed acknowledgement cannot release an unknown execution', () {
+    final acknowledged = {
+      ...receipt(status: 'outcome_unknown'),
+      'outcomeUnknownAcknowledged': true,
+      'cancellationRequested': true,
+      'retryable': false,
+    };
+    for (final contradictory in <Map<String, dynamic>>[
+      {'outcomeUnknownAcknowledged': 'true'},
+      {'outcomeUnknownAcknowledged': 1},
+      {'outcomeUnknownAcknowledged': null},
+      {'status': 'processing'},
+      {'status': 'cancelled'},
+      {'status': 'failed_recoverably'},
+      {'status': 'completed', 'reply': ''},
+      {'retryable': true},
+      {'retryable': null},
+      {'cancellationRequested': false},
+      {'cancellationRequested': null},
+    ]) {
+      expect(
+          () => PandoraChatWireEvent.fromJson({
+                ...acknowledged,
+                ...contradictory,
+              }),
+          throwsFormatException);
+    }
   });
 }

@@ -34,10 +34,12 @@ create table public.pandora_chat_turn_attempts (
   result jsonb check(result is null or octet_length(result::text) <= 131072),
   timings jsonb not null default '{}'::jsonb check(jsonb_typeof(timings)='object'),
   cancellation_requested_at timestamptz,
+  uncertainty_acknowledged_at timestamptz,
   accepted_at timestamptz not null default clock_timestamp(),
   updated_at timestamptz not null default clock_timestamp(),
   completed_at timestamptz,
-  unique(turn_id,generation)
+  unique(turn_id,generation),
+  check(uncertainty_acknowledged_at is null or cancellation_requested_at is not null)
 );
 create index pandora_chat_turns_actor_thread_idx on public.pandora_chat_turns(organization_id,actor_user_id,thread_id,turn_sequence);
 create index pandora_chat_turn_attempts_turn_idx on public.pandora_chat_turn_attempts(turn_id,generation desc);
@@ -98,7 +100,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
    'organizationId',organization_id,'threadId',thread_id,'turnId',turn_id,'attemptId',attempt_id,
    'activityJobId',null,'userMessageId',user_message_id,'assistantMessageId',null,'generation',generation,'currentGeneration',generation,
    'turnSequence',(select t.turn_sequence from public.pandora_chat_turns t where t.id=p_turn),'supersededBy',null,
-   'sequence',1,'status','cancelled','retryable',false,'cancellationRequested',true,
+   'sequence',1,'status','cancelled','retryable',false,'cancellationRequested',true,'outcomeUnknownAcknowledged',false,
    'acceptedAt',null,'completedAt',cancelled_at,'result','{}'::jsonb,'timings','{}'::jsonb,'replayed',true)
  from private.pandora_chat_admission_tombstones_v2 x where turn_id=p_turn and
    (case when p_generation is not null then generation=p_generation else
@@ -116,6 +118,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
    'turnSequence',t.turn_sequence,'sequence',a.last_event_sequence,'status',a.status,
    'retryable',a.retryable,'errorCode',a.error_code,'supersededBy',t.superseded_by,
    'cancellationRequested',a.cancellation_requested_at is not null,
+   'outcomeUnknownAcknowledged',a.uncertainty_acknowledged_at is not null,
    'acceptedAt',a.accepted_at,'completedAt',a.completed_at,'timings',a.timings,
    'result',a.result)
  from public.pandora_chat_turns t join public.pandora_chat_turn_attempts a
@@ -250,7 +253,8 @@ begin
  end if;
  select a.* into prior from public.pandora_chat_turns x join public.pandora_chat_turn_attempts a
    on a.turn_id=x.id and a.generation=x.current_generation where x.thread_id=h.id
-   and a.status in('accepted','processing','streaming','outcome_unknown') limit 1;
+   and (a.status in('accepted','processing','streaming') or
+        (a.status='outcome_unknown' and a.uncertainty_acknowledged_at is null)) limit 1;
  if found then raise exception 'CHAT_THREAD_BUSY' using errcode='55000'; end if;
  select coalesce(max(turn_sequence),0)+1 into seq from public.pandora_chat_turns where thread_id=h.id;
  select coalesce(max(client_history_order),0) into local_order from public.pandora_intelligence_messages where thread_id=h.id;
@@ -339,7 +343,8 @@ begin
  perform 1 from public.pandora_intelligence_threads where id=t.thread_id for update;
  if exists(select 1 from public.pandora_chat_turns x join public.pandora_chat_turn_attempts y
    on y.turn_id=x.id and y.generation=x.current_generation where x.thread_id=t.thread_id and x.id<>t.id
-   and y.status in('accepted','processing','streaming','outcome_unknown'))
+   and (y.status in('accepted','processing','streaming') or
+        (y.status='outcome_unknown' and y.uncertainty_acknowledged_at is null)))
  then raise exception 'CHAT_THREAD_BUSY' using errcode='55000'; end if;
  jid:=(public.pandora_core_activity_begin_v1(p_organization_id,'chat-v2:'||p_attempt_id,t.thread_id,t.project_id,p_entry_id)->>'jobId')::uuid;
  update public.pandora_chat_turn_attempts set status='superseded',updated_at=clock_timestamp() where id=a.id;
@@ -349,17 +354,20 @@ begin
  return private.pandora_chat_turn_receipt_v2(t.id)||jsonb_build_object('replayed',false);
 end; $$;
 
-create function public.pandora_chat_turn_cancel_v2(p_organization_id uuid,p_turn_id uuid,p_expected_generation integer,p_attempt_id uuid default null)
+create function public.pandora_chat_turn_cancel_v2(p_organization_id uuid,p_turn_id uuid,p_expected_generation integer,p_attempt_id uuid default null,p_acknowledge_unknown boolean default false)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare t public.pandora_chat_turns%rowtype; a public.pandora_chat_turn_attempts%rowtype; j public.pandora_activity_jobs%rowtype;
  tombstone private.pandora_chat_admission_tombstones_v2%rowtype;
 begin
  if auth.uid() is null or not exists(select 1 from public.memberships where organization_id=p_organization_id and user_id=auth.uid() and status='active')
  then raise exception 'CHAT_TURN_NOT_AVAILABLE' using errcode='42501'; end if;
- if p_turn_id is null or p_expected_generation is null or p_expected_generation not between 1 and 100 then raise exception 'CHAT_TURN_REQUEST_INVALID' using errcode='22023'; end if;
+ if p_turn_id is null or p_expected_generation is null or p_expected_generation not between 1 and 100 or p_acknowledge_unknown is null
+ then raise exception 'CHAT_TURN_REQUEST_INVALID' using errcode='22023'; end if;
+ if p_acknowledge_unknown and p_attempt_id is null then raise exception 'CHAT_CANCEL_ATTEMPT_REQUIRED' using errcode='22023'; end if;
  perform pg_advisory_xact_lock(hashtextextended(p_turn_id::text,98142));
  select * into t from public.pandora_chat_turns where id=p_turn_id for update;
  if not found then
+   if p_acknowledge_unknown then raise exception 'CHAT_OUTCOME_NOT_UNKNOWN' using errcode='55000'; end if;
    if p_expected_generation is distinct from 1 or p_attempt_id is null then raise exception 'CHAT_CANCEL_ATTEMPT_REQUIRED' using errcode='22023'; end if;
    select * into tombstone from private.pandora_chat_admission_tombstones_v2 where turn_id=p_turn_id for update;
    if found then
@@ -373,6 +381,7 @@ begin
  end if;
  perform private.pandora_chat_turn_authorize_v2(p_organization_id,p_turn_id);
  if t.current_generation is distinct from p_expected_generation then
+   if p_acknowledge_unknown then raise exception 'CHAT_GENERATION_STALE' using errcode='55000'; end if;
    -- A lost retry ACK can be cancelled without restoring private attachment
    -- bytes: either retry won this lock and exists below, or this exact future
    -- attempt is negatively admitted while its predecessor remains audit data.
@@ -394,18 +403,27 @@ begin
  select * into a from public.pandora_chat_turn_attempts where turn_id=t.id and generation=t.current_generation for update;
  if p_attempt_id is not null and a.id<>p_attempt_id then raise exception 'CHAT_GENERATION_STALE' using errcode='55000'; end if;
  if a.status not in('accepted','processing','streaming','outcome_unknown') then return private.pandora_chat_turn_receipt_v2(t.id); end if;
+ if p_acknowledge_unknown and a.status<>'outcome_unknown' then raise exception 'CHAT_OUTCOME_NOT_UNKNOWN' using errcode='55000'; end if;
  select * into j from public.pandora_activity_jobs where id=a.activity_job_id for update;
  if j.execution_effect_state='verified' and j.execution_result is not null then
    -- A verified execution result takes precedence; readback must reconcile it.
    update public.pandora_chat_turn_attempts set cancellation_requested_at=coalesce(cancellation_requested_at,clock_timestamp()),
      status='outcome_unknown',last_event_sequence=last_event_sequence+1 where id=a.id;
  else
-   if j.terminal_state is null and j.controls_sealed_at is null then
+   -- A repeated ordinary Stop cannot acknowledge uncertainty. A separate
+   -- explicit action releases only conversation admission, never the original
+   -- ambiguous effect, execution claim, retry fence, or diagnostic evidence.
+   if a.uncertainty_acknowledged_at is not null or
+      (not p_acknowledge_unknown and a.cancellation_requested_at is not null)
+   then return private.pandora_chat_turn_receipt_v2(t.id); end if;
+   if a.cancellation_requested_at is null and j.terminal_state is null and j.controls_sealed_at is null then
      perform public.pandora_activity_control_request_v1(p_organization_id,j.id,'chat-v2-cancel:'||a.id,'cancel',null);
    end if;
    update public.pandora_chat_turn_attempts set cancellation_requested_at=coalesce(cancellation_requested_at,clock_timestamp()),
-     status=case when j.execution_effect_state='ambiguous' then 'outcome_unknown' else 'cancelled' end,
-     retryable=false,last_event_sequence=last_event_sequence+1,updated_at=clock_timestamp(),completed_at=clock_timestamp() where id=a.id;
+     uncertainty_acknowledged_at=case when p_acknowledge_unknown then clock_timestamp() else uncertainty_acknowledged_at end,
+     status=case when p_acknowledge_unknown or j.execution_effect_state='ambiguous' then 'outcome_unknown' else 'cancelled' end,
+     retryable=false,last_event_sequence=last_event_sequence+1,updated_at=clock_timestamp(),
+     completed_at=case when not p_acknowledge_unknown and j.execution_effect_state='none' then clock_timestamp() else completed_at end where id=a.id;
    if j.execution_effect_state='none' then
      -- This authenticated wrapper has already locked and authorized the exact
      -- owned turn/job. Do not forge a service-role JWT to call its private API.
@@ -436,6 +454,12 @@ begin
     or (p_status='streaming' and a.status not in('processing','streaming'))
     or jsonb_typeof(p_timings)<>'object' or octet_length(p_timings::text)>4096
  then raise exception 'CHAT_TRANSITION_INVALID' using errcode='22023'; end if;
+ -- Once the user explicitly stops waiting, stale failures cannot re-open a
+ -- retry path or overwrite the uncertainty audit. Only verified completion
+ -- through the original claim can resolve this attempt afterwards.
+ if a.uncertainty_acknowledged_at is not null then
+   return private.pandora_chat_turn_receipt_v2(t.id)||jsonb_build_object('applied',false);
+ end if;
  s:=p_status;
  if p_status in('failed_recoverably','failed_permanently','cancelled') and j.execution_effect_state in('ambiguous','verified') then s:='outcome_unknown'; end if;
  update public.pandora_chat_turn_attempts set status=s,error_code=p_error_code,
@@ -572,6 +596,7 @@ begin
  if j.execution_effect_state='verified' and length(coalesce(j.execution_result->>'reply',''))>0 then
    return public.pandora_chat_turn_complete_v2(t.id,a.id,a.generation,j.execution_claim_id,j.execution_result);
  end if;
+ if a.uncertainty_acknowledged_at is not null then return private.pandora_chat_turn_receipt_v2(t.id); end if;
  if j.execution_claim_id is not null and j.execution_state in('failed','cancelled') then
    return public.pandora_chat_turn_transition_v2(t.id,a.id,a.generation,j.execution_claim_id,
      case when j.execution_state='cancelled' then 'cancelled' else 'failed_recoverably' end,
@@ -591,11 +616,11 @@ revoke all on function private.pandora_chat_turn_authorize_v2(uuid,uuid),private
  private.pandora_chat_bind_dispatch_message_v2() from public,anon,authenticated,service_role;
 revoke all on function public.pandora_chat_turn_admit_v2(uuid,uuid,uuid,text,text,uuid,uuid,jsonb,uuid,jsonb),
  public.pandora_chat_turn_retry_v2(uuid,uuid,uuid,integer,text,uuid),public.pandora_chat_turn_read_v2(uuid,uuid,integer),
- public.pandora_chat_turn_cancel_v2(uuid,uuid,integer,uuid),public.pandora_chat_dispatch_turn_v2(uuid,uuid,uuid,integer,uuid,text),public.pandora_chat_history_v2(uuid,uuid,integer),public.pandora_chat_thread_view_v2(uuid,integer)
+ public.pandora_chat_turn_cancel_v2(uuid,uuid,integer,uuid,boolean),public.pandora_chat_dispatch_turn_v2(uuid,uuid,uuid,integer,uuid,text),public.pandora_chat_history_v2(uuid,uuid,integer),public.pandora_chat_thread_view_v2(uuid,integer)
  from public,anon;
 grant execute on function public.pandora_chat_turn_admit_v2(uuid,uuid,uuid,text,text,uuid,uuid,jsonb,uuid,jsonb),
  public.pandora_chat_turn_retry_v2(uuid,uuid,uuid,integer,text,uuid),public.pandora_chat_turn_read_v2(uuid,uuid,integer),
- public.pandora_chat_turn_cancel_v2(uuid,uuid,integer,uuid),public.pandora_chat_dispatch_turn_v2(uuid,uuid,uuid,integer,uuid,text),public.pandora_chat_history_v2(uuid,uuid,integer),public.pandora_chat_thread_view_v2(uuid,integer) to authenticated;
+ public.pandora_chat_turn_cancel_v2(uuid,uuid,integer,uuid,boolean),public.pandora_chat_dispatch_turn_v2(uuid,uuid,uuid,integer,uuid,text),public.pandora_chat_history_v2(uuid,uuid,integer),public.pandora_chat_thread_view_v2(uuid,integer) to authenticated;
 revoke all on function public.pandora_chat_turn_transition_v2(uuid,uuid,integer,uuid,text,bigint,text,boolean,jsonb,uuid),
  public.pandora_chat_turn_complete_v2(uuid,uuid,integer,uuid,jsonb,jsonb,bigint,jsonb),public.pandora_chat_turn_reconcile_v2(uuid),public.pandora_chat_turn_effect_v2(uuid,uuid,integer,uuid,text,jsonb) from public,anon,authenticated;
 grant execute on function public.pandora_chat_turn_transition_v2(uuid,uuid,integer,uuid,text,bigint,text,boolean,jsonb,uuid),

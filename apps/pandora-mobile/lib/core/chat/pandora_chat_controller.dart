@@ -109,8 +109,9 @@ class PandoraChatController extends ChangeNotifier {
     }
     final message = text.trim();
     if (message.isEmpty) return const PandoraChatAdmission.rejected('empty');
-    if (_state.loadingHistory) {
-      return const PandoraChatAdmission.rejected('history_loading');
+    if (!_state.historyReady) {
+      return PandoraChatAdmission.rejected(
+          _state.loadingHistory ? 'history_loading' : 'history_unverified');
     }
     if (_state.queuedTurnId != null) {
       return const PandoraChatAdmission.rejected('follow_up_already_pending');
@@ -224,7 +225,7 @@ class PandoraChatController extends ChangeNotifier {
         _state.activeTurnId != null ||
         _state.hasUnresolvedOutcome ||
         _state.hasUnresolvedAdmission ||
-        _state.loadingHistory) {
+        !_state.historyReady) {
       return const PandoraChatAdmission.rejected('execution_unresolved');
     }
     final turn = _state.queuedTurn;
@@ -238,7 +239,7 @@ class PandoraChatController extends ChangeNotifier {
     if (_disposed ||
         _state.activeTurnId != null ||
         _state.hasUnresolvedOutcome ||
-        _state.loadingHistory) {
+        !_state.historyReady) {
       return const PandoraChatAdmission.rejected('execution_unresolved');
     }
     final turn = _state.turn(turnId);
@@ -564,6 +565,7 @@ class PandoraChatController extends ChangeNotifier {
     bool recoverable = true,
     bool outcomeUnknown = false,
     int? sequence,
+    PandoraChatExecutionReceipt? receipt,
   }) =>
       _update(
         token,
@@ -573,6 +575,7 @@ class PandoraChatController extends ChangeNotifier {
                 ? PandoraChatPhase.failedRecoverably
                 : PandoraChatPhase.failedPermanently,
         sequence: sequence,
+        receipt: receipt,
         failure: PandoraChatFailure(
           message: message,
           code: code,
@@ -580,6 +583,16 @@ class PandoraChatController extends ChangeNotifier {
           outcomeUnknown: outcomeUnknown,
         ),
       );
+
+  /// This is an explicit continuation intent, separate from Stop. Admission
+  /// remains blocked until a verified server receipt acknowledges uncertainty.
+  bool requestUnknownAcknowledgement(PandoraChatAttemptToken token) {
+    if (!isCurrent(token) ||
+        !_state.turn(token.turnId)!.canAcknowledgeUnknownOutcome) {
+      return false;
+    }
+    return _update(token, phase: PandoraChatPhase.acknowledgingUnknown);
+  }
 
   /// Fences content immediately. Keep admission blocked until cancellation or
   /// readback settles the existing server execution.
@@ -685,11 +698,32 @@ class PandoraChatController extends ChangeNotifier {
     }
     final turn = _state.turn(token.turnId)!;
     final prior = turn.attempt!;
+    if (receipt?.outcomeUnknownAcknowledged == true &&
+        !((receipt!.routing['executionStatus'] == 'outcome_unknown' &&
+                phase == PandoraChatPhase.reconciling) ||
+            (receipt.routing['executionStatus'] == 'completed' &&
+                (phase == PandoraChatPhase.completed ||
+                    phase == PandoraChatPhase.cancelled)))) {
+      return false;
+    }
+    if (turn.outcomeUnknownAcknowledged) {
+      // A late failure or an older receipt cannot reopen the original request.
+      // Only its genuine verified completion may settle acknowledged ambiguity.
+      final verifiedCompletion = receipt?.outcomeUnknownAcknowledged == true &&
+          receipt?.routing['executionStatus'] == 'completed' &&
+          (phase == PandoraChatPhase.completed ||
+              phase == PandoraChatPhase.cancelled);
+      if ((receipt != null && !receipt.outcomeUnknownAcknowledged) ||
+          (phase != PandoraChatPhase.reconciling && !verifiedCompletion)) {
+        return false;
+      }
+    }
     if (prior.phase == PandoraChatPhase.streaming &&
         phase == PandoraChatPhase.processing) {
       return false;
     }
     if ((prior.phase == PandoraChatPhase.reconciling ||
+            prior.phase == PandoraChatPhase.acknowledgingUnknown ||
             prior.phase == PandoraChatPhase.cancelling) &&
         content) {
       return false;
@@ -742,7 +776,7 @@ class PandoraChatController extends ChangeNotifier {
       conversationId: _newId(),
       threadId: threadId,
       preferences: _state.preferences,
-      loadingHistory: true,
+      historyPhase: PandoraChatHistoryPhase.loading,
       draft: PandoraChatDraftState(revision: _state.draft.revision + 1),
     );
     _emit(next);
@@ -814,7 +848,7 @@ class PandoraChatController extends ChangeNotifier {
       _state.copyWith(
         history: history,
         turns: reconstructedTurns,
-        loadingHistory: false,
+        historyPhase: PandoraChatHistoryPhase.ready,
         preferences: preferences,
         activeTurnId: null,
         queuedTurnId: null,
@@ -825,7 +859,7 @@ class PandoraChatController extends ChangeNotifier {
 
   bool failHistoryLoad(PandoraChatLoadToken token) {
     if (!matchesLoad(token)) return false;
-    _emit(_state.copyWith(loadingHistory: false));
+    _emit(_state.copyWith(historyPhase: PandoraChatHistoryPhase.failed));
     return true;
   }
 
@@ -838,6 +872,7 @@ class PandoraChatController extends ChangeNotifier {
     if (_disposed ||
         _state.revision != expectedRevision ||
         restored.scopeId != _state.scopeId ||
+        !restored.historyReady ||
         _state.hasPendingWork ||
         _state.turns.isNotEmpty ||
         _state.history.isNotEmpty ||

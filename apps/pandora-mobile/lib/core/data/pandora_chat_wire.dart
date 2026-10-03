@@ -24,7 +24,11 @@ class PandoraChatWireEvent {
   String get reply => _text(data['reply']);
   bool get replayed => data['replayed'] == true;
   bool get admissionCancelled => data['admissionCancelled'] == true;
+  /// A durable acknowledgement, retained if the original result later arrives.
+  bool get outcomeUnknownAcknowledged =>
+      data['outcomeUnknownAcknowledged'] == true;
   bool get recoverable =>
+      !outcomeUnknown &&
       data['recoverable'] != false &&
       data['retryable'] != false &&
       !const {'failed_permanently', 'failedPermanently', 'failed_permanent'}
@@ -80,7 +84,13 @@ class PandoraChatWireEvent {
         json['textDelta'] == null &&
         json['reply'] == null &&
         json['type'] != 'delta';
-    if (json['protocolVersion'] != 2 ||
+    if ((json.containsKey('outcomeUnknownAcknowledged') &&
+            json['outcomeUnknownAcknowledged'] is! bool) ||
+        (json['outcomeUnknownAcknowledged'] == true &&
+            (!const {'outcome_unknown', 'completed'}.contains(json['status']) ||
+                json['retryable'] != false ||
+                json['cancellationRequested'] != true)) ||
+        json['protocolVersion'] != 2 ||
         const [
           'organizationId',
           'turnId',

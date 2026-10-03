@@ -1,6 +1,15 @@
 part of '../ask_pandora_screen.dart';
 
-enum _AttachmentAction { camera, photos, files, characters, services, project }
+enum _AttachmentAction {
+  camera,
+  photos,
+  files,
+  model,
+  reasoning,
+  characters,
+  services,
+  project
+}
 
 extension _PandoraContextActions on AskPandoraScreenState {
   Future<void> _showAttachmentActions() async {
@@ -8,37 +17,84 @@ extension _PandoraContextActions on AskPandoraScreenState {
     final draft = owner.captureDraftToken();
     final selected = await presentContextRoute<_AttachmentAction>(
         ModalBottomSheetRoute<_AttachmentAction>(
-      isScrollControlled: false,
+      isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
       backgroundColor: PandoraSimpleColors.surface,
       builder: (routeContext) {
         Widget item(_AttachmentAction action, String suffix, String label,
-                IconData icon) =>
-            _ComposerMenuItem(
-                key: ValueKey<String>('ask-pandora-menu-$suffix'),
-                label: label,
-                icon: icon,
-                onPressed: () => Navigator.of(routeContext).pop(action));
+                IconData icon, {String? identifier}) =>
+            Semantics(
+                identifier: identifier,
+                child: _ComposerMenuItem(
+                    key: ValueKey<String>('ask-pandora-menu-$suffix'),
+                    label: label,
+                    icon: icon,
+                    onPressed: () => Navigator.of(routeContext).pop(action)));
+        final preference = owner.state.preferences;
+        final depthLabel = switch (preference.reasoningMode) {
+          'fast' => 'Fast',
+          'deep' => 'Deep',
+          _ => 'Balanced',
+        };
         return SafeArea(
             top: false,
-            child: SingleChildScrollView(
+            child: Semantics(
+                identifier: 'pandora.chat.menu-surface',
+                scopesRoute: true,
+                namesRoute: true,
+                explicitChildNodes: true,
+                label: 'Pandora menu',
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-              item(_AttachmentAction.camera, 'camera', 'Camera',
-                  Icons.camera_alt_outlined),
-              item(_AttachmentAction.photos, 'photos', 'Photos',
-                  Icons.photo_outlined),
-              item(_AttachmentAction.files, 'files', 'Files',
-                  Icons.insert_drive_file_outlined),
-              if (widget.allowCharacterContext)
-                item(_AttachmentAction.characters, 'characters', 'Characters',
-                    Icons.face_retouching_natural_outlined),
-              item(_AttachmentAction.services, 'services', 'Services',
-                  Icons.extension_outlined),
-              if (widget.allowProjectContext)
-                item(_AttachmentAction.project, 'project-context',
-                    'Project context', Icons.workspaces_outline),
-            ])));
+                  Padding(
+                      padding: const EdgeInsets.only(left: 24, right: 12),
+                      child: Row(children: [
+                        const Expanded(
+                            child: Text('Pandora menu',
+                                style: TextStyle(
+                                    color: PandoraSimpleColors.ink,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600))),
+                        Semantics(
+                            identifier: 'pandora.chat.menu.close',
+                            child: IconButton(
+                                tooltip: 'Close Pandora menu',
+                                onPressed: () =>
+                                    Navigator.of(routeContext).pop(),
+                                icon: const Icon(Icons.close_rounded))),
+                      ])),
+                  Flexible(
+                      child: SingleChildScrollView(
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                    item(_AttachmentAction.camera, 'camera', 'Camera',
+                        Icons.camera_alt_outlined),
+                    item(_AttachmentAction.photos, 'photos', 'Photos',
+                        Icons.photo_outlined),
+                    item(_AttachmentAction.files, 'files', 'Files',
+                        Icons.insert_drive_file_outlined),
+                    if (!_isCommonWorkspace &&
+                        _dependencies.intelligence != null) ...[
+                      item(_AttachmentAction.model, 'model',
+                          'Model · ${preference.label}', Icons.tune_rounded,
+                          identifier: 'pandora.chat.model-options'),
+                      item(
+                          _AttachmentAction.reasoning,
+                          'reasoning',
+                          'Response depth · $depthLabel',
+                          Icons.psychology_alt_outlined,
+                          identifier: 'pandora.chat.reasoning-options-entry'),
+                    ],
+                    if (widget.allowCharacterContext)
+                      item(_AttachmentAction.characters, 'characters',
+                          'Characters', Icons.face_retouching_natural_outlined),
+                    item(_AttachmentAction.services, 'services', 'Services',
+                        Icons.extension_outlined),
+                    if (widget.allowProjectContext)
+                      item(_AttachmentAction.project, 'project-context',
+                          'Project context', Icons.workspaces_outline),
+                  ]))),
+                ])));
       },
     ));
     if (!mounted ||
@@ -53,6 +109,12 @@ extension _PandoraContextActions on AskPandoraScreenState {
         await _pickImage(camera: false);
       case _AttachmentAction.files:
         await _attach();
+      case _AttachmentAction.model:
+      case _AttachmentAction.reasoning:
+        // The contained picker places Response depth near its top. Both menu
+        // entry points use that overview, never the end of the model catalog.
+        // presentContextRoute has already awaited the old route's dismissal.
+        await _pickModel();
       case _AttachmentAction.characters:
         await _pickCharacterContext();
       case _AttachmentAction.services:

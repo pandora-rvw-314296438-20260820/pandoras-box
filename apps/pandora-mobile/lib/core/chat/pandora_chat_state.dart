@@ -16,6 +16,7 @@ enum PandoraChatPhase {
   failedRecoverably,
   failedPermanently,
   reconciling,
+  acknowledgingUnknown,
   superseded;
 
   bool get isTerminal => switch (this) {
@@ -33,6 +34,10 @@ enum PandoraChatPhase {
         _ => false,
       };
 }
+
+/// Opening a saved thread does not establish a usable conversation until its
+/// history is verified. A failed load remains a distinct, non-executable view.
+enum PandoraChatHistoryPhase { ready, loading, failed }
 
 /// Recursively freezes JSON-shaped request data before any asynchronous work.
 Map<String, Object?> freezePandoraChatMap(Map<String, Object?> value) =>
@@ -221,6 +226,7 @@ class PandoraChatExecutionReceipt {
     this.model,
     this.providerRequestId,
     this.assistantMessageId,
+    this.outcomeUnknownAcknowledged = false,
     Map<String, Object?> routing = const {},
     Map<String, Object?> usage = const {},
     Map<String, Object?>? inspection,
@@ -233,6 +239,10 @@ class PandoraChatExecutionReceipt {
   final String? model;
   final String? providerRequestId;
   final String? assistantMessageId;
+
+  /// Durable acknowledgement permits a distinct follow-up while preserving the
+  /// original execution's unknown outcome. It never grants permission to retry.
+  final bool outcomeUnknownAcknowledged;
   final Map<String, Object?> routing;
   final Map<String, Object?> usage;
 
@@ -363,7 +373,16 @@ class PandoraChatTurn {
   bool get canRetry =>
       requestAvailable &&
       phase == PandoraChatPhase.failedRecoverably &&
-      failure?.outcomeUnknown != true;
+      failure?.outcomeUnknown != true &&
+      !outcomeUnknownAcknowledged;
+  bool get outcomeUnknownAcknowledged =>
+      receipt?.outcomeUnknownAcknowledged == true;
+  bool get canAcknowledgeUnknownOutcome =>
+      phase == PandoraChatPhase.reconciling &&
+      attempt != null &&
+      failure?.outcomeUnknown == true &&
+      receipt?.routing['executionStatus'] == 'outcome_unknown' &&
+      !outcomeUnknownAcknowledged;
 
   PandoraChatTurn copyWith({
     PandoraChatPhase? phase,
@@ -455,6 +474,13 @@ class PandoraChatHistoryMessage {
       );
 }
 
+class PandoraChatContextMessage {
+  const PandoraChatContextMessage({required this.isUser, required this.text});
+
+  final bool isUser;
+  final String text;
+}
+
 class PandoraChatSessionState {
   PandoraChatSessionState({
     required this.scopeId,
@@ -468,7 +494,7 @@ class PandoraChatSessionState {
     List<PandoraChatHistoryMessage> history = const [],
     this.activeTurnId,
     this.queuedTurnId,
-    this.loadingHistory = false,
+    this.historyPhase = PandoraChatHistoryPhase.ready,
   })  : turns = List<PandoraChatTurn>.unmodifiable(turns),
         history = List<PandoraChatHistoryMessage>.unmodifiable(history);
 
@@ -483,7 +509,70 @@ class PandoraChatSessionState {
   final List<PandoraChatHistoryMessage> history;
   final String? activeTurnId;
   final String? queuedTurnId;
-  final bool loadingHistory;
+  final PandoraChatHistoryPhase historyPhase;
+  bool get historyReady => historyPhase == PandoraChatHistoryPhase.ready;
+  bool get loadingHistory => historyPhase == PandoraChatHistoryPhase.loading;
+
+  /// Use the same shared presentation sequence for legacy/imported rows and
+  /// typed turns. Failed, interrupted and superseded turn content is excluded;
+  /// canonical rows already owned by a typed turn cannot re-enter as history.
+  List<PandoraChatContextMessage> get conversationContext {
+    if (!historyReady) return const [];
+    final ownedTurnIds = turns.map((turn) => turn.id).toSet();
+    final ownedMessageIds = <String>{
+      for (final turn in turns) ...[
+        if (turn.userMessageId != null) turn.userMessageId!,
+        if (turn.assistantMessageId != null) turn.assistantMessageId!,
+        if (turn.receipt?.assistantMessageId != null)
+          turn.receipt!.assistantMessageId!,
+        for (final attempt in turn.attempts)
+          if (attempt.receipt?.assistantMessageId != null)
+            attempt.receipt!.assistantMessageId!,
+      ],
+    };
+    final seenHistory = <String>{};
+    final groups = <({
+      int sequence,
+      DateTime createdAt,
+      String id,
+      List<PandoraChatContextMessage> messages,
+    })>[
+      for (final row in history.indexed)
+        if (!ownedMessageIds.contains(row.$2.id) &&
+            !ownedTurnIds.contains(row.$2.turnId) &&
+            seenHistory.add(row.$2.id) &&
+            row.$2.text.trim().isNotEmpty)
+          (
+            sequence: row.$2.sequence ?? row.$1 + 1,
+            createdAt: row.$2.createdAt,
+            id: 'history:${row.$2.id}',
+            messages: [
+              PandoraChatContextMessage(
+                  isUser: row.$2.isUser, text: row.$2.text),
+            ],
+          ),
+      for (final turn in turns)
+        if (turn.phase == PandoraChatPhase.completed &&
+            turn.text.trim().isNotEmpty &&
+            turn.reply.trim().isNotEmpty)
+          (
+            sequence: turn.sequence,
+            createdAt: turn.createdAt,
+            id: turn.id,
+            messages: [
+              PandoraChatContextMessage(isUser: true, text: turn.text),
+              PandoraChatContextMessage(isUser: false, text: turn.reply),
+            ],
+          ),
+    ]..sort((a, b) {
+        final bySequence = a.sequence.compareTo(b.sequence);
+        if (bySequence != 0) return bySequence;
+        final byTime = a.createdAt.compareTo(b.createdAt);
+        return byTime == 0 ? a.id.compareTo(b.id) : byTime;
+      });
+    return List<PandoraChatContextMessage>.unmodifiable(
+        groups.expand((group) => group.messages));
+  }
 
   PandoraChatTurn? turn(String? id) {
     if (id == null) return null;
@@ -498,9 +587,11 @@ class PandoraChatSessionState {
   PandoraChatAttemptToken? get activeAttempt => activeTurn?.attempt?.token;
   bool get hasUnresolvedOutcome => turns.any(
         (turn) =>
-            turn.phase == PandoraChatPhase.reconciling ||
             turn.phase == PandoraChatPhase.cancelling ||
-            turn.failure?.outcomeUnknown == true,
+            turn.phase == PandoraChatPhase.acknowledgingUnknown ||
+            ((turn.phase == PandoraChatPhase.reconciling ||
+                    turn.failure?.outcomeUnknown == true) &&
+                !turn.outcomeUnknownAcknowledged),
       );
   bool get hasUnresolvedAdmission => turns.any((turn) =>
       turn.phase == PandoraChatPhase.failedRecoverably &&
@@ -521,7 +612,7 @@ class PandoraChatSessionState {
     List<PandoraChatHistoryMessage>? history,
     Object? activeTurnId = _unchanged,
     Object? queuedTurnId = _unchanged,
-    bool? loadingHistory,
+    PandoraChatHistoryPhase? historyPhase,
   }) =>
       PandoraChatSessionState(
         scopeId: scopeId,
@@ -541,7 +632,7 @@ class PandoraChatSessionState {
         queuedTurnId: identical(queuedTurnId, _unchanged)
             ? this.queuedTurnId
             : queuedTurnId as String?,
-        loadingHistory: loadingHistory ?? this.loadingHistory,
+        historyPhase: historyPhase ?? this.historyPhase,
       );
 }
 

@@ -106,8 +106,27 @@ class FakeChatIntelligence extends PandoraIntelligenceApi {
     required String turnId,
     required int generation,
     String? attemptId,
+    bool acknowledgeUnknown = false,
   }) async {
     final prior = _receipts[turnId]!;
+    if (prior.isTerminal) return prior;
+    if (acknowledgeUnknown) {
+      if (prior.status != 'outcome_unknown') {
+        throw const PandoraIntelligenceException(
+            'This execution is still running.',
+            code: 'CHAT_OUTCOME_NOT_UNKNOWN',
+            recoverable: false);
+      }
+      final acknowledged = PandoraChatWireEvent.fromJson({
+        ...prior.data,
+        'sequence': prior.sequence + 1,
+        'outcomeUnknownAcknowledged': true,
+        'retryable': false,
+        'cancellationRequested': true,
+      });
+      _receipts[turnId] = acknowledged;
+      return acknowledged;
+    }
     final cancelled = PandoraChatWireEvent.fromJson({
       ...prior.data,
       'status': 'cancelled',

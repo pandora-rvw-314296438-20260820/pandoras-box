@@ -1,5 +1,10 @@
+// Password userinfo ends before the host, path, query or fragment. Quotes and
+// backslashes also bound JSON strings so serialization cannot join unrelated
+// lines or fields into a credential. Reuse this boundary in the source redactor.
+export const postgresCredentialPrefix=/postgres(?:ql)?:\/\/[^:\s@"\\/?#<>`]*:[^@\s"\\/?#<>`]+@/i;
 export function containsCredentialMaterial(value:unknown) {
-  return /AIza[0-9A-Za-z_-]{20,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|postgres(?:ql)?:\/\/[^:\s@]+:[^@\s]+@/i.test(JSON.stringify(value));
+  const encoded=JSON.stringify(value)??"";
+  return /AIza[0-9A-Za-z_-]{20,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i.test(encoded)||postgresCredentialPrefix.test(encoded);
 }
 export function privateContextLine(line:string) {
   const s=line.trim(),lower=s.toLowerCase();
@@ -22,28 +27,64 @@ export function visibleModelReply(value:unknown,handoff:unknown) {
   return proposed?"I've captured the requested action, but I haven't carried it out yet.":sanitizeVisibleReply(value);
 }
 
-/** Provider output is untrusted before completion too. Keep enough lexical
- * lookahead that a split credential/context prefix can never already be painted.
- * JSON lines remain buffered until their whole context boundary can be checked.
- * A short response is honestly buffered, not re-emitted as artificial tokens. */
+/** Provider output is untrusted before completion too. Only a bounded tail is
+ * rechecked across chunks. JSON lines stay buffered until their context boundary
+ * is known; lexical prefixes stop incremental delivery pending final validation.
+ * The final validator remains authoritative and short replies remain buffered. */
 export class ReplyVisibilityGuard {
-  private source="";private delivered="";private held=false;
+  private size=0;private overlap="";private held=false;
+  private linePrefix="";private jsonLine:string[]|null=null;private carriage=false;
+  private started=false;private whitespace:string[]=[];private newlines=0;
+  private queue:string[]=[];private head=0;private delivered:string[]=[];
   push(delta:string) {
-    this.source+=delta;
-    if(this.source.length>32000||containsCredentialMaterial(this.source))throw Error("INVALID_MODEL_OUTPUT");
-    // A prefix can be an innocuous code example. Hold it for final validation;
-    // never emit it speculatively or disable a legitimate technical response.
-    if(/AIza|github_pat_|gh[pousr]_|-----BEGIN|postgres(?:ql)?:\/\//i.test(this.source)||this.source.split(/\r?\n/).some(privateContextLine))this.held=true;
+    this.size+=delta.length;if(this.size>32000)throw Error("INVALID_MODEL_OUTPUT");
+    const window=this.overlap+delta;this.overlap=window.slice(-96);
+    if(containsCredentialMaterial(window))throw Error("INVALID_MODEL_OUTPUT");
+    if(/AIza|github_pat_|gh[pousr]_|-----BEGIN|postgres(?:ql)?:\/\//i.test(window)||
+      /bounded enterprise page context:|bounded project context:/i.test(window))this.held=true;
     if(this.held)return "";
-    let end=Math.max(0,this.source.length-96);
-    const lineStart=this.source.lastIndexOf("\n",end-1)+1;
-    if(this.source.slice(lineStart).trimStart().startsWith("{"))end=lineStart;
-    const confirmed=sanitizeVisibleReply(this.source.slice(0,end),false);
-    if(!confirmed.startsWith(this.delivered))throw Error("INVALID_MODEL_OUTPUT");
-    const next=confirmed.slice(this.delivered.length);this.delivered=confirmed;return next;
+    for(let i=0;i<delta.length;i++){
+      const char=delta[i];
+      if(this.carriage){this.carriage=false;if(char!=="\n")this.lineCharacter("\r");}
+      if(char==="\r"){this.carriage=true;continue;}
+      this.lineCharacter(char);if(this.held)return "";
+    }
+    let end=Math.max(this.head,this.queue.length-96);
+    // A lookahead boundary must not divide a Unicode scalar between events.
+    if(end>this.head){const code=this.queue[end-1].charCodeAt(0);if(code>=0xd800&&code<=0xdbff)end--;}
+    const next=this.queue.slice(this.head,end).join("");this.head=end;
+    if(this.head>=4096){this.queue=this.queue.slice(this.head);this.head=0;}
+    if(next)this.delivered.push(next);return next;
+  }
+  private lineCharacter(char:string) {
+    if(char==="\n"){
+      if(this.jsonLine!==null){
+        const line=this.jsonLine.join("");this.jsonLine=null;
+        if(privateContextLine(line)){this.held=true;return;}
+        for(let i=0;i<line.length;i++)this.normalizedCharacter(line[i]);
+      }
+      this.normalizedCharacter("\n");this.linePrefix="";return;
+    }
+    const first=this.linePrefix.length===0&&!/\s/.test(char);
+    if(this.linePrefix.length<96&&(this.linePrefix.length>0||first))this.linePrefix+=char;
+    if(privateContextLine(this.linePrefix)){this.held=true;return;}
+    if(first&&char==="{")this.jsonLine=[];
+    if(this.jsonLine!==null)this.jsonLine.push(char);else this.normalizedCharacter(char);
+  }
+  private normalizedCharacter(char:string) {
+    if(/\s/.test(char)){
+      this.newlines=char==="\n"?this.newlines+1:0;
+      if(this.newlines>2)return;
+      if(this.started)this.whitespace.push(char);
+      return;
+    }
+    this.newlines=0;
+    for(const space of this.whitespace)this.queue.push(space);
+    this.whitespace=[];this.started=true;this.queue.push(char);
   }
   finish(validatedReply:string) {
-    if(containsCredentialMaterial(validatedReply)||!validatedReply.startsWith(this.delivered))throw Error("INVALID_MODEL_OUTPUT");
-    const tail=validatedReply.slice(this.delivered.length);this.delivered=validatedReply;return tail;
+    const delivered=this.delivered.join("");
+    if(containsCredentialMaterial(validatedReply)||!validatedReply.startsWith(delivered))throw Error("INVALID_MODEL_OUTPUT");
+    const tail=validatedReply.slice(delivered.length);this.delivered=[validatedReply];return tail;
   }
 }

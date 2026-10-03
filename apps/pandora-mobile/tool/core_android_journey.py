@@ -22,13 +22,15 @@ import uuid
 import xml.etree.ElementTree as ET
 
 from core_artifact_provenance import ANDROID_PACKAGE
-from core_android_device import AndroidDevice, DeviceFailure, require
+from core_android_device import AndroidDevice, DeviceFailure, require, require_unoccluded
 
 UUID = r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"
 TURN_PHASE = re.compile(r"^pandora\.chat\.turn\.(" + UUID + r")\.([a-zA-Z]+)$")
 THREAD = re.compile(r"^pandora\.chat\.thread\.(" + UUID + r")$")
 TURN = re.compile(r"^pandora\.chat\.turn\.(" + UUID + r")$")
-ACTIVE = {"pending", "accepted", "processing", "streaming", "reconciling"}
+MESSAGE = re.compile(r"^pandora\.chat\.(?:user|response)\.(" + UUID + r")$")
+UNKNOWN_OUTCOME = re.compile(r"^pandora\.chat\.outcome-unknown\.(" + UUID + r")\.(acknowledged|unacknowledged)$")
+ACTIVE = {"pending", "accepted", "processing", "streaming", "reconciling", "acknowledgingUnknown"}
 TERMINAL = {"completed", "cancelled", "failedRecoverably", "failedPermanently", "superseded"}
 LEAKS = ("capability registry", "runtime evidence", "model assumption",
          "provider routing", "internal connection state")
@@ -65,14 +67,19 @@ def semantic_snapshot(xml: str) -> dict:
     threads = [match.group(1) for key in ids if (match := THREAD.fullmatch(key))]
     require(len(set(threads)) <= 1, "MULTIPLE_ACTIVE_THREAD_IDENTITIES")
     phases = {}
+    unknown_outcomes = {}
     for key in ids:
         if match := TURN_PHASE.fullmatch(key):
             turn, phase = match.groups()
             require(turn not in phases, "MULTIPLE_PHASES_FOR_ONE_TURN")
             phases[turn] = phase
+        if match := UNKNOWN_OUTCOME.fullmatch(key):
+            turn, acknowledgement = match.groups()
+            require(turn not in unknown_outcomes, "CONTRADICTORY_UNKNOWN_ACKNOWLEDGEMENT")
+            unknown_outcomes[turn] = acknowledgement
     return {"root": root, "nodes": ids, "thread": threads[0] if threads else None,
             "turns": {m.group(1) for key in ids if (m := TURN.fullmatch(key))},
-            "phases": phases}
+            "phases": phases, "unknown_outcomes": unknown_outcomes}
 
 
 class Journey:
@@ -102,6 +109,8 @@ class Journey:
         self.started = time.monotonic()
         self.authenticated = False
         self.failure = None
+        self.coverage = {}
+        self.cancellation_outcomes = []
 
     def snapshot(self) -> dict:
         return semantic_snapshot(self.device.dump_hierarchy(compressed=False))
@@ -163,16 +172,44 @@ class Journey:
         self.wait(lambda: not self.android.ime_visible(), "HARDWARE_BACK_DID_NOT_CLOSE_IME")
 
     def assert_composer_contained(self):
-        node = self.node("pandora.chat.input")
-        left, top, right, bottom = bounds(node.get("bounds", ""))
-        width, height = self.device.window_size()
-        require(0 <= left < right <= width and 0 <= top < bottom < height,
-                "COMPOSER_OUTSIDE_VIEWPORT")
         snapshot = self.snapshot()
+        insets = self.android.window_insets()
+        ime_shown = self.android.ime_visible()
+        if ime_shown:
+            require(any(source["type"] == "ime" and source["visible"]
+                        and source["frame"][1] < source["frame"][3] for source in insets["sources"]),
+                    "VISIBLE_IME_GEOMETRY_UNAVAILABLE")
+        self.node("pandora.chat.input")
+        for key in ("input", "send", "voice", "stop", "menu", "navigation", "latest"):
+            node = snapshot["nodes"].get("pandora.chat." + key)
+            if node is not None:
+                require_unoccluded(bounds(node.get("bounds", "")), insets,
+                                   "CHAT_CONTROL_OVERLAPS_SYSTEM_OR_IME")
+        self.coverage["system_insets"] = True
+        if ime_shown:
+            self.coverage["ime_insets"] = True
         require(not any(item.get("text") == "Back" or item.get("content-desc") == "Back"
                         for item in snapshot["root"].iter("node")
                         if item.get("package") == ANDROID_PACKAGE),
                 "UNEXPLAINED_BACK_CONTROL_VISIBLE")
+
+    def assert_sign_in_insets(self, *, focused_only=False):
+        view = self.snapshot()
+        fields = [node for node in view["root"].iter("node")
+                  if node.get("class") == "android.widget.EditText"
+                  and (not focused_only or node.get("focused") == "true")]
+        require(len(fields) == (1 if focused_only else 2), "SIGN_IN_FOCUS_GEOMETRY_NOT_OBSERVABLE")
+        insets = self.android.window_insets()
+        if focused_only:
+            require(any(source["type"] == "ime" and source["visible"]
+                        and source["frame"][1] < source["frame"][3] for source in insets["sources"]),
+                    "VISIBLE_IME_GEOMETRY_UNAVAILABLE")
+        for field in fields:
+            require_unoccluded(bounds(field.get("bounds", "")), insets,
+                               "SIGN_IN_FIELD_OVERLAPS_SYSTEM_OR_IME")
+        self.coverage["sign_in_system_insets"] = True
+        if focused_only:
+            self.coverage["sign_in_ime_insets"] = True
 
     def set_input(self, value: str):
         self.click("pandora.chat.input")
@@ -259,13 +296,61 @@ class Journey:
                 "timing_kind": "UI observation, not provider TTFT"})
         return content
 
+    def resolve_cancellation(self, turn: str) -> str:
+        """Wait for authoritative Stop state; a click is never an acknowledgement."""
+        def settled():
+            view = self.verify_thread()
+            phase = view["phases"].get(turn)
+            if phase in {"cancelled", "completed"}:
+                return phase
+            acknowledgement = view.get("unknown_outcomes", {}).get(turn)
+            require(acknowledgement != "acknowledged", "ORDINARY_STOP_ACKNOWLEDGED_UNKNOWN")
+            if acknowledgement == "unacknowledged" and phase == "reconciling":
+                require("pandora.chat.retry." + turn not in view["nodes"], "UNKNOWN_OUTCOME_RETRY_EXPOSED")
+                return "unknown"
+            return None
+        outcome = self.wait(settled, "CANCELLATION_RECEIPT_NOT_CONFIRMED", 120)
+        if outcome == "unknown":
+            self.click("pandora.chat.continue." + turn)
+            def acknowledged():
+                view = self.verify_thread()
+                phase = view["phases"].get(turn)
+                require("pandora.chat.retry." + turn not in view["nodes"], "UNKNOWN_OUTCOME_RETRY_EXPOSED")
+                if phase == "completed":
+                    return "completed"
+                if (view.get("unknown_outcomes", {}).get(turn) == "acknowledged"
+                        and phase == "reconciling"):
+                    return "acknowledged_unknown"
+                # acknowledgingUnknown and an unchanged unacknowledged card
+                # do not authorize a distinct turn, even if controls reappear.
+                return None
+            outcome = self.wait(acknowledged, "DURABLE_UNKNOWN_ACKNOWLEDGEMENT_NOT_CONFIRMED", 120)
+        self.coverage["safe_cancellation"] = self.coverage.get("safe_cancellation", False) or outcome == "cancelled"
+        self.coverage["unknown_acknowledgement"] = self.coverage.get("unknown_acknowledgement", False) or outcome == "acknowledged_unknown"
+        self.cancellation_outcomes.append({"turn_id_sha256": hashlib.sha256(turn.encode()).hexdigest(),
+                                           "outcome": outcome})
+        return outcome
+
+    def inspect_prior_turn(self, turn: str):
+        for _ in range(9):
+            view = self.verify_thread()
+            if turn in view["phases"]:
+                return view
+            width, height = self.device.window_size()
+            self.device.swipe(width // 2, height // 3, width // 2, height * 3 // 4, duration=.4)
+        raise DeviceFailure("PRIOR_TURN_NOT_AVAILABLE_FOR_CANCELLATION_READBACK")
+
     def active_visible(self, turn: str):
-        node = self.node("pandora.chat.turn." + turn)
+        node = self.node("pandora.chat.response." + turn)
         _, top, _, bottom = bounds(node.get("bounds", ""))
         composer_top = bounds(self.node("pandora.chat.input").get("bounds", ""))[1]
-        require(top < composer_top and bottom > 0, "LATEST_EXCHANGE_NOT_VISIBLE")
+        safe_top = self.android.window_insets()["display"][1]
+        require(top < bottom and min(bottom, composer_top) - max(top, safe_top) >= min(24, bottom - top),
+                "LATEST_RESPONSE_NOT_VISIBLE")
+        require("pandora.chat.latest" not in self.snapshot()["nodes"], "LATEST_READING_INTENT_LOST")
 
     def selection(self, key: str):
+        self.reveal_picker_choice(key)
         self.wait(lambda: self.snapshot()["nodes"].get(key) is not None
                   and self.snapshot()["nodes"][key].get("selected") == "true",
                   "SELECTION_NOT_CONFIRMED_" + key)
@@ -274,20 +359,91 @@ class Journey:
                     if identity.startswith(prefix) and node.get("selected") == "true"]
         require(len(selected) == 1, "AMBIGUOUS_SELECTION_STATE")
 
+    def reveal_picker_choice(self, key: str):
+        def visible():
+            view = self.snapshot()
+            item = view["nodes"].get(key)
+            surface = view["nodes"].get("pandora.chat.model-picker")
+            if item is None or surface is None:
+                return False
+            left, top, right, bottom = bounds(item.get("bounds", ""))
+            sl, st, sr, sb = bounds(surface.get("bounds", ""))
+            return left < right and top < bottom and sl <= (left + right) // 2 <= sr and st <= (top + bottom) // 2 <= sb
+        to_top = key == "pandora.chat.model.auto" or key.startswith("pandora.chat.reasoning.")
+        for toward_top in (to_top, not to_top):
+            for _ in range(5):
+                if visible():
+                    return
+                left, top, right, bottom = bounds(self.node("pandora.chat.model-picker").get("bounds", ""))
+                low, high = top + (bottom - top) * 3 // 4, top + (bottom - top) // 3
+                start, end = (high, low) if toward_top else (low, high)
+                self.device.swipe((left + right) // 2, start, (left + right) // 2, end, duration=.3)
+        require(visible(), "PICKER_SELECTION_NOT_REACHABLE")
+
     def picker_contained(self):
         surface = self.node("pandora.chat.model-picker")
-        left, top, right, bottom = bounds(surface.get("bounds", ""))
-        width, height = self.device.window_size()
-        require(0 <= left < right <= width and 0 <= top < bottom <= height,
-                "MODEL_PICKER_OUTSIDE_VIEWPORT")
         require(not self.android.ime_visible(), "MODEL_PICKER_IME_COLLISION")
+        require_unoccluded(bounds(surface.get("bounds", "")), self.android.window_insets(),
+                           "MODEL_PICKER_OVERLAPS_SYSTEM_INSETS")
+
+    def open_model_options(self, *, via_reasoning=False):
+        """Use the shared cube menu; the app owns IME dismissal and handoff."""
+        menu = "pandora.chat.menu-surface"
+        picker = "pandora.chat.model-picker"
+        entries = {"pandora.chat.model-options", "pandora.chat.reasoning-options-entry"}
+        entry = "pandora.chat.reasoning-options-entry" if via_reasoning else "pandora.chat.model-options"
+        self.wait(lambda: not ({menu, picker} & self.snapshot()["nodes"].keys()),
+                  "PREVIOUS_OPTIONS_SURFACE_DID_NOT_CLOSE")
+        require(not (entries & self.snapshot()["nodes"].keys()), "MODEL_OPTIONS_EXPOSED_OUTSIDE_CUBE_MENU")
+        ime_was_visible = self.android.ime_visible()
+        self.click("pandora.chat.menu")
+
+        def menu_ready():
+            view = self.snapshot()
+            require(picker not in view["nodes"], "PICKER_OPENED_BEFORE_CUBE_MENU_HANDOFF")
+            surface = view["nodes"].get(menu)
+            if surface is None:
+                return False
+            require(not self.android.ime_visible(), "CUBE_MENU_IME_COLLISION")
+            rect = bounds(surface.get("bounds", ""))
+            require_unoccluded(rect, self.android.window_insets(), "CUBE_MENU_OVERLAPS_SYSTEM_INSETS")
+            item = view["nodes"].get(entry)
+            require(item is not None, "CUBE_MENU_OPTIONS_ENTRY_MISSING")
+            left, top, right, bottom = bounds(item.get("bounds", ""))
+            require(rect[0] <= left < right <= rect[2] and rect[1] <= top < bottom <= rect[3],
+                    "CUBE_MENU_OPTIONS_ENTRY_NOT_CONTAINED")
+            return True
+
+        self.wait(menu_ready, "CUBE_MENU_DID_NOT_OPEN_AFTER_IME_DISMISSAL")
+        self.click(entry)
+
+        def handed_off():
+            view = self.snapshot()
+            if picker not in view["nodes"]:
+                if menu in view["nodes"]:
+                    require(not self.android.ime_visible(), "CUBE_MENU_IME_COLLISION")
+                return False
+            require(not ({menu, "pandora.chat.menu.close"} | entries) & view["nodes"].keys(),
+                    "CUBE_MENU_AND_PICKER_OWN_VIEWPORT_TOGETHER")
+            require(not self.android.ime_visible(), "MODEL_PICKER_IME_COLLISION")
+            require_unoccluded(bounds(view["nodes"][picker].get("bounds", "")),
+                               self.android.window_insets(), "MODEL_PICKER_OVERLAPS_SYSTEM_INSETS")
+            return True
+
+        self.wait(handed_off, "CUBE_MENU_TO_PICKER_HANDOFF_NOT_CONFIRMED")
+        self.coverage["cube_model_handoff"] = True
+        if via_reasoning:
+            self.coverage["cube_response_depth_entry"] = True
+        if ime_was_visible:
+            self.coverage["cube_menu_dismisses_ime"] = True
 
     def anchor(self):
         view = self.verify_thread()
         options = []
         composer_top = bounds(view["nodes"]["pandora.chat.input"].get("bounds", ""))[1]
         for key, node in view["nodes"].items():
-            if TURN.fullmatch(key):
+            match = MESSAGE.fullmatch(key)
+            if match and view["phases"].get(match.group(1)) == "completed":
                 rect = bounds(node.get("bounds", ""))
                 if rect[1] >= 0 and 32 < rect[3] < composer_top:
                     options.append((rect[1], key))
@@ -295,10 +451,70 @@ class Journey:
         y, key = sorted(options)[0]
         return key, y
 
-    def assert_anchor(self, anchor, tolerance=32):
+    def assert_anchor(self, anchor, tolerance=8):
         key, y = anchor
         current = bounds(self.node(key).get("bounds", ""))[1]
         require(abs(current - y) <= tolerance, "INTENTIONAL_HISTORY_POSITION_MOVED")
+
+    def picker_anchor_roundtrip(self, anchor):
+        # The reference is an immutable completed message while the user is
+        # reviewing history. Active response growth is intentionally excluded.
+        require("pandora.chat.stop" in self.snapshot()["nodes"],
+                "STREAM_FINISHED_BEFORE_SELECTOR_ANCHOR_CASE")
+        self.open_model_options()
+        self.picker_contained()
+        self.click("pandora.chat.model-picker.close")
+        self.assert_anchor(anchor)
+        require("pandora.chat.latest" in self.snapshot()["nodes"], "HISTORY_INTENT_LOST_AFTER_PICKER")
+        self.coverage["selector_history_anchor"] = True
+
+    def manual_and_fast_selection(self):
+        self.open_model_options()
+        self.picker_contained()
+        self.reveal_picker_choice("pandora.chat.reasoning.fast")
+        self.click("pandora.chat.reasoning.fast")
+        self.open_model_options()
+        self.selection("pandora.chat.reasoning.fast")
+        self.selection("pandora.chat.model.auto")
+        self.coverage["fast_reasoning"] = True
+        self.reveal_picker_choice("pandora.chat.model.advanced")
+        self.click("pandora.chat.model.advanced")
+        manual = None
+        for _ in range(5):
+            view = self.snapshot()
+            left, top, right, bottom = bounds(self.node("pandora.chat.model-picker").get("bounds", ""))
+            def visible_model(node):
+                l, t, r, b = bounds(node.get("bounds", ""))
+                return l < r and t < b and left <= (l + r) // 2 <= right and top <= (t + b) // 2 <= bottom
+            candidates = [key for key, node in view["nodes"].items()
+                          if key.startswith("pandora.chat.model.")
+                          and key not in {"pandora.chat.model.auto", "pandora.chat.model.advanced",
+                                          "pandora.chat.model.local-device"}
+                          and node.get("enabled", "true") == "true"
+                          and visible_model(node)]
+            if candidates:
+                manual = candidates[0]
+                break
+            self.device.swipe((left + right) // 2, top + (bottom - top) * 3 // 4,
+                              (left + right) // 2, top + (bottom - top) // 3, duration=.3)
+        require(manual is not None, "NO_SELECTABLE_MANUAL_MODEL_AVAILABLE_FOR_ACCEPTANCE")
+        self.click(manual)
+        self.open_model_options()
+        self.selection(manual)
+        self.selection("pandora.chat.reasoning.fast")
+        self.click("pandora.chat.model-picker.close")
+        turn = self.send("Reply briefly: selection confirmed.")
+        self.complete(turn)
+        self.open_model_options()
+        self.selection(manual)
+        self.selection("pandora.chat.reasoning.fast")
+        self.coverage["manual_model_selection"] = True
+        self.reveal_picker_choice("pandora.chat.model.auto")
+        self.click("pandora.chat.model.auto")
+        self.open_model_options()
+        self.selection("pandora.chat.model.auto")
+        self.selection("pandora.chat.reasoning.fast")
+        self.click("pandora.chat.reasoning.balanced")
 
     def record(self, number: int | str, action: str, callback):
         started = time.monotonic()
@@ -356,6 +572,7 @@ class Journey:
     def platform(self):
         self.record("platform-1", "Cold launch exact installed APK", self.launch)
         require("pandora.chat.input" not in self.snapshot()["nodes"], "PLATFORM_MODE_REQUIRES_SIGNED_OUT_DEVICE")
+        self.record("platform-insets", "Native sign-in fields avoid observed system bars and cutouts", self.assert_sign_in_insets)
         self.record("platform-2", "Empty sign-in validates locally", lambda: self.exact_text("Sign in"))
         self.wait(lambda: "Enter your email." in text_of(self.snapshot()["root"], include_hints=True),
                   "EMAIL_VALIDATION_ABSENT")
@@ -363,6 +580,7 @@ class Journey:
             def cycle():
                 self.device(className="android.widget.EditText", instance=0).click()
                 self.wait(self.android.ime_visible, "NATIVE_SIGN_IN_IME_NOT_VISIBLE")
+                self.assert_sign_in_insets(focused_only=True)
                 self.device.press("back")
                 self.wait(lambda: not self.android.ime_visible(), "NATIVE_SIGN_IN_IME_DID_NOT_CLOSE")
             self.record(f"platform-ime-{index + 1}", "Real IME open and hardware Back close", cycle)
@@ -396,17 +614,20 @@ class Journey:
         message = "Please remember the code " + self.token + " for this conversation. Acknowledge briefly."
         self.record(12, "Type with conversation history present", lambda: self.set_input(message))
         current = self.record(13, "Send typed message using keyboard shortcut", lambda: self.send(message, via_keyboard=True))
-        self.record(14, "Open options during/after generation", lambda: self.click("pandora.chat.model-options"))
+        def options_with_keyboard():
+            self.open_keyboard()
+            self.open_model_options()
+        self.record(14, "Open cube menu and Model while keyboard is visible during/after generation", options_with_keyboard)
         def selection():
             self.picker_contained()
             if self.node("pandora.chat.model.auto").get("selected") != "true":
                 self.click("pandora.chat.model.auto")
-                self.click("pandora.chat.model-options")
+                self.open_model_options()
             self.selection("pandora.chat.model.auto")
         self.record(15, "Inspect contained model surface and choose Auto", selection)
         def reasoning():
             self.click("pandora.chat.reasoning.deep")
-            self.click("pandora.chat.model-options")
+            self.open_model_options()
             self.selection("pandora.chat.reasoning.deep")
             self.selection("pandora.chat.model.auto")
         self.record(16, "Choose Deep reasoning and confirm independent Auto preference", reasoning)
@@ -443,12 +664,15 @@ class Journey:
         long_turn = self.send("Explain how to plan a small weekend garden in about 400 words, with practical steps.")
         self.close_keyboard()
         def review_history():
-            require(self.phase(long_turn) in ACTIVE, "STREAM_FINISHED_BEFORE_HISTORY_RACE_COULD_BE_EXERCISED")
+            self.wait(lambda: self.phase(long_turn) == "streaming",
+                      "NATIVE_STREAM_NOT_OBSERVED_FOR_HISTORY_RACE", 120)
             width, height = self.device.window_size()
             self.device.swipe(width // 2, height // 3, width // 2, height * 3 // 4, duration=.4)
             self.node("pandora.chat.latest")
             return self.anchor()
         anchor = self.record(31, "Intentionally scroll upward into history", review_history)
+        self.record("31-picker-anchor", "Open and close selector while streaming respects immutable history anchor",
+                    lambda: self.picker_anchor_roundtrip(anchor))
         # The off-screen response may correctly be absent from Android's
         # accessibility tree. Observe the persistent stop control ending here,
         # then inspect the completed turn only after explicitly returning.
@@ -487,22 +711,38 @@ class Journey:
             "Summarize these notes in two sentences:\n" + "A calm and continuous conversation. " * 24)))
         def cancel_then_send():
             turn = self.send("Write a detailed explanation of urban gardening, around 600 words.")
+            self.wait(lambda: self.phase(turn) in {"processing", "streaming"},
+                      "CANCELLATION_ACTIVE_GENERATION_NOT_OBSERVED", 120)
             self.click("pandora.chat.stop")
+            outcome = self.resolve_cancellation(turn)
             next_turn = self.send("Reply only: continued.")
-            self.wait(lambda: self.phase(turn) == "cancelled", "CANCELLATION_NOT_OWNED")
             self.complete(next_turn)
-            require(self.phase(turn) == "cancelled", "STALE_GENERATION_REPAINTED_CANCELLED_TURN")
-        self.record("additional-cancel", "Cancel and immediately send a new message", cancel_then_send)
+            view = self.inspect_prior_turn(turn)
+            phase = view["phases"][turn]
+            if outcome == "cancelled":
+                require(phase == "cancelled", "STALE_GENERATION_REPAINTED_CANCELLED_TURN")
+            elif outcome == "acknowledged_unknown":
+                require(phase == "completed" or (phase == "reconciling" and
+                        view.get("unknown_outcomes", {}).get(turn) == "acknowledged"),
+                        "ACKNOWLEDGED_OUTCOME_REOPENED_WITHOUT_EVIDENCE")
+                require("pandora.chat.retry." + turn not in view["nodes"], "UNKNOWN_OUTCOME_RETRY_EXPOSED")
+            else:
+                require(phase == "completed", "AUTHORITATIVE_COMPLETION_REGRESSED")
+            if "pandora.chat.latest" in self.snapshot()["nodes"]:
+                self.click("pandora.chat.latest")
+        self.record("additional-cancel", "Stop, resolve or explicitly acknowledge outcome, then send a distinct message", cancel_then_send)
         def repeated_picker():
-            for _ in range(3):
-                self.click("pandora.chat.model-options")
+            for index in range(3):
+                self.open_model_options(via_reasoning=index == 1)
                 self.picker_contained()
                 self.click("pandora.chat.reasoning.balanced")
-                self.click("pandora.chat.model-options")
+                self.open_model_options()
                 self.selection("pandora.chat.reasoning.balanced")
                 self.click("pandora.chat.model-picker.close")
                 self.verify_thread()
         self.record("additional-picker", "Repeated options surface open/close", repeated_picker)
+        self.record("additional-manual-fast", "Manual model preference persists through a real turn and stays independent of Fast reasoning",
+                    self.manual_and_fast_selection)
         def restart():
             self.launch()
             # Android deliberately keeps its Auth session in memory. Real
@@ -530,11 +770,16 @@ class Journey:
             "runtime_verified": passed and self.mode == "authenticated",
             "production_verified": False,
             "failure_code": self.failure,
-            "safe_failure_path": "device network interruption; provider outage not asserted",
+            "safe_failure_path": "device network interruption; provider outage not asserted"
+                if any(step["step"] == 23 for step in self.steps) else "not exercised",
             "physical_device_verified": False,
             "provider_timings_verified": False,
             "visual_recording": "private local evidence only" if self.private_evidence else "not captured",
             "raw_conversation_content_included": False,
+            "native_case_coverage": getattr(self, "coverage", {}),
+            "cancellation_outcomes": getattr(self, "cancellation_outcomes", []),
+            "not_exercised": ["native voice/send switching", "physical device", "provider outage",
+                              "provider stage timings", "private visual/video review"],
         }
         if passed:
             result["performance"] = self.android.metrics()

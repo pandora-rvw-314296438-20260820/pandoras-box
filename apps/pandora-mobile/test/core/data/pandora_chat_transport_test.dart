@@ -249,6 +249,148 @@ void main() {
     ]);
   });
 
+  test('explicit acknowledgement preserves unknown outcome across readback',
+      () async {
+    final fixture = _ChatTransport((request, body) {
+      expect(request.headers['x-organization-id'], _organization);
+      return _json({
+        ..._receipt({
+          ...body,
+          'clientAttemptId': 'attempt-3',
+          'generation': 3,
+        }, status: 'outcome_unknown', sequence: 8),
+        'outcomeUnknownAcknowledged': true,
+        'cancellationRequested': true,
+        'retryable': false,
+      });
+    });
+    await fixture.initialize();
+    addTearDown(fixture.client.dispose);
+    final acknowledged = await fixture.api.cancelChatTurn(
+      turnId: 'turn-3',
+      generation: 3,
+      attemptId: 'attempt-3',
+      acknowledgeUnknown: true,
+    );
+    expect(acknowledged.status, 'outcome_unknown');
+    expect(acknowledged.outcomeUnknownAcknowledged, isTrue);
+    expect(acknowledged.recoverable, isFalse);
+    expect(acknowledged.isTerminal, isFalse);
+    final restored = await fixture.api.readChatTurn(turnId: 'turn-3');
+    expect(restored!.data, acknowledged.data);
+    expect(fixture.requests, [
+      {
+        'protocolVersion': 2,
+        'operation': 'cancel',
+        'clientTurnId': 'turn-3',
+        'clientAttemptId': 'attempt-3',
+        'generation': 3,
+        'expectedGeneration': 3,
+        'acknowledgeUnknown': true,
+      },
+      {'protocolVersion': 2, 'operation': 'readback', 'clientTurnId': 'turn-3'},
+    ]);
+  });
+
+  test('acknowledgement requires an exact attempt and ordinary Stop omits it',
+      () async {
+    final fixture = _ChatTransport((_, body) => _json({
+          ..._receipt(body, status: 'outcome_unknown', sequence: 7),
+          'outcomeUnknownAcknowledged': false,
+          'cancellationRequested': true,
+          'retryable': false,
+        }));
+    await fixture.initialize();
+    addTearDown(fixture.client.dispose);
+    for (final attempt in <String?>[null, '', ' ']) {
+      await expectLater(
+          fixture.api.cancelChatTurn(
+            turnId: 'turn-3',
+            generation: 3,
+            attemptId: attempt,
+            acknowledgeUnknown: true,
+          ),
+          throwsFormatException);
+    }
+    expect(fixture.requests, isEmpty);
+    final stopped = await fixture.api.cancelChatTurn(
+      turnId: 'turn-3',
+      generation: 3,
+      attemptId: 'attempt-3',
+      acknowledgeUnknown: false,
+    );
+    expect(stopped.outcomeUnknownAcknowledged, isFalse);
+    expect(stopped.status, 'outcome_unknown');
+    expect(stopped.recoverable, isFalse);
+    expect(fixture.requests.single['operation'], 'cancel');
+    expect(fixture.requests.single.containsKey('acknowledgeUnknown'), isFalse);
+  });
+
+  test('acknowledgement honors terminal races and rejects mismatched receipts',
+      () async {
+    var mismatch = <String, dynamic>{};
+    final fixture = _ChatTransport((_, body) => _json({
+          ..._receipt(body, status: 'completed', sequence: 9),
+          'outcomeUnknownAcknowledged': false,
+          'retryable': false,
+          ...mismatch,
+        }));
+    await fixture.initialize();
+    addTearDown(fixture.client.dispose);
+    Future<PandoraChatWireEvent> acknowledge() => fixture.api.cancelChatTurn(
+          turnId: 'turn-3',
+          generation: 3,
+          attemptId: 'attempt-3',
+          acknowledgeUnknown: true,
+        );
+    final completed = await acknowledge();
+    expect(completed.status, 'completed');
+    expect(completed.isTerminal, isTrue);
+    expect(completed.outcomeUnknownAcknowledged, isFalse);
+    expect(completed.outcomeUnknown, isFalse);
+    for (final otherIdentity in <Map<String, dynamic>>[
+      {'organizationId': 'another-scope'},
+      {'turnId': 'another-turn'},
+      {'attemptId': 'another-attempt'},
+      {'generation': 4},
+    ]) {
+      mismatch = otherIdentity;
+      await expectLater(acknowledge(), throwsFormatException);
+    }
+    expect(fixture.requests.length, 5);
+    expect(
+        fixture.requests.every((body) =>
+            body['operation'] == 'cancel' &&
+            body['clientAttemptId'] == 'attempt-3' &&
+            body['expectedGeneration'] == 3),
+        isTrue);
+  });
+
+  test('an unconfirmed acknowledgement never becomes a send or retry',
+      () async {
+    final fixture = _ChatTransport((_, body) => _json({
+          'ok': false,
+          'code': 'CHAT_OUTCOME_NOT_UNKNOWN',
+          'accepted': true,
+        }, status: 409));
+    await fixture.initialize();
+    addTearDown(fixture.client.dispose);
+    await expectLater(
+        fixture.api.cancelChatTurn(
+          turnId: 'turn-3',
+          generation: 3,
+          attemptId: 'attempt-3',
+          acknowledgeUnknown: true,
+        ),
+        throwsA(isA<PandoraIntelligenceException>()
+            .having((error) => error.code, 'code', 'CHAT_OUTCOME_NOT_UNKNOWN')
+            .having(
+                (error) => error.outcomeUnknown, 'outcomeUnknown', isTrue)));
+    expect(fixture.requests.length, 1);
+    expect(fixture.requests.single['operation'], 'cancel');
+    expect(fixture.requests.single['acknowledgeUnknown'], isTrue);
+  });
+
   test('cancelling unadmitted work retains its exact attempt without a thread',
       () async {
     var wrongAttempt = false;

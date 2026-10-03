@@ -154,12 +154,20 @@ class PandoraIntelligenceApi {
     return event;
   }
 
+  /// Ordinary Stop does not acknowledge unknown side effects. Only an explicit
+  /// user acknowledgement of a confirmed unknown attempt may set the flag;
+  /// the returned receipt remains authoritative if completion races with it.
   Future<PandoraChatWireEvent> cancelChatTurn({
     required String turnId,
     required int generation,
     String? attemptId,
+    bool acknowledgeUnknown = false,
   }) async {
     _requireSession();
+    if (acknowledgeUnknown && (attemptId == null || attemptId.trim().isEmpty)) {
+      throw const FormatException(
+          'Acknowledging an unknown outcome requires an exact attempt.');
+    }
     final response = await _chatTurnControl(<String, Object?>{
       'protocolVersion': 2,
       'operation': 'cancel',
@@ -167,6 +175,7 @@ class PandoraIntelligenceApi {
       if (attemptId != null) 'clientAttemptId': attemptId,
       'generation': generation,
       'expectedGeneration': generation,
+      if (acknowledgeUnknown) 'acknowledgeUnknown': true,
     });
     final event = PandoraChatWireEvent.fromJson(response);
     event.requireIdentity(

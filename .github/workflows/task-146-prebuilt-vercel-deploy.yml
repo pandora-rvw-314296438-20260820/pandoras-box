@@ -68,7 +68,7 @@ jobs:
             --token="$VERCEL_TOKEN"
           test -f .vercel/output/config.json
 
-      - name: Deploy prebuilt output to production
+      - name: Stage prebuilt production output without domain assignment
         id: deploy
         shell: bash
         run: |
@@ -77,6 +77,7 @@ jobs:
             npx --yes vercel@59.10.0 deploy \
               --prebuilt \
               --prod \
+              --skip-domain \
               --yes \
               --token="$VERCEL_TOKEN"
           )"
@@ -93,6 +94,17 @@ jobs:
             --url "$DEPLOYMENT_URL" \
             --source-sha "$SOURCE_SHA" \
             --target candidate | tee "$RUNNER_TEMP/pandora-candidate-release.json"
+
+      - name: Promote verified candidate to production
+        shell: bash
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          npx --yes vercel@59.10.0 promote "$DEPLOYMENT_URL" \
+            --scope "$VERCEL_ORG_ID" \
+            --timeout=3m \
+            --token="$VERCEL_TOKEN"
 
       - name: Bind verified deployment to canonical production alias
         shell: bash

@@ -1,9 +1,63 @@
 """Test receipt parsing; these are not Android runtime acceptance tests."""
 import unittest
-from core_android_device import AndroidDevice, DeviceFailure, parse_ime_visibility, parse_metrics, parse_package_evidence
+from core_android_device import (AndroidDevice, DeviceFailure, parse_ime_visibility,
+                                parse_metrics, parse_package_evidence,
+                                parse_window_insets, require_unoccluded)
+
+
+# Field layout follows pinned AOSP Android 15 dump methods. This is a parser
+# fixture, not an assertion that a native device has emitted these values.
+INSETS = """Display: mDisplayId=0
+  WindowInsetsStateController
+    InsetsState
+      mDisplayFrame=Rect(0, 0 - 720, 1280)
+      mDisplayCutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect={}}
+        InsetsSource id=10 type=statusBars frame=[0,0][720,48] visible=true flags= sideHint=TOP
+        InsetsSource id=20 type=navigationBars frame=[0,1232][720,1280] visible=true flags= sideHint=BOTTOM
+        InsetsSource id=3 type=ime frame=[0,800][720,1280] visible=true flags= sideHint=BOTTOM
+    Control map:
+      historical-copy InsetsSource id=3 type=ime frame=[0,100][720,1280] visible=true
+Display: mDisplayId=1
+  WindowInsetsStateController
+    InsetsState
+      mDisplayFrame=Rect(0, 0 - 400, 400)
+      mDisplayCutout=DisplayCutout{insets=Rect(0, 0 - 0, 0)}
+        InsetsSource id=10 type=statusBars frame=[0,0][400,80] visible=true
+        InsetsSource id=20 type=navigationBars frame=[0,380][400,400] visible=true
+    Control map:
+"""
 
 
 class DeviceReceiptTest(unittest.TestCase):
+    def test_insets_use_current_display_controller_not_control_map_or_other_display(self):
+        insets = parse_window_insets(INSETS)
+        self.assertEqual(insets["display"], (0, 0, 720, 1280))
+        self.assertEqual(len(insets["sources"]), 3)
+        self.assertEqual(insets["sources"][-1]["frame"], (0, 800, 720, 1280))
+
+    def test_full_screen_containment_cannot_hide_system_bar_or_ime_overlap(self):
+        insets = parse_window_insets(INSETS)
+        require_unoccluded((20, 700, 700, 790), insets, "OCCLUDED")
+        for rectangle in ((20, 10, 120, 55), (20, 790, 700, 840), (20, 1240, 700, 1270)):
+            with self.subTest(rectangle=rectangle), self.assertRaisesRegex(DeviceFailure, "OCCLUDED"):
+                require_unoccluded(rectangle, insets, "OCCLUDED")
+        hidden = parse_window_insets(INSETS.replace("[0,800][720,1280] visible=true", "[0,800][720,1280] visible=false"))
+        require_unoccluded((20, 850, 700, 900), hidden, "OCCLUDED")
+
+    def test_cutout_insets_are_applied_independently_of_bar_visibility(self):
+        insets = parse_window_insets(INSETS.replace("insets=Rect(0, 0 - 0, 0)", "insets=Rect(16, 0 - 0, 0)"))
+        with self.assertRaisesRegex(DeviceFailure, "CUTOUT"):
+            require_unoccluded((5, 200, 100, 240), insets, "CUTOUT")
+        require_unoccluded((20, 200, 100, 240), insets, "CUTOUT")
+
+    def test_missing_ambiguous_or_unparsed_geometry_fails_instead_of_using_full_screen(self):
+        for altered in ("unavailable", INSETS.replace("mDisplayId=1", "mDisplayId=0"),
+                        INSETS.replace("mDisplayFrame=", "unrecognized="),
+                        INSETS.replace("type=navigationBars", "type=unsupported"),
+                        INSETS.replace("Control map:", "unrecognized:", 1)):
+            with self.subTest(altered=altered[:40]), self.assertRaises(DeviceFailure):
+                parse_window_insets(altered)
+
     def test_ime_applied_false_overrides_stale_requested_visibility(self):
         self.assertFalse(parse_ime_visibility("mInputShown=false imeVisible=true"))
         self.assertTrue(parse_ime_visibility("mInputShown=true"))

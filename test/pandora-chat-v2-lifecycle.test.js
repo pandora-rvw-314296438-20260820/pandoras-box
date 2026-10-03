@@ -40,6 +40,9 @@ async function fail(t,{ambiguous=false}={}){
 async function retry(t,{id=randomUUID(),expected=t.generation,fingerprint=t.fingerprint}={}){
  await actor();const r=await query("select public.pandora_chat_turn_retry_v2($1,$2,$3,$4,$5,null) r",[org,t.turnId,id,expected,fingerprint]);return{...r,fingerprint};
 }
+async function cancel(t,acknowledgeUnknown=false){
+ await actor();return query("select public.pandora_chat_turn_cancel_v2($1,$2,$3,$4,$5) r",[org,t.turnId,t.generation,t.attemptId,acknowledgeUnknown]);
+}
 async function counts(){await db.exec("reset role");return(await db.query("select (select count(*) from public.pandora_chat_turns)::int turns,(select count(*) from public.pandora_intelligence_threads)::int threads,(select count(*) from public.pandora_intelligence_messages where author_role='user')::int users,(select count(*) from public.pandora_intelligence_messages where author_role='assistant')::int assistants,(select count(*) from public.pandora_activity_jobs)::int jobs")).rows[0];}
 async function rejects(action,pattern=/CHAT_|ACCESS|permission/i){
  await db.exec("savepoint expected_rejection");try{await assert.rejects(action,pattern);}finally{await db.exec("rollback to savepoint expected_rejection;release savepoint expected_rejection");}
@@ -91,6 +94,110 @@ test("a lost retry ACK replays the same attempt and never increments generation 
 test("ambiguous side effects require reconciliation; retry cannot dispatch another action",async()=>{
  const a=await claim(await admitted());const failed=await fail(a,{ambiguous:true});assert.equal(failed.status,"outcome_unknown");assert.equal(failed.retryable,false);
  await rejects(()=>retry(a),/RECONCILIATION_REQUIRED/);assert.equal((await counts()).jobs,1);
+});
+test("explicit acknowledgement releases a stalled thread while retaining unknown effect audit and prohibiting replay",async()=>{
+ const a=await claim(await admitted({message:"Original action"}));await transition(a);await actor(null,"service_role");
+ await query("select public.pandora_chat_turn_effect_v2($1,$2,1,$3,'begin') r",[a.turnId,a.attemptId,a.claim]);
+ await db.exec("reset role");
+ await db.query("update public.pandora_activity_jobs set execution_updated_at=clock_timestamp()-interval '6 minutes' where id=$1",[a.activityJobId]);
+ await db.query("update public.pandora_chat_turn_attempts set updated_at=clock_timestamp()-interval '6 minutes' where id=$1",[a.attemptId]);
+ await actor(null,"service_role");const unknown=await query("select public.pandora_chat_turn_reconcile_v2($1) r",[a.turnId]);
+ assert.equal(unknown.status,"outcome_unknown");assert.equal(unknown.outcomeUnknownAcknowledged,false);
+ await rejects(()=>admitted({thread:a.threadId,message:"Another request"}),/THREAD_BUSY/);
+ const stopped=await cancel(a),stopReplay=await cancel(a);
+ assert.equal(stopped.status,"outcome_unknown");assert.equal(stopped.outcomeUnknownAcknowledged,false);
+ assert.equal(stopped.completedAt,null);assert.equal(stopReplay.sequence,stopped.sequence);
+ await rejects(()=>admitted({thread:a.threadId,message:"Still blocked"}),/THREAD_BUSY/);
+ const acknowledged=await cancel(a,true),ackReplay=await cancel(a,true),ordinaryReplay=await cancel(a);
+ assert.equal(acknowledged.status,"outcome_unknown");assert.equal(acknowledged.retryable,false);
+ assert.equal(acknowledged.outcomeUnknownAcknowledged,true);assert.equal(acknowledged.cancellationRequested,true);
+ assert.equal(acknowledged.errorCode,unknown.errorCode);assert.equal(acknowledged.completedAt,null);
+ assert.ok(acknowledged.sequence>stopped.sequence);assert.deepEqual(ackReplay,acknowledged);assert.deepEqual(ordinaryReplay,acknowledged);
+ await rejects(()=>retry(a),/RECONCILIATION_REQUIRED/);
+ assert.equal((await claim(a)).claimResult.mode,"observe");
+ await db.exec("reset role");
+ const audit=(await db.query("select a.status,a.error_code,a.uncertainty_acknowledged_at is not null acknowledged,j.execution_effect_state,j.execution_state,j.execution_claim_id from public.pandora_chat_turn_attempts a join public.pandora_activity_jobs j on j.id=a.activity_job_id where a.id=$1",[a.attemptId])).rows[0];
+ assert.deepEqual(audit,{status:"outcome_unknown",error_code:unknown.errorCode,acknowledged:true,execution_effect_state:"ambiguous",execution_state:"running",execution_claim_id:a.claim});
+ assert.equal(await query("select count(*)::integer r from public.pandora_activity_controls where job_id=$1",[a.activityJobId]),1);
+ const b=await admitted({thread:a.threadId,message:"A distinct next request"});assert.equal(b.turnSequence,2);assert.equal(b.threadId,a.threadId);
+ await rejects(()=>admitted({thread:a.threadId,message:"Cannot overlap the new active turn"}),/THREAD_BUSY/);
+ await actor();const view=await query("select public.pandora_chat_thread_view_v2($1) r",[a.threadId]);
+ assert.equal(view.turns[0].status,"outcome_unknown");assert.equal(view.turns[0].outcomeUnknownAcknowledged,true);
+ assert.equal(view.turns[0].errorCode,unknown.errorCode);assert.equal(view.turns[1].turnId,b.turnId);
+ assert.deepEqual(await counts(),{turns:2,threads:1,users:2,assistants:0,jobs:2});
+});
+test("acknowledgement cannot bypass a currently active turn or manufacture an absent admission",async()=>{
+ const a=await claim(await admitted());
+ for(const status of ["accepted","processing","streaming"]){
+   if(status!=="accepted")await transition(a,status);
+   await rejects(()=>cancel(a,true),/OUTCOME_NOT_UNKNOWN/);
+   await rejects(()=>admitted({thread:a.threadId,message:"Blocked while active"}),/THREAD_BUSY/);
+ }
+ await actor();await rejects(()=>query("select public.pandora_chat_turn_cancel_v2($1,$2,1,$3,true) r",[org,randomUUID(),randomUUID()]),/OUTCOME_NOT_UNKNOWN/);
+ assert.deepEqual(await counts(),{turns:1,threads:1,users:1,assistants:0,jobs:1});
+});
+test("unknown acknowledgement frees another failed turn's retry but never its own retry",async()=>{
+ const older=await claim(await admitted({message:"Safely failed first"}));await fail(older);
+ const uncertain=await claim(await admitted({thread:older.threadId,message:"Uncertain later action"}));await fail(uncertain,{ambiguous:true});
+ await rejects(()=>retry(older),/THREAD_BUSY/);await cancel(uncertain,true);
+ const recovered=await retry(older);assert.equal(recovered.generation,2);assert.equal(recovered.userMessageId,older.userMessageId);
+ await rejects(()=>retry(uncertain),/RECONCILIATION_REQUIRED/);
+ assert.equal((await counts()).users,2);assert.equal((await counts()).jobs,3);
+});
+test("acknowledgement fences stale stream, effect and failure callbacks but accepts original verified readback without disturbing a newer turn",async()=>{
+ const a=await claim(await admitted({message:"Original effect"}));await transition(a);await fail(a,{ambiguous:true});
+ const acknowledged=await cancel(a,true);const b=await claim(await admitted({thread:a.threadId,message:"Continue safely"}));await transition(b);
+ await rejects(()=>transition(a,"processing"),/TRANSITION_INVALID/);await rejects(()=>transition(a,"streaming"),/TRANSITION_INVALID/);
+ await actor(null,"service_role");await rejects(()=>query("select public.pandora_chat_turn_effect_v2($1,$2,1,$3,'begin') r",[a.turnId,a.attemptId,a.claim]),/STALE/);
+ await actor();await rejects(()=>query("select public.pandora_chat_dispatch_turn_v2($1,$2,$3,1,$4,'Original effect') r",[org,a.turnId,a.attemptId,a.claim]),/STALE/);
+ await rejects(()=>finish(a,"Unverified stale completion"),/STALE/);
+ const lateFailure=await transition(a,"failed_recoverably",true);assert.equal(lateFailure.applied,false);
+ assert.equal(lateFailure.errorCode,acknowledged.errorCode);assert.equal(lateFailure.retryable,false);assert.equal(lateFailure.sequence,acknowledged.sequence);
+ await actor(null,"service_role");
+ await query("select public.pandora_chat_turn_effect_v2($1,$2,1,$3,'verified',$4) r",[a.turnId,a.attemptId,a.claim,{reply:"Original effect later verified",providerReadback:{verified:true}}]);
+ const completed=await query("select public.pandora_chat_turn_reconcile_v2($1) r",[a.turnId]);
+ assert.equal(completed.turnId,a.turnId);assert.equal(completed.status,"completed");assert.equal(completed.outcomeUnknownAcknowledged,true);
+ assert.equal(completed.cancellationRequested,true);assert.equal(completed.retryable,false);
+ const duplicate=await query("select public.pandora_chat_turn_reconcile_v2($1) r",[a.turnId]);assert.equal(duplicate.assistantMessageId,completed.assistantMessageId);
+ await actor();const active=await query("select public.pandora_chat_turn_read_v2($1,$2) r",[org,b.turnId]);assert.equal(active.status,"processing");assert.equal(active.attemptId,b.attemptId);
+ await rejects(()=>admitted({thread:a.threadId,message:"Still blocked by the newer active turn"}),/THREAD_BUSY/);
+ await finish(b,"New turn completed separately");await actor();
+ const history=await query("select public.pandora_chat_history_v2($1) r",[a.threadId]);
+ assert.deepEqual(history.map(x=>x.content),["Original effect","Original effect later verified","Continue safely","New turn completed separately"]);
+ assert.deepEqual(await counts(),{turns:2,threads:1,users:2,assistants:2,jobs:2});
+});
+test("acknowledged provider uncertainty cannot be converted by a late failure into a retryable attempt",async()=>{
+ const a=await claim(await admitted());await transition(a);await transition(a,"outcome_unknown");
+ const acknowledged=await cancel(a,true);assert.equal(acknowledged.status,"outcome_unknown");assert.equal(acknowledged.outcomeUnknownAcknowledged,true);
+ const failure=await transition(a,"failed_recoverably",true);assert.equal(failure.applied,false);assert.equal(failure.retryable,false);
+ await actor(null,"service_role");const readback=await query("select public.pandora_chat_turn_reconcile_v2($1) r",[a.turnId]);
+ assert.equal(readback.status,"outcome_unknown");assert.equal(readback.sequence,acknowledged.sequence);
+ assert.equal(await query("select execution_effect_state r from public.pandora_activity_jobs where id=$1",[a.activityJobId]),"none");
+ assert.equal(await query("select execution_state r from public.pandora_activity_jobs where id=$1",[a.activityJobId]),"cancelled");
+ await rejects(()=>retry(a),/RECONCILIATION_REQUIRED/);await rejects(()=>finish(a),/STALE/);
+ const b=await admitted({thread:a.threadId});assert.equal(b.threadId,a.threadId);
+});
+test("verified result racing acknowledgement remains authoritative and is reconciled before thread progress",async()=>{
+ const a=await claim(await admitted());await fail(a,{ambiguous:true});await actor(null,"service_role");
+ await query("select public.pandora_chat_turn_effect_v2($1,$2,1,$3,'verified',$4) r",[a.turnId,a.attemptId,a.claim,{reply:"Already completed and verified"}]);
+ const cancelled=await cancel(a,true);assert.equal(cancelled.status,"outcome_unknown");assert.equal(cancelled.outcomeUnknownAcknowledged,false);
+ await rejects(()=>admitted({thread:a.threadId}),/THREAD_BUSY/);await actor(null,"service_role");
+ const completed=await query("select public.pandora_chat_turn_reconcile_v2($1) r",[a.turnId]);assert.equal(completed.status,"completed");assert.equal(completed.reply,"Already completed and verified");
+ const replay=await cancel(a,true);assert.equal(replay.status,"completed");assert.equal(replay.outcomeUnknownAcknowledged,false);
+ await admitted({thread:a.threadId});assert.equal((await counts()).assistants,1);
+});
+test("acknowledgement enforces exact actor, attempt, generation and authenticated grants",async()=>{
+ const a=await claim(await admitted());await fail(a,{ambiguous:true});await actor();
+ await rejects(()=>query("select public.pandora_chat_turn_cancel_v2($1,$2,1,null,true) r",[org,a.turnId]),/ATTEMPT_REQUIRED/);
+ await rejects(()=>query("select public.pandora_chat_turn_cancel_v2($1,$2,1,$3,true) r",[org,a.turnId,randomUUID()]),/GENERATION_STALE/);
+ await rejects(()=>query("select public.pandora_chat_turn_cancel_v2($1,$2,2,$3,true) r",[org,a.turnId,a.attemptId]),/GENERATION_STALE/);
+ await actor(other);await rejects(()=>query("select public.pandora_chat_turn_cancel_v2($1,$2,1,$3,true) r",[org,a.turnId,a.attemptId]),/NOT_AVAILABLE/);
+ await actor(null,"anon");await rejects(()=>query("select public.pandora_chat_turn_cancel_v2($1,$2,1,$3,true) r",[org,a.turnId,a.attemptId]),/permission/);
+ await actor();const receipt=await query("select public.pandora_chat_turn_read_v2($1,$2) r",[org,a.turnId]);assert.equal(receipt.outcomeUnknownAcknowledged,false);
+ const granted=await query("select has_function_privilege('authenticated','public.pandora_chat_turn_cancel_v2(uuid,uuid,integer,uuid,boolean)','execute') r");assert.equal(granted,true);
+ assert.equal(await query("select has_function_privilege('anon','public.pandora_chat_turn_cancel_v2(uuid,uuid,integer,uuid,boolean)','execute') r"),false);
+ await rejects(()=>db.query("update public.pandora_chat_turn_attempts set uncertainty_acknowledged_at=clock_timestamp() where id=$1",[a.attemptId]),/permission/);
+ assert.equal((await counts()).jobs,1);
 });
 test("cancellation fences stale success and permits an immediate following logical turn",async()=>{
  const a=await claim(await admitted());await transition(a);await actor();const r=await query("select public.pandora_chat_turn_cancel_v2($1,$2,1) r",[org,a.turnId]);assert.equal(r.status,"cancelled");

@@ -253,7 +253,9 @@ extension _PandoraActionAdapters on AskPandoraScreenState {
       return;
     }
     final status = await PandoraLocalAi.instance.status();
-    if (!mounted || !identical(owner, _controller) || !_isPlpEnterpriseContext) {
+    if (!mounted ||
+        !identical(owner, _controller) ||
+        !_isPlpEnterpriseContext) {
       return;
     }
     final decision = PandoraLocalAiRouter.decide(
@@ -413,13 +415,8 @@ extension _PandoraActionAdapters on AskPandoraScreenState {
 
   String _boundedConversationPrompt(String message) {
     final completed = <String>[
-      for (final row in _chat.state.history)
+      for (final row in _chat.state.conversationContext)
         '${row.isUser ? 'User' : 'Pandora'}: ${row.text}',
-      for (final turn in _chat.state.turns
-          .where((t) => t.phase == PandoraChatPhase.completed)) ...[
-        'User: ${turn.text}',
-        'Pandora: ${turn.reply}'
-      ],
     ];
     if (completed.isEmpty) return message;
     var previous = completed

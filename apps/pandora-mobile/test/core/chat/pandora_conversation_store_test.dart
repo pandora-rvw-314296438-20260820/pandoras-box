@@ -239,6 +239,7 @@ void main() {
     PandoraChatPhase.streaming,
     PandoraChatPhase.cancelling,
     PandoraChatPhase.reconciling,
+    PandoraChatPhase.acknowledgingUnknown,
   ]) {
     test('restart reconciles ${phase.name} without another execution',
         () async {
@@ -262,6 +263,118 @@ void main() {
       expect(snapshot.state.history, isEmpty);
     });
   }
+
+  for (final acknowledged in [false, true]) {
+    test(
+        'restart preserves unknown outcome acknowledgement $acknowledged and its admission boundary',
+        () async {
+      final store = _store(_ControlledStore());
+      final receipt = PandoraChatExecutionReceipt(
+          outcomeUnknownAcknowledged: acknowledged,
+          routing: const {'executionStatus': 'outcome_unknown'});
+      const unknown = PandoraChatFailure(
+          message: 'Outcome unconfirmed',
+          recoverable: false,
+          outcomeUnknown: true);
+      final phase = acknowledged
+          ? PandoraChatPhase.reconciling
+          : PandoraChatPhase.acknowledgingUnknown;
+      await store.save(_state(
+        draft: '',
+        turns: [
+          _turn(phase: phase, reply: '', failure: unknown).copyWith(
+            receipt: receipt,
+            attempts: [
+              _attempt(phase: phase, failure: unknown)
+                  .copyWith(receipt: receipt),
+            ],
+          ),
+        ],
+      ));
+      final snapshot = (await store.loadActive())!;
+      expect(snapshot.requiresReconciliation, isTrue);
+      final restored = snapshot.state;
+      final old = restored.turns.single;
+      expect(old.phase, PandoraChatPhase.reconciling);
+      expect(old.receipt!.routing['executionStatus'], 'outcome_unknown');
+      expect(old.outcomeUnknownAcknowledged, acknowledged);
+      expect(old.attempt!.receipt!.outcomeUnknownAcknowledged, acknowledged);
+      expect(old.attempt!.cancellationRequested, isFalse);
+      expect(old.failure!.outcomeUnknown, isTrue);
+      expect(old.canRetry, isFalse);
+      expect(restored.hasUnresolvedOutcome, !acknowledged);
+      expect(restored.conversationContext, isEmpty);
+      final controller = PandoraChatController(scopeId: 'scope-one');
+      addTearDown(controller.dispose);
+      expect(controller.restore(restored, expectedRevision: 0), isTrue);
+      controller.setDraft('A distinct new message');
+      final next = controller.submitDraft();
+      expect(
+          next.kind,
+          acknowledged
+              ? PandoraChatAdmissionKind.dispatched
+              : PandoraChatAdmissionKind.queued);
+      expect(next.turnId, isNot('turn-one'));
+      if (acknowledged) {
+        expect(next.dispatch!.threadId, 'thread-one');
+        expect(next.dispatch!.token.generation, 1);
+      } else {
+        expect(controller.takeQueued().admitted, isFalse);
+      }
+      expect(controller.state.turn('turn-one')!.attempts.length, 1);
+      expect(controller.state.turn('turn-one')!.phase,
+          PandoraChatPhase.reconciling);
+    });
+  }
+
+  test('restart retains historical acknowledgement after genuine completion',
+      () async {
+    final store = _store(_ControlledStore());
+    final receipt = PandoraChatExecutionReceipt(
+        outcomeUnknownAcknowledged: true,
+        routing: const {'executionStatus': 'completed'});
+    await store.save(_state(turns: [
+      _turn().copyWith(
+          receipt: receipt, attempts: [_attempt().copyWith(receipt: receipt)]),
+    ]));
+    final state = (await store.loadActive())!.state;
+    expect(state.turns.single.phase, PandoraChatPhase.completed);
+    expect(state.turns.single.outcomeUnknownAcknowledged, isTrue);
+    expect(state.turns.single.canRetry, isFalse);
+    expect(state.hasUnresolvedOutcome, isFalse);
+    expect(state.conversationContext.map((message) => message.text),
+        ['Hi', 'Hello.']);
+  });
+
+  test('invalid acknowledgement receipt cannot replace a verified cache',
+      () async {
+    final backend = _ControlledStore();
+    final store = _store(backend);
+    await store.save(_state());
+    final invalid = PandoraChatExecutionReceipt(
+        outcomeUnknownAcknowledged: true,
+        routing: const {'executionStatus': 'failed_recoverably'});
+    expect(
+        () => store.save(_state(revision: 2, turns: [
+              _turn().copyWith(receipt: invalid),
+            ])),
+        throwsFormatException);
+    expect((await store.loadActive())!.state.turns.single.reply, 'Hello.');
+
+    // An externally corrupted cached acknowledgement also fails closed.
+    final activeKey = _activeKey('scope-one');
+    final payload = backend.written[activeKey]!;
+    final cachedTurn = (payload['turns']! as List).single as Map;
+    final cachedReceipt = cachedTurn['receipt']! as Map;
+    cachedReceipt['outcomeUnknownAcknowledged'] = true;
+    cachedReceipt['executionStatus'] = 'failed_recoverably';
+    await backend.putCache(
+        namespace: PandoraLocalNamespace.recentConversation,
+        key: activeKey,
+        payload: payload,
+        expiresAt: _now.add(const Duration(hours: 1)));
+    expect(await store.loadActive(), isNull);
+  });
 
   test('successful retry keeps the same turn and resolved attempt history',
       () async {
@@ -677,6 +790,50 @@ void main() {
     expect(message.id, 'assistant-alias-row');
     expect(message.role, 'pandora');
     expect(message.isUser, isFalse);
+  });
+
+  test('unverified history cannot replace either active or saved thread cache',
+      () async {
+    final backend = _ControlledStore();
+    final store = _store(backend);
+    await store.save(_state());
+    final active = PandoraChatSessionState(
+        scopeId: 'scope-one',
+        scopeEpoch: 2,
+        conversationId: 'conversation-two',
+        threadId: 'thread-two',
+        history: [
+          PandoraChatHistoryMessage(
+              id: 'verified-two',
+              threadId: 'thread-two',
+              role: 'assistant',
+              text: 'Second saved conversation',
+              createdAt: _now),
+        ]);
+    expect(await store.save(active), isTrue);
+    final writes = backend.written.length;
+    for (final phase in [
+      PandoraChatHistoryPhase.loading,
+      PandoraChatHistoryPhase.failed,
+    ]) {
+      final unverified = PandoraChatSessionState(
+          scopeId: 'scope-one',
+          scopeEpoch: 3,
+          conversationId: 'unverified-conversation',
+          threadId: 'thread-one',
+          historyPhase: phase);
+      expect(await store.save(unverified), isFalse);
+      expect(
+          (await store.loadActive())!.state.conversationId, 'conversation-two');
+      expect((await store.loadThread('thread-one'))!.state.turns.single.reply,
+          'Hello.');
+      expect(backend.written.length, writes);
+    }
+    final otherScope = PandoraConversationStore(backend,
+        scopeId: 'scope-two', clock: () => _now);
+    expect(await otherScope.loadActive(), isNull);
+    expect(await otherScope.loadThread('thread-one'), isNull);
+    expect((await store.loadActive())!.state.history.single.id, 'verified-two');
   });
 
   test(

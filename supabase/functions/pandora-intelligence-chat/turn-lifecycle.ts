@@ -98,7 +98,7 @@ export async function openChatTurn(clients:any,input:any,fingerprint:string,sink
   const common={p_organization_id:clients.organizationId,p_turn_id:v.clientTurnId};
   if(v.operation==="readback"||v.operation==="cancel"){
     const readback=v.operation==="readback"?await readChatTurnReceipt(clients,v.clientTurnId):
-      await rpc(clients.user,"pandora_chat_turn_cancel_v2",{...common,p_expected_generation:v.expectedGeneration,p_attempt_id:v.clientAttemptId});
+      await rpc(clients.user,"pandora_chat_turn_cancel_v2",{...common,p_expected_generation:v.expectedGeneration,p_attempt_id:v.clientAttemptId,p_acknowledge_unknown:v.acknowledgeUnknown===true});
     return{readback};
   }
   const args=v.operation==="retry"?{...common,p_attempt_id:v.clientAttemptId,p_expected_generation:v.expectedGeneration,p_request_sha256:fingerprint,p_entry_id:entryId}:

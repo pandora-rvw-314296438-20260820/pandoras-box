@@ -208,6 +208,187 @@ void main() {
     },
   );
 
+  PandoraChatExecutionReceipt unknownReceipt({bool acknowledged = false}) =>
+      PandoraChatExecutionReceipt(
+          outcomeUnknownAcknowledged: acknowledged,
+          routing: const {'executionStatus': 'outcome_unknown'});
+
+  test('continuation requires confirmed unknown outcome, not connection loss',
+      () {
+    final original = send('Create the record');
+    chat.accept(original.token, threadId: 'thread-one', sequence: 1);
+    chat.fail(original.token,
+        message: 'Connection lost', outcomeUnknown: true, recoverable: false);
+    expect(chat.state.turns.single.canAcknowledgeUnknownOutcome, isFalse);
+    expect(chat.requestUnknownAcknowledgement(original.token), isFalse);
+    chat.fail(original.token,
+        message: 'Outcome unconfirmed',
+        outcomeUnknown: true,
+        recoverable: false,
+        receipt: unknownReceipt(),
+        sequence: 2);
+    expect(chat.state.turns.single.canAcknowledgeUnknownOutcome, isTrue);
+    expect(chat.requestUnknownAcknowledgement(original.token), isTrue);
+    expect(chat.requestUnknownAcknowledgement(original.token), isFalse);
+    expect(
+        chat.state.turns.single.phase, PandoraChatPhase.acknowledgingUnknown);
+    expect(chat.state.turns.single.outcomeUnknownAcknowledged, isFalse);
+    expect(chat.state.hasUnresolvedOutcome, isTrue);
+    expect(chat.state.turns.single.attempt!.cancellationRequested, isFalse);
+    expect(chat.retry(original.turn.id).admitted, isFalse);
+    chat.setDraft('A distinct follow-up');
+    expect(chat.submitDraft().kind, PandoraChatAdmissionKind.queued);
+    expect(chat.takeQueued().admitted, isFalse);
+    expect(chat.stream(original.token, delta: 'Stale output', sequence: 3),
+        isFalse);
+    expect(chat.state.turns.first.reply, isEmpty);
+  });
+
+  test('durable acknowledgement opens distinct-turn admission only', () {
+    final original = send('Create the record');
+    chat.accept(original.token, threadId: 'thread-one', sequence: 1);
+    chat.fail(original.token,
+        message: 'Outcome unconfirmed',
+        outcomeUnknown: true,
+        recoverable: false,
+        receipt: unknownReceipt(),
+        sequence: 2);
+    chat.setDraft('Inspect a different record');
+    final queued = chat.submitDraft();
+    expect(chat.requestUnknownAcknowledgement(original.token), isTrue);
+    expect(chat.takeQueued().admitted, isFalse);
+    expect(
+        chat.fail(original.token,
+            message: 'Outcome remains unconfirmed',
+            outcomeUnknown: true,
+            recoverable: false,
+            receipt: unknownReceipt(acknowledged: true),
+            sequence: 3),
+        isTrue);
+    final unresolved = chat.state.turn(original.turn.id)!;
+    expect(unresolved.phase, PandoraChatPhase.reconciling);
+    expect(unresolved.failure!.outcomeUnknown, isTrue);
+    expect(unresolved.receipt!.routing['executionStatus'], 'outcome_unknown');
+    expect(unresolved.outcomeUnknownAcknowledged, isTrue);
+    expect(unresolved.canRetry, isFalse);
+    expect(unresolved.canAcknowledgeUnknownOutcome, isFalse);
+    expect(chat.state.hasUnresolvedOutcome, isFalse);
+    expect(chat.retry(original.turn.id).admitted, isFalse);
+    final next = chat.takeQueued().dispatch!;
+    expect(next.token.turnId, queued.turnId);
+    expect(next.token.turnId, isNot(original.token.turnId));
+    expect(next.threadId, 'thread-one');
+    expect(next.token.generation, 1);
+    expect(next.request['clientHistory'], isNull);
+    expect(chat.state.conversationContext, isEmpty);
+    expect(chat.state.activeAttempt, next.token);
+  });
+
+  test('acknowledged ambiguity rejects stale failure and settles only old turn',
+      () {
+    final original = send('Create the record');
+    chat.accept(original.token, threadId: 'thread-one', sequence: 1);
+    chat.fail(original.token,
+        message: 'Acknowledged but unconfirmed',
+        outcomeUnknown: true,
+        recoverable: false,
+        receipt: unknownReceipt(acknowledged: true),
+        sequence: 3);
+    final next = send('Different task');
+    chat.accept(next.token, threadId: 'thread-one', sequence: 1);
+    chat.stream(next.token, delta: 'Current response', sequence: 2);
+    expect(
+        chat.fail(original.token, message: 'Old recoverable failure'), isFalse);
+    expect(
+        chat.fail(original.token,
+            message: 'Older unknown receipt',
+            outcomeUnknown: true,
+            receipt: unknownReceipt(),
+            sequence: 4),
+        isFalse);
+    expect(chat.processing(original.token, sequence: 4), isFalse);
+    expect(chat.cancel(original.token, sequence: 4), isFalse);
+    expect(chat.requestCancellation(original.token), isFalse);
+    expect(
+        chat.complete(original.token, reply: 'Unverified completion'), isFalse);
+    expect(
+        chat.complete(original.token,
+            reply: 'Unverified readback', reconciled: true),
+        isFalse);
+    expect(
+        chat.complete(original.token,
+            reply: 'Verified original result',
+            assistantMessageId: 'original-assistant',
+            reconciled: true,
+            sequence: 4,
+            receipt: PandoraChatExecutionReceipt(
+                outcomeUnknownAcknowledged: true,
+                assistantMessageId: 'original-assistant',
+                routing: const {'executionStatus': 'completed'})),
+        isTrue);
+    final settled = chat.state.turn(original.turn.id)!;
+    expect(settled.phase, PandoraChatPhase.completed);
+    expect(settled.reply, 'Verified original result');
+    expect(settled.failure, isNull);
+    expect(settled.outcomeUnknownAcknowledged, isTrue);
+    expect(settled.sequence, 1);
+    expect(settled.canRetry, isFalse);
+    expect(chat.state.activeAttempt, next.token);
+    expect(chat.state.turn(next.turn.id)!.reply, 'Current response');
+    expect(chat.state.turns.map((turn) => turn.id),
+        [original.turn.id, next.turn.id]);
+    chat.setDraft('Third distinct task');
+    expect(chat.submitDraft().kind, PandoraChatAdmissionKind.queued);
+    expect(chat.takeQueued().admitted, isFalse);
+  });
+
+  test('ordinary Stop does not acknowledge an unknown outcome', () {
+    final original = send('Create the record');
+    chat.accept(original.token, threadId: 'thread-one', sequence: 1);
+    expect(chat.requestCancellation(original.token), isTrue);
+    chat.fail(original.token,
+        message: 'Outcome unconfirmed',
+        outcomeUnknown: true,
+        recoverable: false,
+        receipt: unknownReceipt(),
+        sequence: 2);
+    expect(chat.state.hasUnresolvedOutcome, isTrue);
+    expect(chat.state.turns.single.outcomeUnknownAcknowledged, isFalse);
+    expect(chat.state.turns.single.canAcknowledgeUnknownOutcome, isTrue);
+    expect(chat.requestCancellation(original.token), isTrue);
+    expect(chat.state.turns.single.outcomeUnknownAcknowledged, isFalse);
+    expect(chat.state.hasUnresolvedOutcome, isTrue);
+  });
+
+  test('scope reset fences an acknowledgement callback and invalid receipts',
+      () {
+    final original = send('Create the record');
+    chat.accept(original.token, threadId: 'thread-one', sequence: 1);
+    chat.fail(original.token,
+        message: 'Outcome unconfirmed',
+        outcomeUnknown: true,
+        recoverable: false,
+        receipt: unknownReceipt(),
+        sequence: 2);
+    expect(
+        chat.fail(original.token,
+            message: 'Contradictory failure',
+            receipt: unknownReceipt(acknowledged: true)),
+        isFalse);
+    chat.requestUnknownAcknowledgement(original.token);
+    chat.dispose();
+    chat = PandoraChatController(scopeId: 'different-actor:organization');
+    expect(
+        chat.fail(original.token,
+            message: 'Old acknowledgement',
+            outcomeUnknown: true,
+            receipt: unknownReceipt(acknowledged: true),
+            sequence: 3),
+        isFalse);
+    expect(chat.state.turns, isEmpty);
+    expect(chat.state.scopeId, 'different-actor:organization');
+  });
+
   test(
     'cancellation fences content immediately; next waits for acknowledgment',
     () {
@@ -344,6 +525,115 @@ void main() {
     );
     expect(chat.replaceHistory(load, [row]), isFalse);
     expect(chat.state.history, isEmpty);
+  });
+
+  test('failed history requires a fresh verified load before any admission',
+      () {
+    final first = chat.beginHistoryLoad('thread-one')!;
+    expect(chat.submit('During loading').reason, 'history_loading');
+    expect(chat.failHistoryLoad(first), isTrue);
+    expect(chat.state.historyPhase, PandoraChatHistoryPhase.failed);
+    expect(chat.submit('After failure').reason, 'history_unverified');
+    expect(chat.retry('unrelated-turn').reason, 'execution_unresolved');
+    expect(chat.takeQueued().reason, 'execution_unresolved');
+    expect(chat.state.turns, isEmpty);
+
+    final retry = chat.beginHistoryLoad('thread-one')!;
+    expect(retry.scopeEpoch, greaterThan(first.scopeEpoch));
+    expect(retry.conversationId, isNot(first.conversationId));
+    final row = PandoraChatHistoryMessage(
+        id: 'verified-message',
+        threadId: 'thread-one',
+        role: 'user',
+        text: 'Verified earlier message',
+        createdAt: DateTime.utc(2026));
+    expect(chat.replaceHistory(first, [row]), isFalse);
+    expect(chat.failHistoryLoad(first), isFalse);
+    expect(chat.state.loadingHistory, isTrue);
+    expect(chat.replaceHistory(retry, [row]), isTrue);
+    expect(chat.state.historyReady, isTrue);
+    expect(send('Continue').threadId, 'thread-one');
+    expect(chat.state.history.single.id, 'verified-message');
+  });
+
+  test('failed or loading history cannot be restored as a ready snapshot', () {
+    for (final phase in [
+      PandoraChatHistoryPhase.loading,
+      PandoraChatHistoryPhase.failed,
+    ]) {
+      final unverified = PandoraChatSessionState(
+          scopeId: chat.state.scopeId,
+          scopeEpoch: 1,
+          conversationId: 'unverified-conversation',
+          threadId: 'unverified-thread',
+          historyPhase: phase);
+      expect(chat.restore(unverified, expectedRevision: 0), isFalse);
+      expect(chat.state.threadId, isNull);
+    }
+  });
+
+  test('conversation context orders mixed rows and excludes obsolete receipts',
+      () {
+    PandoraChatTurn turn(String id, int order,
+            {PandoraChatPhase phase = PandoraChatPhase.completed}) =>
+        PandoraChatTurn(
+            id: id,
+            text: '$id user',
+            reply: '$id reply',
+            createdAt: DateTime.utc(2026),
+            sequence: order,
+            phase: phase,
+            preferences: const PandoraChatPreferences.auto(),
+            request: const {},
+            userMessageId: '$id-user-id',
+            receipt: PandoraChatExecutionReceipt(
+                assistantMessageId: '$id-receipt-id'));
+    PandoraChatHistoryMessage row(String id, String text, int order, bool user,
+            {String? turnId}) =>
+        PandoraChatHistoryMessage(
+            id: id,
+            threadId: 'thread-one',
+            role: user ? 'user' : 'assistant',
+            text: text,
+            createdAt: DateTime.utc(2026),
+            sequence: order,
+            turnId: turnId);
+    final state = PandoraChatSessionState(
+        scopeId: chat.state.scopeId,
+        scopeEpoch: 1,
+        conversationId: 'mixed-conversation',
+        threadId: 'thread-one',
+        history: [
+          row('local-reply', 'Local middle reply', 3, false),
+          row('cloud-a-user-id', 'Duplicate user', 10, true),
+          row('local-user', 'Local middle', 2, true),
+          row('cloud-a-receipt-id', 'Duplicate receipt', 11, false),
+          row('failed-history', 'Failed content', 12, false,
+              turnId: 'failedRecoverably'),
+        ],
+        turns: [
+          turn('cloud-c', 4),
+          turn('cloud-a', 1),
+          for (final phase in PandoraChatPhase.values)
+            if (phase != PandoraChatPhase.completed)
+              turn(phase.name, 5 + phase.index, phase: phase),
+        ]);
+    expect(state.conversationContext.map((row) => row.text), [
+      'cloud-a user',
+      'cloud-a reply',
+      'Local middle',
+      'Local middle reply',
+      'cloud-c user',
+      'cloud-c reply',
+    ]);
+    expect(state.conversationContext.map((row) => row.isUser),
+        [true, false, true, false, true, false]);
+    expect(() => state.conversationContext.clear(), throwsUnsupportedError);
+    expect(
+        state
+            .copyWith(historyPhase: PandoraChatHistoryPhase.failed)
+            .conversationContext,
+        isEmpty);
   });
 
   test('completed and permanently failed requests cannot retry', () {
