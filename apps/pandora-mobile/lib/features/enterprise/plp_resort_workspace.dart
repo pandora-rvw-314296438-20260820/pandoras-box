@@ -325,16 +325,19 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     );
     final availableActions = _sourceAvailableActions();
     return <Widget>[
-      _SourceRecoveryPanel(
-        source: provider,
-        state: sourceState,
-        affectedArea: eyebrow,
-        unavailable: detail,
-        remainsAvailable:
-            'Pandora, team access, manual resort work, and verified history remain available.',
-        onRefresh: onRefresh,
-        onOpenSettings: onOpenSourceSettings,
-      ),
+      if (includeWorkspaceRail)
+        _SourceRecoveryPanel(
+          source: provider,
+          state: sourceState,
+          affectedArea: eyebrow,
+          unavailable: detail,
+          remainsAvailable:
+              'Pandora, team access, manual resort work, and verified history remain available.',
+          onRefresh: onRefresh,
+          onOpenSettings: onOpenSourceSettings,
+        )
+      else
+        _EmptyState(detail),
       if (availableActions.isNotEmpty) ...[
         const SizedBox(height: 16),
         ...availableActions,
@@ -1063,10 +1066,9 @@ class _ResortHeader extends StatelessWidget {
               style: const TextStyle(
                 color: PlpResortWorkspaceScreen.ink,
                 fontFamily: 'serif',
-                fontSize: 21,
-                height: 1,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -.35,
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                letterSpacing: 2.6,
               ),
             ),
           ),
@@ -2094,24 +2096,28 @@ class _SourceRecoveryPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Needs Attention',
-              style: TextStyle(
-                color: PlpResortWorkspaceScreen.ink,
-                fontFamily: 'serif',
-                fontSize: 21,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -.35,
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              source + ' · ' + _humanStatus(state),
-              style: const TextStyle(
-                color: PlpResortWorkspaceScreen.accent,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-              ),
+            Row(
+              children: [
+                const Icon(
+                  Icons.cloud_off_outlined,
+                  size: 16,
+                  color: PlpResortWorkspaceScreen.accent,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    source + ' · ' + _humanStatus(state),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PlpResortWorkspaceScreen.accent,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .35,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 9),
             Text(
@@ -2136,16 +2142,14 @@ class _SourceRecoveryPanel extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: [
-                OutlinedButton.icon(
+                TextButton.icon(
                   onPressed: onRefresh,
-                  style: OutlinedButton.styleFrom(
+                  style: TextButton.styleFrom(
                     foregroundColor: PlpResortWorkspaceScreen.ink,
-                    side: const BorderSide(
-                      color: PlpResortWorkspaceScreen.accent,
-                    ),
+                    visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.refresh_rounded, size: 17),
-                  label: const Text('Refresh status'),
+                  label: const Text('Refresh'),
                 ),
                 if (onOpenSettings != null)
                   TextButton.icon(
