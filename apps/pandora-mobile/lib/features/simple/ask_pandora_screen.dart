@@ -3094,7 +3094,7 @@ class _CompactAttachmentMenu extends StatelessWidget {
             _ComposerMenuItem(
               key: const ValueKey<String>('ask-pandora-menu-model'),
               label: 'Model · ' + modelLabel,
-              icon: Icons.auto_awesome_outlined,
+              icon: Icons.tune_rounded,
               onPressed: onModel,
             ),
           if (onReasoning != null)
