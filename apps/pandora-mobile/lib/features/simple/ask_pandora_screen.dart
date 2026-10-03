@@ -797,7 +797,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     }
     final status = await (() async {
       try {
-        return await PandoraLocalAi.instance.status();
+        return await PandoraLocalAi.instance.status().timeout(
+          const Duration(milliseconds: 600),
+        );
       } catch (_) {
         return null;
       }
@@ -1750,7 +1752,13 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       final localEnabled = await PandoraLocalAiPreference.load();
       PandoraLocalAiStatus? localStatus;
       if (localEnabled) {
-        localStatus = await PandoraLocalAi.instance.status();
+        try {
+          localStatus = await PandoraLocalAi.instance.status().timeout(
+            const Duration(milliseconds: 600),
+          );
+        } catch (_) {
+          localStatus = null;
+        }
       }
       if (!mounted) return;
       setState(() {
