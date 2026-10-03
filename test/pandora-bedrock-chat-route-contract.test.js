@@ -27,7 +27,8 @@ test("image turns only admit Bedrock catalog rows that advertise IMAGE input",()
 
 test("Bedrock ticket claim uses Vercel OIDC control gateway instead of Vercel Supabase service-role env",()=>{
   const control=fs.readFileSync("supabase/functions/mcpmaster-supabase-control/index.ts","utf8");
-  assert.match(bridge,/mcpmaster-supabase-control/);
+  assert.match(bridge,/fetchFn\(profile\.controlUrl/);
+  assert.match(fs.readFileSync("supabase/functions/_shared/core-acceptance-profile.mjs","utf8"),/mcpmaster-supabase-control/);
   assert.match(bridge,/action:"bedrock_chat_ticket_claim"/);
   assert.match(bridge,/resolveVercelWorkloadToken/);
   assert.doesNotMatch(bridge,/SUPABASE_"\+"SERVICE_ROLE_KEY|loadOperatorPublicConfig/);

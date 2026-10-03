@@ -67,6 +67,26 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('PLP workspace identity is simple, compact, and resilient',
+      (tester) async {
+    await mountDrawer(
+      tester,
+      width: 320,
+      height: 640,
+      scale: 1.2,
+    );
+
+    expect(find.text('Pueblo La Perla Boracay'), findsOneWidget);
+    expect(find.text('Luxury Resort'), findsOneWidget);
+    expect(find.text('Owner workspace'), findsNothing);
+    expect(find.text('Luxury resort command center'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('plp-workspace-identity')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('PLP search still reaches technical System destinations', (tester) async {
     String? selected;
     await mountDrawer(tester, onSelect: (value) => selected = value);

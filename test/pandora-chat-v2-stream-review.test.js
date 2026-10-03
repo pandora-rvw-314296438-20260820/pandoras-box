@@ -6,7 +6,7 @@ const path=require("node:path"),vm=require("node:vm"),ts=require("typescript");
 function load(name,extra={}){
  const filename=path.resolve(__dirname,"../supabase/functions/pandora-intelligence-chat",name);
  const source=ts.transpileModule(readFileSync(filename,"utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
- const exports={};vm.runInNewContext(source,{exports,require:x=>load(path.basename(x),extra),TextEncoder,TextDecoder,ReadableStream,Response,Request,AbortController,AbortSignal,setInterval,clearInterval,...extra},{filename});return exports;
+ const exports={};vm.runInNewContext(source,{exports,require:x=>load(path.resolve(path.dirname(filename),x),extra),TextEncoder,TextDecoder,ReadableStream,Response,Request,AbortController,AbortSignal,URL,crypto:globalThis.crypto,Deno:{env:{toObject:()=>({SUPABASE_URL:"https://jcyqixttuebxqqfkjonq.supabase.co"})}},setInterval,clearInterval,...extra},{filename});return exports;
 }
 const {ReplyDeltaDecoder}=load("chat-stream.ts");
 const {ReplyVisibilityGuard,sanitizeVisibleReply}=load("reply-safety.ts");

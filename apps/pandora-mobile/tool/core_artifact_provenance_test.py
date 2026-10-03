@@ -1,6 +1,7 @@
 """Exercise source/artifact substitution and exact-byte provenance boundaries."""
 import copy
 import hashlib
+import json
 from pathlib import Path
 import stat
 import tempfile
@@ -12,6 +13,7 @@ from core_artifact_provenance import (
     extract_verified_archive, read_manifest, verify_artifact,
     verify_source_binding,
 )
+from core_acceptance_config import PROFILE, config_digest
 
 SOURCE = "a" * 40
 HEAD = "b" * 40
@@ -57,9 +59,84 @@ class ArtifactProvenanceTest(unittest.TestCase):
         self.manifest = self.root / "pandora-mobile-artifact-manifest.txt"
         self.manifest.write_text("".join(f"{k}={v}\n" for k, v in self.fields.items()))
 
-    def verify(self, kind="profile"):
+    def verify(self, kind="profile", **kwargs):
         return verify_artifact(self.root, SOURCE, self.run, self.artifact,
-                               self.commit, kind)
+                               self.commit, kind, **kwargs)
+
+    def acceptance_candidate(self):
+        fixture = json.loads((Path(__file__).resolve().parents[1]
+                              / "test/fixtures/core_acceptance_profile_v1.json").read_text())
+        self.config = {**fixture["canonical"], "sourceSha": SOURCE}
+        self.config_sha = config_digest(self.config)
+        self.binding_file = self.root / "pandora-core-acceptance-binding.json"
+        self.binding_file.write_text(json.dumps(self.config))
+        self.run["event"] = "workflow_dispatch"
+        self.artifact["name"] = "pandora-mobile-android-core-acceptance-" + SOURCE
+        self.fields.update(runtime_profile=PROFILE, acceptance_config_sha256=self.config_sha,
+                           android_artifact_name=self.artifact["name"])
+        self.write_manifest()
+
+    def verify_acceptance(self):
+        return self.verify(expected_runtime_profile=PROFILE, expected_config_sha256=self.config_sha)
+
+    def test_isolated_artifact_requires_explicit_profile_and_independent_target_digest(self):
+        self.acceptance_candidate()
+        with self.assertRaises(ProvenanceError):
+            self.verify()
+        with self.assertRaises(ProvenanceError):
+            self.verify(expected_runtime_profile=PROFILE)
+        receipt = self.verify_acceptance()
+        self.assertEqual(receipt["runtime_profile"], PROFILE)
+        self.assertEqual(receipt["acceptance_config_sha256"], self.config_sha)
+        self.assertEqual(receipt["acceptance_config"], self.config)
+        self.assertFalse(receipt["runtime_verified"])
+        self.assertFalse(receipt["production_verified"])
+
+    def test_isolated_target_substitution_rejected_even_at_identical_source(self):
+        self.acceptance_candidate()
+        for mutation in ({**self.config, "organizationId": "20000000-0000-4000-8000-000000000001"},
+                         {**self.config, "sourceSha": HEAD}, {**self.config, "memoryMode": "production"}):
+            self.binding_file.write_text(json.dumps(mutation))
+            with self.assertRaises(ProvenanceError):
+                self.verify_acceptance()
+        self.binding_file.write_text(json.dumps(self.config))
+        self.fields["acceptance_config_sha256"] = "b" * 64
+        self.write_manifest()
+        with self.assertRaises(ProvenanceError):
+            self.verify_acceptance()
+
+    def test_isolated_artifact_cannot_use_push_or_canonical_name(self):
+        self.acceptance_candidate()
+        self.run["event"] = "push"
+        with self.assertRaises(ProvenanceError):
+            self.verify_acceptance()
+        self.run["event"] = "workflow_dispatch"
+        self.artifact["name"] = "pandora-mobile-android-validation-" + SOURCE
+        self.fields["android_artifact_name"] = self.artifact["name"]
+        self.write_manifest()
+        with self.assertRaises(ProvenanceError):
+            self.verify_acceptance()
+
+    def test_missing_duplicate_or_private_binding_fields_are_rejected(self):
+        self.acceptance_candidate()
+        self.binding_file.unlink()
+        with self.assertRaises(ProvenanceError):
+            self.verify_acceptance()
+        self.binding_file.write_text(json.dumps({**self.config, "client_key": "test-material-must-never-be-in-evidence"}))
+        with self.assertRaises(ProvenanceError):
+            self.verify_acceptance()
+        self.binding_file.write_text(json.dumps(self.config))
+        second = self.root / "duplicate"
+        second.mkdir()
+        (second / self.binding_file.name).write_text(json.dumps(self.config))
+        with self.assertRaises(ProvenanceError):
+            self.verify_acceptance()
+
+    def test_production_manifest_cannot_carry_orphan_acceptance_metadata(self):
+        self.fields["acceptance_config_sha256"] = "a" * 64
+        self.write_manifest()
+        with self.assertRaises(ProvenanceError):
+            self.verify()
 
     def test_exact_profile_bytes_and_source_do_not_claim_runtime(self):
         receipt = self.verify()

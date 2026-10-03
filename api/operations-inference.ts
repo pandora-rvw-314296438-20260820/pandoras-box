@@ -28,10 +28,20 @@ export default async function operationsInference(req:any,res:any){
  const close=()=>{if(!res.writableEnded)controller.abort();};res.once('close',close);
  let stage='route';
  try{
+  // A profile is server configuration, never a caller-selected routing target.
+  // Check it before the control handler or generic runtime can read inherited
+  // project credentials. Production requests also reject acceptance markers.
+  const profilePath=require.resolve('../supabase/functions/_shared/core-acceptance-profile.mjs');
+  const {resolveCoreRuntimeProfile,assertRuntimeRequestBinding}=await nativeImport(pathToFileURL(profilePath).href);
+  const runtimeProfile=await resolveCoreRuntimeProfile(process.env,{role:'bridge'});
+  assertRuntimeRequestBinding(runtimeProfile,req.headers);
   const url=new URL(String(req.url||''),'https://mcpmaster.vercel.app');
   const operation=url.searchParams.get('operation');
   if(!['infer','status','verify','cancel','recover','events','bedrock-control','bedrock-chat'].includes(String(operation))||[...url.searchParams.keys()].some(k=>k!=='operation')||url.searchParams.getAll('operation').length!==1){
    return res.status(404).json({error:'INFERENCE_ROUTE_DENIED',taskComplete:false});
+  }
+  if(runtimeProfile.acceptance&&operation!=='bedrock-chat'){
+   return res.status(404).json({error:'CORE_RUNTIME_OPERATION_DENIED',taskComplete:false});
   }
   if(operation==='bedrock-control') return await handleBedrockModelControl(req,res);
   if(operation==='bedrock-chat') return await handleBedrockChat(req,res);
@@ -57,6 +67,10 @@ export default async function operationsInference(req:any,res:any){
   reply.headers.forEach((v:string,k:string)=>res.setHeader(k,v));res.statusCode=reply.status;
   res.end(Buffer.from(await reply.arrayBuffer()));
  }catch(error:any){
+  if(/^CORE_RUNTIME_(?:PROFILE_INVALID|TARGET_MISMATCH|BINDING_MISMATCH)$/.test(error?.code||'')){
+   if(!res.headersSent)return res.status(400).json({error:error.code,taskComplete:false,retryable:false});
+   res.end();return;
+  }
   const code=typeof error?.code==='string'&&safeRuntimeCodes.has(error.code)?error.code:'UNCLASSIFIED_RUNTIME_FAILURE';
   console.error('pandora_operations_runtime_failure',{stage,code});
   if(!res.headersSent)res.status(503).json({error:'INFERENCE_RUNTIME_UNAVAILABLE',taskComplete:false});

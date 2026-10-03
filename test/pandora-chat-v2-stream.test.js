@@ -7,7 +7,7 @@ const {randomUUID}=require("node:crypto");
 function load(name,extra={}){
  const full=path.resolve(__dirname,"../supabase/functions/pandora-intelligence-chat/",name);
  const source=ts.transpileModule(readFileSync(full,"utf8"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
- const exports={};vm.runInNewContext(source,{exports,require:x=>load(path.basename(x),extra),TextEncoder,TextDecoder,ReadableStream,Response,Request,AbortController,AbortSignal,setInterval,clearInterval,console,...extra},{filename:full});return exports;
+ const exports={};vm.runInNewContext(source,{exports,require:x=>load(path.resolve(path.dirname(full),x),extra),TextEncoder,TextDecoder,ReadableStream,Response,Request,AbortController,AbortSignal,URL,crypto:globalThis.crypto,Deno:{env:{toObject:()=>({SUPABASE_URL:"https://jcyqixttuebxqqfkjonq.supabase.co"})}},setInterval,clearInterval,console,...extra},{filename:full});return exports;
 }
 const {ReplyDeltaDecoder,consumeServerEvents,eventStreamResponse}=load("chat-stream.ts");
 const {parseTurnRequest,turnFingerprintInput,parseClientHistory}=load("turn-contract.ts");

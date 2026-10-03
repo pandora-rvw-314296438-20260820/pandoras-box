@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'plp_staff_task_action.dart';
+import 'plp_activity_read_model.dart';
 
 typedef PlpResortRecordOpener = void Function(
   String kind,
@@ -57,14 +58,42 @@ class _PlpResortOperationalScreenState
       _map(widget.bootstrap['resortCommandCenter']);
   Map<String, Object?> get _operations =>
       _operationsOverride ?? _map(widget.bootstrap['resortOperations']);
+  bool _isTestRecord(Map<String, Object?> item) => plpRecordIsTestData(item);
+
+  List<Map<String, Object?>> _productionRecords(Object? value) =>
+      _maps(value)
+          .where((item) => !_isTestRecord(item))
+          .toList(growable: false);
+
   List<Map<String, Object?>> get _workItems =>
-      _maps(_operations['workItems']);
+      _productionRecords(_operations['workItems']);
   List<Map<String, Object?>> get _conflicts =>
-      _maps(_operations['channelConflicts']);
-  List<Map<String, Object?>> get _rooms => _maps(_command['rooms']);
-  List<Map<String, Object?>> get _stays => _maps(_command['stays']);
+      _productionRecords(_operations['channelConflicts']);
+  List<Map<String, Object?>> get _rooms =>
+      _productionRecords(_command['rooms']);
+  List<Map<String, Object?>> get _stays =>
+      _productionRecords(_command['stays']);
   List<Map<String, Object?>> get _requests =>
-      _maps(_command['experienceSignals']);
+      _productionRecords(_command['experienceSignals']);
+
+  bool get _workKnown => _operations['workItems'] is List;
+  bool get _roomsKnown => _command['rooms'] is List;
+  bool get _staysKnown => _command['stays'] is List;
+  bool get _requestsKnown => _command['experienceSignals'] is List;
+  bool get _conflictsKnown => _operations['channelConflicts'] is List;
+
+  bool get _queueKnown => switch (widget.moduleId) {
+        'housekeeping' || 'maintenance' || 'linen' || 'property' || 'security' =>
+          _workKnown,
+        'concierge' || 'dining' || 'wellness' || 'activities' || 'events' =>
+          _workKnown && _requestsKnown,
+        'vip' => _requestsKnown && _staysKnown,
+        'transfers' || 'transport' => _workKnown && _staysKnown,
+        'rates' => _roomsKnown,
+        'channels' => _conflictsKnown,
+        'forecast' => _staysKnown,
+        _ => false,
+      };
 
   bool _containsAny(Map<String, Object?> item, List<String> words) {
     final haystack = <Object?>[
@@ -234,29 +263,41 @@ class _PlpResortOperationalScreenState
           child: ListView(
             key: ValueKey<String>('plp-module-' + widget.moduleId),
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 190),
+            padding: EdgeInsets.fromLTRB(
+              18,
+              12,
+              18,
+              32 + MediaQuery.viewPaddingOf(context).bottom,
+            ),
             children: [
-              _ModuleHeader(label: _spec.label, onBack: widget.onBack),
-              const SizedBox(height: 28),
-              Text(_spec.eyebrow,
-                  style: const TextStyle(
-                    color: accent, fontSize: 10,
-                    fontWeight: FontWeight.w700, letterSpacing: 2,
-                  )),
-              const SizedBox(height: 10),
-              Text(_spec.title,
-                  style: const TextStyle(
-                    color: ink, fontFamily: 'serif', fontSize: 38,
-                    height: .98, fontWeight: FontWeight.w400,
-                    letterSpacing: -1.15,
-                  )),
-              const SizedBox(height: 22),
+              _ModuleHeader(
+                label: _spec.label.toUpperCase(),
+                onBack: widget.onBack,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _spec.title,
+                style: const TextStyle(
+                  color: muted,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 14),
               _MetricBand(items: [
-                _Metric('Visible', records.length.toString(), _spec.unitLabel),
-                _Metric('Open work', openWork.toString(), 'resort'),
+                _Metric(
+                  'Visible',
+                  _queueKnown || records.isNotEmpty
+                      ? records.length.toString()
+                      : '—',
+                  _spec.unitLabel,
+                ),
+                _Metric('Open work', _workKnown ? openWork.toString() : '—',
+                    'resort'),
                 _moduleMetric(),
               ]),
-              const SizedBox(height: 28),
+              const SizedBox(height: 18),
               _ModuleControls(
                 controller: _search,
                 showCompleted: _showCompleted,
@@ -267,11 +308,19 @@ class _PlpResortOperationalScreenState
                     setState(() => _showCompleted = !_showCompleted),
                 onCreate: _createTask,
               ),
-              const SizedBox(height: 26),
-              _SectionLabel(_spec.queueLabel, count: records.length),
+              const SizedBox(height: 18),
+              _SectionLabel(
+                _spec.queueLabel,
+                count: _queueKnown || records.isNotEmpty ? records.length : null,
+              ),
               const SizedBox(height: 8),
               if (records.isEmpty)
-                _TruthfulEmptyState(message: _spec.emptyMessage)
+                _TruthfulEmptyState(
+                  message: _queueKnown
+                      ? _spec.emptyMessage
+                      : 'This work queue could not be loaded. Pull to refresh. '
+                          'Available workspace actions remain below the search.',
+                )
               else
                 ...records.take(40).map(
                       (record) => _OperationalRow(
@@ -282,7 +331,7 @@ class _PlpResortOperationalScreenState
                         ),
                       ),
                     ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 22),
               ..._secondaryContext(),
             ],
           ),
@@ -293,21 +342,26 @@ class _PlpResortOperationalScreenState
 
   _Metric _moduleMetric() {
     if (widget.moduleId == 'channels') {
-      return _Metric('Exceptions', _conflicts.length.toString(), 'channels');
+      return _Metric('Exceptions',
+          _conflictsKnown ? _conflicts.length.toString() : '—', 'channels');
     }
     if (widget.moduleId == 'rates') {
-      return _Metric('Rooms', _rooms.length.toString(), 'priced');
+      return _Metric('Rooms', _roomsKnown ? _rooms.length.toString() : '—',
+          'priced');
     }
     if (widget.moduleId == 'forecast') {
-      return _Metric('Stays', _stays.length.toString(), '30 days');
+      return _Metric('Stays', _staysKnown ? _stays.length.toString() : '—',
+          '30 days');
     }
     if (widget.moduleId == 'housekeeping') {
       final turnovers = _rooms.where((room) =>
           const {'arrival', 'departure'}
               .contains(_text(room['state']).toLowerCase())).length;
-      return _Metric('Turnovers', turnovers.toString(), 'rooms');
+      return _Metric('Turnovers', _roomsKnown ? turnovers.toString() : '—',
+          'rooms');
     }
-    return _Metric('Requests', _requests.length.toString(), 'connected');
+    return _Metric('Requests',
+        _requestsKnown ? _requests.length.toString() : '—', 'connected');
   }
 
   List<Widget> _secondaryContext() {
@@ -561,14 +615,6 @@ class PlpResortRecordScreen extends StatelessWidget {
     return _text(record['title'], fallback: 'Resort work');
   }
 
-  String get _eyebrow {
-    if (kind == 'room') return 'ROOM';
-    if (kind == 'stay') return 'STAY';
-    if (kind == 'request') return 'GUEST REQUEST';
-    if (kind == 'conflict' || kind == 'conflict-summary') return 'CHANNELS';
-    return 'WORK ITEM';
-  }
-
   List<(String, Object?)> get _fields {
     if (kind == 'room') {
       return [
@@ -724,23 +770,18 @@ class PlpResortRecordScreen extends StatelessWidget {
           bottom: false,
           child: ListView(
             key: ValueKey<String>('plp-record-' + kind),
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 190),
+            padding: EdgeInsets.fromLTRB(
+              18,
+              12,
+              18,
+              32 + MediaQuery.viewPaddingOf(context).bottom,
+            ),
             children: [
-              _ModuleHeader(label: _eyebrow, onBack: onBack),
-              const SizedBox(height: 30),
-              Text(_eyebrow,
-                  style: const TextStyle(
-                    color: _PlpResortOperationalScreenState.accent,
-                    fontSize: 10, fontWeight: FontWeight.w700,
-                    letterSpacing: 2,
-                  )),
-              const SizedBox(height: 10),
-              Text(_title,
-                  style: const TextStyle(
-                    color: _PlpResortOperationalScreenState.ink,
-                    fontFamily: 'serif', fontSize: 39, height: .98,
-                    fontWeight: FontWeight.w400, letterSpacing: -1.1,
-                  )),
+              _ModuleHeader(
+                label: _title.toUpperCase(),
+                onBack: onBack,
+              ),
+              const SizedBox(height: 14),
               if (_actions.isNotEmpty) ...[
                 const SizedBox(height: 22),
                 const _SectionLabel('ACTIONS'),
@@ -822,7 +863,6 @@ class _ModuleSpec {
   const _ModuleSpec({
     required this.label,
     required this.singularLabel,
-    required this.eyebrow,
     required this.title,
     required this.queueLabel,
     required this.emptyMessage,
@@ -832,7 +872,6 @@ class _ModuleSpec {
 
   final String label;
   final String singularLabel;
-  final String eyebrow;
   final String title;
   final String queueLabel;
   final String emptyMessage;
@@ -844,7 +883,6 @@ class _ModuleSpec {
       case 'housekeeping':
         return const _ModuleSpec(
           label: 'Housekeeping', singularLabel: 'housekeeping task',
-          eyebrow: 'ROOMS & HOUSEKEEPING',
           title: 'Turn rooms over with precision.',
           queueLabel: 'HOUSEKEEPING QUEUE',
           emptyMessage: 'No connected housekeeping work is waiting.',
@@ -853,7 +891,6 @@ class _ModuleSpec {
       case 'maintenance':
         return const _ModuleSpec(
           label: 'Maintenance', singularLabel: 'maintenance task',
-          eyebrow: 'PROPERTY CARE',
           title: 'Protect the guest experience before faults become visible.',
           queueLabel: 'MAINTENANCE QUEUE',
           emptyMessage: 'No connected maintenance work is waiting.',
@@ -862,7 +899,7 @@ class _ModuleSpec {
       case 'linen':
         return const _ModuleSpec(
           label: 'Linen', singularLabel: 'linen task',
-          eyebrow: 'HOUSEKEEPING', title: 'Keep linen readiness visible.',
+          title: 'Keep linen readiness visible.',
           queueLabel: 'LINEN & LAUNDRY',
           emptyMessage: 'No connected linen or laundry work is waiting.',
           unitLabel: 'items', taskCategory: 'housekeeping',
@@ -870,7 +907,6 @@ class _ModuleSpec {
       case 'concierge':
         return const _ModuleSpec(
           label: 'Concierge', singularLabel: 'concierge task',
-          eyebrow: 'GUEST SERVICES',
           title: 'Coordinate the details guests remember.',
           queueLabel: 'CONCIERGE QUEUE',
           emptyMessage: 'No connected concierge request is waiting.',
@@ -879,7 +915,6 @@ class _ModuleSpec {
       case 'vip':
         return const _ModuleSpec(
           label: 'VIP', singularLabel: 'VIP preparation task',
-          eyebrow: 'GUEST SERVICES',
           title: 'Handle high-touch stays deliberately.',
           queueLabel: 'VIP & SPECIAL STAYS',
           emptyMessage:
@@ -889,7 +924,6 @@ class _ModuleSpec {
       case 'transfers':
         return const _ModuleSpec(
           label: 'Transfers', singularLabel: 'transfer task',
-          eyebrow: 'GUEST MOVEMENT',
           title: 'Coordinate every arrival and departure.',
           queueLabel: 'TRANSFER QUEUE',
           emptyMessage: 'No connected transfer work is waiting.',
@@ -898,7 +932,6 @@ class _ModuleSpec {
       case 'property':
         return const _ModuleSpec(
           label: 'Property', singularLabel: 'property task',
-          eyebrow: 'PROPERTY OPERATIONS',
           title: 'Run the physical resort as one system.',
           queueLabel: 'PROPERTY WORK',
           emptyMessage: 'No connected property work is waiting.',
@@ -907,7 +940,6 @@ class _ModuleSpec {
       case 'security':
         return const _ModuleSpec(
           label: 'Security', singularLabel: 'security task',
-          eyebrow: 'SAFETY',
           title: 'Keep safety issues visible and attributable.',
           queueLabel: 'SECURITY & SAFETY',
           emptyMessage: 'No connected security or safety work is waiting.',
@@ -916,7 +948,6 @@ class _ModuleSpec {
       case 'transport':
         return const _ModuleSpec(
           label: 'Transport', singularLabel: 'transport task',
-          eyebrow: 'LOGISTICS',
           title: 'Coordinate movement without losing guest context.',
           queueLabel: 'TRANSPORT QUEUE',
           emptyMessage: 'No connected transport work is waiting.',
@@ -925,7 +956,6 @@ class _ModuleSpec {
       case 'rates':
         return const _ModuleSpec(
           label: 'Rates', singularLabel: 'rate',
-          eyebrow: 'COMMERCIAL',
           title: 'See sellable inventory and current room rates.',
           queueLabel: 'RATE BOARD',
           emptyMessage: 'No connected room rates are available.',
@@ -934,7 +964,6 @@ class _ModuleSpec {
       case 'channels':
         return const _ModuleSpec(
           label: 'Channels', singularLabel: 'channel exception',
-          eyebrow: 'DISTRIBUTION',
           title: 'Keep OTA inventory aligned with the resort.',
           queueLabel: 'CHANNEL EXCEPTIONS',
           emptyMessage: 'No connected OTA exception is open.',
@@ -943,7 +972,6 @@ class _ModuleSpec {
       case 'forecast':
         return const _ModuleSpec(
           label: 'Forecast', singularLabel: 'stay',
-          eyebrow: 'FORWARD VIEW',
           title: 'Read the booked future without pretending it is a prediction.',
           queueLabel: 'UPCOMING STAYS',
           emptyMessage: 'No connected forward stay data is available.',
@@ -952,7 +980,6 @@ class _ModuleSpec {
       case 'dining':
         return const _ModuleSpec(
           label: 'Dining', singularLabel: 'dining task',
-          eyebrow: 'EXPERIENCES',
           title: 'Coordinate dining from the guest context.',
           queueLabel: 'DINING REQUESTS',
           emptyMessage: 'No connected dining request is waiting.',
@@ -961,7 +988,6 @@ class _ModuleSpec {
       case 'wellness':
         return const _ModuleSpec(
           label: 'Wellness', singularLabel: 'wellness task',
-          eyebrow: 'EXPERIENCES',
           title: 'Keep wellness requests organized.',
           queueLabel: 'WELLNESS REQUESTS',
           emptyMessage: 'No connected wellness request is waiting.',
@@ -970,7 +996,6 @@ class _ModuleSpec {
       case 'activities':
         return const _ModuleSpec(
           label: 'Activities', singularLabel: 'activity task',
-          eyebrow: 'EXPERIENCES',
           title: 'Coordinate activities around each stay.',
           queueLabel: 'ACTIVITY REQUESTS',
           emptyMessage: 'No connected activity request is waiting.',
@@ -979,7 +1004,6 @@ class _ModuleSpec {
       case 'events':
         return const _ModuleSpec(
           label: 'Events', singularLabel: 'event task',
-          eyebrow: 'EXPERIENCES',
           title: 'Coordinate celebrations and events with the stay.',
           queueLabel: 'EVENT REQUESTS',
           emptyMessage: 'No connected event request is waiting.',
@@ -988,7 +1012,7 @@ class _ModuleSpec {
       default:
         return const _ModuleSpec(
           label: 'Resort', singularLabel: 'resort task',
-          eyebrow: 'RESORT', title: 'Operational workspace.',
+          title: 'Operational workspace.',
           queueLabel: 'CONNECTED WORK',
           emptyMessage: 'No connected records are available.',
           unitLabel: 'items',
@@ -1007,23 +1031,18 @@ class _ModuleHeader extends StatelessWidget {
         children: [
           const SizedBox(width: 56),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('PLP Boracay',
-                    style: TextStyle(
-                      color: _PlpResortOperationalScreenState.ink,
-                      fontFamily: 'serif', fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    )),
-                const SizedBox(height: 3),
-                Text(label.toUpperCase(),
-                    style: const TextStyle(
-                      color: _PlpResortOperationalScreenState.accent,
-                      fontSize: 8.5, fontWeight: FontWeight.w700,
-                      letterSpacing: 1.7,
-                    )),
-              ],
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _PlpResortOperationalScreenState.ink,
+                fontFamily: 'serif',
+                fontSize: 20,
+                height: 1,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -.35,
+              ),
             ),
           ),
           IconButton(
@@ -1120,9 +1139,19 @@ class _ModuleControls extends StatelessWidget {
             key: const ValueKey('plp-module-search'),
             controller: controller,
             onChanged: onSearchChanged,
+            style: const TextStyle(
+              color: _PlpResortOperationalScreenState.ink,
+              fontSize: 14,
+            ),
             decoration: const InputDecoration(
               hintText: 'Search this workspace',
-              prefixIcon: Icon(Icons.search_rounded),
+              hintStyle: TextStyle(
+                color: _PlpResortOperationalScreenState.muted,
+              ),
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: _PlpResortOperationalScreenState.accent,
+              ),
               filled: true,
               fillColor: _PlpResortOperationalScreenState.paper,
               enabledBorder: OutlineInputBorder(
@@ -1144,6 +1173,9 @@ class _ModuleControls extends StatelessWidget {
             builder: (context, constraints) {
               final history = TextButton.icon(
                 onPressed: onToggleCompleted,
+                style: TextButton.styleFrom(
+                  foregroundColor: _PlpResortOperationalScreenState.ink,
+                ),
                 icon: Icon(
                   showCompleted
                       ? Icons.visibility_off_outlined
@@ -1232,7 +1264,6 @@ class _OperationalRow extends StatelessWidget {
                         _text(record['priority'], fallback: 'normal')
                             .toUpperCase(),
                         _text(record['status'], fallback: 'open'),
-                        if (record['isTestData'] == true) 'QA',
                       ].join(' · ');
 
     return Material(

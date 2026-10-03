@@ -112,7 +112,7 @@ test("physical network receipts remain source, build, and device bound", () => {
 test("mobile CI publishes an exact-source GitHub artifact locator", () => {
   assert.match(
     mobileWorkflow,
-    /ANDROID_ARTIFACT_NAME: pandora-mobile-android-\$\{\{ github\.event_name == 'pull_request' && 'candidates' \|\| 'validation' \}\}-\$\{\{ github\.sha \}\}/,
+    /ANDROID_ARTIFACT_NAME: pandora-mobile-android-\$\{\{ inputs\.runtime_profile == 'core_acceptance_v1' && 'core-acceptance' \|\| \(github\.event_name == 'pull_request' && 'candidates' \|\| 'validation'\) \}\}-\$\{\{ github\.sha \}\}/,
   );
   assert.match(mobileWorkflow, /id: upload_android_validation/);
   assert.equal(
@@ -123,6 +123,8 @@ test("mobile CI publishes an exact-source GitHub artifact locator", () => {
   assert.match(mobileWorkflow, /echo "android_artifact_name=\$\{ANDROID_ARTIFACT_NAME\}"/);
   assert.match(mobileWorkflow, /steps\.upload_android_validation\.outputs\.artifact-id/);
   assert.match(mobileWorkflow, /steps\.upload_android_validation\.outputs\.artifact-digest/);
+  assert.match(mobileWorkflow, /test "\$GITHUB_EVENT_NAME" = workflow_dispatch/);
+  assert.match(mobileWorkflow, /--profile "\$RUNTIME_PROFILE" --source-sha "\$SOURCE_SHA"/);
   assert.match(mobileWorkflow, /artifact_api_url="https:\/\/api\.github\.com\/repos\/\$\{GITHUB_REPOSITORY\}\/actions\/artifacts\/\$\{ARTIFACT_ID\}"/);
 });
 

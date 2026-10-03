@@ -12,6 +12,10 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from core_acceptance_config import (
+    ConfigFailure, PROFILE as ACCEPTANCE_PROFILE, read_json, validate_binding,
+)
+
 CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box"
 ANDROID_PACKAGE = "com.banataosystems.pandora_mobile"
 MOBILE_WORKFLOW = ".github/workflows/pandora-mobile-integration.yml"
@@ -109,6 +113,8 @@ def verify_artifact(
     artifact_dir: Path, expected_source: str, run: dict[str, Any],
     artifact: dict[str, Any], candidate_commit: dict[str, Any],
     build_kind: str = "profile",
+    expected_runtime_profile: str = "production",
+    expected_config_sha256: str | None = None,
 ) -> dict[str, Any]:
     binding = verify_source_binding(expected_source, run, candidate_commit)
     require(build_kind in {"debug", "profile"}, "Unsupported candidate build kind.")
@@ -122,11 +128,35 @@ def verify_artifact(
         "pandora-mobile-android-validation-" + expected_source,
         "pandora-mobile-android-candidates-" + expected_source,
     }
+    require(expected_runtime_profile in {"production", ACCEPTANCE_PROFILE},
+            "Unexpected runtime profile.")
+    if expected_runtime_profile == ACCEPTANCE_PROFILE:
+        require(run.get("event") == "workflow_dispatch",
+                "Isolated acceptance requires an explicit reviewed build.")
+        allowed_names = {"pandora-mobile-android-core-acceptance-" + expected_source}
+    else:
+        require(not expected_config_sha256, "Production cannot use an acceptance digest.")
     require(artifact.get("name") in allowed_names,
             "Artifact name does not bind the exact built source.")
     manifests = list(artifact_dir.rglob("pandora-mobile-artifact-manifest.txt"))
     require(len(manifests) == 1, "Exactly one source manifest is required.")
     manifest = read_manifest(manifests[0])
+    runtime_profile = manifest.get("runtime_profile", "production")
+    require(runtime_profile == expected_runtime_profile, "Artifact runtime profile mismatch.")
+    acceptance_config = None
+    binding_files = list(artifact_dir.rglob("pandora-core-acceptance-binding.json"))
+    if runtime_profile == ACCEPTANCE_PROFILE:
+        require(len(binding_files) == 1, "Exactly one isolated target binding is required.")
+        require(manifest.get("acceptance_config_sha256") == expected_config_sha256,
+                "Artifact target digest differs from the independently expected target.")
+        try:
+            acceptance_config = validate_binding(read_json(binding_files[0].read_text(encoding="utf-8")),
+                                                 expected_source, expected_config_sha256 or "")
+        except ConfigFailure as error:
+            raise ProvenanceError(str(error)) from None
+    else:
+        require(not binding_files and not manifest.get("acceptance_config_sha256"),
+                "Production artifact contains orphan isolated target metadata.")
     require(manifest.get("source_sha") == expected_source,
             "Artifact manifest source differs from expected source.")
     require(manifest.get("source_tree")
@@ -174,6 +204,9 @@ def verify_artifact(
         "app_version": app_version,
         "build_kind": build_kind,
         "artifact_class": "validation-candidate",
+        "runtime_profile": runtime_profile,
+        "acceptance_config_sha256": expected_config_sha256 if acceptance_config else None,
+        "acceptance_config": acceptance_config,
         "installed": False,
         "runtime_verified": False,
         "production_verified": False,
@@ -184,6 +217,9 @@ def verify_artifact(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--runtime-profile", default="production",
+                        choices=["production", ACCEPTANCE_PROFILE])
+    parser.add_argument("--config-sha256", default="")
     parser.add_argument("--run-json", type=Path, required=True)
     parser.add_argument("--artifact-json", type=Path, required=True)
     parser.add_argument("--commit-json", type=Path, required=True)
@@ -199,7 +235,8 @@ def main() -> int:
         digest = str(artifact.get("digest", "")).removeprefix("sha256:")
         extract_verified_archive(args.archive, args.extract_dir, digest)
         receipt = verify_artifact(args.extract_dir, args.source_sha, run, artifact,
-                                  candidate, args.build_kind)
+                                  candidate, args.build_kind, args.runtime_profile,
+                                  args.config_sha256 or None)
         args.receipt.parent.mkdir(parents=True, exist_ok=True)
         args.receipt.write_text(json.dumps(receipt, indent=2) + "\n")
         print(json.dumps({"result": "artifact-verified",

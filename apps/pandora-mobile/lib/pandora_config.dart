@@ -1,3 +1,5 @@
+import 'core/config/pandora_runtime_binding.dart';
+
 class PandoraConfig {
   PandoraConfig._();
 
@@ -49,6 +51,41 @@ class PandoraConfig {
   static const sourceRevision = String.fromEnvironment(
     'PANDORA_SOURCE_REVISION',
     defaultValue: 'local-development',
+  );
+
+  /// Validated before startup. Defined-but-empty fields remain visible so an
+  /// orphan or partial acceptance build cannot fall back to production.
+  static final runtimeBinding = PandoraRuntimeBinding.fromConfiguration(
+    runtimeProfile: const String.fromEnvironment('PANDORA_RUNTIME_PROFILE',
+        defaultValue: 'production'),
+    acceptanceProjectRef:
+        const bool.hasEnvironment('PANDORA_ACCEPTANCE_SUPABASE_PROJECT_REF')
+            ? const String.fromEnvironment(
+                'PANDORA_ACCEPTANCE_SUPABASE_PROJECT_REF')
+            : null,
+    acceptanceOrganizationId:
+        const bool.hasEnvironment('PANDORA_ACCEPTANCE_ORGANIZATION_ID')
+            ? const String.fromEnvironment('PANDORA_ACCEPTANCE_ORGANIZATION_ID')
+            : null,
+    acceptanceSourceSha:
+        const bool.hasEnvironment('PANDORA_ACCEPTANCE_SOURCE_SHA')
+            ? const String.fromEnvironment('PANDORA_ACCEPTANCE_SOURCE_SHA')
+            : null,
+    acceptancePublishableKeySha256:
+        const bool.hasEnvironment('PANDORA_ACCEPTANCE_PUBLISHABLE_KEY_SHA256')
+            ? const String.fromEnvironment(
+                'PANDORA_ACCEPTANCE_PUBLISHABLE_KEY_SHA256')
+            : null,
+    acceptanceConfigSha256:
+        const bool.hasEnvironment('PANDORA_ACCEPTANCE_CONFIG_SHA256')
+            ? const String.fromEnvironment('PANDORA_ACCEPTANCE_CONFIG_SHA256')
+            : null,
+    supabaseUrl: supabaseUrl,
+    publishableKey: supabasePublishableKey,
+    organizationId: organizationId,
+    sourceRevision: sourceRevision,
+    ownerApiBaseUrl: ownerApiBaseUrl,
+    projectRuntimeApiBaseUrl: projectRuntimeApiBaseUrl,
   );
 
   static const ownerApiEndpointLabel = 'Supabase owner API';

@@ -1,4 +1,5 @@
 import { consumeServerEvents } from "./chat-stream.ts";
+import { resolveCoreRuntimeProfile, runtimeBindingHeaders, assertRuntimeRequestBinding } from "../_shared/core-acceptance-profile.mjs";
 type R=Record<string,unknown>;
 const rec=(v:unknown):R=>v&&typeof v==="object"&&!Array.isArray(v)?v as R:{};
 const txt=(v:unknown,d="")=>typeof v==="string"&&v.trim()?v.trim():d;
@@ -53,12 +54,18 @@ function classify(v:unknown){
   if(kind==="unsupported_capability"||kind==="not_found")throw classifiedFail("unsupported_capability",false,true);
   throw classifiedFail("provider_error",retryable,true);
 }
-const BEDROCK_CHAT_URL="https://mcpmaster.vercel.app/api/operations-inference?operation=bedrock-chat";
 const ticketPattern=/^[0-9a-f]{64}$/;
 
 export async function bedrockCall(c:any,model:string,body:R,options:{stream?:boolean;signal?:AbortSignal;onDelta?:(text:string)=>Promise<void>}={}){
   const started=Date.now();
-  const issued=await c.rpc("pandora_issue_bedrock_chat_ticket_v1",{p_model:model,p_body:{...body,...(options.stream?{stream:true}:{})}});
+  const profile=await resolveCoreRuntimeProfile((globalThis as any).Deno?.env?.toObject(),{role:"chat"});
+  const BEDROCK_CHAT_URL=profile.bedrockChatUrl;
+  // Configuration is validated before the service-role RPC creates a ticket.
+  if(options.signal?.aborted)throw Error("REQUEST_CANCELLED");
+  const issued=await c.rpc(profile.acceptance?"pandora_issue_core_acceptance_bedrock_chat_ticket_v1":"pandora_issue_bedrock_chat_ticket_v1",{
+    p_model:model,p_body:{...body,...(options.stream?{stream:true}:{})},
+    ...(profile.acceptance?{p_organization_id:profile.organizationId,p_config_sha256:profile.configSha256,p_source_sha:profile.sourceSha}:{})
+  });
   if(issued.error)throw fail("provider_unavailable",true,true);
   const ticket=txt(rec(issued.data).ticket);
   if(!ticketPattern.test(ticket))throw fail("provider_unavailable",true,true);
@@ -79,7 +86,7 @@ export async function bedrockCall(c:any,model:string,body:R,options:{stream?:boo
   try{
     response=await fetch(BEDROCK_CHAT_URL,{
       method:"POST",
-      headers:{"content-type":"application/json","accept":options.stream?"text/event-stream":"application/json"},
+      headers:{"content-type":"application/json","accept":options.stream?"text/event-stream":"application/json",...runtimeBindingHeaders(profile)},
       body:JSON.stringify({ticket}),
       redirect:"error",
       signal,
@@ -87,6 +94,9 @@ export async function bedrockCall(c:any,model:string,body:R,options:{stream?:boo
   }catch(error){
     throw transportFailure(error);
   }
+  // Validate response provenance before consuming JSON or exposing any delta.
+  try{assertRuntimeRequestBinding(profile,response.headers);}
+  catch(error){await response.body?.cancel().catch(()=>{});throw error;}
   if(response.ok&&response.headers.get("content-type")?.includes("text/event-stream")){
     let final:R|null=null;let firstDelta:number|null=null;
     let downstreamFailed=false,downstreamError:unknown;

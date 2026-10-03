@@ -1,6 +1,7 @@
 """Test receipt parsing; these are not Android runtime acceptance tests."""
 import unittest
 import json
+import hashlib
 from core_android_device import (AndroidDevice, DeviceFailure, parse_ime_visibility,
                                 parse_metrics, parse_package_evidence,
                                 parse_window_insets, require_unoccluded,
@@ -207,6 +208,50 @@ class DeviceReceiptTest(unittest.TestCase):
         self.assertEqual(result["dialog_kind"], "application_error")
         self.assertEqual(result["dialog_owner"], "unobserved")
         self.assertIsNone(result["canonical_error_dialog"])
+
+    def test_anr_process_hash_identifies_exact_token_without_retaining_its_name(self):
+        owner = "private.canary.process:worker"
+        expected = hashlib.sha256(owner.encode("utf-8")).hexdigest()
+        observations = []
+        for window_id, user_id, suffix in (("123abc", "0", ""), ("def456", "10", " EXITING")):
+            dump = "Display: mDisplayId=0\n mCurrentFocus=Window{" + window_id + " u" + user_id + " Application Not Responding: " + owner + suffix + "}"
+            result = parse_window_observation(dump)
+            self.assertEqual(result["anr_process_sha256"], expected)
+            self.assertRegex(result["anr_process_sha256"], r"^[a-f0-9]{64}$")
+            self.assertNotIn(owner, json.dumps(result))
+            self.assertNotIn("canary", json.dumps(result))
+            observations.append(result["anr_process_sha256"])
+        self.assertEqual(observations[0], observations[1])
+        other = parse_window_observation("Display: mDisplayId=0\n mCurrentFocus=Window{abc u0 Application Not Responding: private.canary.process:other}")
+        self.assertNotEqual(other["anr_process_sha256"], expected)
+
+    def test_anr_process_hash_rejects_unvalidated_owner_text(self):
+        for owner in ("", " private_canary", "private_canary ", "private canary",
+                      "private_canary\t", "private_canary\n", "private_canary\r",
+                      "private_canary\x00", "private_canary/worker", "private_canary@worker",
+                      "private_canary=worker", "private_canary;worker", "private_canary:worker:other",
+                      "private_canary:", ":private_canary", "private_canary🙂",
+                      "private_canary EXITING EXITING"):
+            with self.subTest(owner=repr(owner)):
+                dump = "Display: mDisplayId=0\n mCurrentFocus=Window{abc u0 Application Not Responding: " + owner + "}"
+                result = parse_window_observation(dump)
+                self.assertIsNone(result["anr_process_sha256"])
+                self.assertNotIn("private_canary", json.dumps(result))
+        missing_separator = parse_window_observation("Display: mDisplayId=0\n mCurrentFocus=Window{abc u0 Application Not Responding:private_canary}")
+        self.assertIsNone(missing_separator["anr_process_sha256"])
+
+    def test_anr_process_hash_is_absent_for_other_dialogs_or_unobservable_focus(self):
+        anr = " mCurrentFocus=Window{abc u0 Application Not Responding: private_canary}\n"
+        for dump in ("unavailable", "Display: mDisplayId=0\n mCurrentFocus=null",
+                     "Display: mDisplayId=0\n mCurrentFocus=Window{abc u0 private_canary}",
+                     "Display: mDisplayId=0\n mCurrentFocus=Window{abc u0 Application Error: private_canary}",
+                     "Display: mDisplayId=0\n mCurrentFocus=Window{malformed}",
+                     "Display: mDisplayId=0\n" + anr + anr,
+                     "Display: mDisplayId=0\n" + anr + "Display: mDisplayId=0\n" + anr,
+                     "Display: mDisplayId=0\n mCurrentFocus=null\nDisplay: mDisplayId=1\n" + anr):
+            result = parse_window_observation(dump)
+            self.assertIsNone(result["anr_process_sha256"])
+            self.assertNotIn("private_canary", json.dumps(result))
 
     def test_exit_classifications_cannot_mix_processes_or_blame_historical_force_stop_on_launch(self):
         package = "com.banataosystems.pandora_mobile"

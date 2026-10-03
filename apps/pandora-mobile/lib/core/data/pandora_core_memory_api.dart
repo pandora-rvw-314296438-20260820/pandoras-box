@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../pandora_config.dart';
+import '../config/pandora_runtime_binding.dart';
 import 'pandora_core_api.dart';
 
 const _ownerOrganization = '2270b266-59da-4c39-bfd9-9f8d08352af0';
@@ -96,15 +98,22 @@ class HttpPandoraCoreMemoryGateway implements PandoraCoreMemoryGateway {
   HttpPandoraCoreMemoryGateway({
     http.Client? client,
     String? Function()? accessToken,
-  })  : _providedClient = client,
+    PandoraRuntimeBinding? runtimeBinding,
+  })  : _runtimeBinding = runtimeBinding ?? PandoraConfig.runtimeBinding,
+        _providedClient = client,
         _accessToken = accessToken ??
             (() => Supabase.instance.client.auth.currentSession?.accessToken);
 
+  final PandoraRuntimeBinding _runtimeBinding;
   final http.Client? _providedClient;
   final String? Function() _accessToken;
 
   @override
   Future<PandoraCoreMemoryContext> load() async {
+    if (_runtimeBinding.isAcceptance) {
+      throw const PandoraCoreFailure(
+          'MEMORY_UNAVAILABLE', 'Memory is unavailable in this environment.');
+    }
     http.Client? ownedClient;
     try {
       final token = _accessToken();

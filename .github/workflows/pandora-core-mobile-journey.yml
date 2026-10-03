@@ -32,6 +32,16 @@ on:
         default: platform
         type: choice
         options: [platform, authenticated]
+      runtime_profile:
+        description: Must match the producer artifact and protected QA target approval
+        required: true
+        default: production
+        type: choice
+        options: [production, core_acceptance_v1]
+      config_sha256:
+        description: Independently reviewed target digest, required for isolated acceptance
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -76,6 +86,8 @@ jobs:
       ARTIFACT_ID: ${{ inputs.artifact_id }}
       BUILD_KIND: ${{ inputs.build_kind || 'debug' }}
       JOURNEY_MODE: ${{ inputs.mode || (github.event.label.name == 'core-mobile-qa-reviewed' && 'authenticated' || 'platform') }}
+      RUNTIME_PROFILE: ${{ inputs.runtime_profile || 'production' }}
+      EXPECTED_CONFIG_SHA256: ${{ inputs.config_sha256 || '' }}
       VIEWPORT: ${{ matrix.viewport }}
       PYTHONUNBUFFERED: '1'
     steps:
@@ -87,6 +99,13 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" = workflow_dispatch ]]; then
             [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
             [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          fi
+          if [[ "$RUNTIME_PROFILE" = core_acceptance_v1 ]]; then
+            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+            [[ "$EXPECTED_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          else
+            test "$RUNTIME_PROFILE" = production
+            test -z "$EXPECTED_CONFIG_SHA256"
           fi
           test "$GITHUB_REPOSITORY" = pandora-rvw-314296438-20260820/pandoras-box
           RUNTIME_ROOT="$RUNNER_TEMP/pandora-core-runtime"
@@ -128,7 +147,8 @@ jobs:
             --archive "$RUNTIME_ROOT/candidate.zip" \
             --extract-dir "$RUNTIME_ROOT/candidate" \
             --receipt "$RUNTIME_ROOT/evidence/artifact-receipt.json" \
-            --build-kind "$BUILD_KIND"
+            --build-kind "$BUILD_KIND" --runtime-profile "$RUNTIME_PROFILE" \
+            --config-sha256 "$EXPECTED_CONFIG_SHA256"
 
       - name: Require protected real login for authenticated acceptance
         if: env.JOURNEY_MODE == 'authenticated'
@@ -137,24 +157,37 @@ jobs:
           PANDORA_CORE_QA_EMAIL: ${{ secrets.PANDORA_CORE_QA_EMAIL }}
           PANDORA_CORE_QA_PASSWORD: ${{ secrets.PANDORA_CORE_QA_PASSWORD }}
           PANDORA_CORE_QA_REVIEWED_SOURCE_SHA: ${{ vars.PANDORA_CORE_QA_REVIEWED_SOURCE_SHA }}
+          PANDORA_CORE_QA_RUNTIME_PROFILE: ${{ vars.PANDORA_CORE_QA_RUNTIME_PROFILE }}
+          PANDORA_CORE_QA_CONFIG_SHA256: ${{ vars.PANDORA_CORE_QA_CONFIG_SHA256 }}
+          PANDORA_CORE_QA_TARGET_JSON: ${{ vars.PANDORA_CORE_QA_TARGET_JSON }}
         shell: bash
         run: |
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/environments/pandora-core-mobile-qa" > "$RUNTIME_ROOT/provider-inputs/qa-environment.json"
           python3 - <<'PY'
-          import json, os
+          import json, os, sys
           from pathlib import Path
+          sys.path.insert(0, str(Path('apps/pandora-mobile/tool').resolve()))
+          from core_acceptance_config import ConfigFailure, validate_reviewed_runtime
           root = Path(os.environ['RUNTIME_ROOT'])
           rules = json.loads((root/'provider-inputs/qa-environment.json').read_text()).get('protection_rules', [])
           protected = any(rule.get('type') == 'required_reviewers' and rule.get('reviewers') for rule in rules)
           supplied = bool(os.environ.get('PANDORA_CORE_QA_EMAIL') and os.environ.get('PANDORA_CORE_QA_PASSWORD'))
           source_bound = os.environ.get('PANDORA_CORE_QA_REVIEWED_SOURCE_SHA') == os.environ['SOURCE_SHA']
+          artifact = json.loads((root/'evidence/artifact-receipt.json').read_text())
+          try:
+              validate_reviewed_runtime(artifact, os.environ['SOURCE_SHA'], os.environ['RUNTIME_PROFILE'],
+                                        os.environ['EXPECTED_CONFIG_SHA256'], os.environ)
+              target_bound = True
+          except ConfigFailure:
+              target_bound = False
           result = {'protected_environment_verified': protected, 'sanctioned_login_available': supplied,
                     'independently_reviewed_source_bound': source_bound,
+                    'independently_reviewed_runtime_target_bound': target_bound,
                     'authenticated_journey_verified': False, 'production_verified': False}
           (root/'evidence/auth-gate.json').write_text(json.dumps(result, indent=2)+'\n')
-          if not (protected and supplied and source_bound):
-              raise SystemExit('REVIEWED_EXACT_SOURCE_AND_PROTECTED_QA_LOGIN_REQUIRED; authenticated journey NOT_VERIFIED')
+          if not (protected and supplied and source_bound and target_bound):
+              raise SystemExit('REVIEWED_EXACT_SOURCE_TARGET_AND_PROTECTED_QA_LOGIN_REQUIRED; authenticated journey NOT_VERIFIED')
           PY
 
       - name: Install pinned external Android UI driver

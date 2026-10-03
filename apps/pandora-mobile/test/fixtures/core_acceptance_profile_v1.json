@@ -1,0 +1,18 @@
+{
+  "testOnly": true,
+  "description": "Synthetic parser/hash vector only. Not a live project, credential or provider receipt.",
+  "publishableKeyTestInput": "sb_publishable_core_acceptance_unit_fixture_only",
+  "canonical": {
+    "profile": "core_acceptance_v1",
+    "sourceSha": "0123456789abcdef0123456789abcdef01234567",
+    "supabaseProjectRef": "abcdefghijklmnopqrst",
+    "supabaseUrl": "https://abcdefghijklmnopqrst.supabase.co",
+    "publishableKeySha256": "afa5e740fb34d3d2b751f1614f2b98ccceba4bd14b10047146af672e31496301",
+    "organizationId": "10000000-0000-4000-8000-000000000001",
+    "ownerApiBaseUrl": "https://abcdefghijklmnopqrst.supabase.co/functions/v1/pandora-owner-api",
+    "projectRuntimeApiBaseUrl": "https://abcdefghijklmnopqrst.supabase.co/functions/v1/pandora-project-runtime",
+    "memoryMode": "unavailable"
+  },
+  "canonicalJson": "{\"profile\":\"core_acceptance_v1\",\"sourceSha\":\"0123456789abcdef0123456789abcdef01234567\",\"supabaseProjectRef\":\"abcdefghijklmnopqrst\",\"supabaseUrl\":\"https://abcdefghijklmnopqrst.supabase.co\",\"publishableKeySha256\":\"afa5e740fb34d3d2b751f1614f2b98ccceba4bd14b10047146af672e31496301\",\"organizationId\":\"10000000-0000-4000-8000-000000000001\",\"ownerApiBaseUrl\":\"https://abcdefghijklmnopqrst.supabase.co/functions/v1/pandora-owner-api\",\"projectRuntimeApiBaseUrl\":\"https://abcdefghijklmnopqrst.supabase.co/functions/v1/pandora-project-runtime\",\"memoryMode\":\"unavailable\"}",
+  "configSha256": "9884e45f3921ea5e8342cc7050031c6d1eba157609b98228689b87ef3db54456"
+}

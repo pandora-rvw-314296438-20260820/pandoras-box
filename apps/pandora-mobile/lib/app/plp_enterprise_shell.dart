@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/data/pandora_intelligence_api.dart';
@@ -9,6 +10,7 @@ import '../core/widgets/pandora_navigation.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/diagnostics/developer_diagnostics_screen.dart';
 import '../features/enterprise/plp_activity_screen.dart';
+import '../features/enterprise/plp_activity_read_model.dart';
 import '../features/enterprise/plp_connectivity_infrastructure_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
@@ -100,6 +102,38 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Future<Map<String, Object?>>? _bootstrapFuture;
   Map<String, Object?>? _lastBootstrap;
+  Future<Map<String, Object?>>? _bootstrapInFlight;
+  final _workspaceSnapshot =
+      ValueNotifier<Map<String, Object?>>(const <String, Object?>{});
+  late final _activityReadModel = PlpActivityReadModel(loader: () async {
+    if (widget.bootstrapOverride != null) {
+      return _normalizeBootstrap(widget.bootstrapOverride!['verifiedActivity']);
+    }
+    final raw = await Supabase.instance.client.rpc(
+      'plp_recent_business_activity_v1',
+      params: const <String, Object?>{'p_limit': 80},
+    );
+    return _normalizeBootstrap(raw);
+  });
+
+  Future<void> _ensureActivity({bool force = false}) async {
+    try {
+      await _activityReadModel.load(force: force);
+    } catch (_) {
+      // The shared model retains prior evidence and exposes an error state.
+    }
+  }
+
+  void _bindCurrentConversationContext() {
+    if (widget.embeddedRouteSlug == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final bootstrap = _lastBootstrap;
+      if (mounted && bootstrap != null) {
+        PandoraSharedConversationScope.maybeOf(context)
+            ?.bindEnterpriseContext(_alfredContext(bootstrap));
+      }
+    });
+  }
   bool _bootstrapInitialized = false;
   int _index = 0;
   final List<int> _surfaceHistory = <int>[];
@@ -145,10 +179,15 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     _bootstrapFuture = _loadBootstrapAndRemember();
   }
 
-  Future<Map<String, Object?>> _loadBootstrapAndRemember() async {
+  Future<Map<String, Object?>> _loadBootstrapAndRemember() =>
+      _bootstrapInFlight ??= _readBootstrapAndRemember()
+          .whenComplete(() => _bootstrapInFlight = null);
+
+  Future<Map<String, Object?>> _readBootstrapAndRemember() async {
     final value = await _loadBootstrap();
     _validatePrimaryScope(value);
     _lastBootstrap = value;
+    if (mounted) _workspaceSnapshot.value = value;
     if (widget.embeddedRouteSlug != null && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -167,6 +206,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     if (channel != null) {
       unawaited(channel.unsubscribe().then<void>((_) {}));
     }
+    _activityReadModel.dispose();
+    _workspaceSnapshot.dispose();
     _commandController.dispose();
     _commandFocus.dispose();
     _drawerScrollController.dispose();
@@ -187,42 +228,30 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       );
       final normalized = Map<String, Object?>.from(_normalizeBootstrap(value));
       _validatePrimaryScope(normalized);
-      try {
-        final resort = await Supabase.instance.client.rpc(
-          'plp_resort_command_center_v1',
-        );
-        normalized['resortCommandCenter'] = _normalizeBootstrap(resort);
-      } catch (_) {
-        // The verified PLP core remains authoritative if the additive resort
-        // command-center projection is rolling out or temporarily unavailable.
+      Future<void> readProjection(
+        String key,
+        String rpc, {
+        Map<String, Object?>? params,
+      }) async {
+        try {
+          final raw = await Supabase.instance.client
+              .rpc(rpc, params: params)
+              .timeout(const Duration(seconds: 12));
+          normalized[key] = _normalizeBootstrap(raw);
+        } catch (_) {
+          // A failed additive source cannot replace verified core data.
+        }
       }
-      try {
-        final operations = await Supabase.instance.client.rpc(
-          'plp_resort_operations_v1',
-        );
-        normalized['resortOperations'] = _normalizeBootstrap(operations);
-      } catch (_) {
-        // Operational detail is additive; core resort truth remains usable.
-      }
-      try {
-        final roomOperations = await Supabase.instance.client.rpc(
-          'plp_room_operations_v1',
-        );
-        normalized['roomOperations'] = _normalizeBootstrap(roomOperations);
-        _mergeRoomOperations(normalized);
-      } catch (_) {
-        // Booking-derived room truth remains usable if room operations are
-        // unavailable during a rolling deployment.
-      }
-      try {
-        final audit = await Supabase.instance.client.rpc(
-          'plp_resort_audit_v1',
-          params: const <String, Object?>{'p_limit': 50},
-        );
-        normalized['resortAudit'] = _normalizeBootstrap(audit);
-      } catch (_) {
-        // Audit projection is additive; core workspace truth remains usable.
-      }
+      await Future.wait<void>([
+        readProjection('resortCommandCenter', 'plp_resort_command_center_v1'),
+        readProjection('resortOperations', 'plp_resort_operations_v1'),
+        readProjection('roomOperations', 'plp_room_operations_v1'),
+        readProjection('resortAudit', 'plp_resort_audit_v1',
+            params: const <String, Object?>{'p_limit': 50}),
+      ]);
+      _mergeRoomOperations(normalized);
+      if (!mounted) return normalized;
+      // Activity is loaded only when opened, never on the startup path.
       _ensureRealtime(normalized);
       if (cache != null) {
         try {
@@ -361,6 +390,12 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             'Using the last verified PLP snapshot while the live provider is unavailable.',
       },
       'offlineBootstrap': true,
+      'cachedOperationalDataAvailable':
+          source['liveOperationalDataAvailable'] == true ||
+          (source['liveOperationalDataAvailable'] != false &&
+              source['liveBusinessSourceConnected'] != false &&
+              const {'healthy', 'current', 'live', 'ready'}
+                  .contains(source['state']?.toString().toLowerCase())),
     };
   }
 
@@ -417,6 +452,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   void _refresh() {
+    if (_drawerSelection == 'activity') {
+      unawaited(_ensureActivity(force: true));
+    }
     setState(() {
       _bootstrapFuture = _loadBootstrapAndRemember();
     });
@@ -498,6 +536,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       _routedToolKey = key;
       _routedTool = tool;
     });
+    _bindCurrentConversationContext();
   }
 
   void _closeTool() {
@@ -513,6 +552,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         _routedToolKey = null;
       }
     });
+    _bindCurrentConversationContext();
     if (closedKey == 'team-management') {
       _refresh();
     }
@@ -593,6 +633,12 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   String get _commandHint {
     final toolKey = _routedToolKey;
+    if (toolKey == 'team-management') return 'Ask about team or access…';
+    if (toolKey == 'activity-feed') return 'Ask about activity or audit…';
+    if (toolKey == 'source-infrastructure') {
+      return 'Ask about infrastructure…';
+    }
+    if (toolKey == 'operations-room') return 'Ask about resort operations…';
     if (toolKey != null && toolKey.startsWith('resort:')) {
       final section = plpResortSectionById(toolKey.substring('resort:'.length));
       if (section != null) return section.commandHint;
@@ -618,7 +664,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       11 => 'Ask about settings…',
       12 => 'Ask about diagnostics…',
       13 => 'Ask about tax readiness…',
-      14 => 'Ask about resort infrastructure…',
+      14 => 'Ask about infrastructure…',
       _ => 'Message Pandora',
     };
   }
@@ -748,30 +794,71 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
     final section = plpResortSectionById(destination);
     if (section == null) return;
-    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    if (destination == 'activity') unawaited(_ensureActivity());
     _openTool(
       'resort:' + destination,
-      PlpResortWorkspaceScreen(
-        section: section,
-        bootstrap: bootstrap,
-        onOpenNavigation: _openDrawer,
-        onRefresh: _refresh,
-        onOpenSection: _openResortSection,
-        onOpenModule: _openResortModule,
-        onOpenRecord: (kind, record) => _openResortRecord(kind, record),
-        onCreateReservation:
-            plpRoleCanOperate(bootstrap) ? _openReservationCreate : null,
-        onOpenOperationsRoom: () {
-          _openTool(
-            'operations-room',
-            PandoraOperationsRoomScreen(onHome: _closeTool),
+      AnimatedBuilder(
+        animation: Listenable.merge([
+          _workspaceSnapshot,
+          if (destination == 'activity') _activityReadModel,
+        ]),
+        builder: (context, _) {
+          final bootstrap = <String, Object?>{
+            ..._workspaceSnapshot.value,
+            if (destination == 'activity') ...{
+              if (_activityReadModel.data != null)
+                'verifiedActivity': _activityReadModel.data,
+              'verifiedActivityLoading': _activityReadModel.loading,
+            },
+          };
+          return PlpResortWorkspaceScreen(
+            section: section,
+            bootstrap: bootstrap,
+            onOpenNavigation: _openDrawer,
+            onRefresh: _refresh,
+            onOpenSection: _openResortSection,
+            onOpenModule: _openResortModule,
+            onOpenRecord: (kind, record) => _openResortRecord(kind, record),
+            onCreateReservation:
+                plpRoleCanOperate(bootstrap) ? _openReservationCreate : null,
+            onOpenOperationsRoom: () {
+              _openTool('operations-room',
+                  PandoraOperationsRoomScreen(onHome: _closeTool));
+            },
+            onOpenGuestExperience: () => _open(6),
+            onOpenTeam: () => _openTeamManagement(bootstrap),
+            onOpenActivity: _openActivityFeed,
+            onOpenSourceSettings: _openSourceInfrastructure,
           );
         },
-        onOpenGuestExperience: () => _open(6),
-        onOpenTeam: () => _openTeamManagement(bootstrap),
-        onOpenActivity: () => _open(10),
       ),
       replaceHistory: replaceHistory,
+    );
+  }
+
+  void _openActivityFeed() {
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    _openTool(
+      'activity-feed',
+      PlpActivityScreen(
+        readModel: _activityReadModel,
+        organizationId: _organizationId(bootstrap),
+        onOpenNavigation: _openDrawer,
+      ),
+    );
+  }
+
+  void _openSourceInfrastructure() {
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    _openTool(
+      'source-infrastructure',
+      PlpConnectivityInfrastructureScreen(
+        bootstrap: bootstrap,
+        onOpenNavigation: _openDrawer,
+        onAskPandora: (prompt) {
+          unawaited(_submitCommand(prompt));
+        },
+      ),
     );
   }
 
@@ -781,11 +868,21 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }) {
     final organizationId = _organizationId(bootstrap);
     if (organizationId == null || organizationId.isEmpty) return;
+    final rawTeam = bootstrap['teamAccess'];
+    final team = rawTeam is Map ? rawTeam : const <Object?, Object?>{};
+    final rawMembers = team['members'];
+    final initialActive =
+        int.tryParse(team['activeMemberCount']?.toString() ?? '');
+    final initialTotal =
+        int.tryParse(team['totalMemberCount']?.toString() ?? '') ??
+            (rawMembers is List ? rawMembers.length : null);
     _openTool(
       'team-management',
       PlpTeamManagementScreen(
         organizationId: organizationId,
         openInviteOnLoad: invite,
+        initialActiveCount: initialActive,
+        initialTotalCount: initialTotal,
         onBack: _closeTool,
         onChanged: _refresh,
       ),
@@ -952,6 +1049,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenSection: _openResortSection,
               onOpenModule: _openResortModule,
               onOpenRecord: (kind, record) => _openResortRecord(kind, record),
+              onOpenSourceSettings: _openSourceInfrastructure,
             ),
             if (widget.embeddedRouteSlug != null)
               const SizedBox.shrink()
@@ -1012,7 +1110,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               },
               onOpenGuestExperience: () => _open(6),
               onOpenTeam: () => _openTeamManagement(bootstrap),
-              onOpenActivity: () => _open(10),
+              onOpenActivity: _openActivityFeed,
+              onOpenSourceSettings: _openSourceInfrastructure,
             ),
             PlpRevenueScreen(
               key: const ValueKey('plp-revenue'),
@@ -1029,6 +1128,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             ),
             PlpActivityScreen(
               key: const ValueKey('plp-activity'),
+              readModel: _activityReadModel,
               organizationId: _organizationId(bootstrap),
               onOpenNavigation: _openDrawer,
             ),
@@ -1047,7 +1147,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               organizationId: _organizationId(bootstrap),
               key: const ValueKey('plp-tax-compliance'),
               workspaceKey: 'plp-boracay',
-              workspaceName: 'PLP Boracay',
+              workspaceName: 'Pueblo La Perla Boracay',
               enterpriseContext: const <String, Object?>{
                 'surface': 'enterprise_tax',
                 'route': '/enterprise/workspaces/plp-boracay/tax-compliance',
@@ -1055,7 +1155,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 'identityScope': 'enterprise_workspace',
                 'selectedObject': <String, String>{
                   'workspaceKey': 'plp-boracay',
-                  'workspaceName': 'PLP Boracay',
+                  'workspaceName': 'Pueblo La Perla Boracay',
                   'workspaceType': 'Luxury Resort',
                   'section': 'Tax & Compliance',
                 },
@@ -1096,7 +1196,24 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onPopInvokedWithResult: (didPop, result) {
                 if (!didPop) _handleWorkspaceBack();
               },
-              child: Scaffold(
+              child: AnnotatedRegion<SystemUiOverlayStyle>(
+                value: SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: (_index == 1 || _drawerOpen)
+                      ? Brightness.light
+                      : Brightness.dark,
+                  statusBarBrightness: (_index == 1 || _drawerOpen)
+                      ? Brightness.dark
+                      : Brightness.light,
+                  systemNavigationBarColor:
+                      (_index == 1 || _drawerOpen) ? Colors.black : _canvas,
+                  systemNavigationBarIconBrightness:
+                      (_index == 1 || _drawerOpen)
+                          ? Brightness.light
+                          : Brightness.dark,
+                  systemNavigationBarDividerColor: Colors.transparent,
+                ),
+                child: Scaffold(
                 key: _scaffoldKey,
                 backgroundColor: _canvas,
                 drawerEnableOpenDragGesture: true,
@@ -1144,6 +1261,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                               children: screens,
                             ),
                           ),
+                          for (final route in _routedToolHistory)
+                            MaterialPage<void>(
+                              key: ValueKey<String>('plp-shell-tool-${route.key}'),
+                              child: route.tool,
+                            ),
                           if (_routedTool != null)
                             MaterialPage<void>(
                               key: ValueKey<String>(
@@ -1156,7 +1278,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                           final routeKey = page.key;
                           if (_routedTool == null ||
                               routeKey is! ValueKey<String> ||
-                              !routeKey.value.startsWith('plp-shell-tool-')) {
+                              routeKey.value !=
+                                  'plp-shell-tool-${_routedToolKey!}') {
                             return;
                           }
                           _closeTool();
@@ -1197,6 +1320,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                         },
                         onOpenChat: () => _open(1),
                       ),
+                ),
               ),
             ),
           );
@@ -1343,6 +1467,9 @@ class PlpCommandDock extends StatelessWidget {
                               ),
                               decoration: InputDecoration(
                                 hintText: hintText,
+                                // Context hints never resize the command bar.
+                                // Typed messages retain their existing multiline input.
+                                hintMaxLines: 1,
                                 hintStyle: const TextStyle(
                                   color: Color(0xFFB6B0A7),
                                   fontSize: 15.5,

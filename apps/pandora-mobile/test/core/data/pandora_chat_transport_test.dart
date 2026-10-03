@@ -60,6 +60,9 @@ class _ChatTransport {
         }
         paths.add(request.url.path);
         requests.add(body);
+        expect(
+            request.headers.keys.where((key) => key.startsWith('x-pandora-')),
+            isEmpty);
         final response = await handle(request, body);
         return http.StreamedResponse(response.stream, response.statusCode,
             request: request,

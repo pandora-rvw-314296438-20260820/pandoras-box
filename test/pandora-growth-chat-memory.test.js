@@ -10,7 +10,7 @@ const entry = fs.readFileSync("vercel-entrypoint.js", "utf8");
 
 test("Ask Pandora hydrates growth metrics and approved Memory server-side", () => {
   assert.match(chat, /hydrateGrowthCommandContext\(c\.user,c\.organizationId,i\.enterpriseContext\)/);
-  assert.match(chat, /hydrateGrowthMemoryContext\(req,c\.organizationId,i\.enterpriseContext,i\.message\)/);
+  assert.match(chat, /hydrateGrowthMemoryContext\(req,c\.organizationId,i\.enterpriseContext,i\.message,profile\)/);
   assert.match(chat, /pandora_marketing_growth_command_center_v2/);
   assert.match(chat, /https:\/\/mcpmaster\.vercel\.app\/api\/growth\/memory-context/);
   assert.match(chat, /growthApprovedMemory:records/);

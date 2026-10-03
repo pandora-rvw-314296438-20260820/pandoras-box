@@ -6,6 +6,7 @@ import { routeForRdpOperations } from "./rdp-routes.mjs";
 import { routeForMergedRelease } from "./merged-release-routes.mjs";
 import { routeForReasoningRdpOperations } from "./reasoning-rdp-routes.mjs";
 import { handleGeminiWorkerRequest } from "./gemini-worker-gateway.mjs";
+import { withCoreRuntimeBinding, assertAcceptanceOperation } from "../_shared/core-acceptance-http.mjs";
 
 const CONTROL_ORGANIZATION_ID = "2270b266-59da-4c39-bfd9-9f8d08352af0";
 const OPERATIONS_PROJECT_ID = "ee282126-3f61-4058-8c92-2fedbfcecf1f";
@@ -47,6 +48,7 @@ type ControlRpc =
   | "get_supabase_control_accounts"
   | "get_github_control_accounts"
   | "get_runtime_security_config"
+  | "pandora_claim_core_acceptance_bedrock_chat_ticket_v1"
   | "pandora_create_execution_plan"
   | "pandora_approve_execution_plan"
   | "pandora_claim_execution_plan"
@@ -950,8 +952,8 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
   return undefined;
 }
 
-Deno.serve(async (request: Request) => {
-  const geminiWorkerResponse = await handleGeminiWorkerRequest(request);
+Deno.serve(request => withCoreRuntimeBinding(request, Deno.env.toObject(), "control", async (request: Request, profile: any) => {
+  const geminiWorkerResponse = profile.acceptance ? null : await handleGeminiWorkerRequest(request);
   if (geminiWorkerResponse) return geminiWorkerResponse;
 
   if (request.method !== "POST") return response(405, { ok: false, error: "method_not_allowed" });
@@ -979,8 +981,16 @@ Deno.serve(async (request: Request) => {
     return response(400, { ok: false, error: "invalid_json" });
   }
 
+  try { assertAcceptanceOperation(profile, input.action, "control"); }
+  catch { return response(400, { ok: false, error: "CORE_RUNTIME_OPERATION_DENIED" }); }
   const route = routeForInput(input);
   if (!route) return response(400, { ok: false, error: "unsupported_or_invalid_action" });
+  if (profile.acceptance) {
+    route.rpc = "pandora_claim_core_acceptance_bedrock_chat_ticket_v1";
+    route.params = { p_token_sha256: input.tokenSha256,
+      p_organization_id: profile.organizationId, p_config_sha256: profile.configSha256, p_source_sha: profile.sourceSha };
+    route.includeOrganization = false;
+  }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const key = serviceRoleKey();
@@ -1029,4 +1039,4 @@ Deno.serve(async (request: Request) => {
   } catch {
     return response(502, { ok: false, error: "control_operation_unavailable" });
   }
-});
+}));

@@ -106,32 +106,42 @@ function edgeFixture({ observe = false, auxiliaryFailure = false, lostCompletion
       return { reply: 'Your records are ready.', intent: 'chat', conversationLane: 'enterprise_workspace', providerReadback: { snapshotVerified: true }, handoff: null };
     },
   };
+  const environment = {
+    SUPABASE_URL: 'https://jcyqixttuebxqqfkjonq.supabase.co',
+    SUPABASE_ANON_KEY: 'synthetic-anon-key',
+    SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service-key',
+  };
+  const functionsRoot = path.resolve(__dirname, '../supabase/functions');
   const cache = new Map();
-  function load(name) {
-    if (cache.has(name)) return cache.get(name);
-    const filename = path.resolve(__dirname, '../supabase/functions/pandora-intelligence-chat', name);
+  function load(filename) {
+    assert.ok(filename.startsWith(functionsRoot + path.sep), 'fixture modules stay within the real Edge source tree');
+    if (cache.has(filename)) return cache.get(filename);
     const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
       compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
     }).outputText;
     const exports = {};
-    cache.set(name, exports);
+    cache.set(filename, exports);
     vm.runInNewContext(compiled, {
       exports, crypto, Error, TextEncoder, TextDecoder, Request, Response, ReadableStream,
       AbortController, AbortSignal, setTimeout, clearTimeout,
       setInterval: () => 1, clearInterval: () => {},
       console: { error() {} },
-      Deno: { env: { get: () => 'synthetic-test-value' }, serve: callback => { handler = callback; } },
+      Deno: {
+        env: { get: name => environment[name], toObject: () => ({ ...environment }) },
+        serve: callback => { handler = callback; },
+      },
       require(specifier) {
         if (specifier.includes('supabase-js')) return { createClient: (_url, _key, options) => options.global ? user : admin };
         if (specifier.startsWith('jsr:')) return {};
         if (specifier === './activity.ts') return activity;
         if (specifier === './core-owner-commands.ts') return core;
-        return load(path.basename(specifier));
+        assert.ok(specifier.startsWith('.'), 'only explicit fixture stubs or real relative Edge modules are allowed');
+        return load(path.resolve(path.dirname(filename), specifier));
       },
     }, { filename });
     return exports;
   }
-  load('index.ts');
+  load(path.join(functionsRoot, 'pandora-intelligence-chat/index.ts'));
   return {
     state,
     async run() {

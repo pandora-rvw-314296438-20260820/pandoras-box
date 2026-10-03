@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/widgets/pandora_navigation.dart';
+import 'plp_activity_read_model.dart';
 
 typedef PlpBusinessActivityLoader = Future<Map<String, Object?>> Function();
 typedef PlpPandoraActivityLogLoader = Future<Map<String, Object?>> Function({
@@ -20,12 +21,14 @@ class PlpActivityScreen extends StatefulWidget {
     this.organizationId,
     this.businessLoader,
     this.logLoader,
+    this.readModel,
   });
 
   final VoidCallback onOpenNavigation;
   final String? organizationId;
   final PlpBusinessActivityLoader? businessLoader;
   final PlpPandoraActivityLogLoader? logLoader;
+  final PlpActivityReadModel? readModel;
 
   @override
   State<PlpActivityScreen> createState() => _PlpActivityScreenState();
@@ -66,7 +69,8 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
   void initState() {
     super.initState();
     _bindRealtime();
-    scheduleMicrotask(_loadBusiness);
+    _business = widget.readModel?.items ?? _business;
+    scheduleMicrotask(() => _loadBusiness(force: false));
   }
 
   @override
@@ -159,6 +163,9 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
         .contains(value?.toString().trim().toLowerCase());
   }
 
+  List<Map<String, Object?>> _productionActivity(Object? value) =>
+      plpProductionActivityRecords(value);
+
   int? _int(Object? value) {
     if (value is int) return value;
     return int.tryParse(value?.toString() ?? '');
@@ -197,16 +204,19 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
     return _map(value);
   }
 
-  Future<void> _loadBusiness() async {
+  Future<void> _loadBusiness({bool force = true}) async {
     if (_businessLoading) return;
     setState(() {
       _businessLoading = true;
       _businessError = null;
     });
     try {
-      final payload = await (widget.businessLoader ?? _providerBusinessLoader)();
+      final payload = widget.readModel != null
+          ? await widget.readModel!.load(force: force)
+          : await (widget.businessLoader ?? _providerBusinessLoader)();
+      final page = _productionActivity(payload['items']);
       if (!mounted) return;
-      setState(() => _business = _maps(payload['items']));
+      setState(() => _business = page);
     } catch (_) {
       if (!mounted) return;
       setState(
@@ -232,7 +242,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
         query: query.isEmpty ? null : query,
       );
       if (!mounted) return;
-      final page = _maps(payload['items']);
+      final page = _productionActivity(payload['items']);
       setState(() {
         _logs = append
             ? <Map<String, Object?>>[..._logs, ...page]
@@ -368,7 +378,6 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
                       ),
                     ),
                   ),
-                const _ActivityHero(),
                 _ActivityTabs(
                   selected: _tab,
                   onSelect: _selectTab,
@@ -417,7 +426,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
     final earlier = items.where((item) => !_isToday(item, 'occurredAt')).toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 6),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -497,7 +506,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
     final earlier = _logs.where((item) => !_isToday(item, 'occurredAt')).toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 6),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -571,30 +580,18 @@ class _ActivityHeader extends StatelessWidget {
             const SizedBox.square(dimension: 44),
           const SizedBox(width: 12),
           const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'PUEBLO LA PERLA',
-                  style: TextStyle(
-                    color: _PlpActivityScreenState._ink,
-                    fontFamily: 'serif',
-                    fontSize: 16,
-                    letterSpacing: 2.6,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'ACTIVITY',
-                  style: TextStyle(
-                    color: _PlpActivityScreenState._gold,
-                    fontSize: 8.5,
-                    letterSpacing: 2.2,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            child: Text(
+              'ACTIVITY & AUDIT',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _PlpActivityScreenState._ink,
+                fontFamily: 'serif',
+                fontSize: 21,
+                height: 1,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -.35,
+              ),
             ),
           ),
           IconButton(
@@ -608,41 +605,6 @@ class _ActivityHeader extends StatelessWidget {
             icon: const Icon(Icons.search_rounded, size: 23),
           ),
         ],
-      );
-}
-
-class _ActivityHero extends StatelessWidget {
-  const _ActivityHero();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        key: const ValueKey<String>('plp-activity-editorial-hero'),
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 18),
-        child: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recent activity',
-              style: TextStyle(
-                color: _PlpActivityScreenState._ink,
-                fontFamily: 'serif',
-                fontSize: 42,
-                height: .96,
-                fontWeight: FontWeight.w400,
-                letterSpacing: -1.1,
-              ),
-            ),
-            SizedBox(height: 13),
-            Text(
-              'A verified chronology of what changed across the resort.',
-              style: TextStyle(
-                color: _PlpActivityScreenState._muted,
-                fontSize: 13,
-                height: 1.45,
-              ),
-            ),
-          ],
-        ),
       );
 }
 
@@ -682,7 +644,7 @@ class _ActivityTabs extends StatelessWidget {
                 onTap: () => onSelect(index),
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 11),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: FittedBox(
@@ -701,7 +663,7 @@ class _ActivityTabs extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 13),
+                    const SizedBox(height: 9),
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 160),
                       height: 2,

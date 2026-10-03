@@ -1,12 +1,19 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const { pathToFileURL } = require("node:url");
 const { resolveVercelWorkloadToken } = require("../runtime/vercel-workload-identity.js");
 const { converseWithBedrockTarget, safeProviderRequestId } = require("./aws-bedrock-runtime.js");
 
 const MAX_BODY_BYTES = 4096;
 const MAX_CLAIM_BODY_BYTES = 1048576;
-const CONTROL_URL = "https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control";
+// Keep the shared ESM validator native under Vercel's CommonJS build. A fixed
+// resolve includes the same module in the deployment tracer's dependency graph.
+const nativeImport = new Function("specifier", "return import(specifier)");
+let profileModule;
+function runtimeProfileModule() {
+  return profileModule ||= nativeImport(pathToFileURL(require.resolve("../../supabase/functions/_shared/core-acceptance-profile.mjs")).href);
+}
 
 function sha(value) { return crypto.createHash("sha256").update(value, "utf8").digest("hex"); }
 
@@ -21,23 +28,34 @@ function abortable(promise, signal) {
 }
 
 async function claimTicket(tokenSha256, {
-  fetchFn = globalThis.fetch, resolveWorkloadToken = resolveVercelWorkloadToken, signal,
+  fetchFn = globalThis.fetch, resolveWorkloadToken = resolveVercelWorkloadToken, signal, environment = process.env, profile,
 } = {}) {
+  const { resolveCoreRuntimeProfile, runtimeBindingHeaders, assertRuntimeRequestBinding } = await runtimeProfileModule();
+  profile ||= await resolveCoreRuntimeProfile(environment, { role: "bridge" });
   const oidc = await abortable(resolveWorkloadToken(), signal);
   if (signal?.aborted) throw Object.assign(Error("BEDROCK_CHAT_CANCELLED"), { status: 499 });
   if (!oidc) throw Error("BEDROCK_CHAT_WORKLOAD_IDENTITY_UNAVAILABLE");
-  const response = await abortable(fetchFn(CONTROL_URL, {
+  const response = await abortable(fetchFn(profile.controlUrl, {
     method: "POST",
-    headers: { authorization: "Bearer " + oidc, "content-type": "application/json", accept: "application/json" },
+    headers: { authorization: "Bearer " + oidc, "content-type": "application/json", accept: "application/json", ...runtimeBindingHeaders(profile) },
     body: JSON.stringify({ action:"bedrock_chat_ticket_claim", tokenSha256 }),
     redirect: "error", signal,
   }), signal);
+  // A successful JSON body from a different runtime is never a valid claim.
+  try { assertRuntimeRequestBinding(profile, response.headers); }
+  catch (error) { await response.body?.cancel?.().catch(() => {}); throw error; }
   const raw = await abortable(response.text(), signal);
   if (!response.ok) throw Error("BEDROCK_CHAT_TICKET_CLAIM_FAILED");
   let payload;
   try { payload = raw ? JSON.parse(raw) : {}; } catch { throw Error("BEDROCK_CHAT_TICKET_CLAIM_FAILED"); }
   if (payload?.ok !== true || !payload.operations || typeof payload.operations !== "object" || Array.isArray(payload.operations)) {
     throw Error("BEDROCK_CHAT_TICKET_CLAIM_FAILED");
+  }
+  // The control response must contain a database-bound acceptance receipt.
+  // Matching transport headers alone cannot establish ticket organization.
+  if (profile.acceptance && (payload.operations.organizationId !== profile.organizationId ||
+      payload.operations.configSha256 !== profile.configSha256 || payload.operations.sourceSha !== profile.sourceSha)) {
+    throw Object.assign(Error("CORE_RUNTIME_BINDING_MISMATCH"), { status: 400, retryable: false, crossProviderEligible: false });
   }
   return { claim: payload.operations, oidc };
 }
@@ -155,10 +173,10 @@ function createBedrockChatHandler({
   resolveWorkloadToken = resolveVercelWorkloadToken,
   converse = converseWithBedrockTarget,
   timeoutMs = 150000,
+  environment = process.env,
 } = {}) {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 180000) throw Error("BEDROCK_CHAT_TIMEOUT_INVALID");
   return async function handleBedrockChat(req, res) {
-    if (req.method !== "POST" || req.headers?.origin) return res.status(405).json({ ok: false, error: "METHOD_NOT_ALLOWED" });
     const controller = new AbortController();
     const abort = () => controller.abort();
     const close = () => { if (!res.writableEnded) controller.abort(); };
@@ -167,12 +185,17 @@ function createBedrockChatHandler({
     timer.unref?.();
     let streaming = false, invocationStarted = false;
     try {
+      const { resolveCoreRuntimeProfile, runtimeBindingHeaders, assertRuntimeRequestBinding } = await runtimeProfileModule();
+      const profile = await resolveCoreRuntimeProfile(environment, { role: "bridge" });
+      for (const [name, value] of Object.entries(runtimeBindingHeaders(profile))) res.setHeader(name, value);
+      assertRuntimeRequestBinding(profile, req.headers);
+      if (req.method !== "POST" || req.headers?.origin) return res.status(405).json({ ok: false, error: "METHOD_NOT_ALLOWED" });
       const body = await abortable(readBody(req), controller.signal), ticket = body?.ticket;
       if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => key !== "ticket") ||
           typeof ticket !== "string" || !/^[0-9a-f]{64}$/.test(ticket)) {
         return res.status(404).json({ ok: false, error: "BEDROCK_CHAT_DENIED" });
       }
-      const claimed = await claimTicket(sha(ticket), { fetchFn, resolveWorkloadToken, signal: controller.signal });
+      const claimed = await claimTicket(sha(ticket), { fetchFn, resolveWorkloadToken, signal: controller.signal, profile });
       if (controller.signal.aborted) throw cancelError(controller.signal);
       const input = claimedInput(claimed.claim);
       // An opaque ticket authorizes the exact provider request. Accept alone

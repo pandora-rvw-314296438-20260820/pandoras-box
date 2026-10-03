@@ -112,7 +112,7 @@ test('internal Enterprise context is sanitized before persistence, API response,
 
 test('owner-facing Pandora injects canonical M5 Memory through the server workload boundary', () => {
   assert.match(edge, /https:\/\/mcpmaster\.vercel\.app\/api\/operations-memory/);
-  assert.match(edge, /combinedTrustedContext\(req,c\.admin,c\.organizationId,i\.projectId,effectiveInitial,turn\?\.timings\?\?null\)/);
+  assert.match(edge, /combinedTrustedContext\(req,c\.admin,c\.organizationId,i\.projectId,effectiveInitial,turn\?\.timings\?\?null,profile\)/);
   assert.match(edge, /Use relevant prior failure lessons, procedures, outcomes, and provider evidence to avoid repeating known mistakes/);
   assert.match(edge, /canonicalMemoryItemIds/);
   assert.match(edge, /retrievalDoesNotGrantExecutionAuthority===true/);

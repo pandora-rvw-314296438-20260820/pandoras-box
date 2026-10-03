@@ -224,7 +224,8 @@ def parse_window_observation(value: str) -> dict:
     indexes = [i for i, match in enumerate(displays) if match.group(1) == "0"]
     result = {"focus": "unobserved", "canonical_error_dialog": None,
               "canonical_anr_dialog": None, "window_exit_suffix_observed": None,
-              "dialog_kind": "unobserved", "dialog_owner": "unobserved"}
+              "dialog_kind": "unobserved", "dialog_owner": "unobserved",
+              "anr_process_sha256": None}
     if len(indexes) != 1:
         return result
     index = indexes[0]
@@ -235,7 +236,8 @@ def parse_window_observation(value: str) -> dict:
     focus = matches[0].strip()
     if focus == "null":
         return {"focus": "none", "canonical_error_dialog": False, "canonical_anr_dialog": False,
-                "window_exit_suffix_observed": False, "dialog_kind": "none", "dialog_owner": "none"}
+                "window_exit_suffix_observed": False, "dialog_kind": "none", "dialog_owner": "none",
+                "anr_process_sha256": None}
     window = re.fullmatch(r"Window\{[a-fA-F0-9]+ u\d+ (.+)\}", focus)
     if window is None:
         return result
@@ -250,7 +252,8 @@ def parse_window_observation(value: str) -> dict:
     # dialog_owner separately preserves recognized Core auxiliary ownership.
     result = {"focus": "canonical_activity" if canonical else "other_window",
               "canonical_error_dialog": False, "canonical_anr_dialog": False,
-              "window_exit_suffix_observed": exiting, "dialog_kind": "none", "dialog_owner": "none"}
+              "window_exit_suffix_observed": exiting, "dialog_kind": "none", "dialog_owner": "none",
+              "anr_process_sha256": None}
     for prefix, kind, field in (("Application Error:", "application_error", "canonical_error_dialog"),
                                 ("Application Not Responding:", "application_anr", "canonical_anr_dialog")):
         if not title.startswith(prefix):
@@ -272,6 +275,11 @@ def parse_window_observation(value: str) -> dict:
             result["dialog_owner"] = "system_ui_process"
         else:
             result["dialog_owner"] = "other_process"
+        if kind == "application_anr" and result["dialog_owner"] != "unobserved":
+            # Match only a validated exact UTF-8 process token against hashes
+            # from the pristine SDK package/process inventory. Never hash an
+            # arbitrary title, and never retain the token itself in receipts.
+            result["anr_process_sha256"] = hashlib.sha256(owner.encode("utf-8")).hexdigest()
         break
     return result
 

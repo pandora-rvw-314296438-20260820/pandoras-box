@@ -8,9 +8,16 @@ on:
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
+    inputs:
+      runtime_profile:
+        description: Canonical defaults or the protected isolated Core acceptance target
+        required: true
+        default: production
+        type: choice
+        options: [production, core_acceptance_v1]
 
 concurrency:
-  group: pandora-mobile-${{ github.event.pull_request.number || github.ref }}
+  group: pandora-mobile-${{ github.event.pull_request.number || github.ref }}-${{ inputs.runtime_profile || 'production' }}
   cancel-in-progress: true
 
 permissions:
@@ -60,6 +67,11 @@ jobs:
     name: Flutter / Android full validation
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read
+    environment:
+      name: ${{ inputs.runtime_profile == 'core_acceptance_v1' && 'pandora-core-mobile-qa' || 'pandora-core-mobile-platform' }}
     outputs:
       android-artifact-id: ${{ steps.android_provider_locator.outputs.artifact_id }}
       android-artifact-name: ${{ steps.android_provider_locator.outputs.artifact_name }}
@@ -70,7 +82,8 @@ jobs:
       FLUTTER_VERSION: '3.47.0'
       EXPECTED_APP_VERSION: '0.4.0-rc.14+21'
       LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
-      ANDROID_ARTIFACT_NAME: pandora-mobile-android-${{ github.event_name == 'pull_request' && 'candidates' || 'validation' }}-${{ github.sha }}
+      ANDROID_ARTIFACT_NAME: pandora-mobile-android-${{ inputs.runtime_profile == 'core_acceptance_v1' && 'core-acceptance' || (github.event_name == 'pull_request' && 'candidates' || 'validation') }}-${{ github.sha }}
+      RUNTIME_PROFILE: ${{ inputs.runtime_profile || 'production' }}
     steps:
       - name: Check out the exact candidate
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -84,6 +97,30 @@ jobs:
           set -euo pipefail
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+      - name: Bind the explicit runtime target before building
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PANDORA_CORE_QA_RUNTIME_PROFILE: ${{ inputs.runtime_profile == 'core_acceptance_v1' && vars.PANDORA_CORE_QA_RUNTIME_PROFILE || '' }}
+          PANDORA_CORE_QA_TARGET_JSON: ${{ inputs.runtime_profile == 'core_acceptance_v1' && vars.PANDORA_CORE_QA_TARGET_JSON || '' }}
+          PANDORA_CORE_QA_CONFIG_SHA256: ${{ inputs.runtime_profile == 'core_acceptance_v1' && vars.PANDORA_CORE_QA_CONFIG_SHA256 || '' }}
+          PANDORA_CORE_QA_REVIEWED_SOURCE_SHA: ${{ inputs.runtime_profile == 'core_acceptance_v1' && vars.PANDORA_CORE_QA_REVIEWED_SOURCE_SHA || '' }}
+          PANDORA_CORE_QA_SUPABASE_PUBLISHABLE_KEY: ${{ inputs.runtime_profile == 'core_acceptance_v1' && secrets.PANDORA_CORE_QA_SUPABASE_PUBLISHABLE_KEY || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          environment_args=()
+          if [[ "$RUNTIME_PROFILE" = core_acceptance_v1 ]]; then
+            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+            gh api "repos/$GITHUB_REPOSITORY/environments/pandora-core-mobile-qa" > "$RUNNER_TEMP/core-build-environment.json"
+            environment_args=(--environment-json "$RUNNER_TEMP/core-build-environment.json")
+          fi
+          python3 apps/pandora-mobile/tool/core_acceptance_config.py \
+            --profile "$RUNTIME_PROFILE" --source-sha "$SOURCE_SHA" \
+            --app-version "$EXPECTED_APP_VERSION" "${environment_args[@]}" \
+            --defines "$RUNNER_TEMP/pandora-mobile-runtime-defines.json" \
+            --binding "$RUNNER_TEMP/pandora-core-acceptance-binding.json" \
+            --manifest-fields "$RUNNER_TEMP/pandora-runtime-manifest-fields.txt"
 
       - name: Guard the single read-only mobile lane
         shell: bash
@@ -323,6 +360,7 @@ jobs:
           flutter test --reporter expanded --concurrency=1 "${tests[@]}"
 
       - name: Build non-production Web candidate
+        if: ${{ inputs.runtime_profile != 'core_acceptance_v1' }}
         working-directory: .pandora-mobile-build
         run: >-
           flutter build web --release
@@ -338,12 +376,10 @@ jobs:
             "$EXPECTED_APP_VERSION"
           flutter build apk --debug \
             --target-platform android-arm64 \
-            --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
-            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+            --dart-define-from-file="$RUNNER_TEMP/pandora-mobile-runtime-defines.json"
           flutter build apk --profile \
             --target-platform android-arm64 \
-            --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
-            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+            --dart-define-from-file="$RUNNER_TEMP/pandora-mobile-runtime-defines.json"
 
       - name: Inspect Android identity and permissions
         shell: bash
@@ -387,6 +423,7 @@ jobs:
             echo "workflow_run_id=${GITHUB_RUN_ID}"
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "android_artifact_name=${ANDROID_ARTIFACT_NAME}"
+            cat "$RUNNER_TEMP/pandora-runtime-manifest-fields.txt"
             echo "app_version=${EXPECTED_APP_VERSION}"
             echo 'android_package=com.banataosystems.pandora_mobile'
             echo "flutter_version=${FLUTTER_VERSION}"
@@ -408,14 +445,26 @@ jobs:
             echo "apk_size_bytes=$(stat -c '%s' "$apk")"
             echo "profile_apk_sha256=$(sha256sum "$profile_apk" | cut -d ' ' -f1)"
             echo "profile_apk_size_bytes=$(stat -c '%s' "$profile_apk")"
-            echo "web_tree_sha256=$(find "$web" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d ' ' -f1)"
+            if [[ "$RUNTIME_PROFILE" = production ]]; then
+              echo "web_tree_sha256=$(find "$web" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d ' ' -f1)"
+            fi
             echo "android_badging_sha256=$(sha256sum "$evidence/badging.txt" | cut -d ' ' -f1)"
             echo "android_permissions_sha256=$(sha256sum "$evidence/permissions.txt" | cut -d ' ' -f1)"
             echo "android_signing_sha256=$(sha256sum "$evidence/signing.txt" | cut -d ' ' -f1)"
           } > .pandora-mobile-build/pandora-mobile-artifact-manifest.txt
+          if [[ "$RUNTIME_PROFILE" = core_acceptance_v1 ]]; then
+            cp "$RUNNER_TEMP/pandora-core-acceptance-binding.json" \
+              .pandora-mobile-build/pandora-core-acceptance-binding.json
+          fi
+
+      - name: Remove private compile inputs
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/pandora-mobile-runtime-defines.json"
 
       - name: Upload Web validation candidate
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' && inputs.runtime_profile != 'core_acceptance_v1' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
           name: pandora-mobile-web-validation
@@ -437,6 +486,7 @@ jobs:
             .pandora-mobile-build/build/app/outputs/flutter-apk/app-profile.apk
             .pandora-mobile-build/pandora-mobile-artifact-manifest.txt
             .pandora-mobile-build/android-package-evidence
+            .pandora-mobile-build/pandora-core-acceptance-binding.json
           if-no-files-found: error
           include-hidden-files: true
           # Only push-to-main artifacts can become canonical release authority.
@@ -715,4 +765,3 @@ jobs:
             test "$HEAVY_RESULT" = "skipped"
             echo "iOS exact-source gate passed: no mobile-impacting files changed." >> "$GITHUB_STEP_SUMMARY"
           fi
-

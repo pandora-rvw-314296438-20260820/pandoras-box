@@ -15,7 +15,7 @@ const [mobile, engineering, dependency, edge, canonical] = await Promise.all([
 test('pull-request validation is independent of release artifact capacity', () => {
   assert.match(
     mobile,
-    /Upload Web validation candidate\n\s+if: \$\{\{ github\.event_name != 'pull_request' \}\}/,
+    /Upload Web validation candidate\n\s+if: \$\{\{ github\.event_name != 'pull_request' && inputs\.runtime_profile != 'core_acceptance_v1' \}\}/,
   );
   assert.match(
     mobile,

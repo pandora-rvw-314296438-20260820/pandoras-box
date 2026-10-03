@@ -3,7 +3,10 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../pandora_config.dart';
 import '../chat/pandora_chat_state.dart';
+import '../config/pandora_acceptance_client.dart';
+import '../config/pandora_runtime_binding.dart';
 import '../network/pandora_sse_decoder.dart';
 import '../platform/pandora_native_io.dart';
 import 'pandora_activity_stream_api.dart';
@@ -15,9 +18,14 @@ class PandoraIntelligenceApi {
   PandoraIntelligenceApi({
     required SupabaseClient client,
     required String organizationId,
+    PandoraRuntimeBinding? runtimeBinding,
   })  : _client = client,
-        _organizationId = organizationId;
+        _organizationId = organizationId,
+        _runtimeBinding = runtimeBinding ?? PandoraConfig.runtimeBinding {
+    _requireRuntimeBinding();
+  }
 
+  final PandoraRuntimeBinding _runtimeBinding;
   final SupabaseClient _client;
   final String _organizationId;
   String get organizationId => _organizationId;
@@ -54,6 +62,7 @@ class PandoraIntelligenceApi {
             method: HttpMethod.post,
             headers: <String, String>{
               'x-organization-id': _organizationId,
+              ..._runtimeHeaders,
               'accept': 'text/event-stream',
             },
             body: request,
@@ -110,6 +119,8 @@ class PandoraIntelligenceApi {
           outcomeUnknown: true,
         );
       }
+    } on PandoraRuntimeBindingException {
+      rethrow;
     } on PandoraIntelligenceException {
       rethrow;
     } on FunctionException catch (error) {
@@ -198,7 +209,10 @@ class PandoraIntelligenceApi {
           .invoke(
             functionName,
             method: HttpMethod.post,
-            headers: <String, String>{'x-organization-id': _organizationId},
+            headers: <String, String>{
+              'x-organization-id': _organizationId,
+              ..._runtimeHeaders,
+            },
             body: body,
           )
           .timeout(const Duration(seconds: 15));
@@ -662,7 +676,10 @@ class PandoraIntelligenceApi {
       final response = await _client.functions.invoke(
         functionName,
         method: HttpMethod.post,
-        headers: <String, String>{'x-organization-id': _organizationId},
+        headers: <String, String>{
+          'x-organization-id': _organizationId,
+          ..._runtimeHeaders,
+        },
         body: <String, Object?>{
           'message': message.trim(),
           if (threadId != null) 'threadId': threadId,
@@ -934,7 +951,27 @@ class PandoraIntelligenceApi {
     }
   }
 
+  void _requireRuntimeBinding() {
+    PandoraAcceptanceClient.requireGuarded(_client, _runtimeBinding);
+    _runtimeBinding.requireClient(
+      restUrl: _client.rest.url,
+      organizationId: _organizationId,
+      functionHeaders: {
+        // The pinned SDK injects its default key in AuthHttpClient.send;
+        // FunctionsClient.headers contains only explicit overrides.
+        'apikey': _client.auth.headers['apikey'] ?? '',
+        ..._client.functions.headers,
+      },
+    );
+  }
+
+  Map<String, String> get _runtimeHeaders {
+    _requireRuntimeBinding();
+    return _runtimeBinding.headers;
+  }
+
   void _requireSession() {
+    _requireRuntimeBinding();
     if (_client.auth.currentSession == null) {
       throw const PandoraIntelligenceException('Please sign in again.');
     }
