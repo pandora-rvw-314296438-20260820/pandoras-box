@@ -139,6 +139,75 @@ class DeviceReceiptTest(unittest.TestCase):
                         dump(package).replace("mCurrentFocus=", "unrecognized=")):
             self.assertEqual(parse_window_observation(invalid)["focus"], "unobserved")
 
+    def test_normal_and_exiting_window_titles_preserve_exact_dialog_owner(self):
+        package = "com.banataosystems.pandora_mobile"
+        owners = ((package, "canonical_main_process"),
+                  (package + ":worker", "canonical_auxiliary_process"),
+                  (package + ".impostor", "other_process"),
+                  ("com.android.systemui", "system_ui_process"),
+                  ("com.android.systemui.impostor", "other_process"),
+                  ("com.android.systemui:screenshot", "other_process"),
+                  ("private_canary", "other_process"))
+        for prefix, kind, field in (("Application Error: ", "application_error", "canonical_error_dialog"),
+                                    ("Application Not Responding: ", "application_anr", "canonical_anr_dialog")):
+            for owner, expected in owners:
+                for exiting in (False, True):
+                    with self.subTest(kind=kind, owner=expected, exiting=exiting):
+                        title = prefix + owner + (" EXITING" if exiting else "")
+                        result = parse_window_observation("Display: mDisplayId=0\n mCurrentFocus=Window{123abc u0 " + title + "}")
+                        self.assertEqual(result["dialog_kind"], kind)
+                        self.assertEqual(result["dialog_owner"], expected)
+                        self.assertEqual(result[field], expected == "canonical_main_process")
+                        self.assertEqual(result["window_exit_suffix_observed"], exiting)
+                        self.assertNotIn("canary", json.dumps(result))
+                        self.assertNotIn(package, json.dumps(result))
+
+    def test_exiting_activity_classification_is_separate_from_dialog_classification(self):
+        package = "com.banataosystems.pandora_mobile"
+        for title in (package + "/.MainActivity", package + "/" + package + ".MainActivity"):
+            result = parse_window_observation("Display: mDisplayId=0\n mCurrentFocus=Window{123abc u0 " + title + " EXITING}")
+            self.assertEqual(result["focus"], "canonical_activity")
+            self.assertTrue(result["window_exit_suffix_observed"])
+            self.assertEqual(result["dialog_kind"], "none")
+            self.assertEqual(result["dialog_owner"], "none")
+            self.assertFalse(result["canonical_error_dialog"])
+            self.assertFalse(result["canonical_anr_dialog"])
+
+    def test_unknown_focus_remains_distinct_from_observed_no_dialog(self):
+        for dump in ("unavailable", "Display: mDisplayId=0\n mCurrentFocus=Window{malformed}",
+                     "Display: mDisplayId=0\n mCurrentFocus=null\n mCurrentFocus=null",
+                     "Display: mDisplayId=0\n mCurrentFocus=null\nDisplay: mDisplayId=0\n mCurrentFocus=null"):
+            result = parse_window_observation(dump)
+            self.assertEqual(result["focus"], "unobserved")
+            self.assertEqual(result["dialog_kind"], "unobserved")
+            self.assertEqual(result["dialog_owner"], "unobserved")
+            self.assertIsNone(result["window_exit_suffix_observed"])
+            self.assertIsNone(result["canonical_anr_dialog"])
+        for focus in ("null", "Window{abc u0 private_canary}"):
+            result = parse_window_observation("Display: mDisplayId=0\n mCurrentFocus=" + focus)
+            self.assertEqual(result["dialog_kind"], "none")
+            self.assertEqual(result["dialog_owner"], "none")
+            self.assertFalse(result["window_exit_suffix_observed"])
+            self.assertFalse(result["canonical_anr_dialog"])
+            self.assertNotIn("canary", json.dumps(result))
+
+    def test_malformed_dialog_owner_is_unobserved_and_suffix_normalization_is_exact(self):
+        package = "com.banataosystems.pandora_mobile"
+        for owner in (" " + package, package + " EXITING EXITING", package + " EXITING private_canary",
+                      package + " EXITING_EXTRA", "", "private canary", package + ":"):
+            title = "Application Not Responding: " + owner
+            result = parse_window_observation("Display: mDisplayId=0\n mCurrentFocus=Window{abc u0 " + title + "}")
+            self.assertEqual(result["dialog_kind"], "application_anr")
+            self.assertEqual(result["dialog_owner"], "unobserved")
+            self.assertIsNone(result["canonical_anr_dialog"])
+            self.assertFalse(result["canonical_error_dialog"])
+            self.assertNotIn("canary", json.dumps(result))
+            self.assertNotIn(package, json.dumps(result))
+        result = parse_window_observation("Display: mDisplayId=0\n mCurrentFocus=Window{abc u0 Application Error:" + package + "}")
+        self.assertEqual(result["dialog_kind"], "application_error")
+        self.assertEqual(result["dialog_owner"], "unobserved")
+        self.assertIsNone(result["canonical_error_dialog"])
+
     def test_exit_classifications_cannot_mix_processes_or_blame_historical_force_stop_on_launch(self):
         package = "com.banataosystems.pandora_mobile"
         source = ("ApplicationExitInfo #0:\n timestamp=2026-10-03 12:00:00 pid=123 realUid=1000\n process=private_canary reason=4 (CRASH) subreason=0\n"

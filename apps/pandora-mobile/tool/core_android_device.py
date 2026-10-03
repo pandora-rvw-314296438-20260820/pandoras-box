@@ -223,7 +223,8 @@ def parse_window_observation(value: str) -> dict:
     displays = list(re.finditer(r"^\s*Display: mDisplayId=(\d+)[^\n]*$", value, re.MULTILINE))
     indexes = [i for i, match in enumerate(displays) if match.group(1) == "0"]
     result = {"focus": "unobserved", "canonical_error_dialog": None,
-              "canonical_anr_dialog": None}
+              "canonical_anr_dialog": None, "window_exit_suffix_observed": None,
+              "dialog_kind": "unobserved", "dialog_owner": "unobserved"}
     if len(indexes) != 1:
         return result
     index = indexes[0]
@@ -233,16 +234,46 @@ def parse_window_observation(value: str) -> dict:
         return result
     focus = matches[0].strip()
     if focus == "null":
-        return {"focus": "none", "canonical_error_dialog": False, "canonical_anr_dialog": False}
+        return {"focus": "none", "canonical_error_dialog": False, "canonical_anr_dialog": False,
+                "window_exit_suffix_observed": False, "dialog_kind": "none", "dialog_owner": "none"}
     window = re.fullmatch(r"Window\{[a-fA-F0-9]+ u\d+ (.+)\}", focus)
     if window is None:
         return result
-    title = window.group(1)
+    # Android 15 WindowState.toString appends this framework suffix outside
+    # the title when mAnimatingExit is true. Never retain the title itself.
+    serialized_title = window.group(1)
+    exiting = serialized_title.endswith(" EXITING")
+    title = serialized_title.removesuffix(" EXITING")
     canonical = title in {ANDROID_PACKAGE + "/.MainActivity",
                           ANDROID_PACKAGE + "/" + ANDROID_PACKAGE + ".MainActivity"}
-    return {"focus": "canonical_activity" if canonical else "other_window",
-            "canonical_error_dialog": title == "Application Error: " + ANDROID_PACKAGE,
-            "canonical_anr_dialog": title == "Application Not Responding: " + ANDROID_PACKAGE}
+    # Legacy canonical_* booleans describe the exact main process only.
+    # dialog_owner separately preserves recognized Core auxiliary ownership.
+    result = {"focus": "canonical_activity" if canonical else "other_window",
+              "canonical_error_dialog": False, "canonical_anr_dialog": False,
+              "window_exit_suffix_observed": exiting, "dialog_kind": "none", "dialog_owner": "none"}
+    for prefix, kind, field in (("Application Error:", "application_error", "canonical_error_dialog"),
+                                ("Application Not Responding:", "application_anr", "canonical_anr_dialog")):
+        if not title.startswith(prefix):
+            continue
+        result["dialog_kind"] = kind
+        # AOSP uses one space followed by mProc.info.processName. Classify
+        # exact identifiers only; malformed owner text must remain unknown.
+        owner = title.removeprefix(prefix + " ")
+        if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_.]*(?::[a-zA-Z0-9_.]+)?", owner):
+            result["dialog_owner"] = "unobserved"
+            result[field] = None
+        elif owner == ANDROID_PACKAGE:
+            result["dialog_owner"] = "canonical_main_process"
+            result[field] = True
+        elif owner.startswith(ANDROID_PACKAGE + ":"):
+            result["dialog_owner"] = "canonical_auxiliary_process"
+        elif owner == "com.android.systemui":
+            # Pinned Android 15 SystemUI manifest's exact application process.
+            result["dialog_owner"] = "system_ui_process"
+        else:
+            result["dialog_owner"] = "other_process"
+        break
+    return result
 
 
 def parse_keyguard_observation(value: str) -> dict:
