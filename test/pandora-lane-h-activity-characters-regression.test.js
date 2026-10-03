@@ -28,7 +28,7 @@ test("Lane H send path does not block on phone-AI preference IO",()=>{
 test("Characters remains available and selected context stays visible",()=>{
   assert.match(chat,/_showAttachmentActions/);
   assert.match(contexts,/ValueKey<String>\('ask-pandora-menu-\$suffix'\)/);
-  assert.match(contexts,/if \(widget\.allowCharacterContext\)\s*item\(_AttachmentAction\.characters, 'characters', 'Characters'/);
+  assert.match(contexts,/if \(widget\.allowCharacterContext\)\s*item\(\s*_AttachmentAction\.characters\s*,\s*'characters'\s*,\s*'Characters'/);
   assert.match(contexts,/case _AttachmentAction\.characters:\s*await _pickCharacterContext\(\)/);
   assert.match(contexts,/_characterContext = selected/);
   assert.match(chat,/ask-pandora-character-context/);
