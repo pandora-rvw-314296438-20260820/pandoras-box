@@ -1,5 +1,10 @@
+// Password userinfo ends before the host, path, query or fragment. Quotes and
+// backslashes also bound JSON strings so serialization cannot join unrelated
+// lines or fields into a credential. Reuse this boundary in the source redactor.
+export const postgresCredentialPrefix=/postgres(?:ql)?:\/\/[^:\s@"\\/?#<>`]*:[^@\s"\\/?#<>`]+@/i;
 export function containsCredentialMaterial(value:unknown) {
-  return /AIza[0-9A-Za-z_-]{20,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|postgres(?:ql)?:\/\/[^:\s@]+:[^@\s]+@/i.test(JSON.stringify(value));
+  const encoded=JSON.stringify(value)??"";
+  return /AIza[0-9A-Za-z_-]{20,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i.test(encoded)||postgresCredentialPrefix.test(encoded);
 }
 export function privateContextLine(line:string) {
   const s=line.trim(),lower=s.toLowerCase();

@@ -138,6 +138,35 @@ test("credential prefixes after public output remain hidden across every boundar
    assert.ok(prefix.startsWith(visible));assert.doesNotMatch(visible,/ghp_|synthetic/);assert.throws(()=>guard.finish(prefix+synthetic),/INVALID_MODEL_OUTPUT/);
  }
 });
+test("credential-free PostgreSQL URLs survive every streamed split with unrelated at-signs intact",()=>{
+ const examples=[
+  "DATABASE_URL=postgres://localhost:5432/app\nGIT_REMOTE=git@github.com:org/repo",
+  "postgresql://[::1]:5432/app\nPATH=packages/@scope/example.ts",
+  "postgresql://host1:5432,host2:5433/team@archive",
+  "postgresql://localhost:5432/app?application_name=build@example.invalid",
+  '{"url":"postgres://localhost:5432/app","path":"packages/@scope/example.ts"}',
+ ];
+ const prefix="This public explanation is safe. ".repeat(12);
+ for(const text of examples){
+  for(let cut=0;cut<=text.length;cut++){
+   const guard=new ReplyVisibilityGuard();let visible=guard.push(prefix);
+   visible+=guard.push(text.slice(0,cut));visible+=guard.push(text.slice(cut));
+   assert.equal(visible+guard.finish(prefix+text),prefix+text);
+  }
+  const guard=new ReplyVisibilityGuard();let visible="";for(const char of prefix+text)visible+=guard.push(char);
+  assert.equal(visible+guard.finish(prefix+text),prefix+text);
+ }
+});
+test("PostgreSQL passwords remain hidden and rejected across every streamed split",()=>{
+ const prefix="This public explanation is safe. ".repeat(12);
+ for(const text of ["postgres://fixture:synthetic-password@localhost/app","postgresql://fixture%40user:fixture%3Apass%2Fpart@[::1]:5432/app","postgresql://:synthetic-password@localhost/app"]){
+  for(let cut=0;cut<=text.length;cut++){
+   const guard=new ReplyVisibilityGuard();let visible=guard.push(prefix);
+   try{visible+=guard.push(text.slice(0,cut));visible+=guard.push(text.slice(cut));}catch(e){assert.match(e.message,/INVALID_MODEL_OUTPUT/);}
+   assert.ok(prefix.startsWith(visible));assert.throws(()=>guard.finish(prefix+text),/INVALID_MODEL_OUTPUT/);
+  }
+ }
+});
 test("long whitespace runs normalize once without losing conversational spacing",()=>{
  const raw="First"+" ".repeat(25000)+"second\n\n\nthird",guard=new ReplyVisibilityGuard();let visible="";
  for(let i=0;i<raw.length;i++)visible+=guard.push(raw[i]);

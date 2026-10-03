@@ -115,6 +115,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
       const PandoraChatModelSelection.auto();
   PandoraIntelligenceMode _reasoningMode = PandoraIntelligenceMode.auto;
   String _modelLabel = 'Auto';
+  String get _reasoningLabel => switch (_reasoningMode) {
+        PandoraIntelligenceMode.fast => 'Fast',
+        PandoraIntelligenceMode.deep => 'Deep',
+        _ => 'Balanced',
+      };
   PandoraChatModelPickerSnapshot? _pickerSnapshot;
   bool _pickerOpen = false;
   bool _pickerLocalAiEnabled = false;
@@ -1807,7 +1812,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
       _plpActionPendingRequestId != null ||
       _activeActivityJobId != null;
 
-  Future<void> _pickModel() async {
+  Future<void> _pickModel({bool startAtEnd = false}) async {
     if (_isCommonWorkspace) return;
     if (_pickerOpen) {
       setState(() {
@@ -1840,7 +1845,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
             localStatus.supported &&
             localStatus.configured;
         _pickerLocalAiModelName = localStatus?.modelName;
-        _pickerStartAtEnd = false;
+        _pickerStartAtEnd = startAtEnd;
         _pickerOpen = true;
         _error = null;
       });
@@ -2125,8 +2130,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
                 modelLabel: _modelLabel,
+                reasoningLabel: _reasoningLabel,
                 pickerOpen: _pickerOpen,
                 onModel: _pickModel,
+                onReasoning: () => _pickModel(startAtEnd: true),
                 showModelControl: !_isCommonWorkspace,
                 showContextControls: !_isCommonWorkspace,
                 onChanged: () {
@@ -2208,8 +2215,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
                 modelLabel: _modelLabel,
+                reasoningLabel: _reasoningLabel,
                 pickerOpen: _pickerOpen,
                 onModel: _pickModel,
+                onReasoning: () => _pickModel(startAtEnd: true),
                 showModelControl: !_isCommonWorkspace,
                 showContextControls: !_isCommonWorkspace,
                 onChanged: () {
@@ -2786,8 +2795,10 @@ class _Composer extends StatelessWidget {
     required this.submitting,
     required this.disabled,
     required this.modelLabel,
+    required this.reasoningLabel,
     required this.pickerOpen,
     required this.onModel,
+    required this.onReasoning,
     this.showModelControl = true,
     this.showContextControls = true,
     required this.onChanged,
@@ -2817,8 +2828,10 @@ class _Composer extends StatelessWidget {
   final bool submitting;
   final bool disabled;
   final String modelLabel;
+  final String reasoningLabel;
   final bool pickerOpen;
   final VoidCallback onModel;
+  final VoidCallback onReasoning;
   final bool showModelControl;
   final bool showContextControls;
   final VoidCallback onChanged;
@@ -2915,6 +2928,12 @@ class _Composer extends StatelessWidget {
                       if (showContextControls)
                         _CompactAttachmentMenu(
                           disabled: disabled || submitting,
+                          modelLabel: modelLabel,
+                          reasoningLabel: reasoningLabel,
+                          pickerOpen: pickerOpen,
+                          onModel: showModelControl ? onModel : null,
+                          onReasoning:
+                              showModelControl ? onReasoning : null,
                           onCamera: onCamera,
                           onPhotos: onPhotos,
                           onAttach: onAttach,
@@ -2958,13 +2977,6 @@ class _Composer extends StatelessWidget {
                           onChanged: (_) => onChanged(),
                         ),
                       ),
-                      if (showModelControl)
-                        _CompactModelControl(
-                          label: modelLabel,
-                          open: pickerOpen,
-                          enabled: !disabled && !submitting,
-                          onTap: onModel,
-                        ),
                       ValueListenableBuilder<TextEditingValue>(
                         valueListenable: controller,
                         builder: (context, value, child) {
@@ -3019,6 +3031,11 @@ class _Composer extends StatelessWidget {
 class _CompactAttachmentMenu extends StatelessWidget {
   const _CompactAttachmentMenu({
     required this.disabled,
+    required this.modelLabel,
+    required this.reasoningLabel,
+    required this.pickerOpen,
+    required this.onModel,
+    required this.onReasoning,
     required this.onCamera,
     required this.onPhotos,
     required this.onAttach,
@@ -3028,6 +3045,11 @@ class _CompactAttachmentMenu extends StatelessWidget {
   });
 
   final bool disabled;
+  final String modelLabel;
+  final String reasoningLabel;
+  final bool pickerOpen;
+  final VoidCallback? onModel;
+  final VoidCallback? onReasoning;
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
@@ -3068,6 +3090,20 @@ class _CompactAttachmentMenu extends StatelessWidget {
             icon: Icons.insert_drive_file_outlined,
             onPressed: onAttach,
           ),
+          if (onModel != null)
+            _ComposerMenuItem(
+              key: const ValueKey<String>('ask-pandora-menu-model'),
+              label: 'Model · ' + modelLabel,
+              icon: Icons.tune_rounded,
+              onPressed: onModel,
+            ),
+          if (onReasoning != null)
+            _ComposerMenuItem(
+              key: const ValueKey<String>('ask-pandora-menu-reasoning'),
+              label: 'Reasoning · ' + reasoningLabel,
+              icon: Icons.psychology_alt_outlined,
+              onPressed: onReasoning,
+            ),
           if (onCharacters != null)
             _ComposerMenuItem(
               key: const ValueKey<String>('ask-pandora-menu-characters'),
@@ -3089,92 +3125,31 @@ class _CompactAttachmentMenu extends StatelessWidget {
               onPressed: onProjectContext!,
             ),
         ],
-        builder: (context, menuController, child) => SizedBox.square(
-          dimension: 40,
-          child: IconButton(
-            key: const ValueKey<String>('ask-pandora-plus'),
-            tooltip: 'Open menu',
-            padding: EdgeInsets.zero,
-            splashRadius: 20,
-            onPressed: disabled
-                ? null
-                : () => menuController.isOpen
-                    ? menuController.close()
-                    : menuController.open(),
-            icon: Icon(
-              Icons.add_rounded,
-              size: 20,
-              color: Colors.white.withValues(alpha: .45),
+        builder: (context, menuController, child) => KeyedSubtree(
+          key: const ValueKey<String>('ask-pandora-model-control'),
+          child: SizedBox.square(
+            dimension: 40,
+            child: IconButton(
+              key: const ValueKey<String>('ask-pandora-plus'),
+              tooltip: 'Open menu',
+              padding: EdgeInsets.zero,
+              splashRadius: 20,
+              onPressed: disabled
+                  ? null
+                  : () => menuController.isOpen
+                      ? menuController.close()
+                      : menuController.open(),
+              icon: Icon(
+                Icons.view_in_ar_outlined,
+                size: 21,
+                color: Colors.white.withValues(
+                  alpha: disabled ? .22 : (pickerOpen ? .90 : .55),
+                ),
+              ),
             ),
           ),
         ),
       );
-}
-
-class _CompactModelControl extends StatelessWidget {
-  const _CompactModelControl({
-    required this.label,
-    required this.open,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool open;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    if (label == 'Auto') {
-      return GestureDetector(
-        key: const ValueKey<String>('ask-pandora-model-control'),
-        behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onTap : null,
-        child: SizedBox.square(
-          dimension: 40,
-          child: Icon(
-            Icons.tune_rounded,
-            size: 18,
-            color: Colors.white.withValues(
-              alpha: enabled ? (open ? .90 : .45) : .22,
-            ),
-          ),
-        ),
-      );
-    }
-    return GestureDetector(
-      key: const ValueKey<String>('ask-pandora-model-control'),
-      behavior: HitTestBehavior.opaque,
-      onTap: enabled ? onTap : null,
-      child: Container(
-        height: 40,
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: Container(
-          height: 26,
-          constraints: const BoxConstraints(maxWidth: 112),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .065),
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: .62),
-              fontSize: 12.5,
-              height: 1,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _CompactContextToken extends StatelessWidget {

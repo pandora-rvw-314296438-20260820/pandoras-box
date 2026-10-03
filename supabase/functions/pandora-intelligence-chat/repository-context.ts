@@ -1,4 +1,4 @@
-import { containsCredentialMaterial } from "./reply-safety.ts";
+import { containsCredentialMaterial, postgresCredentialPrefix } from "./reply-safety.ts";
 type Row=Record<string,any>;
 
 /** Repository examples and fixtures can contain credential-shaped source. Keep
@@ -8,7 +8,7 @@ export function redactRepositoryCredentialMaterial(snapshot:Row){
   let redactionCount=0;
   const patterns=[
     /-----BEGIN ((?:RSA |EC |OPENSSH )?PRIVATE KEY)-----[\s\S]*?(?:-----END \1-----|$)/gi,
-    /postgres(?:ql)?:\/\/[^:\s@]+:[^@\s]+@[^\s"'`<>\\]*/gi,
+    new RegExp(postgresCredentialPrefix.source+/[^\s"'`<>\\]*/.source,"gi"),
     /AIza[0-9A-Za-z_-]{20,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}/gi,
   ];
   const visit=(value:unknown,depth:number):unknown=>{

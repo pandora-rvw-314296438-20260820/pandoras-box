@@ -24,6 +24,49 @@ test("ordinary repository source is preserved without mutation or invented redac
  const before=JSON.stringify(source),result=redactRepositoryCredentialMaterial(source);
  assert.equal(result.redactionCount,0);assert.deepEqual(plain(result.value),source);assert.equal(JSON.stringify(source),before);
 });
+test("credential-free connection URLs cannot join later lines, fields, paths or query values",async()=>{
+ const examples=[
+  "DATABASE_URL=postgres://localhost:5432/app\nGIT_REMOTE=git@github.com:org/repo",
+  "postgres://localhost:5432/app\\nGIT_REMOTE=git@example.invalid:repo",
+  "postgresql://[::1]:5432/app\nREMOTE=git@example.invalid:repo",
+  "postgresql://host1:5432,host2:5433/app\nPATH=packages/@scope/example.ts",
+  "postgresql://localhost:5432/team@archive",
+  "postgresql://localhost:5432/app?application_name=build@example.invalid",
+  "postgresql://localhost:5432/app#contact@example.invalid",
+  "postgresql://fixture%3Auser@localhost:5432/app\nREMOTE=git@example.invalid:repo",
+ ];
+ for(const text of examples){
+  const source=snapshot();source.files=[{path:".env.example",text},{path:"packages/@scope/example.ts",text:"export const example = true;"}];
+  const before=JSON.stringify(source);
+  assert.equal(containsCredentialMaterial(text),false);assert.equal(containsCredentialMaterial(source),false);
+  const sanitized=redactRepositoryCredentialMaterial(source);
+  assert.equal(sanitized.redactionCount,0);assert.deepEqual(plain(sanitized.value),source);assert.equal(JSON.stringify(source),before);
+  const context=await readRepositoryAuditContext(input(source));
+  assert.equal(context.receipt.redactionCount,0);assert.equal(containsCredentialMaterial({messages:[{content:context.attachments.map(part=>part.text).join("\n")}]}),false);
+ }
+ const source=snapshot();source.files=[{path:".env.example",text:"DATABASE_URL=postgres://localhost:5432/app"},{path:"packages/@scope/example.ts",text:"export const example = true;"}];
+ assert.equal(redactRepositoryCredentialMaterial(source).redactionCount,0);
+ assert.equal((await readRepositoryAuditContext(input(source))).receipt.redactionCount,0);
+});
+test("supported password userinfo remains detected and redacted at raw and serialized boundaries",async()=>{
+ const examples=[
+  "postgres://fixture:synthetic-password@localhost:5432/app",
+  "postgresql://fixture%40user:fixture%3Apass%2Fpart@[2001:db8::1]:5432/app",
+  "postgresql://fixture:synthetic:password@host1:5432,host2:5433/app",
+  "postgresql://fixture:synthetic'password@localhost:5432/app",
+  "postgresql://:synthetic-password@localhost:5432/app",
+ ];
+ for(const text of examples){
+  const source=snapshot();source.files=[{path:".env.example",text:"Before\n"+text+"\nAfter"}];
+  assert.equal(containsCredentialMaterial(text),true);assert.equal(containsCredentialMaterial(source),true);
+  assert.equal(containsCredentialMaterial({messages:[{content:JSON.stringify(source)}]}),true);
+  const result=redactRepositoryCredentialMaterial(source);
+  assert.equal(result.redactionCount,1);assert.equal(result.value.files[0].text,"Before\n[redacted-credential]\nAfter");
+  assert.equal(containsCredentialMaterial(result.value),false);assert.equal(source.files[0].text.includes(text),true);
+  const context=await readRepositoryAuditContext(input(source));
+  assert.equal(context.receipt.redactionCount,1);assert.equal(containsCredentialMaterial(context),false);
+ }
+});
 test("example connection strings and credential-shaped source are redacted without discarding the audit",()=>{
  const source=snapshot();source.files=[{path:"README.md",text:`Before\n${fixtureUrl}\nAfter`},{path:".env.example",text:`TOKEN=${fixtureToken}\nMODE=development`}];
  const result=redactRepositoryCredentialMaterial(source),encoded=JSON.stringify(result.value);
