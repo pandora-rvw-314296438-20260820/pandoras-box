@@ -261,6 +261,12 @@ jobs:
           boot_log="$evidence/emulator-boot.log"
           adb="$ANDROID_SDK_ROOT/platform-tools/adb"
           serial=emulator-5554
+          # SDK tools and the emulator can otherwise use different default
+          # user directories on the hosted runner. Share an explicit AVD home.
+          export ANDROID_AVD_HOME="${RUNNER_TEMP:?}/pandora-plp-owner-avd"
+          export ANDROID_USER_HOME="${RUNNER_TEMP}/pandora-plp-android-user"
+          export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
+          mkdir -p "$ANDROID_AVD_HOME" "$ANDROID_USER_HOME"
           deadline=$((SECONDS + 420))
           record_boot_failure() {
             boot_status=$?
@@ -282,9 +288,14 @@ jobs:
             create avd \
             --force \
             --name plp-owner-acceptance \
+            --path "$ANDROID_AVD_HOME/plp-owner-acceptance.avd" \
             --package 'system-images;android-35;google_apis;x86_64' \
             --device 'pixel_7'
 
+          test -s "$ANDROID_AVD_HOME/plp-owner-acceptance.ini"
+          timeout 15s "$ANDROID_SDK_ROOT/emulator/emulator" -list-avds \
+            > "$evidence/avd-list.txt"
+          grep -Fxq 'plp-owner-acceptance' "$evidence/avd-list.txt"
           timeout 20s "$ANDROID_SDK_ROOT/emulator/emulator" -accel-check \
             > "$evidence/emulator-acceleration.txt" 2>&1 || true
           timeout 15s "$adb" start-server
