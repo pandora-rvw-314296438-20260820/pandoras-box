@@ -2098,15 +2098,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                             right: 0,
                             child: KeyedSubtree(
                               key: _headerKey,
-                              child: PandoraNavigationScope(
-                                openDrawer: null,
-                                child: _ChatHeader(
-                                  active: conversationActive,
-                                  minimal: true,
-                                  onNewChat: newChat,
-                                  onSearchChats: widget.onSearchChats,
-                                  onMore: widget.onMore,
-                                ),
+                              child: _ChatHeader(
+                                active: conversationActive,
+                                minimal: true,
+                                onNewChat: newChat,
+                                onSearchChats: widget.onSearchChats,
+                                onMore: widget.onMore,
                               ),
                             ),
                           ),
