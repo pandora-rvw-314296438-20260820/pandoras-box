@@ -22,7 +22,9 @@ import uuid
 import xml.etree.ElementTree as ET
 
 from core_artifact_provenance import ANDROID_PACKAGE
-from core_android_device import AndroidDevice, DeviceFailure, require, require_unoccluded
+from core_android_device import (AndroidDevice, DeviceFailure, require, require_unoccluded,
+    ime_geometry_observation, parse_launch_result, parse_process_observation,
+    parse_window_observation, parse_keyguard_observation, parse_historical_exit_observation)
 
 UUID = r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"
 TURN_PHASE = re.compile(r"^pandora\.chat\.turn\.(" + UUID + r")\.([a-zA-Z]+)$")
@@ -82,6 +84,29 @@ def semantic_snapshot(xml: str) -> dict:
             "phases": phases, "unknown_outcomes": unknown_outcomes}
 
 
+def hierarchy_diagnostics(xml: str) -> dict:
+    """Count fixed native classes/IDs; never serialize arbitrary UI attributes."""
+    nodes = list(ET.fromstring(xml).iter("node"))
+    resources = {item.get("resource-id", "") for item in nodes}
+    known = {key: any(node.get("package") == ANDROID_PACKAGE and
+                     identifier(node) == "pandora.chat." + key for node in nodes)
+             for key in ("input", "menu", "navigation", "model-picker", "menu-surface")}
+    permission_ids = {package + ":id/" + name
+        for package in ("com.android.permissioncontroller", "com.google.android.permissioncontroller")
+        for name in ("permission_allow_button", "permission_allow_foreground_only_button", "permission_deny_button")}
+    return {"observed": True, "node_count": len(nodes),
+            "canonical_package_node_count": sum(node.get("package") == ANDROID_PACKAGE for node in nodes),
+            "edit_text_count": sum(node.get("class") == "android.widget.EditText" for node in nodes),
+            "canonical_edit_text_count": sum(node.get("class") == "android.widget.EditText" and
+                                             node.get("package") == ANDROID_PACKAGE for node in nodes),
+            "progress_bar_count": sum(node.get("class") == "android.widget.ProgressBar" for node in nodes),
+            "known_chat_controls": known,
+            # Shared error-dialog IDs cannot by themselves distinguish crash/ANR.
+            "system_error_dialog_controls": bool(resources & {"android:id/aerr_close", "android:id/aerr_report"}),
+            "system_anr_wait_control": "android:id/aerr_wait" in resources,
+            "permission_control_count": len(resources & permission_ids)}
+
+
 class Journey:
     def __init__(self, android: AndroidDevice, installed: dict, output: Path,
                  mode: str, private_evidence: Path | None = None):
@@ -111,6 +136,9 @@ class Journey:
         self.failure = None
         self.coverage = {}
         self.cancellation_outcomes = []
+        self.ime_observations = []
+        self.launch_result = None
+        self.failure_diagnostics = None
 
     def snapshot(self) -> dict:
         return semantic_snapshot(self.device.dump_hierarchy(compressed=False))
@@ -163,22 +191,59 @@ class Journey:
 
     def open_keyboard(self):
         self.click("pandora.chat.input")
-        self.wait(self.android.ime_visible, "REAL_IME_DID_NOT_OPEN")
-        self.assert_composer_contained()
+        insets = self.wait_for_ime_geometry()
+        self.assert_composer_contained(insets=insets, ime_shown=True)
+
+    def wait_for_ime_geometry(self):
+        # Android 15 sets mInputShown at show dispatch. Require usable visible
+        # geometry from one current InsetsState snapshot within the SAME 20s
+        # budget, then use that snapshot for containment. These ADB/UI reads are
+        # sequential observations, not an atomic system-wide screenshot.
+        evidence = {"first_incomplete": None, "ready": None, "samples": 0}
+        if not hasattr(self, "ime_observations"):
+            self.ime_observations = []
+        self.ime_observations.append(evidence)
+        deadline = time.monotonic() + 20
+        def remaining():
+            budget = deadline - time.monotonic()
+            require(budget > 0, "VISIBLE_IME_GEOMETRY_UNAVAILABLE")
+            return budget
+        def ready():
+            shown = None
+            try:
+                shown = self.android.ime_state(timeout=remaining())
+                insets = self.android.window_insets(timeout=remaining())
+            except Exception as error:
+                if evidence["first_incomplete"] is None:
+                    evidence["first_incomplete"] = {"input_shown": shown, "geometry_observed": False}
+                if isinstance(error, subprocess.TimeoutExpired):
+                    raise DeviceFailure("VISIBLE_IME_GEOMETRY_UNAVAILABLE") from None
+                raise
+            observed = ime_geometry_observation(shown, insets)
+            observed["within_deadline"] = time.monotonic() < deadline
+            observed["ready"] = observed["ready"] and observed["within_deadline"]
+            evidence["samples"] += 1
+            if observed["ready"]:
+                evidence["ready"] = observed
+                return insets
+            if evidence["first_incomplete"] is None:
+                evidence["first_incomplete"] = observed
+            return None
+        return self.wait(ready, "VISIBLE_IME_GEOMETRY_UNAVAILABLE", 20)
 
     def close_keyboard(self):
         if self.android.ime_visible():
             self.device.press("back")
         self.wait(lambda: not self.android.ime_visible(), "HARDWARE_BACK_DID_NOT_CLOSE_IME")
 
-    def assert_composer_contained(self):
+    def assert_composer_contained(self, *, insets=None, ime_shown=None):
         snapshot = self.snapshot()
-        insets = self.android.window_insets()
-        ime_shown = self.android.ime_visible()
+        if insets is None:
+            insets = self.android.window_insets()
+        if ime_shown is None:
+            ime_shown = self.android.ime_visible()
         if ime_shown:
-            require(any(source["type"] == "ime" and source["visible"]
-                        and source["frame"][1] < source["frame"][3] for source in insets["sources"]),
-                    "VISIBLE_IME_GEOMETRY_UNAVAILABLE")
+            require(ime_geometry_observation(ime_shown, insets)["ready"], "VISIBLE_IME_GEOMETRY_UNAVAILABLE")
         self.node("pandora.chat.input")
         for key in ("input", "send", "voice", "stop", "menu", "navigation", "latest"):
             node = snapshot["nodes"].get("pandora.chat." + key)
@@ -193,17 +258,16 @@ class Journey:
                         if item.get("package") == ANDROID_PACKAGE),
                 "UNEXPLAINED_BACK_CONTROL_VISIBLE")
 
-    def assert_sign_in_insets(self, *, focused_only=False):
+    def assert_sign_in_insets(self, *, focused_only=False, insets=None):
         view = self.snapshot()
         fields = [node for node in view["root"].iter("node")
                   if node.get("class") == "android.widget.EditText"
                   and (not focused_only or node.get("focused") == "true")]
         require(len(fields) == (1 if focused_only else 2), "SIGN_IN_FOCUS_GEOMETRY_NOT_OBSERVABLE")
-        insets = self.android.window_insets()
+        if insets is None:
+            insets = self.android.window_insets()
         if focused_only:
-            require(any(source["type"] == "ime" and source["visible"]
-                        and source["frame"][1] < source["frame"][3] for source in insets["sources"]),
-                    "VISIBLE_IME_GEOMETRY_UNAVAILABLE")
+            require(ime_geometry_observation(True, insets)["ready"], "VISIBLE_IME_GEOMETRY_UNAVAILABLE")
         for field in fields:
             require_unoccluded(bounds(field.get("bounds", "")), insets,
                                "SIGN_IN_FIELD_OVERLAPS_SYSTEM_OR_IME")
@@ -532,7 +596,9 @@ class Journey:
 
     def launch(self):
         self.android.shell("am", "force-stop", ANDROID_PACKAGE)
-        self.android.shell("am", "start", "-W", "-n", ANDROID_PACKAGE + "/.MainActivity")
+        self.launch_result = None
+        result = self.android.shell("am", "start", "-W", "-n", ANDROID_PACKAGE + "/.MainActivity")
+        self.launch_result = parse_launch_result(result)
         self.wait(lambda: self.device(className="android.widget.EditText").exists
                   or "pandora.chat.input" in self.snapshot()["nodes"], "APP_ENTRY_NOT_VISIBLE", 90)
 
@@ -579,8 +645,8 @@ class Journey:
         for index in range(3):
             def cycle():
                 self.device(className="android.widget.EditText", instance=0).click()
-                self.wait(self.android.ime_visible, "NATIVE_SIGN_IN_IME_NOT_VISIBLE")
-                self.assert_sign_in_insets(focused_only=True)
+                insets = self.wait_for_ime_geometry()
+                self.assert_sign_in_insets(focused_only=True, insets=insets)
                 self.device.press("back")
                 self.wait(lambda: not self.android.ime_visible(), "NATIVE_SIGN_IN_IME_DID_NOT_CLOSE")
             self.record(f"platform-ime-{index + 1}", "Real IME open and hardware Back close", cycle)
@@ -753,6 +819,28 @@ class Journey:
             require(self.token in recalled, "RESTART_HISTORY_NOT_RESTORED")
         self.record("additional-restart", "Restart, re-authenticate, restore same conversation", restart)
 
+    def collect_failure_diagnostics(self):
+        # Best effort only: a missing/failed diagnostic never changes the
+        # original failure or supplies false evidence of absence. No raw dump,
+        # exception message, hierarchy text, logcat, or screenshot is persisted.
+        def observe(callback):
+            try:
+                return callback()
+            except Exception:
+                return {"observed": False, "acquisition": "unavailable"}
+        shell = lambda *args: self.android.shell(*args, timeout=8)
+        return {"schema": "pandora-core-native-failure-diagnostics-v1",
+            "launch": getattr(self, "launch_result", None),
+            "process": observe(lambda: parse_process_observation(shell("ps", "-A", "-o", "NAME"))),
+            "window": observe(lambda: parse_window_observation(shell("dumpsys", "window", "displays"))),
+            "keyguard": observe(lambda: parse_keyguard_observation(shell("dumpsys", "activity", "activities"))),
+            "historical_exits": observe(lambda: parse_historical_exit_observation(
+                shell("dumpsys", "activity", "exit-info", ANDROID_PACKAGE))),
+            "hierarchy": observe(lambda: hierarchy_diagnostics(self.device.dump_hierarchy(compressed=False))),
+            "ime": observe(lambda: ime_geometry_observation(self.android.ime_state(timeout=8),
+                                                            self.android.window_insets(timeout=8))),
+            "scope": "sequential_failure_observations_not_atomic_or_causal_proof"}
+
     def write_receipt(self, passed: bool):
         self.output.parent.mkdir(parents=True, exist_ok=True)
         result = {"schema": "pandora-core-android-journey-v1", "mode": self.mode,
@@ -778,6 +866,8 @@ class Journey:
             "raw_conversation_content_included": False,
             "native_case_coverage": getattr(self, "coverage", {}),
             "cancellation_outcomes": getattr(self, "cancellation_outcomes", []),
+            "ime_geometry_observations": getattr(self, "ime_observations", []),
+            "failure_diagnostics": getattr(self, "failure_diagnostics", None),
             "not_exercised": ["native voice/send switching", "physical device", "provider outage",
                               "provider stage timings", "private visual/video review"],
         }
@@ -806,6 +896,10 @@ class Journey:
             # Driver exception details can contain UI text. Only reviewed
             # failure codes/type names belong in the public receipt/log.
             self.failure = re.sub(UUID, "<turn-id>", str(error)) if isinstance(error, DeviceFailure) else type(error).__name__
+            try:
+                self.failure_diagnostics = self.collect_failure_diagnostics()
+            except Exception:
+                self.failure_diagnostics = {"observed": False, "acquisition": "unavailable"}
             self.write_receipt(False)
             print(json.dumps({"runtime_verified": False, "failure_code": self.failure}), flush=True)
             return 1

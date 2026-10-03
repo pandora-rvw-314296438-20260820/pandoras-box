@@ -108,15 +108,19 @@ class AndroidDevice:
         }
 
     def ime_visible(self) -> bool:
-        # Android 35 exposes both requested and applied visibility. Prefer the
-        # applied field so a stale show request does not pretend an IME exists.
-        text = self.shell("dumpsys", "input_method")
-        return parse_ime_visibility(text)
+        # Android 15 IMMS sets mInputShown at show dispatch, before the IME
+        # window has necessarily laid out. This flag alone is not geometry.
+        state = self.ime_state()
+        require(state is not None, "ANDROID_IME_VISIBILITY_NOT_OBSERVABLE")
+        return state
 
-    def window_insets(self) -> dict:
+    def ime_state(self, *, timeout: int = 30) -> bool | None:
+        return parse_ime_state(self.shell("dumpsys", "input_method", timeout=timeout))
+
+    def window_insets(self, *, timeout: int = 30) -> dict:
         # Read the live display controller, not historical window/request logs.
         # Only numeric geometry leaves this method; the dump is never persisted.
-        return parse_window_insets(self.shell("dumpsys", "window", "displays"))
+        return parse_window_insets(self.shell("dumpsys", "window", "displays", timeout=timeout))
 
     def metrics(self) -> dict:
         graphics = self.shell("dumpsys", "gfxinfo", ANDROID_PACKAGE, check=False)
@@ -165,11 +169,110 @@ def inspect_apk(receipt: dict, sdk: Path) -> dict:
 
 
 def parse_ime_visibility(value: str) -> bool:
-    for pattern in (r"\bmInputShown=(true|false)", r"\bisInputViewShown=(true|false)"):
-        match = re.search(pattern, value)
-        if match:
-            return match.group(1) == "true"
-    return bool(re.search(r"\bimeVisible=true\b", value))
+    return parse_ime_state(value) is True
+
+
+def parse_ime_state(value: str) -> bool | None:
+    for pattern in (r"\bmInputShown=(true|false)\b", r"\bisInputViewShown=(true|false)\b",
+                    r"\bimeVisible=(true|false)\b"):
+        matches = re.findall(pattern, value)
+        if matches:
+            return matches[0] == "true" if len(matches) == 1 else None
+    return None
+
+
+def ime_geometry_observation(shown: bool | None, insets: dict) -> dict:
+    """Retain numeric current-controller evidence, never titles or IME text."""
+    dl, dt, dr, db = insets["display"]
+    sources = [{"frame": tuple(source["frame"]), "visible": source["visible"]}
+               for source in insets["sources"] if source["type"] == "ime"]
+    usable = any(source["visible"] and
+                 dl <= source["frame"][0] < source["frame"][2] <= dr and
+                 dt <= source["frame"][1] < source["frame"][3] <= db
+                 for source in sources)
+    return {"input_shown": shown, "display": tuple(insets["display"]),
+            "ime_sources": sources, "ready": shown is True and usable}
+
+
+def parse_launch_result(value: str) -> dict:
+    """Allowlist Android 15 am start -W fields; ambiguous fields stay unknown."""
+    def one(field):
+        matches = re.findall(r"^" + field + r":[ \t]*([^\n]*)$", value, re.MULTILINE)
+        return matches[0].strip() if len(matches) == 1 else None
+    status, state, activity = one("Status"), one("LaunchState"), one("Activity")
+    result = {"status": status if status in {"ok", "timeout"} else None,
+              "launch_state": state if state in {"COLD", "WARM", "HOT", "UNKNOWN"} else None,
+              "canonical_activity": None if activity is None or not re.fullmatch(r"[a-zA-Z0-9_.]+/[a-zA-Z0-9_.$]+", activity) else activity in {
+                  ANDROID_PACKAGE + "/.MainActivity", ANDROID_PACKAGE + "/" + ANDROID_PACKAGE + ".MainActivity"}}
+    for field, key in (("TotalTime", "total_time_ms"), ("WaitTime", "wait_time_ms")):
+        number = one(field)
+        result[key] = int(number) if number is not None and re.fullmatch(r"\d{1,9}", number) else None
+    return result
+
+
+def parse_process_observation(value: str) -> dict:
+    lines = value.strip().splitlines()
+    if not lines or lines[0].strip() != "NAME":
+        return {"observed": False, "canonical_process_count": None}
+    return {"observed": True,
+            "canonical_process_count": sum(line.strip() == ANDROID_PACKAGE for line in lines[1:])}
+
+
+def parse_window_observation(value: str) -> dict:
+    """Classify only the default display's current focus, never its title."""
+    displays = list(re.finditer(r"^\s*Display: mDisplayId=(\d+)[^\n]*$", value, re.MULTILINE))
+    indexes = [i for i, match in enumerate(displays) if match.group(1) == "0"]
+    result = {"focus": "unobserved", "canonical_error_dialog": None,
+              "canonical_anr_dialog": None}
+    if len(indexes) != 1:
+        return result
+    index = indexes[0]
+    section = value[displays[index].end():displays[index + 1].start() if index + 1 < len(displays) else len(value)]
+    matches = re.findall(r"^\s*mCurrentFocus=([^\n]*)$", section, re.MULTILINE)
+    if len(matches) != 1:
+        return result
+    focus = matches[0].strip()
+    if focus == "null":
+        return {"focus": "none", "canonical_error_dialog": False, "canonical_anr_dialog": False}
+    window = re.fullmatch(r"Window\{[a-fA-F0-9]+ u\d+ (.+)\}", focus)
+    if window is None:
+        return result
+    title = window.group(1)
+    canonical = title in {ANDROID_PACKAGE + "/.MainActivity",
+                          ANDROID_PACKAGE + "/" + ANDROID_PACKAGE + ".MainActivity"}
+    return {"focus": "canonical_activity" if canonical else "other_window",
+            "canonical_error_dialog": title == "Application Error: " + ANDROID_PACKAGE,
+            "canonical_anr_dialog": title == "Application Not Responding: " + ANDROID_PACKAGE}
+
+
+def parse_keyguard_observation(value: str) -> dict:
+    result = {}
+    for field in ("mKeyguardShowing", "mAodShowing", "mKeyguardGoingAway"):
+        values = re.findall(r"^\s*" + field + r"=(true|false)\s*$", value, re.MULTILINE)
+        result[field] = values[0] == "true" if len(values) == 1 else None
+    return result
+
+
+def parse_historical_exit_observation(value: str) -> dict:
+    # Exit records can predate this attempt, including our deliberate force-stop.
+    # Do not attribute their reasons to the failed launch without a time fence.
+    reasons = {4: "java_crash", 5: "native_crash", 6: "anr", 7: "initialization",
+               10: "user_requested", 11: "user_stopped"}
+    counts = {name: 0 for name in (*reasons.values(), "other")}
+    # Only the structured line immediately after a record header/timestamp is
+    # eligible. Never scan description prose for a process/reason substring.
+    records = re.findall(r"^[ \t]*ApplicationExitInfo [^\n]*:\n"
+                         r"[ \t]+timestamp=[^\n]*\bpid=\d+[^\n]*\n"
+                         r"[ \t]+process=([^ \t\n]+) reason=(\d+) \([^\n]*?\) subreason=",
+                         value, re.MULTILINE)
+    matches = [reason for process, reason in records if process == ANDROID_PACKAGE]
+    for reason in matches:
+        counts[reasons.get(int(reason), "other")] += 1
+    return {"scope": "historical_only_including_driver_force_stop",
+            "current_launch_cause_established": False,
+            "observed": bool(records),
+            "recognized_record_count": len(matches) if records else None,
+            "reason_counts": counts if records else None}
 
 
 def parse_window_insets(value: str, display_id: int = 0) -> dict:

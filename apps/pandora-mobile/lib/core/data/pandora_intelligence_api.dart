@@ -61,8 +61,10 @@ class PandoraIntelligenceApi {
           .timeout(const Duration(seconds: 25));
       final Stream<Map<String, dynamic>> frames;
       if (response.data is Stream<List<int>>) {
-        frames = decodePandoraSse(response.data as Stream<List<int>>)
-            .timeout(const Duration(seconds: 90));
+        // Heartbeat bytes prove the transport is alive even though the SSE
+        // decoder correctly omits them from visible conversation events.
+        frames = decodePandoraSse((response.data as Stream<List<int>>)
+            .timeout(const Duration(seconds: 90)));
       } else {
         frames = Stream.value(_map(response.data));
       }

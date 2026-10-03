@@ -1,8 +1,13 @@
 """Test receipt parsing; these are not Android runtime acceptance tests."""
 import unittest
+import json
 from core_android_device import (AndroidDevice, DeviceFailure, parse_ime_visibility,
                                 parse_metrics, parse_package_evidence,
-                                parse_window_insets, require_unoccluded)
+                                parse_window_insets, require_unoccluded,
+                                parse_ime_state,
+                                ime_geometry_observation, parse_launch_result,
+                                parse_process_observation, parse_window_observation,
+                                parse_keyguard_observation, parse_historical_exit_observation)
 
 
 # Field layout follows pinned AOSP Android 15 dump methods. This is a parser
@@ -58,10 +63,100 @@ class DeviceReceiptTest(unittest.TestCase):
             with self.subTest(altered=altered[:40]), self.assertRaises(DeviceFailure):
                 parse_window_insets(altered)
 
-    def test_ime_applied_false_overrides_stale_requested_visibility(self):
+    def test_ime_dispatch_flag_is_not_inferred_from_show_request(self):
         self.assertFalse(parse_ime_visibility("mInputShown=false imeVisible=true"))
         self.assertTrue(parse_ime_visibility("mInputShown=true"))
         self.assertFalse(parse_ime_visibility("mShowRequested=true"))
+        self.assertIsNone(parse_ime_state("mShowRequested=true"))
+        self.assertIsNone(parse_ime_state("mInputShown=false mInputShown=true"))
+        self.assertIsNone(parse_ime_state("mInputShown=unsupported"))
+
+    def test_real_device_cannot_report_unobserved_or_ambiguous_keyboard_as_closed(self):
+        device = AndroidDevice("emulator-5554")
+        for dump in ("unsupported", "mInputShown=false mInputShown=true", "mShowRequested=false"):
+            device.shell = lambda *args, **kwargs: dump
+            with self.assertRaisesRegex(DeviceFailure, "ANDROID_IME_VISIBILITY_NOT_OBSERVABLE"):
+                device.ime_visible()
+        device.shell = lambda *args, **kwargs: "mInputShown=false"
+        self.assertFalse(device.ime_visible())
+        device.shell = lambda *args, **kwargs: "mInputShown=true"
+        self.assertTrue(device.ime_visible())
+
+    def test_ime_dispatch_flag_requires_visible_usable_current_source(self):
+        ready = parse_window_insets(INSETS)
+        self.assertTrue(ime_geometry_observation(True, ready)["ready"])
+        self.assertFalse(ime_geometry_observation(False, ready)["ready"])
+        for altered in (
+            INSETS.replace("type=ime", "type=unknown"),
+            INSETS.replace("[0,800][720,1280] visible=true", "[0,800][720,1280] visible=false"),
+            INSETS.replace("[0,800][720,1280]", "[0,0][0,0]"),
+            INSETS.replace("[0,800][720,1280]", "[0,1280][720,800]"),
+            INSETS.replace("[0,800][720,1280]", "[0,800][900,1280]"),
+        ):
+            with self.subTest(altered=altered[-30:]):
+                self.assertFalse(ime_geometry_observation(True, parse_window_insets(altered))["ready"])
+
+    def test_launch_diagnostics_allowlist_fields_and_reject_duplicates(self):
+        package = "com.banataosystems.pandora_mobile"
+        for component in ("/.MainActivity", "/" + package + ".MainActivity"):
+            result = parse_launch_result("Status: ok\nLaunchState: COLD\nActivity: " + package + component +
+                                         "\nTotalTime: 27531\nWaitTime: 27581\nComplete\nsecret_canary")
+            self.assertTrue(result["canonical_activity"])
+            self.assertEqual(result["total_time_ms"], 27531)
+            self.assertEqual(result["wait_time_ms"], 27581)
+            self.assertNotIn("secret_canary", json.dumps(result))
+        duplicate = parse_launch_result("Status: ok\nStatus: timeout\nTotalTime: 1\nTotalTime: 2\nWaitTime: secret_canary")
+        self.assertIsNone(duplicate["status"])
+        self.assertIsNone(duplicate["total_time_ms"])
+        self.assertIsNone(duplicate["wait_time_ms"])
+        self.assertIsNone(duplicate["canonical_activity"])
+        self.assertFalse(parse_launch_result("Activity: " + package + ".impostor/.MainActivity")["canonical_activity"])
+        self.assertIsNone(parse_launch_result("Activity:\nTotalTime: 10")["canonical_activity"])
+
+    def test_process_and_keyguard_missing_observations_are_unknown(self):
+        self.assertIsNone(parse_process_observation("permission denied secret_canary")["canonical_process_count"])
+        self.assertEqual(parse_process_observation("NAME\ncom.banataosystems.pandora_mobile\nprivate_canary")["canonical_process_count"], 1)
+        self.assertEqual(parse_process_observation("NAME\ncom.banataosystems.pandora_mobile.impostor")["canonical_process_count"], 0)
+        guards = parse_keyguard_observation("mKeyguardShowing=false\nmAodShowing=true\nmKeyguardGoingAway=false")
+        self.assertEqual(guards, {"mKeyguardShowing": False, "mAodShowing": True, "mKeyguardGoingAway": False})
+        self.assertIsNone(parse_keyguard_observation("mKeyguardShowing=true\nmKeyguardShowing=false")["mKeyguardShowing"])
+        self.assertTrue(all(value is None for value in parse_keyguard_observation("secret_canary").values()))
+
+    def test_window_focus_classification_is_exact_and_scoped_to_default_display(self):
+        package = "com.banataosystems.pandora_mobile"
+        def dump(title):
+            return "Display: mDisplayId=0\n mCurrentFocus=Window{123abc u0 " + title + "}\nDisplay: mDisplayId=1\n mCurrentFocus=Window{123abc u0 private_canary}\n"
+        self.assertEqual(parse_window_observation(dump(package + "/.MainActivity"))["focus"], "canonical_activity")
+        self.assertTrue(parse_window_observation(dump("Application Error: " + package))["canonical_error_dialog"])
+        self.assertTrue(parse_window_observation(dump("Application Not Responding: " + package))["canonical_anr_dialog"])
+        for title in ("Application Error: " + package + ".impostor", "Application Not Responding: private_canary", package + ".impostor/.MainActivity"):
+            observed = parse_window_observation(dump(title))
+            self.assertFalse(observed["canonical_error_dialog"])
+            self.assertFalse(observed["canonical_anr_dialog"])
+            self.assertNotIn("private_canary", json.dumps(observed))
+        self.assertEqual(parse_window_observation("Display: mDisplayId=0\n mCurrentFocus=null")["focus"], "none")
+        for invalid in ("unavailable", dump(package).replace("mDisplayId=1", "mDisplayId=0"),
+                        dump(package).replace("mCurrentFocus=", "unrecognized=")):
+            self.assertEqual(parse_window_observation(invalid)["focus"], "unobserved")
+
+    def test_exit_classifications_cannot_mix_processes_or_blame_historical_force_stop_on_launch(self):
+        package = "com.banataosystems.pandora_mobile"
+        source = ("ApplicationExitInfo #0:\n timestamp=2026-10-03 12:00:00 pid=123 realUid=1000\n process=private_canary reason=4 (CRASH) subreason=0\n"
+                  "ApplicationExitInfo #1:\n timestamp=2026-10-03 12:00:00 pid=124 realUid=1000\n process=" + package + " reason=10 (USER REQUESTED) subreason=0\n"
+                  " description=credential_canary\n process=" + package + " reason=5 (CRASH NATIVE) subreason=0\n"
+                  "ApplicationExitInfo #2:\n timestamp=2026-10-03 12:00:00 pid=125 realUid=1000\n process=" + package + ".impostor reason=5 (CRASH NATIVE) subreason=0")
+        result = parse_historical_exit_observation(source)
+        self.assertEqual(result["recognized_record_count"], 1)
+        self.assertEqual(result["reason_counts"]["user_requested"], 1)
+        self.assertEqual(result["reason_counts"]["java_crash"], 0)
+        self.assertEqual(result["reason_counts"]["native_crash"], 0)
+        self.assertFalse(result["current_launch_cause_established"])
+        self.assertNotIn("canary", json.dumps(result))
+        for missing in ("", "permission denied private_canary", "process=" + package + " reason=4 (CRASH) subreason=0"):
+            unknown = parse_historical_exit_observation(missing)
+            self.assertFalse(unknown["observed"])
+            self.assertIsNone(unknown["reason_counts"])
+            self.assertIsNone(unknown["recognized_record_count"])
 
     def test_missing_metrics_are_not_reported_as_zero_or_optimized(self):
         result = parse_metrics("No process found", "No process found")

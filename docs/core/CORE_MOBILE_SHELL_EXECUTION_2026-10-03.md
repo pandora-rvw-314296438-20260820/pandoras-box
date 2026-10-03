@@ -92,8 +92,8 @@ seams. Agents must coordinate changes outside their assigned paths.
 | Owner | Assigned paths / responsibility |
 |---|---|
 | Root integrator | Flutter intelligence API/wire transport, integration tests, dependency manifests/locks, final source reconciliation and provider release actions |
-| `mobile_source_audit` | `apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart`, `apps/pandora-mobile/lib/core/chat/**`, `lib/core/local/pandora_local_state_cache.dart`, `test/core/chat/**`, new `test/core/local/pandora_local_state_cache_test.dart` within the mobile app |
-| `mobile_presentation` | `lib/app/pandora_chat_shell.dart`, model picker, composer, viewport, presentation controller and associated navigation/widget coverage |
+| `mobile_source_audit` | `apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart`, `apps/pandora-mobile/lib/core/chat/**`, `apps/pandora-mobile/lib/core/local/pandora_local_state_cache.dart`, `apps/pandora-mobile/test/core/chat/**`, new `apps/pandora-mobile/test/core/local/pandora_local_state_cache_test.dart` |
+| `mobile_presentation` | `apps/pandora-mobile/lib/app/pandora_chat_shell.dart`, model picker, composer, viewport, presentation controller and associated navigation/widget coverage |
 | `backend_audit` | `supabase/functions/pandora-intelligence-chat/**`, new forward Supabase migrations/RPCs, chat-lifecycle Node/SQL tests and fixtures |
 | `backend_audit/provider_streaming` | `src/providers/aws-bedrock-runtime.js`, `src/providers/aws-bedrock-chat-http.js`, distinct provider-stream tests |
 | `release_audit` | `.github/workflows/pandora-core-mobile-journey.yml`, `apps/pandora-mobile/tool/core_*` runtime/provenance helpers and focused tests; exact-artifact runtime evidence |

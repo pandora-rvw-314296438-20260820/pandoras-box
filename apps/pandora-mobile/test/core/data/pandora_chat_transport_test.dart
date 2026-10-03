@@ -128,7 +128,161 @@ PandoraChatDispatch _dispatch() {
   }).dispatch!;
 }
 
+/// Accelerates only Stream.timeout's 90-second idle timers, leaving the SDK
+/// JSON isolate and intercepted HTTP request on their normal event loop.
+class _ChatIdleClock {
+  Duration _elapsed = Duration.zero;
+  final _timers = <_ChatIdleTimer>[];
+  Future<void> run(Future<void> Function() body) =>
+      runZoned(body, zoneSpecification: ZoneSpecification(
+        createTimer: (self, parent, zone, duration, callback) {
+          if (duration != const Duration(seconds: 90)) {
+            return parent.createTimer(zone, duration, callback);
+          }
+          final timer = _ChatIdleTimer(_elapsed + duration, callback);
+          _timers.add(timer);
+          return timer;
+        },
+      ));
+  Future<void> advance(Duration duration) async {
+    // Let async-generator backpressure resume and arm its idle timer before
+    // advancing the test clock beyond the current delivery.
+    await Future<void>.delayed(Duration.zero);
+    final target = _elapsed + duration;
+    while (true) {
+      final due = _timers
+          .where((t) => t.isActive && t.deadline <= target)
+          .toList()
+        ..sort((a, b) => a.deadline.compareTo(b.deadline));
+      if (due.isEmpty) break;
+      _elapsed = due.first.deadline;
+      due.first.fire();
+      await Future<void>.delayed(Duration.zero);
+    }
+    _elapsed = target;
+    await Future<void>.delayed(Duration.zero);
+  }
+}
+
+class _ChatIdleTimer implements Timer {
+  _ChatIdleTimer(this.deadline, this.callback);
+  final Duration deadline;
+  final void Function() callback;
+  bool _active = true;
+  bool _fired = false;
+  @override
+  bool get isActive => _active;
+  @override
+  int get tick => _fired ? 1 : 0;
+  @override
+  void cancel() => _active = false;
+  void fire() {
+    if (!_active) return;
+    _active = false;
+    _fired = true;
+    callback();
+  }
+}
+
 void main() {
+  test('heartbeat bytes keep one admitted stream alive without becoming events',
+      () async {
+    final clock = _ChatIdleClock();
+    await clock.run(() async {
+      final bytes = StreamController<List<int>>();
+      final requestArrived = Completer<void>();
+      final fixture = _ChatTransport((_, __) {
+        requestArrived.complete();
+        return _sse(bytes.stream);
+      });
+      await fixture.initialize();
+      addTearDown(fixture.client.dispose);
+      final events = <PandoraChatWireEvent>[];
+      final errors = <Object>[];
+      final accepted = Completer<void>();
+      var finished = false;
+      final subscription =
+          fixture.api.executeChatTurn(_dispatch()).listen((event) {
+        events.add(event);
+        if (!accepted.isCompleted) accepted.complete();
+      }, onError: errors.add, onDone: () => finished = true);
+      addTearDown(() async {
+        await subscription.cancel();
+        await bytes.close();
+      });
+      await requestArrived.future;
+      final request = fixture.requests.single;
+      bytes.add(_frame(_receipt(request)));
+      await accepted.future;
+
+      // No data frame arrives for four minutes. Genuine heartbeat bytes keep
+      // the existing transport idle bound alive without becoming chat events.
+      for (var heartbeat = 0; heartbeat < 3; heartbeat++) {
+        await clock.advance(const Duration(seconds: 80));
+        expect(errors, isEmpty);
+        expect(finished, isFalse);
+        bytes.add(utf8.encode(': keepalive\n\n'));
+        await Future<void>.delayed(Duration.zero);
+        expect(events.map((event) => event.status), ['accepted']);
+      }
+      bytes.add(_frame(_receipt(request, status: 'completed', sequence: 2)));
+      await Future<void>.delayed(Duration.zero);
+      expect(errors, isEmpty);
+      expect(finished, isTrue);
+      expect(events.map((event) => event.status), ['accepted', 'completed']);
+
+      expect(fixture.requests, hasLength(1));
+    });
+  });
+
+  test('an admitted byte stream that really goes idle still times out',
+      () async {
+    final clock = _ChatIdleClock();
+    await clock.run(() async {
+      final bytes = StreamController<List<int>>();
+      final requestArrived = Completer<void>();
+      final fixture = _ChatTransport((_, __) {
+        requestArrived.complete();
+        return _sse(bytes.stream);
+      });
+      await fixture.initialize();
+      addTearDown(fixture.client.dispose);
+      final events = <PandoraChatWireEvent>[];
+      final errors = <Object>[];
+      final accepted = Completer<void>();
+      var finished = false;
+      final subscription =
+          fixture.api.executeChatTurn(_dispatch()).listen((event) {
+        events.add(event);
+        if (!accepted.isCompleted) accepted.complete();
+      }, onError: errors.add, onDone: () => finished = true);
+      addTearDown(() async {
+        await subscription.cancel();
+        await bytes.close();
+      });
+      await requestArrived.future;
+      final request = fixture.requests.single;
+      bytes.add(_frame(_receipt(request)));
+      await accepted.future;
+
+      await clock.advance(const Duration(seconds: 89));
+      expect(events.single.status, 'accepted');
+      expect(errors, isEmpty);
+      expect(finished, isFalse);
+      await clock.advance(const Duration(seconds: 2));
+      expect(
+          errors.single,
+          isA<PandoraIntelligenceException>()
+              .having((error) => error.code, 'code', 'CHAT_TRANSPORT_TIMEOUT')
+              .having(
+                  (error) => error.outcomeUnknown, 'outcomeUnknown', isTrue));
+      expect(finished, isTrue);
+      expect(events.map((event) => event.status), ['accepted']);
+
+      expect(fixture.requests, hasLength(1));
+    });
+  });
+
   test(
       'one admission streams immediately, deduplicates tokens, then accepts durable cancellation',
       () async {

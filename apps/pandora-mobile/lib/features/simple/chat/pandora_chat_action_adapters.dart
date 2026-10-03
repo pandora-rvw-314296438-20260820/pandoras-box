@@ -599,12 +599,26 @@ extension _PandoraActionAdapters on AskPandoraScreenState {
                   displayName: displayName, phoneNumber: phoneNumber),
       reporter: activity == null || intelligence == null
           ? null
-          : (fact) => intelligence.recordDeviceActivity(
-              jobId: activity!.jobId,
-              operationId: operationId,
-              capability: fact.capability,
-              stage: fact.stage,
-              observedAt: fact.observedAt),
+          : (fact) async {
+              try {
+                await intelligence.recordDeviceActivity(
+                    jobId: activity!.jobId,
+                    operationId: operationId,
+                    capability: fact.capability,
+                    stage: fact.stage,
+                    observedAt: fact.observedAt);
+              } on PandoraIntelligenceException {
+                if (localStore != null) {
+                  await enqueuePandoraDeviceFact(
+                      store: localStore,
+                      jobId: activity!.jobId,
+                      operationId: operationId,
+                      capability: fact.capability,
+                      stage: fact.stage,
+                      observedAt: fact.observedAt);
+                }
+              }
+            },
     );
     final result = await executor.execute(command, operationId: operationId);
     if (result.outcomeUnknown) {

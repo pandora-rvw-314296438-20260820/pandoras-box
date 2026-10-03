@@ -489,6 +489,119 @@ void main() {
   });
 
   test(
+      'latest history selection supersedes a pending load and fences its callbacks',
+      () {
+    final first = chat.beginHistoryLoad('thread-a')!;
+    final second = chat.beginHistoryLoad('thread-b');
+    expect(second, isNotNull);
+    final latest = second!;
+    expect(latest.scopeEpoch, greaterThan(first.scopeEpoch));
+    expect(latest.conversationId, isNot(first.conversationId));
+    expect(chat.state.threadId, 'thread-b');
+    expect(chat.matchesLoad(first), isFalse);
+    expect(chat.matchesLoad(latest), isTrue);
+    expect(chat.submit('Before history').reason, 'history_loading');
+    expect(chat.retry('earlier-turn').reason, 'execution_unresolved');
+
+    PandoraChatHistoryMessage row(String thread) => PandoraChatHistoryMessage(
+        id: '$thread-message',
+        threadId: thread,
+        role: 'user',
+        text: 'Saved $thread message',
+        createdAt: DateTime.utc(2026));
+    final loading = chat.state;
+    expect(chat.replaceHistory(first, [row('thread-a')]), isFalse);
+    expect(chat.failHistoryLoad(first), isFalse);
+    expect(chat.state, same(loading));
+    expect(chat.replaceHistory(latest, [row('thread-b')]), isTrue);
+    final ready = chat.state;
+    expect(chat.replaceHistory(first, [row('thread-a')]), isFalse);
+    expect(chat.failHistoryLoad(first), isFalse);
+    expect(chat.state, same(ready));
+    expect(chat.state.history.single.id, 'thread-b-message');
+    expect(send('Continue latest').threadId, 'thread-b');
+  });
+
+  test('latest history failure cannot be replaced by an older successful load',
+      () {
+    final first = chat.beginHistoryLoad('thread-a')!;
+    final latest = chat.beginHistoryLoad('thread-b')!;
+    expect(chat.failHistoryLoad(latest), isTrue);
+    final failed = chat.state;
+    expect(chat.replaceHistory(first, const []), isFalse);
+    expect(chat.failHistoryLoad(first), isFalse);
+    expect(chat.state, same(failed));
+    expect(chat.state.threadId, 'thread-b');
+    expect(chat.submit('Unverified follow-up').reason, 'history_unverified');
+    expect(chat.retry('earlier-turn').reason, 'execution_unresolved');
+    final retry = chat.beginHistoryLoad('thread-b')!;
+    expect(chat.replaceHistory(retry, const []), isTrue);
+    expect(send('After verified retry').threadId, 'thread-b');
+  });
+
+  for (final blockedBy in [
+    'active',
+    'queued',
+    'unknown outcome',
+    'unadmitted'
+  ]) {
+    test('history selection cannot abandon $blockedBy work', () {
+      final current = send('Current request');
+      switch (blockedBy) {
+        case 'active':
+          chat.accept(current.token, threadId: 'current-thread', sequence: 1);
+          chat.processing(current.token, sequence: 2);
+        case 'queued':
+          chat.accept(current.token, threadId: 'current-thread', sequence: 1);
+          expect(chat.submit('Next request').kind,
+              PandoraChatAdmissionKind.queued);
+          chat.complete(current.token, reply: 'Completed', sequence: 2);
+          expect(chat.state.activeTurnId, isNull);
+          expect(chat.state.queuedTurnId, isNotNull);
+        case 'unknown outcome':
+          chat.accept(current.token, threadId: 'current-thread', sequence: 1);
+          chat.fail(current.token,
+              message: 'Outcome unconfirmed',
+              outcomeUnknown: true,
+              sequence: 2);
+          expect(chat.state.activeTurnId, isNull);
+          expect(chat.state.hasUnresolvedOutcome, isTrue);
+        case 'unadmitted':
+          expect(chat.markNotAdmitted(current.token), isTrue);
+          expect(chat.state.activeTurnId, isNull);
+          expect(chat.state.hasUnresolvedAdmission, isTrue);
+      }
+      final before = chat.state;
+      expect(chat.beginHistoryLoad('another-thread'), isNull);
+      expect(chat.state, same(before));
+      expect(chat.state.turn(current.token.turnId), isNotNull);
+    });
+  }
+
+  test('blank history selection leaves the current load and draft untouched',
+      () {
+    final load = chat.beginHistoryLoad('thread-a')!;
+    chat.setDraft('Preserve this draft');
+    final before = chat.state;
+    for (final id in ['', ' ', '\t\n']) {
+      expect(chat.beginHistoryLoad(id), isNull);
+      expect(chat.state, same(before));
+    }
+    expect(chat.matchesLoad(load), isTrue);
+    expect(chat.state.draft.text, 'Preserve this draft');
+  });
+
+  test('disposed controller cannot replace a pending history load', () {
+    final load = chat.beginHistoryLoad('thread-a')!;
+    final before = chat.state;
+    chat.dispose();
+    expect(chat.beginHistoryLoad('thread-b'), isNull);
+    expect(chat.replaceHistory(load, const []), isFalse);
+    expect(chat.failHistoryLoad(load), isFalse);
+    expect(chat.state, same(before));
+  });
+
+  test(
     'history preserves IDs, deduplicates replay and orders server sequence',
     () {
       final load = chat.beginHistoryLoad('thread-one')!;

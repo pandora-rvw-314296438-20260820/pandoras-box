@@ -89,9 +89,11 @@ deployed or that cancellation, readback and history reconstruction can succeed.
 
 Before authenticated execution, the release operator must bind the reviewed
 candidate to authoritative migration, Edge-function and bridge deployment
-readbacks. The dependency order is additive v2 database migrations, the compatible
-legacy/native-message streaming bridge, the v1-compatible v2 Edge bundle, then
-the exact-source Android journey. Existing provider stream permission must be
+readbacks. Use reader-before-writer order: deploy the compatible legacy/native-
+message streaming bridge and verify its candidate and canonical alias bytes;
+then apply the additive v2 database migrations/new issuers; deploy the
+v1-compatible v2 Edge bundle; and run the exact-source Android journey.
+Existing provider stream permission must be
 verified before that bridge can claim streaming readiness. A separately
 authorized canonical staging stack can serve this purpose only when its backend
 and corresponding APK configuration are actually established and recorded.

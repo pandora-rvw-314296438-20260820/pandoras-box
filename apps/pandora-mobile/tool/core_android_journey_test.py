@@ -1,15 +1,18 @@
 """Validate Android evidence parsing and honest stage labels, not native UX."""
 import hashlib
+import io
 import json
+from contextlib import redirect_stdout
 from pathlib import Path
 import tempfile
 import time
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 import xml.etree.ElementTree as ET
 
 from core_android_device import DeviceFailure
-from core_android_journey import Journey, bounds, semantic_snapshot, text_of
+from core_android_journey import Journey, bounds, semantic_snapshot, text_of, hierarchy_diagnostics
 
 TURN = "12345678-1234-1234-1234-123456789012"
 THREAD = "87654321-4321-4321-4321-210987654321"
@@ -23,6 +26,171 @@ def tree(*ids):
 
 
 class NativeEvidenceParsingTest(unittest.TestCase):
+    def ime_fixture(self, observations):
+        journey = Journey.__new__(Journey)
+        journey.coverage = {}
+        journey.ime_observations = []
+        current = {"index": -1}
+        def flag(**kwargs):
+            current["index"] += 1
+            return observations[min(current["index"], len(observations) - 1)][0]
+        def geometry(**kwargs):
+            return observations[min(current["index"], len(observations) - 1)][1]
+        journey.android = SimpleNamespace(ime_visible=flag, ime_state=flag, window_insets=geometry)
+        return journey, current
+
+    def insets(self, frame=(0, 800, 720, 1280), visible=True):
+        return {"display": (0, 0, 720, 1280), "cutout_insets": (0, 0, 0, 0), "sources": [
+            {"type": "statusBars", "frame": (0, 0, 720, 48), "visible": True},
+            {"type": "navigationBars", "frame": (0, 1232, 720, 1280), "visible": True},
+            {"type": "ime", "frame": frame, "visible": visible},
+        ]}
+
+    def test_keyboard_waits_for_one_usable_geometry_snapshot_and_retains_first_incomplete_sample(self):
+        empty, hidden, ready = self.insets(frame=(0, 0, 0, 0)), self.insets(visible=False), self.insets()
+        journey, _ = self.ime_fixture([(True, empty), (True, hidden), (True, ready)])
+        with patch("core_android_journey.time.sleep"):
+            result = journey.wait_for_ime_geometry()
+        self.assertIs(result, ready)
+        evidence = journey.ime_observations[0]
+        self.assertEqual(evidence["samples"], 3)
+        self.assertEqual(evidence["first_incomplete"]["ime_sources"][0]["frame"], (0, 0, 0, 0))
+        self.assertTrue(evidence["first_incomplete"]["input_shown"])
+        self.assertFalse(evidence["first_incomplete"]["ready"])
+        self.assertTrue(evidence["ready"]["ready"])
+        # Containment consumes this exact source snapshot, never a second dump.
+        field = ET.Element("node", {"class": "android.widget.EditText", "focused": "true", "bounds": "[20,700][700,790]"})
+        root = ET.Element("hierarchy"); root.append(field)
+        journey.snapshot = lambda: {"root": root}
+        journey.android.window_insets = lambda: self.fail("Containment resampled ready geometry")
+        journey.assert_sign_in_insets(focused_only=True, insets=result)
+        self.assertTrue(journey.coverage["sign_in_ime_insets"])
+
+    def test_ready_geometry_overlap_fails_immediately_without_polling_it_away(self):
+        journey, current = self.ime_fixture([(True, self.insets())])
+        ready = journey.wait_for_ime_geometry()
+        root = ET.fromstring('<hierarchy><node class="android.widget.EditText" focused="true" bounds="[20,790][700,850]"/></hierarchy>')
+        journey.snapshot = lambda: {"root": root}
+        with self.assertRaisesRegex(DeviceFailure, "SIGN_IN_FIELD_OVERLAPS_SYSTEM_OR_IME"):
+            journey.assert_sign_in_insets(focused_only=True, insets=ready)
+        self.assertEqual(current["index"], 0)
+        self.assertEqual(journey.coverage, {})
+
+    def test_missing_ime_or_false_flag_cannot_pass_and_keep_original_twenty_second_budget(self):
+        absent = self.insets(); absent["sources"] = absent["sources"][:2]
+        for observation in ((True, absent), (True, self.insets(frame=(0, 0, 0, 0))),
+                            (False, self.insets())):
+            with self.subTest(observation=observation[0]):
+                journey, _ = self.ime_fixture([observation])
+                clock = [0.0]
+                def sleep(_):
+                    clock[0] += 1.0
+                with patch("core_android_journey.time.monotonic", side_effect=lambda: clock[0]), \
+                     patch("core_android_journey.time.sleep", side_effect=sleep):
+                    with self.assertRaisesRegex(DeviceFailure, "VISIBLE_IME_GEOMETRY_UNAVAILABLE"):
+                        journey.wait_for_ime_geometry()
+                self.assertEqual(clock[0], 20.0)
+                self.assertIsNone(journey.ime_observations[0]["ready"])
+                self.assertIsNotNone(journey.ime_observations[0]["first_incomplete"])
+
+    def test_unparseable_ime_source_is_unavailable_not_ready(self):
+        journey, _ = self.ime_fixture([(True, self.insets())])
+        def unavailable(**kwargs):
+            raise DeviceFailure("ANDROID_INSETS_CONTROLLER_AMBIGUOUS")
+        journey.android.window_insets = unavailable
+        with self.assertRaisesRegex(DeviceFailure, "ANDROID_INSETS_CONTROLLER_AMBIGUOUS"):
+            journey.wait_for_ime_geometry()
+        self.assertIsNone(journey.ime_observations[0]["ready"])
+
+    def test_slow_adb_ready_sample_after_deadline_is_rejected_and_each_call_gets_remaining_budget(self):
+        journey, _ = self.ime_fixture([(True, self.insets())])
+        clock, budgets = [0.0], []
+        def flag(**kwargs):
+            budgets.append(kwargs["timeout"])
+            clock[0] = 12.0
+            return True
+        def geometry(**kwargs):
+            budgets.append(kwargs["timeout"])
+            clock[0] = 20.5
+            return self.insets()
+        journey.android.ime_state = flag
+        journey.android.window_insets = geometry
+        with patch("core_android_journey.time.monotonic", side_effect=lambda: clock[0]), \
+             patch("core_android_journey.time.sleep"):
+            with self.assertRaisesRegex(DeviceFailure, "VISIBLE_IME_GEOMETRY_UNAVAILABLE"):
+                journey.wait_for_ime_geometry()
+        self.assertEqual(budgets, [20.0, 8.0])
+        self.assertIsNone(journey.ime_observations[0]["ready"])
+        self.assertFalse(journey.ime_observations[0]["first_incomplete"]["within_deadline"])
+
+    def test_hierarchy_classification_does_not_attribute_foreign_resource_ids_to_core(self):
+        view = hierarchy_diagnostics('<hierarchy><node package="foreign" resource-id="pandora.chat.input" '
+                                     'class="android.widget.EditText"/><node resource-id="android:id/aerr_close"/></hierarchy>')
+        self.assertEqual(view["edit_text_count"], 1)
+        self.assertEqual(view["canonical_edit_text_count"], 0)
+        self.assertFalse(view["known_chat_controls"]["input"])
+        self.assertTrue(view["system_error_dialog_controls"])
+        self.assertFalse(view["system_anr_wait_control"])
+
+    def test_launch_retains_single_attempt_and_existing_ninety_second_entry_predicate(self):
+        journey = Journey.__new__(Journey)
+        calls = []
+        journey.android = SimpleNamespace(shell=lambda *args: calls.append(args) or "Status: ok\nLaunchState: COLD\n")
+        journey.wait = lambda predicate, code, seconds: calls.append((code, seconds))
+        journey.launch()
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(calls[0][:2], ("am", "force-stop"))
+        self.assertEqual(calls[1][:3], ("am", "start", "-W"))
+        self.assertEqual(calls[2], ("APP_ENTRY_NOT_VISIBLE", 90))
+        self.assertEqual(journey.launch_result["status"], "ok")
+
+    def test_failure_diagnostics_discard_all_arbitrary_ui_titles_attributes_and_exceptions(self):
+        package = "com.banataosystems.pandora_mobile"
+        xml = '<hierarchy><node package="' + package + '" class="android.widget.EditText" text="secret_canary" content-desc="secret_canary" hint="secret_canary" resource-id="secret_canary"/><node resource-id="android:id/aerr_close"/><node resource-id="com.android.permissioncontroller:id/permission_allow_button"/><node package="' + package + '" resource-id="pandora.chat.input"/></hierarchy>'
+        journey = Journey.__new__(Journey)
+        def shell(*args, **kwargs):
+            if args[:1] == ("ps",):
+                return "NAME\n" + package + "\nsecret_canary"
+            if args == ("dumpsys", "window", "displays"):
+                return "Display: mDisplayId=0\n mCurrentFocus=Window{123abc u0 secret_canary}\n"
+            if args == ("dumpsys", "activity", "activities"):
+                return "mKeyguardShowing=false\nsecret_canary"
+            raise RuntimeError("secret_canary")
+        journey.android = SimpleNamespace(shell=shell, ime_state=lambda **kwargs: True,
+                                           window_insets=lambda **kwargs: self.insets())
+        journey.device = SimpleNamespace(dump_hierarchy=lambda **kwargs: xml)
+        result = journey.collect_failure_diagnostics()
+        self.assertNotIn("secret_canary", json.dumps(result))
+        self.assertEqual(result["process"]["canonical_process_count"], 1)
+        self.assertEqual(result["hierarchy"]["edit_text_count"], 1)
+        self.assertTrue(result["hierarchy"]["known_chat_controls"]["input"])
+        self.assertTrue(result["hierarchy"]["system_error_dialog_controls"])
+        self.assertFalse(result["hierarchy"]["system_anr_wait_control"])
+        self.assertEqual(result["hierarchy"]["permission_control_count"], 1)
+        self.assertEqual(result["historical_exits"], {"observed": False, "acquisition": "unavailable"})
+        self.assertFalse(result["window"]["canonical_error_dialog"])
+
+    def test_diagnostic_failure_cannot_replace_original_failure_or_emit_exception_message(self):
+        journey = Journey.__new__(Journey)
+        journey.installed = {"apk_sha256": "a" * 64}
+        journey.android = SimpleNamespace(installed_digest=lambda: "a" * 64, shell=lambda *args, **kwargs: "")
+        journey.mode = "platform"
+        def fail():
+            raise DeviceFailure("APP_ENTRY_NOT_VISIBLE")
+        def diagnostic_fail():
+            raise RuntimeError("secret_canary")
+        journey.platform = fail
+        journey.collect_failure_diagnostics = diagnostic_fail
+        written = []
+        journey.write_receipt = lambda passed: written.append((passed, journey.failure, journey.failure_diagnostics))
+        output = io.StringIO()
+        with redirect_stdout(output):
+            result = journey.run()
+        self.assertEqual(result, 1)
+        self.assertEqual(written, [(False, "APP_ENTRY_NOT_VISIBLE", {"observed": False, "acquisition": "unavailable"})])
+        self.assertNotIn("secret_canary", output.getvalue())
+        self.assertIn("APP_ENTRY_NOT_VISIBLE", output.getvalue())
+
     def cancellation_fixture(self, states):
         journey = Journey.__new__(Journey)
         journey.coverage = {}

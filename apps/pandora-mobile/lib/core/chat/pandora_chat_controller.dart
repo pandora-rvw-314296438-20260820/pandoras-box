@@ -767,7 +767,14 @@ class PandoraChatController extends ChangeNotifier {
   /// Starts a distinct history-load epoch. Stale loads, voice and execution
   /// callbacks from the previous conversation can no longer affect the shell.
   PandoraChatLoadToken? beginHistoryLoad(String threadId) {
-    if (_disposed || _state.hasPendingWork || threadId.trim().isEmpty) {
+    // Loading history is replaceable navigation intent, not an execution to
+    // abandon. A newer selection owns a fresh epoch and fences the old load.
+    if (_disposed ||
+        _state.activeTurnId != null ||
+        _state.queuedTurnId != null ||
+        _state.hasUnresolvedOutcome ||
+        _state.hasUnresolvedAdmission ||
+        threadId.trim().isEmpty) {
       return null;
     }
     final next = PandoraChatSessionState(
