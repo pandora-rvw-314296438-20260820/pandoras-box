@@ -1519,7 +1519,8 @@ void main() {
     await _tap(tester, find.text('Deployments'));
     expect(find.text('Canonical production'), findsOneWidget);
     expect(find.text('Latest candidate'), findsOneWidget);
-    expect(find.text('READY'), findsNWidgets(2));
+    expect(find.text('Deployment ready'), findsNWidgets(2));
+    expect(find.text('READY'), findsNothing);
     expect(find.textContaining('Stale provider evidence'), findsOneWidget);
     expect(find.textContaining('Runtime and user flows not verified'),
         findsOneWidget);
@@ -1538,6 +1539,123 @@ void main() {
     expect(find.text('pandora-intelligence-chat'), findsOneWidget);
     expect(find.text('82'), findsOneWidget);
     expect(find.text('must-never-render'), findsNothing);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'evidence rows name the recorded type scope and date without a verdict',
+      (tester) async {
+    final gateway = _FakeCoreGateway()
+      ..data = {
+        ..._snapshot(),
+        'evidence': <PandoraCoreRecord>[
+          {
+            'id': 'evidence-1',
+            'organization_id': _northClientId,
+            'kind': 'provider_readback',
+            'created_at': '2026-10-03T04:00:00Z',
+            'content_sha256': 'd' * 64,
+          },
+          {'kind': 'incomplete_record'},
+        ],
+      };
+    await _mount(tester, gateway, section: 'platform');
+    await _tap(tester, find.text('Evidence'));
+    expect(find.text('Provider readback'), findsOneWidget);
+    expect(find.textContaining('Northwind Guest House · '), findsOneWidget);
+    final date =
+        MaterialLocalizations.of(tester.element(find.text('Provider readback')))
+            .formatShortDate(DateTime.parse('2026-10-03T04:00:00Z').toLocal());
+    expect(find.textContaining(date), findsOneWidget);
+    expect(find.text('Recorded'), findsOneWidget);
+    expect(find.text('Recorded item'), findsNothing);
+    expect(find.text('Not verified'), findsNothing);
+    expect(find.text('Verified'), findsNothing);
+    await _tap(tester, find.text('Provider readback'));
+    expect(find.text('Content SHA-256'), findsOneWidget);
+    expect(find.text('d' * 64), findsOneWidget);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'Automation history uses recorded titles scope and queued dates without claiming active work',
+      (tester) async {
+    final navigations = <String>[];
+    final gateway = _FakeCoreGateway()
+      ..data = {
+        ..._snapshot(),
+        'automations': <PandoraCoreRecord>[
+          {
+            'name': 'Verify resort source connection',
+            'title_state': 'recorded',
+            'client_name': 'Northwind Guest House',
+            'organization_id': _northClientId,
+            'project_id': 'project-detail-only',
+            'task_key': 'task-detail-only',
+            'state': 'complete',
+            'queued_at': '2026-10-01T04:00:00Z',
+            'attempts': 2,
+          },
+          {'name': null, 'title_state': 'missing', 'state': 'cancelled'},
+        ],
+      };
+    await _mount(tester, gateway,
+        section: 'platform', onNavigate: navigations.add);
+    await _tap(tester, find.text('Automations'));
+    expect(find.text('Recent work'), findsOneWidget);
+    expect(find.text('Verify resort source connection'), findsOneWidget);
+    expect(
+        find.textContaining('Northwind Guest House · Queued '), findsOneWidget);
+    expect(find.text('Task title unavailable'), findsOneWidget);
+    expect(find.text('Complete'), findsOneWidget);
+    expect(find.text('Cancelled'), findsOneWidget);
+    expect(find.text('task-detail-only'), findsNothing);
+    expect(find.text('project-detail-only'), findsNothing);
+    await _tap(tester, find.text('Open Operations Room'));
+    expect(navigations, ['operations']);
+    await _tap(tester, find.text('Verify resort source connection'));
+    expect(find.text('task-detail-only'), findsOneWidget);
+    expect(find.text('project-detail-only'), findsOneWidget);
+    expect(find.text('2026-10-01T04:00:00Z'), findsOneWidget);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'deployment observations preserve explicit and unavailable verification states',
+      (tester) async {
+    final gateway = _FakeCoreGateway()
+      ..data = {
+        ..._snapshot(),
+        'deployments': <PandoraCoreRecord>[
+          {
+            'title': 'Verified runtime only',
+            'release_observation_kind': 'candidate',
+            'provider_state': 'READY',
+            'runtime_verified': true,
+            'owner_flow_verified': false,
+            'client_flow_verified': false,
+          },
+          {
+            'title': 'No acceptance evidence',
+            'release_observation_kind': 'candidate',
+            'provider_state': 'BUILDING',
+          },
+        ],
+      };
+    await _mount(tester, gateway, section: 'platform');
+    await _tap(tester, find.text('Deployments'));
+    expect(find.text('Deployment ready'), findsOneWidget);
+    expect(find.text('Deployment building'), findsOneWidget);
+    expect(find.text('Runtime verified · User flows not verified'),
+        findsOneWidget);
+    expect(
+        find.text(
+            'Runtime verification unavailable · User-flow verification unavailable'),
+        findsOneWidget);
+    expect(find.text('Production verified'), findsNothing);
     expect(gateway.operations, isEmpty);
     expect(tester.takeException(), isNull);
   });

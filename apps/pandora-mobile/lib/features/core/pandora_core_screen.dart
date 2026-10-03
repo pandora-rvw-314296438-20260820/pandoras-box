@@ -74,6 +74,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   bool _acting = false;
   bool _initialActionOpened = false;
   bool _decisionQueue = false;
+  bool _modelDetails = false;
   String _toolTitle = 'Team & Access';
   int _generation = 0;
   String? _clientId;
@@ -1122,22 +1123,48 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           onPressed: () => widget.onNavigate?.call('capabilities'),
         ),
       if (tab == 'Models') _modelRoutingSummary(),
+      if (tab == 'Models')
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => setState(() => _modelDetails = !_modelDetails),
+            icon: Icon(_modelDetails ? Icons.expand_less : Icons.expand_more),
+            label: Text(_modelDetails ? 'Hide model details' : 'Model details'),
+          ),
+        ),
       if (tab == 'Memory') const PandoraCoreMemoryPanel(),
+      if (tab == 'Automations' && widget.onNavigate != null)
+        _Action(
+          label: 'Open Operations Room',
+          icon: Icons.settings_suggest_outlined,
+          onPressed: () => widget.onNavigate?.call('operations'),
+        ),
       const SizedBox(height: 10),
       if (tab == 'Memory') const _Heading('Pending learning delivery'),
-      ..._recordList(
-          tab.toLowerCase(),
-          tab == 'Memory'
-              ? 'No pending learning deliveries.'
-              : 'No verified ${tab.toLowerCase()} state in this snapshot.',
-          hidePromotedCandidate: tab == 'Deployments'),
+      if (tab == 'Automations') const _Heading('Recent work'),
+      if (tab != 'Models' || _modelDetails)
+        ..._recordList(
+            tab.toLowerCase(),
+            tab == 'Memory'
+                ? 'No pending learning deliveries.'
+                : tab == 'Automations'
+                    ? 'No recorded tasks in this snapshot.'
+                    : 'No verified ${tab.toLowerCase()} state in this snapshot.',
+            hidePromotedCandidate: tab == 'Deployments'),
     ];
   }
 
   Widget _modelRoutingSummary() {
     final routing = coreRecord(_snapshot?['model_routing']);
+    final failedModels = _rows('models')
+        .where((row) => row['verification_state'] == 'failed')
+        .length;
     if (routing.isEmpty) {
-      return const _Empty('Current model routing evidence is unavailable.');
+      return Column(children: [
+        const _Empty('Current model routing evidence is unavailable.'),
+        if (failedModels > 0)
+          _StatusLine('Models with failed checks', '$failedModels'),
+      ]);
     }
     return _Panel(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1152,20 +1179,23 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                   : 'Unknown'),
         ]),
         const SizedBox(height: 8),
-        for (final field in const {
+        for (final field in {
           'configured_eligible_models': 'Eligible models',
-          'verified_eligible_models': 'With runtime evidence',
-          'fresh_verified_eligible_models': 'Verified within 24 hours',
+          if (_modelDetails) ...{
+            'verified_eligible_models': 'With runtime evidence',
+            'fresh_verified_eligible_models': 'Verified within 24 hours',
+          },
         }.entries)
           if (routing[field.key] is num)
             _StatusLine(field.value, coreText(routing[field.key])),
-        const SizedBox(height: 6),
-        const Text('Runtime evidence measures availability.',
-            style: TextStyle(color: _muted, fontSize: 12)),
-        TextButton(
-          onPressed: () => _showRecord(routing, title: 'Auto routing evidence'),
-          child: const Text('Routing evidence'),
-        ),
+        if (failedModels > 0)
+          _StatusLine('Models with failed checks', '$failedModels'),
+        if (_modelDetails)
+          TextButton(
+            onPressed: () =>
+                _showRecord(routing, title: 'Auto routing evidence'),
+            child: const Text('Routing evidence'),
+          ),
       ]),
     );
   }
@@ -1512,6 +1542,11 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   }
 
   void _recordAction(String key, PandoraCoreRecord row) {
+    if (key == 'evidence') {
+      final kind = _humanizeRecordAction(row['kind']);
+      _showRecord(row, title: kind.isEmpty ? 'Evidence record' : kind);
+      return;
+    }
     if (key == 'pipeline') {
       _prospectForm(initial: row);
       return;
@@ -2273,6 +2308,12 @@ const _recordFields = <String, String>{
   'last_seen_at': 'Last seen',
   'last_active': 'Last active',
   'created_at': 'Created',
+  'kind': 'Evidence type',
+  'content_sha256': 'Content SHA-256',
+  'project_id': 'Project ID',
+  'task_key': 'Task ID',
+  'queued_at': 'Queued',
+  'attempts': 'Attempts',
   'updated_at': 'Updated',
   'occurred_at': 'Occurred',
   'deadline': 'Deadline',
@@ -2435,6 +2476,37 @@ String _modelSubtitle(PandoraCoreRecord row) => [
       },
     ].where((value) => value.isNotEmpty).join(' · ');
 
+String _releaseObservationState(PandoraCoreRecord row) {
+  final state = coreText(row['provider_state'],
+          coreText(row['status'], coreText(row['state'], '')))
+      .toLowerCase();
+  return state.isEmpty ? 'Deployment observed' : 'Deployment $state';
+}
+
+String _releaseVerificationSummary(PandoraCoreRecord row) {
+  final runtime = row['runtime_verified'];
+  final owner = row['owner_flow_verified'];
+  final client = row['client_flow_verified'];
+  if (runtime == false && owner == false && client == false) {
+    return 'Runtime and user flows not verified';
+  }
+  if (runtime == true && owner == true && client == true) {
+    return 'Runtime and user flows verified';
+  }
+  return [
+    runtime == true
+        ? 'Runtime verified'
+        : runtime == false
+            ? 'Runtime not verified'
+            : 'Runtime verification unavailable',
+    owner == true && client == true
+        ? 'User flows verified'
+        : owner == false || client == false
+            ? 'User flows not verified'
+            : 'User-flow verification unavailable',
+  ].join(' · ');
+}
+
 String _usageSubtitle(PandoraCoreRecord row, String? scopeLabel) {
   final currency = coreText(row['currency'], '');
   final estimates = row['estimated_cost_micros'];
@@ -2495,67 +2567,101 @@ class _RecordTile extends StatelessWidget {
     final isAudit = domain == 'audit';
     final isOperator = domain == 'operators';
     final isModel = domain == 'models';
+    final isAutomation = domain == 'automations';
+    final isEvidence = domain == 'evidence';
+    final recordedAt = DateTime.tryParse(coreText(row['created_at'], ''));
+    final queuedAt = DateTime.tryParse(coreText(row['queued_at'], ''));
+    final isRecordedEvidence =
+        isEvidence && coreText(row['id'], '').isNotEmpty && recordedAt != null;
     final isUsage = domain == 'usage';
     final isAllowance = domain == 'usage_allowances';
-    final title = isUsage
-        ? [coreText(row['provider'], ''), coreText(row['model'], '')]
-            .where((value) => value.isNotEmpty)
-            .join(' · ')
-        : isAllowance
-            ? '${scopeLabel ?? 'Client'} allowances'
-            : isOperator
-                ? '${_humanizeRecordAction(row['role']).isEmpty ? 'Operator' : _humanizeRecordAction(row['role'])} access'
-                : isAudit
-                    ? _humanizeRecordAction(row['event_type'] ?? row['action'])
-                    : _recordTitle(row, 'Recorded item');
-    final subtitle = isModel
-        ? _modelSubtitle(row)
-        : isUsage
-            ? _usageSubtitle(row, scopeLabel)
-            : isAllowance
-                ? _allowanceSubtitle(row)
-                : isAudit || isOperator
-                    ? [
-                        if (actorLabel != null) actorLabel!,
-                        if (scopeLabel != null) scopeLabel!,
-                        if (isOperator && row['expires_at'] != null)
-                          'Expires ${coreText(row['expires_at'])}',
-                        if (isAudit && row['created_at'] != null)
-                          coreText(row['created_at']),
-                      ].join(' · ')
-                    : isRelease
-                        ? [
-                            coreText(row['summary'], ''),
-                            row['evidence_state'] == 'stale'
-                                ? 'Stale provider evidence'
-                                : 'Runtime and user flows not verified',
-                          ].where((value) => value.isNotEmpty).join(' · ')
-                        : [
-                            for (final key in const [
-                              'client_name',
-                              'why',
-                              'reason',
-                              'next_action',
-                              'summary',
-                              'provider',
-                              'model',
-                              'updated_at',
-                              'occurred_at',
-                              'source_kind',
-                              'evidence_state',
-                            ])
-                              if (coreText(row[key], '').isNotEmpty)
-                                coreText(row[key], ''),
-                            for (final key in const [
-                              'mrr_micros',
-                              'monthly_fee_micros',
-                              'amount_micros',
-                              'estimated_cost_micros'
-                            ])
-                              if (row[key] != null)
-                                _displayValue(key, row[key],
-                                    currency: coreText(row['currency'], '')),
-                          ].take(3).join(' · ');
+    final evidenceKind = _humanizeRecordAction(row['kind']);
+    final title = isAutomation
+        ? row['title_state'] == 'recorded'
+            ? coreText(row['name'], 'Task title unavailable')
+            : 'Task title unavailable'
+        : isEvidence
+            ? evidenceKind.isEmpty
+                ? 'Evidence record'
+                : evidenceKind
+            : isUsage
+                ? [coreText(row['provider'], ''), coreText(row['model'], '')]
+                    .where((value) => value.isNotEmpty)
+                    .join(' · ')
+                : isAllowance
+                    ? '${scopeLabel ?? 'Client'} allowances'
+                    : isOperator
+                        ? '${_humanizeRecordAction(row['role']).isEmpty ? 'Operator' : _humanizeRecordAction(row['role'])} access'
+                        : isAudit
+                            ? _humanizeRecordAction(
+                                row['event_type'] ?? row['action'])
+                            : _recordTitle(row, 'Recorded item');
+    final subtitle = isAutomation
+        ? [
+            if (coreText(row['client_name'], '').isNotEmpty)
+              coreText(row['client_name']),
+            if (queuedAt != null)
+              'Queued ${MaterialLocalizations.of(context).formatShortDate(queuedAt.toLocal())}',
+          ].join(' · ')
+        : isEvidence
+            ? [
+                if (row['organization_id'] != null && scopeLabel != null)
+                  scopeLabel!,
+                if (recordedAt != null)
+                  MaterialLocalizations.of(context)
+                      .formatShortDate(recordedAt.toLocal()),
+              ].join(' · ')
+            : isModel
+                ? _modelSubtitle(row)
+                : isUsage
+                    ? _usageSubtitle(row, scopeLabel)
+                    : isAllowance
+                        ? _allowanceSubtitle(row)
+                        : isAudit || isOperator
+                            ? [
+                                if (actorLabel != null) actorLabel!,
+                                if (scopeLabel != null) scopeLabel!,
+                                if (isOperator && row['expires_at'] != null)
+                                  'Expires ${coreText(row['expires_at'])}',
+                                if (isAudit && row['created_at'] != null)
+                                  coreText(row['created_at']),
+                              ].join(' · ')
+                            : isRelease
+                                ? [
+                                    coreText(row['summary'], ''),
+                                    if (row['evidence_state'] == 'stale')
+                                      'Stale provider evidence',
+                                    _releaseVerificationSummary(row),
+                                  ]
+                                    .where((value) => value.isNotEmpty)
+                                    .join(' · ')
+                                : [
+                                    for (final key in const [
+                                      'client_name',
+                                      'why',
+                                      'reason',
+                                      'next_action',
+                                      'summary',
+                                      'provider',
+                                      'model',
+                                      'updated_at',
+                                      'occurred_at',
+                                      'source_kind',
+                                      'evidence_state',
+                                    ])
+                                      if (coreText(row[key], '').isNotEmpty)
+                                        coreText(row[key], ''),
+                                    for (final key in const [
+                                      'mrr_micros',
+                                      'monthly_fee_micros',
+                                      'amount_micros',
+                                      'estimated_cost_micros'
+                                    ])
+                                      if (row[key] != null)
+                                        _displayValue(key, row[key],
+                                            currency:
+                                                coreText(row['currency'], '')),
+                                  ].take(3).join(' · ');
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
       title: Text(
@@ -2574,28 +2680,39 @@ class _RecordTile extends StatelessWidget {
               maxLines: isUsage || isAllowance || isModel ? 5 : 3,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: _muted, fontSize: 12)),
-      trailing: isUsage ||
-              (isAllowance && row['request_admission_state'] == null)
-          ? null
-          : isAllowance
-              ? _StatePill(_displayValue(
-                  'request_admission_state', row['request_admission_state']))
-              : isAudit &&
-                      row['state'] == null &&
-                      row['status'] == null &&
-                      row['outcome'] == null
-                  ? null
-                  : _StatePill(isDecision
-                      ? row['needs_decision'] == true ||
-                              row['state'] == 'needs_decision'
-                          ? 'Needs decision'
-                          : row['state'] ??
-                              row['status'] ??
-                              'Decision state unavailable'
-                      : row['state'] ??
-                          row['status'] ??
-                          row['verification_state'] ??
-                          row['outcome']),
+      trailing: isAutomation
+          ? _StatePill(_humanizeRecordAction(row['state']).isEmpty
+              ? 'State unavailable'
+              : _humanizeRecordAction(row['state']))
+          : isEvidence
+              ? isRecordedEvidence
+                  ? const _StatePill('Recorded')
+                  : null
+              : isRelease
+                  ? _StatePill(_releaseObservationState(row))
+                  : isUsage ||
+                          (isAllowance &&
+                              row['request_admission_state'] == null)
+                      ? null
+                      : isAllowance
+                          ? _StatePill(_displayValue('request_admission_state',
+                              row['request_admission_state']))
+                          : isAudit &&
+                                  row['state'] == null &&
+                                  row['status'] == null &&
+                                  row['outcome'] == null
+                              ? null
+                              : _StatePill(isDecision
+                                  ? row['needs_decision'] == true ||
+                                          row['state'] == 'needs_decision'
+                                      ? 'Needs decision'
+                                      : row['state'] ??
+                                          row['status'] ??
+                                          'Decision state unavailable'
+                                  : row['state'] ??
+                                      row['status'] ??
+                                      row['verification_state'] ??
+                                      row['outcome']),
       onTap: onTap,
     );
   }

@@ -27,6 +27,7 @@ class PandoraPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final navigation = PandoraNavigationScope.maybeOf(context);
     final openDrawer = navigation?.openDrawer;
+    final isSecondaryRoute = ModalRoute.of(context)?.isFirst == false;
     final topInset = MediaQuery.paddingOf(context).top;
     const chromeHeight = 60.0;
 
@@ -116,17 +117,23 @@ class PandoraPage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                 child: Row(
                   children: [
+                    if (isSecondaryRoute)
+                      const SizedBox.square(
+                        dimension: 44,
+                        child: BackButton(),
+                      ),
                     if (openDrawer != null)
                       PandoraMenuButton(
                         key: const ValueKey<String>('pandora-side-panel-open'),
                         onPressed: openDrawer,
                       )
-                    else if (Navigator.of(context).canPop())
+                    else if (!isSecondaryRoute &&
+                        Navigator.of(context).canPop())
                       const SizedBox.square(
                         dimension: 44,
                         child: BackButton(),
                       )
-                    else
+                    else if (!isSecondaryRoute)
                       const SizedBox.square(dimension: 44),
                     const Spacer(),
                     ...actions,

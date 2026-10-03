@@ -19,8 +19,11 @@ import 'package:pandora_mobile/core/platform/pandora_native_io.dart';
 import 'package:pandora_mobile/core/security/pandora_auth.dart';
 import 'package:pandora_mobile/features/auth/auth_gate.dart';
 import 'package:pandora_mobile/features/core/pandora_core_screen.dart';
+import 'package:pandora_mobile/features/diagnostics/developer_diagnostics_screen.dart';
 import 'package:pandora_mobile/features/enterprise/pandora_enterprise_workspace_screen.dart';
+import 'package:pandora_mobile/features/settings/settings_screen.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
+import 'package:pandora_mobile/features/simple/more_screen.dart';
 import 'package:pandora_mobile/pandora_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -385,6 +388,44 @@ Future<void> _clients(WidgetTester tester) async {
   await _settle(tester);
 }
 
+Future<void> _ownerDestination(WidgetTester tester, String label) async {
+  await tester.tap(find.byTooltip('Open navigation').hitTestable());
+  await _settle(tester);
+  final drawer =
+      find.byKey(const ValueKey('pandora-primary-navigation-drawer'));
+  final tile = find.descendant(
+      of: drawer, matching: find.widgetWithText(ListTile, label));
+  final scroll =
+      find.descendant(of: drawer, matching: find.byType(Scrollable)).first;
+  await tester.scrollUntilVisible(tile, 180, scrollable: scroll);
+  await tester.tap(tile);
+  await _settle(tester);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _ownerSettings(WidgetTester tester) async {
+  await _ownerDestination(tester, 'Settings & More');
+  final settings = find.widgetWithText(TextButton, 'Settings');
+  await tester.ensureVisible(settings);
+  await _settle(tester);
+  expect(settings.hitTestable(), findsOneWidget);
+  await tester.tap(settings);
+  await _settle(tester);
+  expect(find.byType(SettingsScreen), findsOneWidget);
+}
+
+void _expectOwnerComposer(WidgetTester tester, AskPandoraScreenState state,
+    {String? draft}) {
+  expect(find.byType(AskPandoraScreen), findsOneWidget);
+  expect(tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen)),
+      same(state));
+  final composer = find.byKey(const ValueKey('ask-pandora-objective'));
+  expect(composer.hitTestable(), findsOneWidget);
+  if (draft != null) {
+    expect(tester.widget<TextField>(composer).controller!.text, draft);
+  }
+}
+
 Future<void> _enter(WidgetTester tester,
     {String organizationId = PandoraConfig.plpOrganizationId}) async {
   final button = find.byKey(ValueKey('core-enter-$organizationId'));
@@ -428,6 +469,175 @@ double _contrastRatio(Color foreground, Color background) {
 }
 
 void main() {
+  testWidgets(
+      'owner secondary pages use visible Back at each level with one persistent composer',
+      (tester) async {
+    await _mount(tester, _CoreGateway(), intelligence: _History('Owner'));
+    final chat =
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    await tester.enterText(find.byKey(const ValueKey('ask-pandora-objective')),
+        'Keep owner navigation draft');
+    await _ownerSettings(tester);
+    _expectOwnerComposer(tester, chat, draft: 'Keep owner navigation draft');
+    final settingsState = tester.state(find.byType(SettingsScreen));
+    expect(find.byTooltip('Back').hitTestable(), findsOneWidget);
+    expect(find.byTooltip('Open navigation').hitTestable(), findsOneWidget);
+    final diagnostics = find.widgetWithText(ListTile, 'Developer diagnostics');
+    await tester.ensureVisible(diagnostics);
+    await _settle(tester);
+    expect(diagnostics.hitTestable(), findsOneWidget);
+    await tester.tap(diagnostics);
+    await _settle(tester);
+    expect(find.byType(DeveloperDiagnosticsScreen), findsOneWidget);
+    _expectOwnerComposer(tester, chat, draft: 'Keep owner navigation draft');
+    await tester.tap(find.byTooltip('Back').hitTestable());
+    await _settle(tester);
+    await tester.pumpAndSettle();
+    expect(find.byType(DeveloperDiagnosticsScreen), findsNothing);
+    expect(tester.state(find.byType(SettingsScreen)), same(settingsState));
+    _expectOwnerComposer(tester, chat, draft: 'Keep owner navigation draft');
+    await tester.tap(find.byTooltip('Back').hitTestable());
+    await _settle(tester);
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsNothing);
+    expect(find.byType(MoreScreen), findsOneWidget);
+    expect(find.byTooltip('Back').hitTestable(), findsNothing);
+    _expectOwnerComposer(tester, chat, draft: 'Keep owner navigation draft');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'expanding and dismissing chat from Settings preserves page and draft',
+      (tester) async {
+    final intelligence = _PendingIntelligence();
+    await _mount(tester, _CoreGateway(), intelligence: intelligence);
+    await _ownerSettings(tester);
+    final settingsState = tester.state(find.byType(SettingsScreen));
+    final chat =
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    await tester.enterText(find.byKey(const ValueKey('ask-pandora-objective')),
+        'Inspect the current runtime');
+    await tester.tap(find.byKey(const ValueKey('ask-pandora-submit')));
+    await _settle(tester);
+    intelligence.complete();
+    await _settle(tester);
+    expect(find.text('Owner operation completed.'), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('ask-pandora-objective')),
+        'Keep the Settings draft');
+    final history =
+        find.byKey(const ValueKey('pandora-active-chat-history-offstage'));
+    expect(tester.widget<Offstage>(history).offstage, isFalse);
+    expect(find.byType(SettingsScreen), findsNothing);
+    _expectOwnerComposer(tester, chat, draft: 'Keep the Settings draft');
+    // Actual system Back dismisses the shared overlay before touching Settings.
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(tester.widget<Offstage>(history).offstage, isTrue);
+    expect(tester.state(find.byType(SettingsScreen)), same(settingsState));
+    expect(find.byTooltip('Back').hitTestable(), findsOneWidget);
+    _expectOwnerComposer(tester, chat, draft: 'Keep the Settings draft');
+    await _ownerDestination(tester, 'Pandora');
+    expect(find.text('Owner operation completed.'), findsOneWidget);
+    expect(tester.widget<Offstage>(history).offstage, isFalse);
+    _expectOwnerComposer(tester, chat, draft: 'Keep the Settings draft');
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(tester.state(find.byType(SettingsScreen)), same(settingsState));
+    _expectOwnerComposer(tester, chat, draft: 'Keep the Settings draft');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'drawer Home and reselecting current More clear owner secondary routes',
+      (tester) async {
+    final gateway = _CoreGateway();
+    await _mount(tester, gateway, intelligence: _History('Owner'));
+    final chat =
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    await _ownerSettings(tester);
+    await _ownerDestination(tester, 'Home');
+    expect(find.byType(SettingsScreen, skipOffstage: false), findsNothing);
+    expect(find.byType(PandoraCoreScreen), findsOneWidget);
+    expect(gateway.snapshots, contains('home'));
+    _expectOwnerComposer(tester, chat);
+    await _ownerSettings(tester);
+    await _ownerDestination(tester, 'Settings & More');
+    expect(find.byType(SettingsScreen, skipOffstage: false), findsNothing);
+    expect(find.byType(MoreScreen), findsOneWidget);
+    expect(find.byTooltip('Back').hitTestable(), findsNothing);
+    _expectOwnerComposer(tester, chat);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('system Back closes the drawer without popping Settings',
+      (tester) async {
+    await _mount(tester, _CoreGateway(), intelligence: _History('Owner'));
+    await _ownerSettings(tester);
+    final settingsState = tester.state(find.byType(SettingsScreen));
+    final chat =
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    await tester.tap(find.byTooltip('Open navigation').hitTestable());
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('pandora-primary-navigation-drawer')),
+        findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('pandora-primary-navigation-drawer')),
+        findsNothing);
+    expect(tester.state(find.byType(SettingsScreen)), same(settingsState));
+    expect(find.byTooltip('Back').hitTestable(), findsOneWidget);
+    _expectOwnerComposer(tester, chat);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'client entry and return cannot resurrect an owner secondary page or draft',
+      (tester) async {
+    final gateway = _CoreGateway(
+        organizationId: _genericOrganizationId,
+        displayName: 'Scoped trading fixture',
+        adapter: 'enterprise_core_v1');
+    final enterprise = _EnterpriseGateway();
+    await _mount(tester, gateway,
+        enterpriseGateway: enterprise,
+        intelligence: _History('Owner'),
+        factory: _genericRuntime);
+    await _ownerSettings(tester);
+    final ownerChat =
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    await tester.enterText(find.byKey(const ValueKey('ask-pandora-objective')),
+        'Owner Settings private draft');
+    await _clients(tester);
+    await _enter(tester, organizationId: _genericOrganizationId);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Reason for administrator access'),
+        'Review customer operations');
+    await tester.tap(find.text('Continue'));
+    await _settle(tester);
+    expect(find.byType(SettingsScreen, skipOffstage: false), findsNothing);
+    expect(find.byType(PandoraEnterpriseWorkspaceScreen), findsOneWidget);
+    expect(find.text('Owner Settings private draft'), findsNothing);
+    final clientChat =
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    expect(clientChat, isNot(same(ownerChat)));
+    _expectOwnerComposer(tester, clientChat);
+    await tester.tap(find.byKey(const ValueKey('core-return-pandora')));
+    await _settle(tester);
+    expect(find.byType(PandoraEnterpriseWorkspaceScreen), findsNothing);
+    expect(find.byType(SettingsScreen, skipOffstage: false), findsNothing);
+    expect(find.text('Owner Settings private draft'), findsNothing);
+    expect(gateway.entered, [_genericOrganizationId]);
+    expect(gateway.left, ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
+    await _ownerDestination(tester, 'Settings & More');
+    expect(find.byType(MoreScreen), findsOneWidget);
+    expect(find.byType(SettingsScreen, skipOffstage: false), findsNothing);
+    expect(find.byTooltip('Back').hitTestable(), findsNothing);
+    expect(find.byType(AskPandoraScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _settle(tester);
+  });
+
   testWidgets(
       'authorized PLP entry keeps porcelain controls inside a dark command shell',
       (tester) async {

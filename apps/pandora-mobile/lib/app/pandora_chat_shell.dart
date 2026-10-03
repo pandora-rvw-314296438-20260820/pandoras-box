@@ -108,6 +108,8 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<NavigatorState> _clientNavigatorKey =
       GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _ownerNavigatorKey =
+      GlobalKey<NavigatorState>();
   GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
@@ -127,6 +129,8 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   final _recentChatsScrollController = ScrollController();
   bool _drawerOpenScheduled = false;
   bool _recentChatsOpenScheduled = false;
+  bool _drawerVisible = false;
+  bool _recentChatsVisible = false;
   late final PandoraCoreGateway _coreGateway;
   PandoraClientRuntime? _clientRuntime;
   PandoraClientEntry? _clientEntry;
@@ -296,6 +300,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       return;
     }
     if (value < 0 || value >= _destinations.length) return;
+    // A drawer destination replaces secondary owner pages. Chat expansion uses
+    // separate visibility methods and retains the current business route.
+    _ownerNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     FocusManager.instance.primaryFocus?.unfocus();
     final scaffold = _scaffoldKey.currentState;
     if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
@@ -1566,6 +1573,30 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               ],
             );
 
+            Widget businessBody = body;
+            if (!_inClientWorkspace) {
+              final canPopOwnerContent =
+                  !_chatVisible && !_drawerVisible && !_recentChatsVisible;
+              businessBody = NavigatorPopHandler(
+                key: const ValueKey('pandora-owner-content-navigator'),
+                enabled: canPopOwnerContent,
+                onPopWithResult: (_) {
+                  if (!canPopOwnerContent) return;
+                  unawaited(_ownerNavigatorKey.currentState?.maybePop() ??
+                      Future<bool>.value(false));
+                },
+                child: Navigator(
+                  key: _ownerNavigatorKey,
+                  pages: [
+                    MaterialPage<void>(
+                      key: ValueKey('owner-surface-$_scopeEpoch'),
+                      child: body,
+                    ),
+                  ],
+                  onDidRemovePage: (_) {},
+                ),
+              );
+            }
             final chatScopeEpoch = _scopeEpoch;
             Widget activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
@@ -1578,7 +1609,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                   bindEnterpriseContext: _bindEnterpriseContext,
                   bindSelectedObject: _bindSelectedObject,
                   reportFailure: _reportSharedFailure,
-                  child: body,
+                  child: businessBody,
                 ),
               ),
               conversation: AskPandoraScreen(
@@ -1602,6 +1633,21 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                   }
                 },
               ),
+            );
+
+            final canReturnFromOwnerChat = !_inClientWorkspace &&
+                _index != 0 &&
+                _chatVisible &&
+                !_drawerVisible &&
+                !_recentChatsVisible;
+            activeChat = PopScope<void>(
+              canPop: !canReturnFromOwnerChat,
+              onPopInvokedWithResult: (didPop, _) {
+                if (didPop || !canReturnFromOwnerChat) return;
+                FocusManager.instance.primaryFocus?.unfocus();
+                _chatKey.currentState?.minimizeHistory();
+              },
+              child: activeChat,
             );
 
             final clientRuntime = _clientRuntime;
@@ -1634,6 +1680,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               return Scaffold(
                 key: _scaffoldKey,
                 backgroundColor: PandoraV2Colors.canvas,
+                onEndDrawerChanged: (open) {
+                  setState(() => _recentChatsVisible = open);
+                },
                 drawerScrimColor: const Color(0xD9000000),
                 endDrawer: Drawer(
                   key: const ValueKey<String>('pandora-recent-chats-drawer'),
@@ -1668,12 +1717,14 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               key: _scaffoldKey,
               backgroundColor: PandoraV2Colors.canvas,
               onDrawerChanged: (open) {
+                setState(() => _drawerVisible = open);
                 if (open) {
                   FocusManager.instance.primaryFocus?.unfocus();
                   _resetDrawerScroll();
                 }
               },
               onEndDrawerChanged: (open) {
+                setState(() => _recentChatsVisible = open);
                 if (open) {
                   FocusManager.instance.primaryFocus?.unfocus();
                   if (_recentChatsScrollController.hasClients) {

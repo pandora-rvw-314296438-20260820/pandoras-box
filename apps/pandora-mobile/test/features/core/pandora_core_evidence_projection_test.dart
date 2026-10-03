@@ -272,6 +272,12 @@ void main() {
     expect(find.text('Auto routing'), findsOneWidget);
     expect(find.text('Enabled'), findsOneWidget);
     _expectStatus('Eligible models', '3');
+    _expectStatus('Models with failed checks', '1');
+    expect(find.text('Stale successful model'), findsNothing);
+    expect(find.text('Failed model'), findsNothing);
+    expect(find.text('With runtime evidence'), findsNothing);
+    expect(find.textContaining('Runtime evidence measures'), findsNothing);
+    await _tap(tester, find.text('Model details'));
     _expectStatus('With runtime evidence', '2');
     _expectStatus('Verified within 24 hours', '1');
     _expectSubtitle(
@@ -286,6 +292,9 @@ void main() {
       'Untested model',
       'Provider Gamma · gamma-model · Runtime not verified · Evidence time unknown',
     );
+    await _tap(tester, find.text('Hide model details'));
+    expect(find.text('Stale successful model'), findsNothing);
+    _expectStatus('Models with failed checks', '1');
     expect(gateway.reads, <String>['platform']);
     expect(gateway.writes, 0);
     expect(tester.takeException(), isNull);
@@ -319,6 +328,7 @@ void main() {
     expect(find.text('With runtime evidence'), findsNothing);
     expect(find.text('Verified within 24 hours'), findsNothing);
     expect(find.text('0'), findsNothing);
+    await _tap(tester, find.text('Model details'));
     expect(find.text('No verified models state in this snapshot.'),
         findsOneWidget);
     expect(missing.writes, 0);

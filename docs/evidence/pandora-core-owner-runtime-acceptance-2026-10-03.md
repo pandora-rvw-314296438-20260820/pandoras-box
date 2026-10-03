@@ -51,3 +51,36 @@ Final acceptance still requires the corrected deployed owner journey, a genuine 
 ## Recovery
 
 Keep the previous immutable deployment as the Vercel rollback target. This additive migration has no data migration to reverse. If a database correction is required, use a reviewed forward migration with exact prior function definitions; do not delete migration history or customer data. Restoring the old queue/reconciler bodies would also restore the diagnosed defects.
+
+## Subsequent source and installed-app corrections
+
+Provider readback at `2026-10-03T14:54:55Z` still showed main `593d8f5db34da6fc727c0449e807174cd3d9835a` and PR 946 head `68e38909ab1a60721363d32f994c6f1695e6ada8`. All six required checks passed. The applicable PLP installed-Android check remained failed and was retained as a release blocker.
+
+The bounded emulator startup correction had worked: the exact-head run booted in 47 seconds, installed the APK and launched PLP. The next failure came from legacy `uiautomator dump` omitting Android's native `hintText`, where the pinned Flutter version places field labels and validation messages. A self-targeted CI instrumentation helper now observes native accessibility metadata for the exact PLP package. It does not start the application, type, sign in or mutate sessions. Input values and descriptions are redacted; capture size, node count, traversal depth and observation time are bounded. The existing assertions still require real Email/Password hints, an obscured password field, enabled Sign in, actual empty-submit validation and successful restart. Screenshots and crash-buffer checks remain separate evidence. Host tests and the actual Flutter sign-in semantics probe passed; native SDK compilation and installed-APK verification belong to the next exact-source CI run.
+
+The workflow now calls the unauthenticated restart observation `unauthenticated_restart_returns_to_sign_in`, with `authenticated_session_restore_tested=false`. It cannot prove authenticated session restoration. This deliberately converges with the identical evidence correction in open PR 868 at `7edb49d2127e359c1cd2bf1e9d52e5a9f12f05fa`; its session/logout implementation and test-list changes remain outside this PR.
+
+The additional owner-surface corrections preserve authoritative distinctions:
+
+- Releases separate deployment readiness from runtime, owner and customer verification. Evidence displays its recorded kind, client scope and date without acquiring an invented verification state.
+- Models show Auto and meaningful counts by default, with local disclosure for dated technical evidence. No model selection, routing-policy mutation or paid probe was introduced.
+- Automations use the canonical recorded task title and organization name. Missing titles stay missing; task identifiers remain available in detail.
+- Live Connections separates pending, successful-empty, query-miss and failed reads. A failed retry cannot display a fabricated empty result.
+- Safety gives negative and unknown evidence precedence over healthy terms; missing, stale and failed reads cannot produce a healthy aggregate. Saved Evidence clears failed or invalidated reads, fences account/repository replacement, and labels the current-session cache and oldest observation truthfully.
+- More and its secondary pages preserve their inherited theme. An owner content Navigator keeps these pages under the single persistent conversation layer. Visible Back, drawer selection and chat expansion are separate operations. A pinned Flutter callback behavior required guarding the disabled nested pop handler itself so dismissing expanded chat cannot also pop Settings. Client entry and return keep their existing scope reset and isolated client Navigator.
+
+The corresponding focused runs passed 63 Core/Plugins/More Flutter tests, 14 Safety/Evidence Flutter tests, three Plugins source-contract tests and 146 Python tooling tests. The seven UI follow-up Dart files and four Safety/Evidence files analyzed without issues. These local results do not substitute for a newly deployed authenticated journey.
+
+The owner scope suite passed all 21 tests, including the five new actual-control navigation flows and 16 existing tenant/authentication/runtime-boundary tests. A further 21 shared navigation, route-boundary and More tests passed. The new coverage uses real visible Back and system Back rather than directly invoking a public minimize method. Route-animation timing was corrected in test helpers without weakening the retained-page, conversation or tenant assertions. The four navigation source/test files have zero analyzer errors or warnings and eight existing shell style informational findings; the informational exit status remains disclosed.
+
+### Automation-title migration readback
+
+The additional forward migration was applied once through the Supabase migration API as `20261003145650_pandora_core_automation_titles_v1`. Its 2,276 bytes have SHA-256 `db5df496f4d61bb98b889d9fc5debd8021c381aaeae2e42bf876b43449cedcd0`. It replaces only the Automations projection in `public.pandora_core_snapshot_v1(text,uuid)`, fenced by the exact previous function-body digest.
+
+The hosted replacement body has SHA-256 `680d53f83bb7e0268d131e5c2873fc61f179c974f5fcfc911bed55fe028ecabb`. Ownership, existing EXECUTE grants, SECURITY DEFINER, STABLE and empty search path remain unchanged. All 124 Operations task rows have the same full-row digest before and after: `bf0e9753ebd347e3fc3005a64b590e155f12d3d4e986d94bdc8cef94ed923479`. Source and hosted history have exactly 934 matching migration version/name pairs. This is a read-only projection correction; it changes no execution history, authority, routing policy, task or customer data.
+
+After this second migration, advisors again retained exactly the same 311 security and 726 performance finding identities, with zero added or removed. All 33 focused title/projection regression tests passed after filename alignment, and the complete 934-migration replay passed with chain digest `b2dd262276064baf8afbc5d4adce2d37a3d45be302671a1462d309f397e37110`. Local replay still explicitly reports `provider_equivalence=false`; hosted metadata, function bytes and task data were read back independently.
+
+### Existing candidate runtime evidence
+
+Unpromoted Vercel deployment `dpl_BmWXvgRW5i4gN6x5z5iKB9kc3JWc` at source `accf27adfdf8b833464c2f6022860f8eaaeff67b` returned the matching served source manifest and HTTP 200 health. Actual compiled Operations and Memory endpoints returned the expected 405/401/403 denials at `13:52:51Z`, replacing the earlier pre-authorization 503s. The build-time Memory canary verified context availability and a readback-matched pending-review outcome, without canonical approval or a paid model probe. This candidate is evidence for those API repairs, not the later UI changes, merged source or canonical production acceptance. The final promoted SHA, runtime observations and authenticated journeys must be recorded separately.

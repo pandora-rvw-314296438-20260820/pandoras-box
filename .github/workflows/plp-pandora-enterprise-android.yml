@@ -243,6 +243,22 @@ jobs:
           ! grep -Fq 'lib/arm64-v8a/' plp-emulator-apk-files.txt
           ! grep -Fq 'libai-chat.so' plp-emulator-apk-files.txt
 
+      - name: Build and verify native UI evidence capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          capture=apps/pandora-mobile/tool/android_ui_capture
+          evidence=.plp-android-build/plp-emulator-evidence
+          mkdir -p "$RUNNER_TEMP/plp-capture-tests" "$evidence"
+          javac --release 8 -d "$RUNNER_TEMP/plp-capture-tests" \
+            "$capture/src/com/banataosystems/pandora/uicapture/CaptureXml.java" \
+            "$capture/test/CaptureXmlTest.java"
+          java -cp "$RUNNER_TEMP/plp-capture-tests" CaptureXmlTest
+          bash "$capture/build.sh" "$RUNNER_TEMP/plp-ui-capture" \
+            "$HOME/.android/debug.keystore"
+          sha256sum "$RUNNER_TEMP/plp-ui-capture/pandora-ui-capture.apk" \
+            > "$evidence/ui-capture-sha256.txt"
+
       - name: Install Android emulator system image
         shell: bash
         run: |
@@ -340,6 +356,7 @@ jobs:
           timeout 10s "$adb" -s "$serial" shell settings put global animator_duration_scale 0
 
       - name: Exercise installed PLP APK lifecycle and unauthenticated client flow
+        timeout-minutes: 8
         shell: bash
         run: |
           set -euo pipefail
@@ -347,77 +364,67 @@ jobs:
           pkg="$EXPECTED_PACKAGE"
           evidence=.plp-android-build/plp-emulator-evidence
           mkdir -p "$evidence"
+          adb="$ANDROID_SDK_ROOT/platform-tools/adb"
+          serial=emulator-5554
+          adb_call() { timeout 20s "$adb" -s "$serial" "$@"; }
+          capture_ui() {
+            python3 apps/pandora-mobile/tool/capture_plp_android_ui.py \
+              --adb "$adb" --serial "$serial" --phase "$1" --output "$2"
+          }
 
-          "$ANDROID_SDK_ROOT/platform-tools/adb" install -r "$apk"
-          "$ANDROID_SDK_ROOT/platform-tools/adb" logcat -c
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell am force-stop "$pkg"
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
+          timeout 120s "$adb" -s "$serial" install -r "$apk"
+          timeout 30s "$adb" -s "$serial" install -r \
+            "$RUNNER_TEMP/plp-ui-capture/pandora-ui-capture.apk"
+          adb_call logcat -c
+          adb_call shell am force-stop "$pkg"
+          adb_call shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
           sleep 4
 
-          pid="$("$ANDROID_SDK_ROOT/platform-tools/adb" shell pidof "$pkg" | tr -d '\r')"
+          pid="$(adb_call shell pidof "$pkg" | tr -d '\r')"
           test -n "$pid"
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell dumpsys activity activities > "$evidence/activity-launch.txt"
+          adb_call shell dumpsys activity activities > "$evidence/activity-launch.txt"
           grep -Fq "$pkg" "$evidence/activity-launch.txt"
 
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell uiautomator dump /sdcard/plp-window.xml >/dev/null
-          "$ANDROID_SDK_ROOT/platform-tools/adb" pull /sdcard/plp-window.xml "$evidence/sign-in.xml" >/dev/null
-          grep -Fq 'Email' "$evidence/sign-in.xml"
-          grep -Fq 'Password' "$evidence/sign-in.xml"
-          grep -Fq 'Sign in' "$evidence/sign-in.xml"
-          "$ANDROID_SDK_ROOT/platform-tools/adb" exec-out screencap -p > "$evidence/sign-in.png"
+          # Preserve the actual screen even when a semantic assertion fails.
+          adb_call exec-out screencap -p > "$evidence/sign-in.png"
+          capture_ui sign-in "$evidence/sign-in.xml" > "$evidence/sign-in-tap.txt"
 
           # Empty-submit validation on the actual installed APK.
-          read -r tap_x tap_y < <(python3 - "$evidence/sign-in.xml" <<'PY'
-          import re, sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          for node in root.iter('node'):
-              if node.attrib.get('text') == 'Sign in':
-                  bounds = node.attrib.get('bounds', '')
-                  m = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', bounds)
-                  if m:
-                      x1,y1,x2,y2 = map(int,m.groups())
-                      print((x1+x2)//2, (y1+y2)//2)
-                      raise SystemExit(0)
-          raise SystemExit('Sign in semantics node was not tappable')
-          PY
-          )
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell input tap "$tap_x" "$tap_y"
+          read -r tap_x tap_y < "$evidence/sign-in-tap.txt"
+          adb_call shell input tap "$tap_x" "$tap_y"
           sleep 1
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell uiautomator dump /sdcard/plp-validation.xml >/dev/null
-          "$ANDROID_SDK_ROOT/platform-tools/adb" pull /sdcard/plp-validation.xml "$evidence/validation.xml" >/dev/null
-          grep -Fq 'Enter your email.' "$evidence/validation.xml"
-          grep -Fq 'Enter your password.' "$evidence/validation.xml"
+          adb_call exec-out screencap -p > "$evidence/validation.png"
+          capture_ui validation "$evidence/validation.xml"
 
           # Background/foreground and rotations must not crash the process.
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell input keyevent KEYCODE_HOME
+          adb_call shell input keyevent KEYCODE_HOME
           sleep 1
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
+          adb_call shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
           sleep 2
-          test -n "$("$ANDROID_SDK_ROOT/platform-tools/adb" shell pidof "$pkg" | tr -d '\r')"
+          test -n "$(adb_call shell pidof "$pkg" | tr -d '\r')"
 
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell settings put system accelerometer_rotation 0
+          adb_call shell settings put system accelerometer_rotation 0
           for rotation in 1 0 3 0; do
-            "$ANDROID_SDK_ROOT/platform-tools/adb" shell settings put system user_rotation "$rotation"
+            adb_call shell settings put system user_rotation "$rotation"
             sleep 1
-            test -n "$("$ANDROID_SDK_ROOT/platform-tools/adb" shell pidof "$pkg" | tr -d '\r')"
+            test -n "$(adb_call shell pidof "$pkg" | tr -d '\r')"
           done
 
-          # Process death is expected to return to sign-in because PLP sessions
-          # are intentionally memory-only today. Record that product behavior.
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell am force-stop "$pkg"
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
+          # This installed-app smoke is unauthenticated. A process restart must
+          # therefore remain on sign-in and must not invent a session.
+          adb_call shell am force-stop "$pkg"
+          adb_call shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
           sleep 3
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell uiautomator dump /sdcard/plp-restart.xml >/dev/null
-          "$ANDROID_SDK_ROOT/platform-tools/adb" pull /sdcard/plp-restart.xml "$evidence/restart.xml" >/dev/null
-          grep -Fq 'Sign in' "$evidence/restart.xml"
+          adb_call exec-out screencap -p > "$evidence/restart.png"
+          capture_ui restart "$evidence/restart.xml"
 
-          "$ANDROID_SDK_ROOT/platform-tools/adb" shell dumpsys package "$pkg" > "$evidence/package.txt"
+          adb_call shell dumpsys package "$pkg" > "$evidence/package.txt"
           if grep -Eq 'android.permission.(CALL_PHONE|SEND_SMS|READ_CONTACTS|READ_CALENDAR|WRITE_CALENDAR|POST_NOTIFICATIONS): granted=true' "$evidence/package.txt"; then
             echo 'Dangerous PLP runtime permission was granted without an owner action.' >&2
             exit 42
           fi
 
-          "$ANDROID_SDK_ROOT/platform-tools/adb" logcat -d -b crash > "$evidence/crash-buffer.txt" || true
+          adb_call logcat -d -b crash > "$evidence/crash-buffer.txt"
           if grep -Fq "$pkg" "$evidence/crash-buffer.txt"; then
             cat "$evidence/crash-buffer.txt" >&2
             exit 43
@@ -431,11 +438,13 @@ jobs:
             echo "emulator_api=35"
             echo "launch_verified=true"
             echo "sign_in_semantics_verified=true"
+            echo "native_hint_capture_verified=true"
             echo "empty_submit_validation_verified=true"
             echo "background_foreground_verified=true"
             echo "rotation_verified=true"
             echo "process_restart_verified=true"
-            echo "memory_only_session_behavior_observed=true"
+            echo "unauthenticated_restart_returns_to_sign_in=true"
+            echo "authenticated_session_restore_tested=false"
             echo "unexpected_runtime_permission_grant=false"
             echo "crash_buffer_clear=true"
           } > "$evidence/acceptance.txt"
