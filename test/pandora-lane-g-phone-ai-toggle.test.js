@@ -13,8 +13,8 @@ test("Phone AI remains default OFF and Settings exposes the authoritative prefer
 });
 test("model picker always shows Local device Qwen and locks it while Phone AI is off",()=>{
  assert.match(picker,/Local device \(Qwen\)/);
- assert.match(picker,/enabled: localAiEnabled && localAiAvailable/);
- assert.match(picker,/Turn on Phone AI in Settings/);
+ assert.match(picker,/widget\.localAiEnabled && widget\.localAiAvailable/);
+ assert.match(picker,/locked: !_localSelectable/);
  assert.match(picker,/Icons\.lock_outline_rounded/);
 });
 test("manual local selection is handled on-device and never sent as a cloud provider",()=>{

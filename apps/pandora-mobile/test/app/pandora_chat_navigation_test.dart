@@ -5,6 +5,7 @@ import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_conversation_layer.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
+import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
 import 'package:pandora_mobile/core/widgets/pandora_navigation.dart';
 import 'package:pandora_mobile/features/operations/operations_room_screen.dart';
@@ -19,6 +20,8 @@ void main() {
     Size size, {
     FakeRepository? repository,
   }) async {
+    PandoraLocalAiPreference.setCachedForTesting(false);
+    addTearDown(PandoraLocalAiPreference.resetForTesting);
     await setTestSurface(tester, logicalSize: size);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -77,7 +80,7 @@ void main() {
     const ValueKey<String>('pandora-recent-chats-drawer'),
   );
   final recentChats = find.byKey(
-    const ValueKey<String>('workspace-home-search'),
+    const ValueKey<String>('pandora-recent-chats'),
   );
 
   Future<Finder> drawerTile(WidgetTester tester, String title) async {
@@ -325,7 +328,7 @@ void main() {
   });
 
   testWidgets(
-    'global composer has an opaque backdrop and reserves composer plus safe area',
+    'global composer floats above the safe area without a bottom slab',
     (tester) async {
       await setTestSurface(tester, logicalSize: const Size(390, 844));
       await tester.pumpWidget(
@@ -341,7 +344,7 @@ void main() {
               repository: FakeRepository(),
               diagnostics: DiagnosticsStore(),
               child: Material(
-                color: const Color(0xFF000000),
+                color: const Color(0xFF07111B),
                 child: PandoraConversationLayer(
                   businessWorkspace: const ColoredBox(
                     key: ValueKey<String>('business-clearance-fixture'),
@@ -356,24 +359,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final dockFinder =
-          find.byKey(const ValueKey<String>('ask-pandora-composer-dock'));
-      final dock = tester.widget<Container>(dockFinder);
-      final dockDecoration = dock.decoration as BoxDecoration;
-      expect(dockDecoration.color, const Color(0xFF050505));
-      expect(
-        dock.constraints?.minHeight,
-        PandoraConversationLayer.compactComposerHeight,
-      );
-
-      final opaqueBackdrop = find.ancestor(
-        of: dockFinder,
-        matching: find.byType(ColoredBox),
-      ).first;
-      expect(
-        tester.widget<ColoredBox>(opaqueBackdrop).color,
-        const Color(0xFF050505),
-      );
+      final composerFinder =
+          find.byKey(const ValueKey<String>('ask-pandora-composer'));
+      final composer = tester.widget<Container>(composerFinder);
+      final decoration = composer.decoration as BoxDecoration;
+      expect(decoration.color, const Color(0xFF151515));
+      expect(decoration.borderRadius, BorderRadius.circular(27));
+      final rect = tester.getRect(composerFinder);
+      expect(rect.left, closeTo(14, .1));
+      expect(rect.right, closeTo(390 - 14, .1));
+      expect(rect.height, closeTo(54, .1));
+      expect(rect.bottom, closeTo(844 - 24 - 14, .1));
 
       final clearance = tester.widget<Padding>(
         find.byKey(
@@ -384,14 +380,6 @@ void main() {
       expect(
         edgeInsets.bottom,
         PandoraConversationLayer.compactComposerHeight + 24,
-      );
-      expect(
-        tester.getRect(
-          find.byKey(const ValueKey<String>('business-clearance-fixture')),
-        ).bottom,
-        lessThanOrEqualTo(
-          844 - PandoraConversationLayer.compactComposerHeight - 24,
-        ),
       );
       expect(tester.takeException(), isNull);
     },
@@ -462,43 +450,38 @@ void main() {
   });
 
   testWidgets(
-    'empty shell is logo-only and the resting composer is bare',
+    'empty shell is logo-only and the resting composer is a floating pill',
     (tester) async {
       await mount(tester, const Size(390, 800));
-      final conversationState = tester.state<AskPandoraScreenState>(
-        find.byType(AskPandoraScreen),
-      );
-      conversationState.showHistory();
-      await tester.pumpAndSettle();
-
       expect(
         find.byKey(const ValueKey<String>('pandora-logo-only-landing')),
         findsOneWidget,
       );
       expect(find.text('What can I help with?'), findsNothing);
-      expect(find.text('What can you do for me now?'), findsNothing);
-      expect(find.text('Check my GitHub for failing CI'), findsNothing);
-      expect(find.text('What needs my attention?'), findsNothing);
-      expect(
-        find.byKey(const ValueKey<String>('ask-pandora-plus')),
-        findsNothing,
-      );
-
-      final composer = tester.widget<DecoratedBox>(
-        find.byKey(const ValueKey<String>('ask-pandora-composer')),
-      );
-      final decoration = composer.decoration as BoxDecoration;
-      expect(decoration.color, Colors.transparent);
-      expect(decoration.border, isNull);
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('ask-pandora-objective')),
-      );
-      await tester.pump();
       expect(
         find.byKey(const ValueKey<String>('ask-pandora-plus')),
         findsOneWidget,
       );
+      expect(
+        find.byKey(const ValueKey<String>('ask-pandora-model-control')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Model ·'), findsNothing);
+      expect(find.textContaining('Reasoning ·'), findsNothing);
+
+      final composer = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('ask-pandora-composer')),
+      );
+      final decoration = composer.decoration as BoxDecoration;
+      expect(decoration.color, const Color(0xFF151515));
+      expect(decoration.border, isNull);
+      expect(decoration.borderRadius, BorderRadius.circular(27));
+      final rect = tester.getRect(
+        find.byKey(const ValueKey<String>('ask-pandora-composer')),
+      );
+      expect(rect.left, closeTo(14, .1));
+      expect(rect.right, closeTo(390 - 14, .1));
+      expect(rect.height, closeTo(54, .1));
       expect(tester.takeException(), isNull);
     },
   );
@@ -522,7 +505,7 @@ void main() {
   });
 
   testWidgets(
-      'first send opens inline history and survives cross-page navigation',
+      'chat state survives keyboard changes and cross-page navigation',
       (tester) async {
     final repository = _ConversationRepository();
     await mount(
@@ -537,31 +520,34 @@ void main() {
     final historyOffstage = find.byKey(
       const ValueKey<String>('pandora-active-chat-history-offstage'),
     );
-    expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
+    expect(
+      find.byKey(const ValueKey<String>('pandora-active-chat-minimize')),
+      findsNothing,
+    );
 
     await conversationState.submitExternalPrompt(
       'Start this conversation',
       requestFocus: false,
     );
-    await tester.pumpAndSettle();
-
-    expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
+    for (var i = 0; i < 40 && find.text('Conversation started.').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+    }
+    expect(find.text('Start this conversation'), findsOneWidget);
     expect(repository.lastMessage, 'Start this conversation');
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('pandora-active-chat-minimize')),
-    );
+    addTearDown(tester.view.resetViewInsets);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
     await tester.pumpAndSettle();
-    expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
-    expect(
-      find.byKey(const ValueKey<String>('ask-pandora-composer')),
-      findsOneWidget,
-    );
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    expect(find.text('Start this conversation'), findsOneWidget);
 
     await tester.tap(menu);
     await tester.pumpAndSettle();
     await tester.tap(await drawerTile(tester, 'Projects'));
     await tester.pumpAndSettle();
+    expect(tester.widget<Offstage>(historyOffstage).offstage, isTrue);
     expect(find.byTooltip('Create project'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('ask-pandora-composer')),
@@ -580,6 +566,7 @@ void main() {
     await tester.tap(await drawerTile(tester, 'Pandora'));
     await tester.pumpAndSettle();
     expect(tester.widget<Offstage>(historyOffstage).offstage, isFalse);
+    expect(find.text('Start this conversation'), findsOneWidget);
     expect(
       identical(
         conversationState,
@@ -587,7 +574,6 @@ void main() {
       ),
       isTrue,
     );
-    expect(repository.lastMessage, 'Start this conversation');
     expect(tester.takeException(), isNull);
   });;
 }

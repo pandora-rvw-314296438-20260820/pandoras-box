@@ -76,12 +76,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   Map<String, Object?>? _activeEnterpriseContext;
   EnterpriseWorkspaceSelection? _activeWorkspaceSelection;
   Map<String, String> _surfaceSelectedObject = const <String, String>{};
-  final Set<int> _visited = <int>{9};
+  final Set<int> _visited = <int>{0};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
   bool _historyLoading = false;
   bool _historyLoaded = false;
-  int _index = 9;
+  bool _chatVisible = true;
+  int _index = 0;
   final _drawerScrollController = ScrollController();
   final _recentChatsScrollController = ScrollController();
   bool _drawerOpenScheduled = false;
@@ -142,7 +143,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.screenViewed,
-        resultClass: 'enterprise_home',
+        resultClass: 'pandora_chat',
       ),
     );
   }
@@ -178,6 +179,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     final scaffold = _scaffoldKey.currentState;
     if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
     if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
+    if (value != 0) {
+      _chatKey.currentState?.minimizeHistory();
+      if (_chatVisible) setState(() => _chatVisible = false);
+    }
     if (value == _index) return;
     HapticFeedback.selectionClick();
     setState(() {
@@ -213,12 +218,14 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     final scaffold = _scaffoldKey.currentState;
     if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
     if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
+    if (!_chatVisible) setState(() => _chatVisible = true);
     _chatKey.currentState?.showHistory();
   }
 
   void _newChat() {
     final chat = _chatKey.currentState;
     if (chat == null) return;
+    if (!_chatVisible) setState(() => _chatVisible = true);
     chat.newChat();
     chat.showHistory();
     unawaited(_refreshHistory());
@@ -230,6 +237,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
     final chat = _chatKey.currentState;
     if (chat == null) return;
+    if (!_chatVisible) setState(() => _chatVisible = true);
     chat.showHistory();
     await chat.loadThread(thread.id);
   }
@@ -477,6 +485,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       nextContext['selectedObject'] = selected;
     }
     setState(() {
+      _chatVisible = false;
       _activeEnterpriseContext = nextContext;
       _activeWorkspaceSelection = selection;
       _surfaceSelectedObject = const <String, String>{};
@@ -484,6 +493,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       _visited.add(0);
     });
     _select(0);
+    _chatKey.currentState?.minimizeHistory();
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.screenViewed,
@@ -517,6 +527,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     await WidgetsBinding.instance.endOfFrame;
     final chat = _chatKey.currentState;
     if (chat == null) return null;
+    if (!_chatVisible) setState(() => _chatVisible = true);
     chat.showHistory();
     return chat.submitExternalPrompt(prompt, requestFocus: false);
   }
@@ -524,6 +535,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   Future<void> _openSharedThread(String threadId) async {
     final chat = _chatKey.currentState;
     if (chat == null) return;
+    if (!_chatVisible) setState(() => _chatVisible = true);
     chat.showHistory();
     await chat.loadThread(threadId);
   }
@@ -538,43 +550,50 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     );
   }
 
-  Map<String, Object?> _conversationContextForCurrentSurface() {
-    if (_index == 0 && _activeEnterpriseContext != null) {
-      final context = Map<String, Object?>.from(_activeEnterpriseContext!);
-      final selected = context['selectedObject'];
-      context['selectedObject'] = <String, String>{
-        if (selected is Map)
-          for (final entry in selected.entries)
-            entry.key.toString(): entry.value.toString(),
-        ..._surfaceSelectedObject,
-      };
-      return context;
+  Map<String, Object?>? _conversationContextForCurrentSurface() {
+    if (_index != 0 || _activeEnterpriseContext == null) return null;
+    final context = Map<String, Object?>.from(_activeEnterpriseContext!);
+    final selected = context['selectedObject'];
+    context['selectedObject'] = <String, String>{
+      if (selected is Map)
+        for (final entry in selected.entries)
+          entry.key.toString(): entry.value.toString(),
+      ..._surfaceSelectedObject,
+    };
+    const allowedSurfaces = <String>{
+      'enterprise_overview',
+      'enterprise_app_users',
+      'enterprise_data',
+      'enterprise_analytics',
+      'enterprise_marketing',
+      'enterprise_domains',
+      'enterprise_integrations',
+      'enterprise_security',
+      'enterprise_code',
+      'enterprise_agents',
+      'enterprise_workflows',
+      'enterprise_logs',
+      'enterprise_api',
+      'enterprise_settings',
+      'enterprise_mcp',
+      'enterprise_operations_room',
+      'enterprise_tax',
+    };
+    const allowedScopes = <String>{
+      'enterprise_workspace',
+      'pandora_organization',
+      'plp_staff',
+    };
+    final surface = context['surface']?.toString().trim();
+    final route = context['route']?.toString().trim();
+    final scope = context['identityScope']?.toString().trim();
+    if (!allowedSurfaces.contains(surface) ||
+        route == null ||
+        !route.startsWith('/enterprise/') ||
+        !allowedScopes.contains(scope)) {
+      return null;
     }
-    final route = switch (_index) {
-      1 => '/projects',
-      2 => '/needs-you',
-      3 => '/settings-more',
-      4 => '/activity',
-      5 => '/connections',
-      6 => '/saved-evidence',
-      7 => '/verify-safety',
-      8 => '/operations-room',
-      9 => '/home',
-      10 => '/enterprise/vision-intelligence',
-      11 => '/capabilities-providers',
-      _ => '/home',
-    };
-    return <String, Object?>{
-      'surface': 'pandora_business_os',
-      'route': route,
-      'capabilities': const <String>[],
-      'identityScope': 'owner_workspace',
-      'selectedObject': <String, String>{
-        'screen': _destinations[_index].label,
-        'destinationIndex': _index.toString(),
-        ..._surfaceSelectedObject,
-      },
-    };
+    return context;
   }
 
   Widget _root(int index) => _roots.putIfAbsent(
@@ -746,13 +765,16 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
             final activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
-              businessWorkspace: PandoraSharedConversationScope(
-                submitPrompt: _submitSharedPrompt,
-                openThread: _openSharedThread,
-                bindEnterpriseContext: _bindEnterpriseContext,
-                bindSelectedObject: _bindSelectedObject,
-                reportFailure: _reportSharedFailure,
-                child: body,
+              businessWorkspace: Offstage(
+                offstage: _chatVisible,
+                child: PandoraSharedConversationScope(
+                  submitPrompt: _submitSharedPrompt,
+                  openThread: _openSharedThread,
+                  bindEnterpriseContext: _bindEnterpriseContext,
+                  bindSelectedObject: _bindSelectedObject,
+                  reportFailure: _reportSharedFailure,
+                  child: body,
+                ),
               ),
               conversation: AskPandoraScreen(
                 key: _chatKey,
