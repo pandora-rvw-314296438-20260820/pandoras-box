@@ -12,10 +12,10 @@ import '../features/enterprise/plp_activity_screen.dart';
 import '../features/enterprise/plp_connectivity_infrastructure_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
-import '../features/enterprise/plp_resort_workspace.dart';
+import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_resort_operational_screens.dart';
 import '../features/enterprise/plp_resort_transaction_screens.dart';
-import '../features/enterprise/plp_guests_screen.dart';
+import '../features/enterprise/plp_resort_workspace.dart';
 import '../features/enterprise/plp_team_management_screen.dart';
 import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
@@ -24,6 +24,7 @@ import '../features/settings/settings_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../pandora_config.dart';
 import 'pandora_dependencies.dart';
+import 'pandora_shared_conversation_scope.dart';
 import 'plp_navigation_drawer.dart';
 
 class PlpEnterpriseShell extends StatefulWidget {
@@ -31,6 +32,8 @@ class PlpEnterpriseShell extends StatefulWidget {
     super.key,
     this.bootstrapOverride,
     this.embeddedRouteSlug,
+    this.organizationId,
+    this.propertyId,
   });
 
   /// Acceptance tests may provide a verified bootstrap fixture. Production
@@ -40,6 +43,10 @@ class PlpEnterpriseShell extends StatefulWidget {
   /// When set, render only the existing PLP business surface for this route.
   /// The parent owner shell remains the sole owner of navigation/chat.
   final String? embeddedRouteSlug;
+
+  /// A Core entry pins the bootstrap to its server-issued tenant receipt.
+  final String? organizationId;
+  final String? propertyId;
 
   @override
   State<PlpEnterpriseShell> createState() => _PlpEnterpriseShellState();
@@ -140,7 +147,16 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Future<Map<String, Object?>> _loadBootstrapAndRemember() async {
     final value = await _loadBootstrap();
+    _validatePrimaryScope(value);
     _lastBootstrap = value;
+    if (widget.embeddedRouteSlug != null && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          PandoraSharedConversationScope.maybeOf(context)
+              ?.bindEnterpriseContext(_alfredContext(value));
+        }
+      });
+    }
     return value;
   }
 
@@ -169,8 +185,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       final value = await Supabase.instance.client.rpc(
         'plp_enterprise_mobile_bootstrap_v1',
       );
-      final normalized =
-          Map<String, Object?>.from(_normalizeBootstrap(value));
+      final normalized = Map<String, Object?>.from(_normalizeBootstrap(value));
+      _validatePrimaryScope(normalized);
       try {
         final resort = await Supabase.instance.client.rpc(
           'plp_resort_command_center_v1',
@@ -225,12 +241,28 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           final value = await cache.loadMemoryContext(
             contextId: 'plp-enterprise-bootstrap',
           );
-          if (value != null) return _offlineBootstrap(value);
+          if (value != null) {
+            _validatePrimaryScope(_normalizeBootstrap(value));
+            return _offlineBootstrap(value);
+          }
         } catch (_) {
           // Fall through to the original live bootstrap error.
         }
       }
       rethrow;
+    }
+  }
+
+  void _validatePrimaryScope(Map<String, Object?> bootstrap) {
+    final expectedOrganization = widget.organizationId;
+    if (expectedOrganization == null) return;
+    final organization = bootstrap['organization'];
+    if (organization is! Map ||
+        organization['id']?.toString() != expectedOrganization ||
+        (widget.propertyId != null &&
+            organization['propertyId']?.toString() != widget.propertyId)) {
+      throw StateError(
+          'The workspace response does not match the authorized client.');
     }
   }
 
@@ -278,22 +310,19 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       final operationalState =
           operation?['operationalState']?.toString().trim().toLowerCase();
       final bookingState = room['state']?.toString().trim().toLowerCase();
-      final effectiveState =
-          operationalState != null &&
-                  operationalState.isNotEmpty &&
-                  operationalState != 'ready'
-              ? operationalState
-              : bookingState;
+      final effectiveState = operationalState != null &&
+              operationalState.isNotEmpty &&
+              operationalState != 'ready'
+          ? operationalState
+          : bookingState;
       rooms.add(<String, Object?>{
         ...room,
         if (effectiveState != null && effectiveState.isNotEmpty)
           'state': effectiveState,
-        'operationalState':
-            operationalState == null || operationalState.isEmpty
-                ? 'ready'
-                : operationalState,
-        if (operation?['note'] != null)
-          'operationalNote': operation!['note'],
+        'operationalState': operationalState == null || operationalState.isEmpty
+            ? 'ready'
+            : operationalState,
+        if (operation?['note'] != null) 'operationalNote': operation!['note'],
       });
     }
 
@@ -394,6 +423,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     bool remember = true,
     bool clearHistory = false,
   }) {
+    if (index == 1 && widget.embeddedRouteSlug != null) {
+      PandoraSharedConversationScope.maybeOf(context)?.showConversation?.call();
+      return;
+    }
     if (_index == index && _routedTool == null) return;
     setState(() {
       if (clearHistory) {
@@ -516,6 +549,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
     _commandController.clear();
     _commandFocus.unfocus();
+    if (widget.embeddedRouteSlug != null) {
+      final shared = PandoraSharedConversationScope.maybeOf(context);
+      if (shared == null) return;
+      setState(() => _commandBusy = true);
+      try {
+        await shared.submitPrompt(command);
+      } finally {
+        if (mounted) {
+          setState(() => _commandBusy = false);
+          _refresh();
+        }
+      }
+      return;
+    }
     setState(() {
       _commandBusy = true;
       _commandReply = null;
@@ -543,8 +590,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   String get _commandHint {
     final toolKey = _routedToolKey;
     if (toolKey != null && toolKey.startsWith('resort:')) {
-      final section =
-          plpResortSectionById(toolKey.substring('resort:'.length));
+      final section = plpResortSectionById(toolKey.substring('resort:'.length));
       if (section != null) return section.commandHint;
     }
     if (toolKey != null && toolKey.startsWith('resort-module:')) {
@@ -629,8 +675,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         record: record,
         role: _userRole(bootstrap),
         onBack: _closeTool,
-        onAction: (actionId) =>
-            _openResortRecordAction(actionId, kind, record),
+        onAction: (actionId) => _openResortRecordAction(actionId, kind, record),
       ),
     );
   }
@@ -710,9 +755,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         onOpenSection: _openResortSection,
         onOpenModule: _openResortModule,
         onOpenRecord: (kind, record) => _openResortRecord(kind, record),
-        onCreateReservation: plpRoleCanOperate(bootstrap)
-            ? _openReservationCreate
-            : null,
+        onCreateReservation:
+            plpRoleCanOperate(bootstrap) ? _openReservationCreate : null,
         onOpenOperationsRoom: () {
           _openTool(
             'operations-room',
@@ -762,6 +806,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Future<void> _openRecentThread(PlpRecentChatItem item) async {
     _closeDrawer();
+    if (widget.embeddedRouteSlug != null) {
+      await PandoraSharedConversationScope.maybeOf(context)
+          ?.openThread(item.id);
+      return;
+    }
     _open(1);
     await WidgetsBinding.instance.endOfFrame;
     await _alfredKey.currentState?.loadThread(item.id);
@@ -900,14 +949,17 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenModule: _openResortModule,
               onOpenRecord: (kind, record) => _openResortRecord(kind, record),
             ),
-            AskPandoraScreen(
-              key: _alfredKey,
-              onHome: _openHome,
-              onMore: () => _open(4),
-              enterpriseContext: alfredContext,
-              allowCharacterContext: false,
-              allowProjectContext: false,
-            ),
+            if (widget.embeddedRouteSlug != null)
+              const SizedBox.shrink()
+            else
+              AskPandoraScreen(
+                key: _alfredKey,
+                onHome: _openHome,
+                onMore: () => _open(4),
+                enterpriseContext: alfredContext,
+                allowCharacterContext: false,
+                allowProjectContext: false,
+              ),
             PlpOperationsScreen(
               key: const ValueKey('plp-operations-room'),
               bootstrap: bootstrap,
@@ -988,6 +1040,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             ),
             const DeveloperDiagnosticsScreen(key: ValueKey('plp-developer')),
             TaxComplianceScreen(
+              organizationId: _organizationId(bootstrap),
               key: const ValueKey('plp-tax-compliance'),
               workspaceKey: 'plp-boracay',
               workspaceName: 'PLP Boracay',
@@ -1188,7 +1241,8 @@ class _PlpLazyIndexedStackState extends State<_PlpLazyIndexedStack> {
       index: widget.index,
       children: List<Widget>.generate(
         widget.children.length,
-        (index) => _cache[index] ??
+        (index) =>
+            _cache[index] ??
             KeyedSubtree(
               key: ValueKey<String>('plp-lazy-placeholder-$index'),
               child: const SizedBox.shrink(),

@@ -26,10 +26,11 @@ abstract interface class PandoraUserAdminGateway {
 }
 
 class SupabasePandoraUserAdminGateway implements PandoraUserAdminGateway {
-  SupabasePandoraUserAdminGateway({SupabaseClient? client})
+  SupabasePandoraUserAdminGateway({SupabaseClient? client, this.organizationId})
       : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
+  final String? organizationId;
 
   static const String functionName = 'pandora-user-admin';
 
@@ -71,7 +72,35 @@ class SupabasePandoraUserAdminGateway implements PandoraUserAdminGateway {
           ),
         );
       }
-      return organizations;
+      final scopedId = organizationId;
+      if (scopedId == null) return organizations;
+      final membershipAccess = organizations
+          .where((organization) => organization.id == scopedId)
+          .toList(growable: false);
+      if (membershipAccess.isNotEmpty) return membershipAccess;
+
+      // Core operators use the existing user-admin broker with a separately
+      // verified grant. A displayed client card is never authority.
+      final authorization = _map(await _client.rpc(
+        'pandora_core_authorize_user_admin_v1',
+        params: {'p_organization_id': scopedId, 'p_write': false},
+      ));
+      final authorizedRole = _string(authorization['role']);
+      if (_string(authorization['organization_id']) != scopedId ||
+          !const {'owner', 'admin'}.contains(authorizedRole) ||
+          authorization['authority'] != 'explicit_operator_grant') {
+        throw const PandoraUserAdminFailure(
+          code: 'ORGANIZATION_ACCESS_REQUIRED',
+          message: 'Team administration is not authorized for this client.',
+        );
+      }
+      return [
+        PandoraOrganizationAccess(
+          id: scopedId,
+          name: 'Selected client',
+          role: authorizedRole!,
+        )
+      ];
     } on PostgrestException catch (error) {
       throw PandoraUserAdminFailure(
         code: 'ORGANIZATION_LOOKUP_FAILED',

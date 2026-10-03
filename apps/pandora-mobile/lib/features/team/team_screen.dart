@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_user_admin_api.dart';
 import '../../core/design/pandora_tokens.dart';
+import '../../core/security/pandora_identity_verification.dart';
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
 
@@ -9,10 +11,14 @@ class TeamScreen extends StatefulWidget {
   const TeamScreen({
     super.key,
     this.gateway,
+    this.organizationId,
     this.openInviteOnLoad = false,
   });
 
   final PandoraUserAdminGateway? gateway;
+
+  /// A Core client route pins the team to the explicit authorized tenant.
+  final String? organizationId;
   final bool openInviteOnLoad;
 
   @override
@@ -43,7 +49,8 @@ class _TeamScreenState extends State<TeamScreen> {
   @override
   void initState() {
     super.initState();
-    _gateway = widget.gateway ?? SupabasePandoraUserAdminGateway();
+    _gateway = widget.gateway ??
+        SupabasePandoraUserAdminGateway(organizationId: widget.organizationId);
     _load(initial: true);
   }
 
@@ -60,7 +67,14 @@ class _TeamScreenState extends State<TeamScreen> {
 
     try {
       final organizations = await _gateway.loadOrganizations();
-      var selected = _selectedOrganizationId;
+      var selected = widget.organizationId ?? _selectedOrganizationId;
+      if (widget.organizationId != null &&
+          !organizations.any((organization) => organization.id == selected)) {
+        throw const PandoraUserAdminFailure(
+          code: 'ORGANIZATION_ACCESS_REQUIRED',
+          message: 'Team administration is not authorized for this client.',
+        );
+      }
       if (!organizations.any((organization) => organization.id == selected)) {
         selected = organizations.isEmpty ? null : organizations.first.id;
       }
@@ -106,6 +120,7 @@ class _TeamScreenState extends State<TeamScreen> {
   }
 
   Future<void> _selectOrganization(String? id) async {
+    if (widget.organizationId != null) return;
     if (id == null || id == _selectedOrganizationId) return;
     setState(() {
       _selectedOrganizationId = id;
@@ -127,6 +142,19 @@ class _TeamScreenState extends State<TeamScreen> {
     }
   }
 
+  Future<T> _withIdentity<T>(Future<T> Function() action) async {
+    try {
+      return await action();
+    } on PandoraUserAdminFailure catch (failure) {
+      if (failure.code != 'STEP_UP_REQUIRED' || !mounted) rethrow;
+      final auth =
+          context.getInheritedWidgetOfExactType<PandoraDependencies>()?.auth;
+      final verified = await verifyCoreIdentity(context, auth);
+      if (!verified || !mounted) rethrow;
+      return action();
+    }
+  }
+
   Future<void> _openInvite() async {
     final organization = _selectedOrganization;
     if (organization == null || _inviting) return;
@@ -144,9 +172,11 @@ class _TeamScreenState extends State<TeamScreen> {
       _failure = null;
     });
     try {
-      final result = await _gateway.inviteMember(organization.id, request);
+      final result = await _withIdentity(
+        () => _gateway.inviteMember(organization.id, request),
+      );
       final members = await _gateway.loadMembers(organization.id);
-      if (!mounted) return;
+      if (!mounted || _selectedOrganizationId != organization.id) return;
       setState(() => _members = members);
       final text = result.inviteSent
           ? 'Invitation sent to ${result.email}.'
@@ -203,9 +233,11 @@ class _TeamScreenState extends State<TeamScreen> {
       _failure = null;
     });
     try {
-      final result = await _gateway.updateMember(organization.id, request);
+      final result = await _withIdentity(
+        () => _gateway.updateMember(organization.id, request),
+      );
       final members = await _gateway.loadMembers(organization.id);
-      if (!mounted) return;
+      if (!mounted || _selectedOrganizationId != organization.id) return;
       setState(() => _members = members);
       final message = result.changed
           ? '${member.primaryLabel} access was updated.'
@@ -262,7 +294,7 @@ class _TeamScreenState extends State<TeamScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_organizations.length > 1) ...[
+        if (widget.organizationId == null && _organizations.length > 1) ...[
           PandoraSurface(
             title: 'Organization',
             child: DropdownButtonFormField<String>(
@@ -443,52 +475,52 @@ class _MemberTile extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
           child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            CircleAvatar(child: Text(member.initials)),
-            const SizedBox(width: PandoraSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    member.primaryLabel,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  if (member.displayName != null && member.email != null)
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              CircleAvatar(child: Text(member.initials)),
+              const SizedBox(width: PandoraSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      member.email!,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      member.primaryLabel,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                  const SizedBox(height: PandoraSpacing.xxs),
-                  Wrap(
-                    spacing: PandoraSpacing.xs,
-                    runSpacing: PandoraSpacing.xxs,
-                    children: [
-                      _Tag(label: _roleLabel(member.role)),
-                      _Tag(
-                        label: _statusLabel(member.status),
-                        foreground: statusColor,
+                    if (member.displayName != null && member.email != null)
+                      Text(
+                        member.email!,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: PandoraSpacing.xxs),
+                    Wrap(
+                      spacing: PandoraSpacing.xs,
+                      runSpacing: PandoraSpacing.xxs,
+                      children: [
+                        _Tag(label: _roleLabel(member.role)),
+                        _Tag(
+                          label: _statusLabel(member.status),
+                          foreground: statusColor,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (member.isCurrentUser)
-              const Padding(
-                padding: EdgeInsets.only(left: PandoraSpacing.xs),
-                child: _Tag(label: 'You'),
-              )
-            else if (onTap != null)
-              const Padding(
-                padding: EdgeInsets.only(left: PandoraSpacing.xs),
-                child: Icon(Icons.chevron_right_rounded),
-              ),
-          ],
+              if (member.isCurrentUser)
+                const Padding(
+                  padding: EdgeInsets.only(left: PandoraSpacing.xs),
+                  child: _Tag(label: 'You'),
+                )
+              else if (onTap != null)
+                const Padding(
+                  padding: EdgeInsets.only(left: PandoraSpacing.xs),
+                  child: Icon(Icons.chevron_right_rounded),
+                ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }

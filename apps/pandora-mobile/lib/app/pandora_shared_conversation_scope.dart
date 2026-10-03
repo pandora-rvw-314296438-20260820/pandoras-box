@@ -19,6 +19,7 @@ class PandoraSharedConversationScope extends InheritedWidget {
     super.key,
     required this.submitPrompt,
     required this.openThread,
+    this.showConversation,
     required this.bindEnterpriseContext,
     required this.bindSelectedObject,
     required this.reportFailure,
@@ -27,17 +28,20 @@ class PandoraSharedConversationScope extends InheritedWidget {
 
   final PandoraSharedSubmit submitPrompt;
   final PandoraSharedOpenThread openThread;
+  final VoidCallback? showConversation;
   final PandoraSharedBindContext bindEnterpriseContext;
   final PandoraSharedBindSelected bindSelectedObject;
   final PandoraSharedReportFailure reportFailure;
 
   static PandoraSharedConversationScope? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<PandoraSharedConversationScope>();
+      context
+          .dependOnInheritedWidgetOfExactType<PandoraSharedConversationScope>();
 
   @override
   bool updateShouldNotify(PandoraSharedConversationScope oldWidget) =>
       submitPrompt != oldWidget.submitPrompt ||
       openThread != oldWidget.openThread ||
+      showConversation != oldWidget.showConversation ||
       bindEnterpriseContext != oldWidget.bindEnterpriseContext ||
       bindSelectedObject != oldWidget.bindSelectedObject ||
       reportFailure != oldWidget.reportFailure;

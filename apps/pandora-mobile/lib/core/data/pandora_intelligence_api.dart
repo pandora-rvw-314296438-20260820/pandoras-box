@@ -1,4 +1,3 @@
-import 'pandora_operations_events.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -6,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../platform/pandora_native_io.dart';
 import 'pandora_activity_stream_api.dart';
+import 'pandora_operations_events.dart';
 
 class PandoraIntelligenceApi {
   PandoraIntelligenceApi({
@@ -43,7 +43,6 @@ class PandoraIntelligenceApi {
       );
     }
   }
-
 
   Future<List<PandoraIntelligenceThread>> recentThreadsForWorkspace(
     String workspaceKey, {
@@ -109,7 +108,6 @@ class PandoraIntelligenceApi {
   }
 
   Future<List<PandoraIntelligenceMessage>> messages(
-
     String threadId, {
     int limit = 200,
   }) async {
@@ -322,13 +320,18 @@ class PandoraIntelligenceApi {
     String? activityJobId,
   }) async {
     _requireSession();
-    final auditAttachments = textAttachment == null &&
+    final scopeSelection = _map(enterpriseContext?['selectedObject']);
+    final coreScope = scopeSelection['coreMode'] == 'owner' ||
+        _text(scopeSelection['entryId']).isNotEmpty;
+    final auditAttachments = !coreScope &&
+            textAttachment == null &&
             imageAttachment == null &&
             projectId != null &&
             _isRepositoryAuditRequest(message)
         ? await _repositoryAuditAttachments(projectId: projectId)
         : const <Map<String, Object?>>[];
-    if (activityJobId == null &&
+    if (!coreScope &&
+        activityJobId == null &&
         textAttachment == null &&
         imageAttachment == null &&
         auditAttachments.isEmpty &&
@@ -445,7 +448,6 @@ class PandoraIntelligenceApi {
     }
   }
 
-
   Future<PandoraChatModelPickerSnapshot> modelPicker({String? threadId}) async {
     _requireSession();
     try {
@@ -482,17 +484,18 @@ class PandoraIntelligenceApi {
     }
   }
 
-
-  PandoraOperationsEventReader operationsEventReader() => PandoraOperationsEventReader(
-    organizationId: _organizationId,
-    readSession: () {
-      final session = _client.auth.currentSession;
-      return session == null ? null : PandoraOperationsSession(session.user.id, session.accessToken);
-    },
-  );
+  PandoraOperationsEventReader operationsEventReader() =>
+      PandoraOperationsEventReader(
+        organizationId: _organizationId,
+        readSession: () {
+          final session = _client.auth.currentSession;
+          return session == null
+              ? null
+              : PandoraOperationsSession(session.user.id, session.accessToken);
+        },
+      );
 
   Future<List<PandoraProjectContext>> projectContexts({int limit = 60}) async {
-
     _requireSession();
     final safeLimit = limit.clamp(1, 100).toInt();
     try {
@@ -530,11 +533,11 @@ class PandoraIntelligenceApi {
       caseSensitive: false,
     ).hasMatch(value);
     final roleChange = RegExp(
-      r'\b(change|make|set|give|promote|demote)\b',
-      caseSensitive: false,
-    ).hasMatch(value) &&
+          r'\b(change|make|set|give|promote|demote)\b',
+          caseSensitive: false,
+        ).hasMatch(value) &&
         RegExp(
-          r'\b(owner|admin|operator|member|viewer)\b',
+          r'\b(owner|admin|administrator|administrators|operator|member|viewer)\b',
           caseSensitive: false,
         ).hasMatch(value);
     return (scoped && action) || directAccessChange || roleChange;
@@ -1122,6 +1125,10 @@ class PandoraIntelligenceTurn {
               request: _requiredText(handoffJson['request']),
               projectId: _optionalText(handoffJson['projectId']),
               source: _optionalText(handoffJson['source']),
+              kind: _optionalText(handoffJson['kind']),
+              section: _optionalText(handoffJson['section']),
+              action: _optionalText(handoffJson['action']),
+              organizationId: _optionalText(handoffJson['organizationId']),
             )
           : null,
       authorizationUrl:
@@ -1135,11 +1142,19 @@ class PandoraIntelligenceHandoff {
     required this.request,
     this.projectId,
     this.source,
+    this.kind,
+    this.section,
+    this.action,
+    this.organizationId,
   });
 
   final String request;
   final String? projectId;
   final String? source;
+  final String? kind;
+  final String? section;
+  final String? action;
+  final String? organizationId;
 }
 
 class PandoraIntelligenceException implements Exception {

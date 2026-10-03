@@ -46,6 +46,7 @@ class AskPandoraScreen extends StatefulWidget {
     this.allowCharacterContext = true,
     this.allowProjectContext = true,
     this.shellOverlay = false,
+    this.onCoreNavigate,
   });
 
   final String? initialPrompt;
@@ -57,17 +58,18 @@ class AskPandoraScreen extends StatefulWidget {
   final bool allowCharacterContext;
   final bool allowProjectContext;
   final bool shellOverlay;
+  final ValueChanged<PandoraIntelligenceHandoff>? onCoreNavigate;
 
   @override
   State<AskPandoraScreen> createState() => AskPandoraScreenState();
 }
 
-class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingObserver {
+class AskPandoraScreenState extends State<AskPandoraScreen>
+    with WidgetsBindingObserver {
   // CPU Qwen2.5 can legitimately spend more than 30 seconds in prompt prefill
   // before the first streamed token. Keep a bounded idle deadline, but do not
   // cancel a healthy on-device decode at the old 30-second wall.
   static const _localInferenceIdleTimeout = Duration(seconds: 120);
-
 
   final TextEditingController _objective = TextEditingController();
   final FocusNode _objectiveFocus = FocusNode();
@@ -294,7 +296,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     super.dispose();
   }
 
-
   @override
   void didChangeMetrics() {
     _scheduleOverlayMeasure();
@@ -327,7 +328,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   }
 
   Future<void> _watchActivity(PandoraIntelligenceExecution execution) async {
-
     _activeActivityJobId = execution.jobId;
     await _activityController.bind(
       jobId: execution.jobId,
@@ -582,7 +582,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final start = _messages.length > 4 ? _messages.length - 4 : 0;
     final context = _messages
         .sublist(start)
-        .map((message) => '${message.isUser ? 'User' : 'Pandora'}: ${message.text}')
+        .map((message) =>
+            '${message.isUser ? 'User' : 'Pandora'}: ${message.text}')
         .join('\n');
     final bounded = context.length > 1600
         ? context.substring(context.length - 1600)
@@ -629,6 +630,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       return '';
     }
   }
+
   bool get _isPlpEnterpriseContext {
     final context = widget.enterpriseContext;
     final organization = context?['organization'];
@@ -643,9 +645,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       return <String, Object?>{
         'surface': 'enterprise_overview',
         'route': '/enterprise/plp-boracay/alfred',
-        'selectedObject': const <String, Object?>{
+        'selectedObject': <String, Object?>{
           'workspaceSlug': 'plp-boracay',
           'assistant': 'alfred',
+          if (widget.enterpriseContext?['selectedObject'] is Map)
+            for (final key in const ['organizationId', 'entryId'])
+              if ((widget.enterpriseContext!['selectedObject'] as Map)[key] !=
+                  null)
+                key: (widget.enterpriseContext!['selectedObject'] as Map)[key],
         },
         'capabilities': const <String>['intelligence.chat'],
         'identityScope': 'enterprise_workspace',
@@ -697,9 +704,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   }) async {
     if (!_isPlpEnterpriseContext) return;
     final organization = widget.enterpriseContext?['organization'];
-    final organizationId = organization is Map
-        ? organization['id']?.toString().trim()
-        : null;
+    final organizationId =
+        organization is Map ? organization['id']?.toString().trim() : null;
     if (organizationId == null || organizationId.isEmpty) return;
     try {
       await Supabase.instance.client.rpc(
@@ -799,8 +805,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final status = await (() async {
       try {
         return await PandoraLocalAi.instance.status().timeout(
-          const Duration(milliseconds: 600),
-        );
+              const Duration(milliseconds: 600),
+            );
       } catch (_) {
         return null;
       }
@@ -809,8 +815,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final route = PandoraLocalAiRouter.decide(
       message: objective,
       hasAttachment: _attachment != null || _imageAttachment != null,
-      hasProjectContext:
-          _projectContext != null || (widget.enterpriseContext?.isNotEmpty ?? false),
+      hasProjectContext: _projectContext != null ||
+          (widget.enterpriseContext?.isNotEmpty ?? false),
       hasSelectedCapability: _serviceContext != null,
       hasCharacterContext: _characterContext != null,
       status: status,
@@ -1196,8 +1202,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           objective,
           hasAttachment: _attachment != null || _imageAttachment != null,
           hasSelectedCapability: _serviceContext != null,
-          hasProjectContext:
-              _projectContext != null ||
+          hasProjectContext: _projectContext != null ||
               (widget.enterpriseContext?.isNotEmpty ?? false),
         );
     // A completed user turn must never inherit a prior turn's request identity.
@@ -1214,15 +1219,21 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _objective.clear();
       _error = null;
     });
+    PandoraIntelligenceHandoff? coreHandoff;
+    final selectedScope = widget.enterpriseContext?['selectedObject'];
+    final coreScope = selectedScope is Map &&
+        (selectedScope['coreMode'] == 'owner' ||
+            selectedScope['entryId'] != null);
     try {
-      if (_characterContext != null) {
+      if (_characterContext != null && !coreScope) {
         _lastTurnUsedLocalAi = false;
         await _submitCharacter(objective);
         return;
       }
-      if (await _trySubmitPlpStaffTask(objective)) return;
-      final teamAdministrationTurn =
-          _teamAdministrationPending || _looksLikeTeamAdministrationTurn(objective);
+      if (!coreScope && await _trySubmitPlpStaffTask(objective)) return;
+      final teamAdministrationTurn = coreScope ||
+          _teamAdministrationPending ||
+          _looksLikeTeamAdministrationTurn(objective);
       final calendarParse = teamAdministrationTurn
           ? null
           : PandoraCalendarCommand.tryParse(
@@ -1284,6 +1295,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _lastTurnUsedLocalAi = false;
 
       final intelligence = dependencies.intelligence;
+      if (intelligence == null && coreScope) {
+        _recordTurnFailure(objective,
+            'Pandora could not verify the current account scope. Refresh before trying this command.');
+        return;
+      }
       if (intelligence == null) {
         // A Project is optional persistent context, never a prerequisite for
         // talking to Pandora or using a non-project capability. Fall back to
@@ -1366,6 +1382,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       }
 
       final handoff = turn.handoff;
+      if (handoff?.kind == 'core_navigation' && widget.onCoreNavigate != null) {
+        coreHandoff = handoff;
+      }
       final experience = dependencies.projectExperienceRepository;
       final handoffProjectId = handoff?.projectId?.trim();
       if (handoff?.source == 'project_workspace_change' &&
@@ -1546,6 +1565,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           _submitting = false;
           _pendingMessage = null;
         });
+        if (coreHandoff != null) {
+          final handoff = coreHandoff;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) widget.onCoreNavigate?.call(handoff);
+          });
+        }
       }
     }
   }
@@ -1657,7 +1682,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       } on PandoraIntelligenceException {
         activity = null;
       }
-
     }
 
     final localStore = dependencies.localStore;
@@ -1741,6 +1765,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     _objectiveFocus.requestFocus();
   }
 
+  /// A tenant transition must not abandon an unresolved mutation or reuse its
+  /// pending result in another organization. Page navigation is unaffected.
+  bool get hasPendingScopeWork =>
+      _submitting ||
+      _loadingThread ||
+      _outcomeUnknown ||
+      _plpActionPendingRequestId != null ||
+      _activeActivityJobId != null;
+
   Future<void> _pickModel() async {
     if (_pickerOpen) {
       setState(() {
@@ -1759,8 +1792,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       if (localEnabled) {
         try {
           localStatus = await PandoraLocalAi.instance.status().timeout(
-            const Duration(milliseconds: 600),
-          );
+                const Duration(milliseconds: 600),
+              );
         } catch (_) {
           localStatus = null;
         }
