@@ -46,6 +46,7 @@ class AskPandoraScreen extends StatefulWidget {
     this.allowCharacterContext = true,
     this.allowProjectContext = true,
     this.shellOverlay = false,
+    this.contextualOverlay = false,
     this.initialHistoryExpanded = true,
     this.onCoreNavigate,
     this.onHistoryVisibilityChanged,
@@ -60,6 +61,7 @@ class AskPandoraScreen extends StatefulWidget {
   final bool allowCharacterContext;
   final bool allowProjectContext;
   final bool shellOverlay;
+  final bool contextualOverlay;
   final bool initialHistoryExpanded;
   final ValueChanged<PandoraIntelligenceHandoff>? onCoreNavigate;
   final ValueChanged<bool>? onHistoryVisibilityChanged;
@@ -2017,10 +2019,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
         ? media.size.height - keyboardInset
         : 0.0;
     final conversationPadding = widget.shellOverlay
-        ? EdgeInsets.only(
-            top: topInset + 56,
-            bottom: composerHeight + 12,
-          )
+        ? widget.contextualOverlay
+            ? const EdgeInsets.only(
+                top: 56,
+                bottom: 12,
+              )
+            : EdgeInsets.only(
+                top: topInset + 56,
+                bottom: composerHeight + 12,
+              )
         : EdgeInsets.only(
             top: topInset + headerHeight,
             bottom: composerHeight,
@@ -2065,32 +2072,81 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
           Offstage(
             key: const ValueKey<String>('pandora-active-chat-history-offstage'),
             offstage: !_shellHistoryExpanded,
-            child: Material(
-              key: const ValueKey<String>('pandora-active-chat-history'),
-              color: const Color(0xFF0A0A0A),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Positioned.fill(child: conversationContent),
-                  if (_shellHistoryExpanded)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: KeyedSubtree(
-                        key: _headerKey,
-                        child: _ChatHeader(
-                          active: conversationActive,
-                          minimal: true,
-                          onNewChat: newChat,
-                          onSearchChats: widget.onSearchChats,
-                          onMore: widget.onMore,
+            child: widget.contextualOverlay
+                ? Padding(
+                    // Contextual chat is a command layer over the current
+                    // business workspace, never a replacement screen.
+                    padding: EdgeInsets.fromLTRB(
+                      10,
+                      topInset + 10,
+                      10,
+                      keyboardInset + composerHeight + 10,
+                    ),
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: FractionallySizedBox(
+                        widthFactor: 1,
+                        heightFactor: .66,
+                        child: Material(
+                          key: const ValueKey<String>(
+                              'pandora-active-chat-history'),
+                          color: const Color(0xFF0A0A0A),
+                          elevation: 18,
+                          shadowColor: Colors.black,
+                          borderRadius: BorderRadius.circular(24),
+                          clipBehavior: Clip.antiAlias,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Positioned.fill(child: conversationContent),
+                              if (_shellHistoryExpanded)
+                                Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: KeyedSubtree(
+                                    key: _headerKey,
+                                    child: _ChatHeader(
+                                      active: conversationActive,
+                                      minimal: true,
+                                      onNewChat: newChat,
+                                      onSearchChats: widget.onSearchChats,
+                                      onMore: widget.onMore,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                ],
-              ),
-            ),
+                  )
+                : Material(
+                    key: const ValueKey<String>('pandora-active-chat-history'),
+                    color: const Color(0xFF0A0A0A),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Positioned.fill(child: conversationContent),
+                        if (_shellHistoryExpanded)
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: KeyedSubtree(
+                              key: _headerKey,
+                              child: _ChatHeader(
+                                active: conversationActive,
+                                minimal: true,
+                                onNewChat: newChat,
+                                onSearchChats: widget.onSearchChats,
+                                onMore: widget.onMore,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
           ),
           if (_pickerOpen && snapshot != null)
             Positioned.fill(

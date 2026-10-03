@@ -1598,40 +1598,52 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               );
             }
             final chatScopeEpoch = _scopeEpoch;
+            final contextualChat = _index != 0 ||
+                _activeEnterpriseContext != null ||
+                _inClientWorkspace;
             Widget activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
-              businessWorkspace: Offstage(
-                offstage: _chatVisible,
-                child: PandoraSharedConversationScope(
-                  submitPrompt: _submitSharedPrompt,
-                  openThread: _openSharedThread,
-                  showConversation: _showSharedConversation,
-                  bindEnterpriseContext: _bindEnterpriseContext,
-                  bindSelectedObject: _bindSelectedObject,
-                  reportFailure: _reportSharedFailure,
+              businessWorkspace: PandoraSharedConversationScope(
+                submitPrompt: _submitSharedPrompt,
+                openThread: _openSharedThread,
+                showConversation: _showSharedConversation,
+                bindEnterpriseContext: _bindEnterpriseContext,
+                bindSelectedObject: _bindSelectedObject,
+                reportFailure: _reportSharedFailure,
+                child: PandoraNavigationScope(
+                  // The workspace remains painted under expanded chat, but
+                  // chat temporarily owns the drawer trigger so there is never
+                  // a duplicate hamburger. Business Back semantics stay intact.
+                  openDrawer: constraints.maxWidth >= 900 || _chatVisible
+                      ? null
+                      : _openDrawer,
                   child: businessBody,
                 ),
               ),
-              conversation: AskPandoraScreen(
-                key: _chatKey,
-                onSearchChats: _openRecentChats,
-                onMore: () => _select(3),
-                onHome: () => _select(9),
-                enterpriseContext: _conversationContextForCurrentSurface(),
-                shellOverlay: true,
-                initialHistoryExpanded: _chatVisible,
-                onCoreNavigate: (handoff) {
-                  if (mounted && chatScopeEpoch == _scopeEpoch) {
-                    _handleCoreNavigation(handoff);
-                  }
-                },
-                onHistoryVisibilityChanged: (visible) {
-                  if (mounted &&
-                      chatScopeEpoch == _scopeEpoch &&
-                      _chatVisible != visible) {
-                    setState(() => _chatVisible = visible);
-                  }
-                },
+              conversation: PandoraNavigationScope(
+                openDrawer: constraints.maxWidth >= 900 ? null : _openDrawer,
+                child: AskPandoraScreen(
+                  key: _chatKey,
+                  onSearchChats: _openRecentChats,
+                  onMore: () => _select(3),
+                  onHome: () => _select(9),
+                  enterpriseContext: _conversationContextForCurrentSurface(),
+                  shellOverlay: true,
+                  contextualOverlay: contextualChat,
+                  initialHistoryExpanded: _chatVisible,
+                  onCoreNavigate: (handoff) {
+                    if (mounted && chatScopeEpoch == _scopeEpoch) {
+                      _handleCoreNavigation(handoff);
+                    }
+                  },
+                  onHistoryVisibilityChanged: (visible) {
+                    if (mounted &&
+                        chatScopeEpoch == _scopeEpoch &&
+                        _chatVisible != visible) {
+                      setState(() => _chatVisible = visible);
+                    }
+                  },
+                ),
               ),
             );
 
