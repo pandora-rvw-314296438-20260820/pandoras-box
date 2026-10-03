@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/widgets/pandora_navigation.dart';
+import 'plp_activity_read_model.dart';
 
 typedef PlpBusinessActivityLoader = Future<Map<String, Object?>> Function();
 typedef PlpPandoraActivityLogLoader = Future<Map<String, Object?>> Function({
@@ -20,12 +21,14 @@ class PlpActivityScreen extends StatefulWidget {
     this.organizationId,
     this.businessLoader,
     this.logLoader,
+    this.readModel,
   });
 
   final VoidCallback onOpenNavigation;
   final String? organizationId;
   final PlpBusinessActivityLoader? businessLoader;
   final PlpPandoraActivityLogLoader? logLoader;
+  final PlpActivityReadModel? readModel;
 
   @override
   State<PlpActivityScreen> createState() => _PlpActivityScreenState();
@@ -66,7 +69,8 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
   void initState() {
     super.initState();
     _bindRealtime();
-    scheduleMicrotask(_loadBusiness);
+    _business = widget.readModel?.items ?? _business;
+    scheduleMicrotask(() => _loadBusiness(force: false));
   }
 
   @override
@@ -159,37 +163,8 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
         .contains(value?.toString().trim().toLowerCase());
   }
 
-  bool _isTestOnlyActivity(Map<String, Object?> item) {
-    final explicit = <Object?>[
-      item['isMock'],
-      item['isTest'],
-      item['synthetic'],
-      item['mock'],
-    ].any((value) => value == true ||
-        const {'true', '1', 'yes'}
-            .contains(value?.toString().trim().toLowerCase()));
-    if (explicit) return true;
-    final sourceLabel = _text(item['sourceLabel'], fallback: '').toLowerCase();
-    final sourceType = _text(item['sourceType'], fallback: '').toLowerCase();
-    final title = _text(item['title'], fallback: '').toLowerCase();
-    final summary = _text(item['summary'], fallback: '').toLowerCase();
-    final message = _text(item['message'], fallback: '').toLowerCase();
-    return sourceLabel.startsWith('qa_') ||
-        sourceLabel.contains('mock') ||
-        sourceType.startsWith('qa_') ||
-        sourceType.contains('mock') ||
-        sourceType.contains('synthetic') ||
-        title.contains('[mock qa]') ||
-        summary.contains('[mock qa]') ||
-        summary.contains('synthetic') ||
-        message.contains('[mock qa]') ||
-        message.contains('synthetic');
-  }
-
   List<Map<String, Object?>> _productionActivity(Object? value) =>
-      _maps(value)
-          .where((item) => !_isTestOnlyActivity(item))
-          .toList(growable: false);
+      plpProductionActivityRecords(value);
 
   int? _int(Object? value) {
     if (value is int) return value;
@@ -229,14 +204,16 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
     return _map(value);
   }
 
-  Future<void> _loadBusiness() async {
+  Future<void> _loadBusiness({bool force = true}) async {
     if (_businessLoading) return;
     setState(() {
       _businessLoading = true;
       _businessError = null;
     });
     try {
-      final payload = await (widget.businessLoader ?? _providerBusinessLoader)();
+      final payload = widget.readModel != null
+          ? await widget.readModel!.load(force: force)
+          : await (widget.businessLoader ?? _providerBusinessLoader)();
       final page = _productionActivity(payload['items']);
       if (!mounted) return;
       setState(() => _business = page);
