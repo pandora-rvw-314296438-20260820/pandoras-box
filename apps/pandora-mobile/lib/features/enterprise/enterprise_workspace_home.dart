@@ -102,7 +102,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
   ),
   EnterpriseWorkspaceProfile(
     key: 'plp-boracay',
-    name: 'PLP Boracay',
+    name: 'Pueblo La Perla Boracay',
     subtitle: 'Luxury Resort',
     initials: 'PLP',
     icon: Icons.hotel_rounded,
