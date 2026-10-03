@@ -70,6 +70,12 @@ class AskPandoraScreen extends StatefulWidget {
 
 class AskPandoraScreenState extends State<AskPandoraScreen>
     with WidgetsBindingObserver {
+  static const _plpE7Suggestions = <String>[
+    'What can you do for me now?',
+    'Check my GitHub for failing CI',
+    'What needs my attention?',
+  ];
+
   // CPU Qwen2.5 can legitimately spend more than 30 seconds in prompt prefill
   // before the first streamed token. Keep a bounded idle deadline, but do not
   // cancel a healthy on-device decode at the old 30-second wall.
@@ -2005,8 +2011,158 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     });
   }
 
+  void _usePlpE7Suggestion(String value) {
+    if (_outcomeUnknown || _submitting) return;
+    _objective.text = value;
+    _objective.selection = TextSelection.collapsed(offset: value.length);
+    _objectiveFocus.requestFocus();
+    setState(() => _error = null);
+  }
+
+  Widget _buildPlpE7Chat(BuildContext context) {
+    _scheduleOverlayMeasure();
+    final media = MediaQuery.of(context);
+    final keyboardInset = media.viewInsets.bottom;
+    final topInset = media.padding.top;
+    final headerHeight = _headerHeight > 0 ? _headerHeight : 56.0;
+    final composerHeight = _composerHeight > 0 ? _composerHeight : 88.0;
+    final viewportHeight = media.size.height > keyboardInset
+        ? media.size.height - keyboardInset
+        : 0.0;
+    final conversationPadding = EdgeInsets.only(
+      top: topInset + headerHeight,
+      bottom: composerHeight,
+    );
+    final viewportSize = Size(media.size.width, viewportHeight);
+
+    return Scaffold(
+      key: const ValueKey<String>('plp-e7-chat-surface'),
+      backgroundColor: PandoraSimpleColors.canvas,
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _loadingThread
+                ? Padding(
+                    padding: conversationPadding,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: PandoraSimpleColors.muted,
+                      ),
+                    ),
+                  )
+                : _messages.isEmpty && _pendingMessage == null
+                    ? Padding(
+                        padding: conversationPadding,
+                        child: _PlpE7EmptyConversation(
+                          suggestions: _plpE7Suggestions,
+                          onSuggestion: _usePlpE7Suggestion,
+                          disabled: _outcomeUnknown || _submitting,
+                        ),
+                      )
+                    : _Conversation(
+                        threadIdentity: _threadId ?? 'local-chat',
+                        messages: _messages,
+                        pendingMessage: _pendingMessage,
+                        thinking: _submitting,
+                        activityRequested: _activityTheatreRequested,
+                        activitySuppressed: _activityTheatreSuppressed,
+                        activityEvents: _activityController.events,
+                        activityError: _activityController.publicError,
+                        inlineError: _error,
+                        onRetry: (message) =>
+                            unawaited(_retryFailedTurn(message)),
+                        onCoreNavigate: widget.onCoreNavigate,
+                        contentPadding: conversationPadding,
+                        viewportSize: viewportSize,
+                      ),
+          ),
+          Positioned(
+            top: topInset,
+            left: 0,
+            right: 0,
+            child: KeyedSubtree(
+              key: _headerKey,
+              child: _PlpE7ChatHeader(
+                active: _threadId != null ||
+                    _messages.isNotEmpty ||
+                    _pendingMessage != null,
+                onNewChat: newChat,
+                onSearchChats: widget.onSearchChats,
+                onMore: widget.onMore,
+              ),
+            ),
+          ),
+          if (_pickerOpen && _pickerSnapshot != null)
+            Positioned.fill(
+              child: PandoraModelPickerOverlay(
+                models: _pickerSnapshot!.models,
+                selection: _modelSelection,
+                reasoningMode: _reasoningMode,
+                localAiEnabled: _pickerLocalAiEnabled,
+                localAiAvailable: _pickerLocalAiAvailable,
+                localAiModelName: _pickerLocalAiModelName,
+                startAtEnd: _pickerStartAtEnd,
+                compactLeftAnchored: true,
+                onDismiss: _dismissPicker,
+                onModelSelected: _applyPickerModel,
+                onReasoningSelected: _applyPickerReasoning,
+              ),
+            ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: keyboardInset,
+            child: KeyedSubtree(
+              key: _composerKey,
+              child: _PlpE7Composer(
+                controller: _objective,
+                focusNode: _objectiveFocus,
+                attachment: _attachment,
+                imageAttachment: _imageAttachment,
+                projectContext: _projectContext,
+                serviceContext: _serviceContext,
+                characterContext: _characterContext,
+                error: _error,
+                submitting: _submitting,
+                disabled: _outcomeUnknown,
+                modelLabel: _modelLabel,
+                reasoningLabel: _reasoningLabel,
+                onModel: _pickModel,
+                onReasoning: () => _pickModel(startAtEnd: true),
+                onChanged: () {
+                  if (_error != null) setState(() => _error = null);
+                  _scheduleOverlayMeasure();
+                },
+                onCamera: () => _pickImage(camera: true),
+                onPhotos: () => _pickImage(camera: false),
+                onAttach: _attach,
+                onCharacters:
+                    widget.allowCharacterContext ? _pickCharacterContext : null,
+                onServices: _pickServiceContext,
+                onProjectContext:
+                    widget.allowProjectContext ? _pickProjectContext : null,
+                onDictate: _dictate,
+                onSubmit: _submit,
+                onRemoveAttachment: () => setState(() => _attachment = null),
+                onRemoveImage: () => setState(() => _imageAttachment = null),
+                onRemoveCharacterContext: _removeCharacterContext,
+                onRemoveServiceContext: _removeServiceContext,
+                onRemoveProjectContext: _removeProjectContext,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isPlpEnterpriseContext && !widget.shellOverlay) {
+      return _buildPlpE7Chat(context);
+    }
     if (!widget.shellOverlay) _scheduleOverlayMeasure();
     final media = MediaQuery.of(context);
     final keyboardInset = media.viewInsets.bottom;
@@ -2249,6 +2405,602 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
 }
 
 enum _ChatOverflowAction { newChat, more }
+
+enum _PlpE7ChatOverflowAction { newChat, searchChats, more }
+
+class _PlpE7ChatHeader extends StatelessWidget {
+  const _PlpE7ChatHeader({
+    required this.active,
+    required this.onNewChat,
+    this.onSearchChats,
+    this.onMore,
+  });
+
+  final bool active;
+  final VoidCallback onNewChat;
+  final VoidCallback? onSearchChats;
+  final VoidCallback? onMore;
+
+  @override
+  Widget build(BuildContext context) => PandoraPageHeader(
+        title: '',
+        actions: [
+          if (!active)
+            IconButton(
+              key: const ValueKey<String>('pandora-temporary-chat'),
+              tooltip: 'Temporary chat',
+              onPressed: onNewChat,
+              icon: const Icon(Icons.history_toggle_off_rounded),
+              color: PandoraSimpleColors.ink,
+            )
+          else
+            PopupMenuButton<_PlpE7ChatOverflowAction>(
+              key: const ValueKey<String>('pandora-chat-overflow'),
+              tooltip: 'More',
+              icon: const Icon(Icons.more_vert_rounded),
+              color: PandoraSimpleColors.surface,
+              onSelected: (action) {
+                switch (action) {
+                  case _PlpE7ChatOverflowAction.newChat:
+                    onNewChat();
+                    break;
+                  case _PlpE7ChatOverflowAction.searchChats:
+                    onSearchChats?.call();
+                    break;
+                  case _PlpE7ChatOverflowAction.more:
+                    onMore?.call();
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem<_PlpE7ChatOverflowAction>(
+                  key: ValueKey<String>('pandora-chat-menu-new'),
+                  value: _PlpE7ChatOverflowAction.newChat,
+                  child: Row(
+                    children: [
+                      Icon(Icons.add_comment_outlined, size: 20),
+                      SizedBox(width: 12),
+                      Text('New chat'),
+                    ],
+                  ),
+                ),
+                if (onSearchChats != null)
+                  const PopupMenuItem<_PlpE7ChatOverflowAction>(
+                    key: ValueKey<String>('pandora-chat-menu-search'),
+                    value: _PlpE7ChatOverflowAction.searchChats,
+                    child: Row(
+                      children: [
+                        Icon(Icons.search_rounded, size: 20),
+                        SizedBox(width: 12),
+                        Text('Search chats'),
+                      ],
+                    ),
+                  ),
+                if (onMore != null)
+                  const PopupMenuItem<_PlpE7ChatOverflowAction>(
+                    key: ValueKey<String>('pandora-chat-menu-more'),
+                    value: _PlpE7ChatOverflowAction.more,
+                    child: Row(
+                      children: [
+                        Icon(Icons.more_horiz_rounded, size: 20),
+                        SizedBox(width: 12),
+                        Text('More'),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      );
+}
+
+class _PlpE7EmptyConversation extends StatelessWidget {
+  const _PlpE7EmptyConversation({
+    required this.suggestions,
+    required this.onSuggestion,
+    required this.disabled,
+  });
+
+  final List<String> suggestions;
+  final ValueChanged<String> onSuggestion;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 42),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const PandoraMark(size: 54, color: Colors.white),
+                const SizedBox(height: 18),
+                const Text(
+                  'What can I help with?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -.35,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: const Text(
+                    'Ask a question, describe a change, or tell Pandora what you want to build.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: PandoraSimpleColors.muted,
+                      fontSize: 14,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Column(
+                    children: [
+                      for (var index = 0;
+                          index < suggestions.length;
+                          index++) ...[
+                        _PlpE7Suggestion(
+                          label: suggestions[index],
+                          enabled: !disabled,
+                          onPressed: () => onSuggestion(suggestions[index]),
+                        ),
+                        if (index != suggestions.length - 1)
+                          const SizedBox(height: 12),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _PlpE7Suggestion extends StatelessWidget {
+  const _PlpE7Suggestion({
+    required this.label,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: const Color(0x990F0F0F),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: PandoraSimpleColors.line),
+        ),
+        child: InkWell(
+          onTap: enabled ? onPressed : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: enabled
+                          ? const Color(0xFFE2E2E2)
+                          : PandoraSimpleColors.muted,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 17,
+                  color: Color(0xFF555555),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _PlpE7Composer extends StatelessWidget {
+  const _PlpE7Composer({
+    required this.controller,
+    required this.focusNode,
+    required this.attachment,
+    required this.imageAttachment,
+    required this.projectContext,
+    required this.serviceContext,
+    required this.characterContext,
+    required this.error,
+    required this.submitting,
+    required this.disabled,
+    required this.modelLabel,
+    required this.reasoningLabel,
+    required this.onModel,
+    required this.onReasoning,
+    required this.onChanged,
+    required this.onCamera,
+    required this.onPhotos,
+    required this.onAttach,
+    required this.onCharacters,
+    required this.onServices,
+    required this.onProjectContext,
+    required this.onDictate,
+    required this.onSubmit,
+    required this.onRemoveAttachment,
+    required this.onRemoveImage,
+    required this.onRemoveCharacterContext,
+    required this.onRemoveServiceContext,
+    required this.onRemoveProjectContext,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final PandoraTextAttachment? attachment;
+  final PandoraImageAttachment? imageAttachment;
+  final PandoraProjectContext? projectContext;
+  final PandoraCapabilityProvider? serviceContext;
+  final PandoraCharacterProfile? characterContext;
+  final String? error;
+  final bool submitting;
+  final bool disabled;
+  final String modelLabel;
+  final String reasoningLabel;
+  final VoidCallback onModel;
+  final VoidCallback onReasoning;
+  final VoidCallback onChanged;
+  final VoidCallback onCamera;
+  final VoidCallback onPhotos;
+  final VoidCallback onAttach;
+  final VoidCallback? onCharacters;
+  final VoidCallback onServices;
+  final VoidCallback? onProjectContext;
+  final VoidCallback onDictate;
+  final VoidCallback onSubmit;
+  final VoidCallback onRemoveAttachment;
+  final VoidCallback onRemoveImage;
+  final VoidCallback onRemoveCharacterContext;
+  final VoidCallback onRemoveServiceContext;
+  final VoidCallback onRemoveProjectContext;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+          color: PandoraSimpleColors.canvas,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (error != null) ...[
+                Container(
+                  margin: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1F0),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF7D5D1)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 1),
+                        child: Icon(
+                          Icons.info_outline_rounded,
+                          size: 17,
+                          color: Color(0xFFB42318),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          error!,
+                          style: const TextStyle(
+                            color: Color(0xFF8F2D24),
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (attachment != null ||
+                  imageAttachment != null ||
+                  projectContext != null ||
+                  serviceContext != null ||
+                  characterContext != null) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (attachment != null)
+                      InputChip(
+                        avatar:
+                            const Icon(Icons.description_outlined, size: 17),
+                        label: Text(attachment!.name),
+                        onDeleted:
+                            submitting || disabled ? null : onRemoveAttachment,
+                      ),
+                    if (imageAttachment != null)
+                      InputChip(
+                        avatar: const Icon(Icons.image_outlined, size: 17),
+                        label: Text(imageAttachment!.name),
+                        onDeleted:
+                            submitting || disabled ? null : onRemoveImage,
+                      ),
+                    if (characterContext != null)
+                      InputChip(
+                        key: const ValueKey<String>(
+                          'ask-pandora-character-context',
+                        ),
+                        avatar: const Icon(
+                          Icons.face_retouching_natural_outlined,
+                          size: 17,
+                        ),
+                        label: Text('Character · ${characterContext!.name}'),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveCharacterContext,
+                      ),
+                    if (serviceContext != null)
+                      InputChip(
+                        key: const ValueKey<String>(
+                          'ask-pandora-service-context',
+                        ),
+                        avatar: const Icon(Icons.extension_outlined, size: 17),
+                        label: Text(
+                          '${serviceContext!.label} · ${serviceContext!.state}',
+                        ),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveServiceContext,
+                      ),
+                    if (projectContext != null)
+                      InputChip(
+                        key: const ValueKey<String>(
+                          'ask-pandora-project-context',
+                        ),
+                        avatar:
+                            const Icon(Icons.workspaces_outline, size: 17),
+                        label: Text(projectContext!.name),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveProjectContext,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+              ],
+              DecoratedBox(
+                key: const ValueKey<String>('ask-pandora-composer'),
+                decoration: BoxDecoration(
+                  color: PandoraSimpleColors.surface,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: PandoraSimpleColors.line),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0xB3000000),
+                      blurRadius: 24,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      MenuAnchor(
+                        alignmentOffset: const Offset(0, -8),
+                        style: MenuStyle(
+                          backgroundColor: const WidgetStatePropertyAll(
+                            PandoraSimpleColors.surface,
+                          ),
+                          elevation: const WidgetStatePropertyAll(10),
+                          padding: const WidgetStatePropertyAll(
+                            EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          shape: WidgetStatePropertyAll(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              side: const BorderSide(
+                                color: PandoraSimpleColors.line,
+                              ),
+                            ),
+                          ),
+                        ),
+                        menuChildren: [
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-camera',
+                            ),
+                            label: 'Camera',
+                            icon: Icons.camera_alt_outlined,
+                            onPressed: onCamera,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-photos',
+                            ),
+                            label: 'Photos',
+                            icon: Icons.photo_outlined,
+                            onPressed: onPhotos,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-files',
+                            ),
+                            label: 'Files',
+                            icon: Icons.insert_drive_file_outlined,
+                            onPressed: onAttach,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-model',
+                            ),
+                            label: 'Model · ' + modelLabel,
+                            icon: Icons.tune_rounded,
+                            onPressed: onModel,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-reasoning',
+                            ),
+                            label: 'Reasoning · ' + reasoningLabel,
+                            icon: Icons.psychology_alt_outlined,
+                            onPressed: onReasoning,
+                          ),
+                          if (onCharacters != null)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask-pandora-menu-characters',
+                              ),
+                              label: 'Characters',
+                              icon: Icons.face_retouching_natural_outlined,
+                              onPressed: onCharacters!,
+                            ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-services',
+                            ),
+                            label: 'Services',
+                            icon: Icons.extension_outlined,
+                            onPressed: onServices,
+                          ),
+                          if (onProjectContext != null)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask-pandora-menu-project-context',
+                              ),
+                              label: 'Project context',
+                              icon: Icons.workspaces_outline,
+                              onPressed: onProjectContext!,
+                            ),
+                        ],
+                        builder: (context, menu, child) => SizedBox.square(
+                          dimension: 44,
+                          child: IconButton(
+                            key: const ValueKey<String>('ask-pandora-plus'),
+                            tooltip: 'Open menu',
+                            padding: EdgeInsets.zero,
+                            onPressed: disabled || submitting
+                                ? null
+                                : () {
+                                    if (menu.isOpen) {
+                                      menu.close();
+                                    } else {
+                                      menu.open();
+                                    }
+                                  },
+                            icon: const Icon(Icons.view_in_ar_outlined),
+                            color: PandoraSimpleColors.ink,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: TextField(
+                          key: const ValueKey<String>(
+                            'ask-pandora-objective',
+                          ),
+                          controller: controller,
+                          focusNode: focusNode,
+                          readOnly: disabled,
+                          minLines: 1,
+                          maxLines: 6,
+                          maxLength: 4000,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            hintText:
+                                submitting ? 'Follow up' : 'Message Pandora',
+                            counterText: '',
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding:
+                                const EdgeInsets.fromLTRB(4, 11, 4, 10),
+                          ),
+                          style: const TextStyle(
+                            color: PandoraSimpleColors.ink,
+                            fontSize: 16,
+                            height: 1.35,
+                          ),
+                          onChanged: (_) => onChanged(),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      SizedBox.square(
+                        dimension: 44,
+                        child: IconButton(
+                          key:
+                              const ValueKey<String>('ask-pandora-voice'),
+                          tooltip: 'Voice input',
+                          padding: EdgeInsets.zero,
+                          onPressed: disabled || submitting ? null : onDictate,
+                          icon: const Icon(Icons.mic_none_rounded),
+                          color: PandoraSimpleColors.ink,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: controller,
+                        builder: (context, value, child) {
+                          final cancelReady =
+                              submitting && value.text.trim().isEmpty;
+                          return SizedBox.square(
+                            dimension: 44,
+                            child: FilledButton(
+                              key: const ValueKey<String>(
+                                'ask-pandora-submit',
+                              ),
+                              onPressed: disabled ? null : onSubmit,
+                              style: FilledButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                backgroundColor: Colors.white,
+                                disabledBackgroundColor:
+                                    const Color(0xFF1F1F1F),
+                                shape: const CircleBorder(),
+                              ),
+                              child: Icon(
+                                cancelReady
+                                    ? Icons.stop_rounded
+                                    : Icons.arrow_upward_rounded,
+                                color: Colors.black,
+                                size: 22,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
 
 class _ChatHeader extends StatelessWidget {
   const _ChatHeader({

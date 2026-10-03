@@ -386,10 +386,9 @@ class _Header extends StatelessWidget {
                 style: TextStyle(
                   color: _PlpTeamManagementScreenState._ink,
                   fontFamily: 'serif',
-                  fontSize: 21,
-                  height: 1,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -.35,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 2.6,
                 ),
               ),
             ),

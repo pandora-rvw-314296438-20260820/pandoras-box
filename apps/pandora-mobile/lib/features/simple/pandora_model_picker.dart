@@ -87,6 +87,7 @@ class PandoraModelPickerOverlay extends StatefulWidget {
     this.localAiAvailable = false,
     this.localAiModelName,
     this.startAtEnd = false,
+    this.compactLeftAnchored = false,
   });
 
   final List<PandoraChatModelOption> models;
@@ -99,6 +100,10 @@ class PandoraModelPickerOverlay extends StatefulWidget {
   final bool localAiAvailable;
   final String? localAiModelName;
   final bool startAtEnd;
+
+  /// PLP's restored chat keeps model choice inside the old compact experience.
+  /// Other Pandora surfaces retain the existing picker presentation.
+  final bool compactLeftAnchored;
 
   @override
   State<PandoraModelPickerOverlay> createState() =>
@@ -178,7 +183,9 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
       key: key,
       height: _rowHeight,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: widget.compactLeftAnchored
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.end,
         children: [
           if (selected) ...[
             Container(
@@ -204,7 +211,8 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
+              textAlign:
+                  widget.compactLeftAnchored ? TextAlign.left : TextAlign.right,
               style: style,
             ),
           ),
@@ -224,7 +232,7 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
     final totalItems =
         selectable.length + 1 + (_unavailableCount > 0 ? 1 : 0);
     return SizedBox(
-      height: _rowHeight * 6,
+      height: _rowHeight * (widget.compactLeftAnchored ? 4 : 6),
       child: Stack(
         children: [
           Positioned.fill(
@@ -362,7 +370,8 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
             onTap: widget.onDismiss,
             child: const SizedBox.expand(),
           ),
-          IgnorePointer(
+          if (!widget.compactLeftAnchored)
+            IgnorePointer(
             child: Align(
               alignment: Alignment.bottomCenter,
               child: Container(
@@ -384,69 +393,91 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
             ),
           ),
           Positioned(
-            right: 74.5,
+            left: widget.compactLeftAnchored ? 14 : null,
+            right: widget.compactLeftAnchored ? null : 74.5,
             bottom: safeBottom + 92,
-            width: 285,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _modelViewport(),
-                  _selectionRow(
-                    key: const ValueKey<String>('model-picker-auto'),
-                    label: 'Auto',
-                    selected: widget.selection.isAuto,
-                    onTap: () => widget.onModelSelected(
-                      const PandoraModelPickerChoice(
-                        selection: PandoraChatModelSelection.auto(),
-                        label: 'Auto',
+            width: widget.compactLeftAnchored ? 260 : 285,
+            child: Container(
+              padding: EdgeInsets.all(widget.compactLeftAnchored ? 14 : 0),
+              decoration: BoxDecoration(
+                color: widget.compactLeftAnchored
+                    ? const Color(0xF7151515)
+                    : Colors.transparent,
+                borderRadius:
+                    BorderRadius.circular(widget.compactLeftAnchored ? 18 : 0),
+                border: widget.compactLeftAnchored
+                    ? Border.all(color: Colors.white.withValues(alpha: .08))
+                    : null,
+              ),
+              child: Align(
+                alignment: widget.compactLeftAnchored
+                    ? Alignment.centerLeft
+                    : Alignment.centerRight,
+                child: Column(
+                  crossAxisAlignment: widget.compactLeftAnchored
+                      ? CrossAxisAlignment.start
+                      : CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _modelViewport(),
+                    _selectionRow(
+                      key: const ValueKey<String>('model-picker-auto'),
+                      label: 'Auto',
+                      selected: widget.selection.isAuto,
+                      onTap: () => widget.onModelSelected(
+                        const PandoraModelPickerChoice(
+                          selection: PandoraChatModelSelection.auto(),
+                          label: 'Auto',
+                        ),
                       ),
                     ),
-                  ),
-                  Text(
-                    'Model',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: .25),
-                      fontSize: 11,
-                      height: 1,
+                    Text(
+                      'Model',
+                      textAlign: widget.compactLeftAnchored
+                          ? TextAlign.left
+                          : TextAlign.right,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: .25),
+                        fontSize: 11,
+                        height: 1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Reasoning',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: .25),
-                      fontSize: 11,
-                      height: 1,
+                    const SizedBox(height: 18),
+                    Text(
+                      'Reasoning',
+                      textAlign: widget.compactLeftAnchored
+                          ? TextAlign.left
+                          : TextAlign.right,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: .25),
+                        fontSize: 11,
+                        height: 1,
+                      ),
                     ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _reasoningChoice(
-                        'Balanced',
-                        PandoraIntelligenceMode.auto,
-                        const ValueKey<String>('reasoning-picker-balanced'),
-                      ),
-                      const SizedBox(width: 18),
-                      _reasoningChoice(
-                        'Fast',
-                        PandoraIntelligenceMode.fast,
-                        const ValueKey<String>('reasoning-picker-fast'),
-                      ),
-                      const SizedBox(width: 18),
-                      _reasoningChoice(
-                        'Deep',
-                        PandoraIntelligenceMode.deep,
-                        const ValueKey<String>('reasoning-picker-deep'),
-                      ),
-                    ],
-                  ),
-                ],
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _reasoningChoice(
+                          'Balanced',
+                          PandoraIntelligenceMode.auto,
+                          const ValueKey<String>('reasoning-picker-balanced'),
+                        ),
+                        const SizedBox(width: 14),
+                        _reasoningChoice(
+                          'Fast',
+                          PandoraIntelligenceMode.fast,
+                          const ValueKey<String>('reasoning-picker-fast'),
+                        ),
+                        const SizedBox(width: 14),
+                        _reasoningChoice(
+                          'Deep',
+                          PandoraIntelligenceMode.deep,
+                          const ValueKey<String>('reasoning-picker-deep'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

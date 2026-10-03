@@ -225,30 +225,17 @@ class _GuestHeader extends StatelessWidget {
             const SizedBox.square(dimension: 44),
           const SizedBox(width: 12),
           const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'PUEBLO LA PERLA',
-                  style: TextStyle(
-                    color: _PlpGuestsScreenState._ink,
-                    fontFamily: 'serif',
-                    fontSize: 16,
-                    letterSpacing: 2.6,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'GUEST EXPERIENCE',
-                  style: TextStyle(
-                    color: _PlpGuestsScreenState._gold,
-                    fontSize: 8.5,
-                    letterSpacing: 2.2,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            child: Text(
+              'GUEST EXPERIENCE',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _PlpGuestsScreenState._ink,
+                fontFamily: 'serif',
+                fontSize: 16,
+                letterSpacing: 2.6,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ),
         ],
