@@ -284,6 +284,37 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
         _ => 'A balance of response speed and depth.',
       };
 
+  Widget _header() => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(left: 12),
+                child: Text(
+                  'Pandora options',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            Semantics(
+              identifier: 'pandora.chat.model-picker.close',
+              child: IconButton(
+                key: const ValueKey<String>('pandora-model-picker-close'),
+                focusNode: _closeFocus,
+                tooltip: 'Close Pandora options',
+                onPressed: widget.onDismiss,
+                icon: const Icon(Icons.close_rounded, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final unavailable =
@@ -352,269 +383,262 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
                                 ),
                               ),
                               clipBehavior: Clip.antiAlias,
-                              child: SingleChildScrollView(
-                                key: const ValueKey<String>(
-                                  'pandora-model-picker-list',
-                                ),
-                                controller: _scrollController,
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  8,
-                                  12,
-                                  16,
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Expanded(
-                                          child: Padding(
-                                            padding: EdgeInsets.only(left: 12),
-                                            child: Text(
-                                              'Pandora options',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        Semantics(
-                                          identifier:
-                                              'pandora.chat.model-picker.close',
-                                          child: IconButton(
-                                            key: const ValueKey<String>(
-                                              'pandora-model-picker-close',
-                                            ),
-                                            focusNode: _closeFocus,
-                                            tooltip: 'Close Pandora options',
-                                            onPressed: widget.onDismiss,
-                                            icon: const Icon(
-                                              Icons.close_rounded,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (widget.generationActive)
-                                      const Padding(
-                                        padding: EdgeInsets.fromLTRB(
-                                          12,
-                                          0,
-                                          12,
-                                          12,
-                                        ),
-                                        child: Text(
-                                          'Changes apply to your next message.',
-                                          style: TextStyle(
-                                            color: Color(0xFFCCCCCC),
-                                            fontSize: 13,
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                      ),
-                                    _selectionRow(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // The dismissal affordance belongs to the
+                                  // modal, not to its scrollable model catalog.
+                                  _header(),
+                                  Flexible(
+                                    child: SingleChildScrollView(
                                       key: const ValueKey<String>(
-                                        'model-picker-auto',
+                                        'pandora-model-picker-list',
                                       ),
-                                      label: 'Auto',
-                                      subtitle:
-                                          'Pandora chooses a suitable model for each message.',
-                                      selected: widget.selection.isAuto,
-                                      onTap: () => widget.onModelSelected(
-                                        const PandoraModelPickerChoice(
-                                          selection:
-                                              PandoraChatModelSelection.auto(),
-                                          label: 'Auto',
-                                        ),
+                                      controller: _scrollController,
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        0,
+                                        12,
+                                        16,
                                       ),
-                                    ),
-                                    const Divider(color: Color(0xFF353535)),
-                                    Semantics(
-                                      identifier:
-                                          'pandora.chat.reasoning-options',
-                                      container: true,
-                                      explicitChildNodes: true,
-                                      label: 'Response depth',
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Response depth',
-                                              style: TextStyle(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (widget.generationActive)
+                                            const Padding(
+                                              padding: EdgeInsets.fromLTRB(
+                                                12,
+                                                0,
+                                                12,
+                                                12,
+                                              ),
+                                              child: Text(
+                                                'Changes apply to your next message.',
+                                                style: TextStyle(
+                                                  color: Color(0xFFCCCCCC),
+                                                  fontSize: 13,
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                            ),
+                                          _selectionRow(
+                                            key: const ValueKey<String>(
+                                              'model-picker-auto',
+                                            ),
+                                            label: 'Auto',
+                                            subtitle:
+                                                'Pandora chooses a suitable model for each message.',
+                                            selected: widget.selection.isAuto,
+                                            onTap: () => widget.onModelSelected(
+                                              const PandoraModelPickerChoice(
+                                                selection:
+                                                    PandoraChatModelSelection
+                                                        .auto(),
+                                                label: 'Auto',
+                                              ),
+                                            ),
+                                          ),
+                                          const Divider(
+                                              color: Color(0xFF353535)),
+                                          Semantics(
+                                            identifier:
+                                                'pandora.chat.reasoning-options',
+                                            container: true,
+                                            explicitChildNodes: true,
+                                            label: 'Response depth',
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 8,
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Response depth',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 15,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Wrap(
+                                                    spacing: 8,
+                                                    runSpacing: 4,
+                                                    children: [
+                                                      _reasoningChoice(
+                                                        'Balanced',
+                                                        PandoraIntelligenceMode
+                                                            .auto,
+                                                        'reasoning-picker-balanced',
+                                                      ),
+                                                      _reasoningChoice(
+                                                        'Fast',
+                                                        PandoraIntelligenceMode
+                                                            .fast,
+                                                        'reasoning-picker-fast',
+                                                      ),
+                                                      _reasoningChoice(
+                                                        'Deep',
+                                                        PandoraIntelligenceMode
+                                                            .deep,
+                                                        'reasoning-picker-deep',
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    _reasoningDescription,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFFCCCCCC),
+                                                      fontSize: 13,
+                                                      height: 1.4,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          const Divider(
+                                              color: Color(0xFF353535)),
+                                          Semantics(
+                                            identifier:
+                                                'pandora.chat.model.advanced',
+                                            expanded: _advancedExpanded,
+                                            child: ListTile(
+                                              key: const ValueKey<String>(
+                                                'pandora-model-picker-advanced',
+                                              ),
+                                              title: const Text(
+                                                'Choose a model',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 15,
+                                                ),
+                                              ),
+                                              subtitle: const Text(
+                                                'Advanced',
+                                                style: TextStyle(
+                                                  color: Color(0xFFBBBBBB),
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              trailing: Icon(
+                                                _advancedExpanded
+                                                    ? Icons.expand_less_rounded
+                                                    : Icons.expand_more_rounded,
                                                 color: Colors.white,
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              onTap: () => setState(
+                                                () => _advancedExpanded =
+                                                    !_advancedExpanded,
                                               ),
                                             ),
-                                            const SizedBox(height: 8),
-                                            Wrap(
-                                              spacing: 8,
-                                              runSpacing: 4,
-                                              children: [
-                                                _reasoningChoice(
-                                                  'Balanced',
-                                                  PandoraIntelligenceMode.auto,
-                                                  'reasoning-picker-balanced',
+                                          ),
+                                          if (_advancedExpanded) ...[
+                                            for (final model in selectable)
+                                              _selectionRow(
+                                                key: ValueKey<String>(
+                                                  'model-picker-${model.modelId}',
                                                 ),
-                                                _reasoningChoice(
-                                                  'Fast',
-                                                  PandoraIntelligenceMode.fast,
-                                                  'reasoning-picker-fast',
-                                                ),
-                                                _reasoningChoice(
-                                                  'Deep',
-                                                  PandoraIntelligenceMode.deep,
-                                                  'reasoning-picker-deep',
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              _reasoningDescription,
-                                              style: const TextStyle(
-                                                color: Color(0xFFCCCCCC),
-                                                fontSize: 13,
-                                                height: 1.4,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    const Divider(color: Color(0xFF353535)),
-                                    Semantics(
-                                      identifier: 'pandora.chat.model.advanced',
-                                      expanded: _advancedExpanded,
-                                      child: ListTile(
-                                        key: const ValueKey<String>(
-                                          'pandora-model-picker-advanced',
-                                        ),
-                                        title: const Text(
-                                          'Choose a model',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        subtitle: const Text(
-                                          'Advanced',
-                                          style: TextStyle(
-                                            color: Color(0xFFBBBBBB),
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        trailing: Icon(
-                                          _advancedExpanded
-                                              ? Icons.expand_less_rounded
-                                              : Icons.expand_more_rounded,
-                                          color: Colors.white,
-                                        ),
-                                        onTap: () => setState(
-                                          () => _advancedExpanded =
-                                              !_advancedExpanded,
-                                        ),
-                                      ),
-                                    ),
-                                    if (_advancedExpanded) ...[
-                                      for (final model in selectable)
-                                        _selectionRow(
-                                          key: ValueKey<String>(
-                                            'model-picker-${model.modelId}',
-                                          ),
-                                          label: model.modelName,
-                                          selected: _isSelected(model),
-                                          onTap: () => widget.onModelSelected(
-                                            PandoraModelPickerChoice(
-                                              selection:
-                                                  PandoraChatModelSelection
-                                                      .manual(
-                                                provider: model.routingProvider,
-                                                model: model.modelId,
-                                              ),
-                                              label: model.modelName,
-                                            ),
-                                          ),
-                                        ),
-                                      _selectionRow(
-                                        key: const ValueKey<String>(
-                                          'model-picker-local-device',
-                                        ),
-                                        label: widget.localAiModelName ??
-                                            'Local device (Qwen)',
-                                        selected: isPandoraLocalDeviceSelection(
-                                          widget.selection,
-                                        ),
-                                        locked: !_localSelectable,
-                                        onTap: _localSelectable
-                                            ? () => widget.onModelSelected(
+                                                label: model.modelName,
+                                                selected: _isSelected(model),
+                                                onTap: () =>
+                                                    widget.onModelSelected(
                                                   PandoraModelPickerChoice(
                                                     selection:
-                                                        const PandoraChatModelSelection
+                                                        PandoraChatModelSelection
                                                             .manual(
                                                       provider:
-                                                          pandoraLocalDeviceProvider,
-                                                      model:
-                                                          pandoraLocalDeviceModel,
+                                                          model.routingProvider,
+                                                      model: model.modelId,
                                                     ),
-                                                    label: widget
-                                                            .localAiModelName ??
-                                                        'Local device (Qwen)',
+                                                    label: model.modelName,
                                                   ),
-                                                )
-                                            : null,
-                                      ),
-                                      if (unavailable > 0)
-                                        Padding(
-                                          key: const ValueKey<String>(
-                                            'model-picker-unavailable-count',
-                                          ),
-                                          padding: const EdgeInsets.all(12),
-                                          child: Text(
-                                            '$unavailable more unavailable',
-                                            style: const TextStyle(
-                                              color: Color(0xFFBBBBBB),
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                    if (widget.error != null)
-                                      Padding(
-                                        padding: const EdgeInsets.all(12),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              widget.error!,
-                                              style: const TextStyle(
-                                                color: Color(0xFFE6CDB1),
-                                                fontSize: 13,
-                                                height: 1.4,
+                                                ),
                                               ),
+                                            _selectionRow(
+                                              key: const ValueKey<String>(
+                                                'model-picker-local-device',
+                                              ),
+                                              label: widget.localAiModelName ??
+                                                  'Local device (Qwen)',
+                                              selected:
+                                                  isPandoraLocalDeviceSelection(
+                                                widget.selection,
+                                              ),
+                                              locked: !_localSelectable,
+                                              onTap: _localSelectable
+                                                  ? () =>
+                                                      widget.onModelSelected(
+                                                        PandoraModelPickerChoice(
+                                                          selection:
+                                                              const PandoraChatModelSelection
+                                                                  .manual(
+                                                            provider:
+                                                                pandoraLocalDeviceProvider,
+                                                            model:
+                                                                pandoraLocalDeviceModel,
+                                                          ),
+                                                          label: widget
+                                                                  .localAiModelName ??
+                                                              'Local device (Qwen)',
+                                                        ),
+                                                      )
+                                                  : null,
                                             ),
-                                            if (widget.onRetry != null)
-                                              TextButton(
-                                                onPressed: widget.onRetry,
-                                                child: const Text('Try again'),
+                                            if (unavailable > 0)
+                                              Padding(
+                                                key: const ValueKey<String>(
+                                                  'model-picker-unavailable-count',
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.all(12),
+                                                child: Text(
+                                                  '$unavailable more unavailable',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFFBBBBBB),
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
                                               ),
                                           ],
-                                        ),
+                                          if (widget.error != null)
+                                            Padding(
+                                              padding: const EdgeInsets.all(12),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    widget.error!,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFFE6CDB1),
+                                                      fontSize: 13,
+                                                      height: 1.4,
+                                                    ),
+                                                  ),
+                                                  if (widget.onRetry != null)
+                                                    TextButton(
+                                                      onPressed: widget.onRetry,
+                                                      child: const Text(
+                                                          'Try again'),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                  ],
-                                ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),

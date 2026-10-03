@@ -25,8 +25,9 @@ does not replace the plan's acceptance criteria.
 |---|---|
 | Application repository | `pandora-rvw-314296438-20260820/pandoras-box` |
 | Initial audited main | `593d8f5db34da6fc727c0449e807174cd3d9835a` |
-| Reconciled integration base | `614d11bee20928075545c411dc5799537778127d`; includes merged #946 and #947 |
+| Reconciled integration base | `17831a1ed5aae60268e8fc0816b14a15e2912c1d`; includes merged #946, #947 and #948 |
 | Implementation branch | `chatgpt/core-mobile-shell-production-remediation` |
+| Dependent protocol foundation | `chatgpt/core-chat-protocol-foundation`; complete execution contracts and release producer corrections reviewed before the mobile integration |
 | Memory repository/main | `pandora-rvw-314296438-20260820/pandoras-box-memory` at `aeef12b3fa20e18cee7e2d735055c7caba3464c4` |
 | Main Supabase | `jcyqixttuebxqqfkjonq` |
 | Memory Supabase | `ivmvufhcsezyhczzondn` |
@@ -43,6 +44,10 @@ and existing capabilities while replacing overlapping chat/presentation flags
 with the authoritative lifecycle. Its two already applied migrations now appear
 in the canonical main source ledger. The PLP changes in that main commit remain
 baseline changes, not evidence for this Core mobile journey.
+
+The subsequent #948 merge added seven non-overlapping Saved Evidence and Core
+readiness files. Those changes are included in the integration base and receive
+the same final checks; they do not replace the acceptance criteria from `6548.mp4`.
 
 The latest observed production-target Vercel deployment during integration was
 `dpl_E8Va4KNvkUyKUoUEgQzCAbt7BBne`, READY at source
@@ -171,14 +176,31 @@ to the exact head and resolve findings. Do not infer provider authentication fro
 CLI installation, introduce new paid review resources, or use retired reviewer
 authority.
 
+The initial integrated candidate exceeded the existing review service's 100-file
+limit and was explicitly skipped. A separate capacity readback confirmed included
+reviews remained available. Execution therefore uses a real dependency stack:
+the complete protocol/provider/native-effect foundation and the dependent mobile
+shell. Preserve every changed file and hunk, prove the union of the review diffs,
+and bind each actual verdict to its immutable head and base. A skipped status is
+not a review. New stack identities require their own source checks and artifacts.
+
+The first runtime workflow rejected the candidate before installation because
+the producer's embedded artifact name differed from the actual PR upload name.
+The producer now uses one event-aware artifact name; the verifier remains strict.
+Visual qualification also corrected stale asynchronous test fixtures and exposed
+the need for a persistent close control when the advanced model list is scrolled.
+These corrections require a new build and installed-artifact verification.
+
 1. Freeze the candidate and run the phase-specific source, state, widget, SQL,
    compatibility and release checks. Preserve failed evidence and correct causes.
 2. Verify backward-compatible Vercel dependencies in the existing core project;
    validate additive migrations against old and new clients.
-3. Apply only reviewed additive schema changes and read back the exact live
-   migration/RPC/constraint/RLS state. Explicitly deploy compatible Vercel
-   dependencies before any Edge bundle that requires them. Merge alone is not a
-   deployment.
+3. Deploy the reviewed backward-compatible Vercel reader before the new ticket
+   issuers and Edge sender. Verify the actual served source and bytes at the
+   canonical alias; deployment status and health responses alone are insufficient.
+   Apply only the reviewed additive migrations through one authoritative writer,
+   then read back their exact ledger, RPC, constraint and RLS state before the
+   dependent Edge update. Merge alone is not a deployment.
 4. Use the bounded authenticated candidate cohort for protocol/provider recovery
    checks. Do not disable providers globally to manufacture a failure or sweep
    the provider catalog as an incidental test.

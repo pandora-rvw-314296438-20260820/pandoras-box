@@ -87,6 +87,24 @@ class ArtifactProvenanceTest(unittest.TestCase):
         with self.assertRaisesRegex(ProvenanceError, "direct child"):
             verify_source_binding(SOURCE, self.run, self.commit)
 
+    def test_pr_candidate_cannot_use_a_manifest_declaring_the_main_artifact_name(self):
+        self.run.update(event="pull_request", head_sha=HEAD)
+        self.artifact["workflow_run"]["head_sha"] = HEAD
+        self.commit["parents"].append({"sha": HEAD})
+        self.artifact["name"] = "pandora-mobile-android-candidates-" + SOURCE
+        # This is the actual producer defect observed in the first native PR
+        # run: the upload used candidates while its manifest said validation.
+        with self.assertRaisesRegex(ProvenanceError, "Manifest artifact name differs"):
+            self.verify("debug")
+        self.fields["android_artifact_name"] = self.artifact["name"]
+        self.write_manifest()
+        receipt = self.verify("debug")
+        self.assertEqual(receipt["artifact_name"], self.artifact["name"])
+        self.assertEqual(receipt["source_sha"], SOURCE)
+        self.assertEqual(receipt["provider_head_sha"], HEAD)
+        self.assertEqual(receipt["apk_sha256"], self.fields["apk_sha256"])
+        self.assertFalse(receipt["production_verified"])
+
     def test_push_cannot_substitute_another_source(self):
         self.run["head_sha"] = HEAD
         self.commit["parents"].append({"sha": HEAD})
