@@ -47,7 +47,7 @@ class AskPandoraScreen extends StatefulWidget {
     this.allowCharacterContext = true,
     this.allowProjectContext = true,
     this.shellOverlay = false,
-    this.initialHistoryExpanded = true,
+    this.initialHistoryExpanded = false,
     this.onCoreNavigate,
     this.onHistoryVisibilityChanged,
   });
