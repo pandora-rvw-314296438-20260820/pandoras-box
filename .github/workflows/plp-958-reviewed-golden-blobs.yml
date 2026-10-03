@@ -1,0 +1,69 @@
+name: PLP 958 reviewed golden blobs
+on:
+  pull_request:
+    types: [synchronize]
+    paths: [.github/workflows/plp-958-reviewed-golden-blobs.yml]
+permissions:
+  contents: read
+jobs:
+  reviewed-evidence:
+    if: github.repository == 'pandora-rvw-314296438-20260820/pandoras-box' && github.event.pull_request.number == 958 && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'chatgpt/plp-production-polish-20261004'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Create only content-addressed reviewed PNG blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, io, json, os, urllib.request, zipfile
+          repo = 'pandora-rvw-314296438-20260820/pandoras-box'
+          api = 'https://api.github.com/repos/' + repo
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}
+          class SafeRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, hdrs, url):
+                  redirected = super().redirect_request(req, fp, code, msg, hdrs, url)
+                  if redirected is not None:
+                      redirected.remove_header('Authorization')
+                  return redirected
+          opener = urllib.request.build_opener(SafeRedirect())
+          def request(path, body=None):
+              data = None if body is None else json.dumps(body).encode()
+              req = urllib.request.Request(api + path, data=data, headers=headers, method='GET' if data is None else 'POST')
+              with opener.open(req, timeout=30) as response:
+                  return response.read()
+          def json_request(path, body=None):
+              return json.loads(request(path, body))
+          pr = json_request('/pulls/958')
+          assert pr['state'] == 'open' and pr['head']['sha'] == os.environ['CANDIDATE_SHA'], 'Stale candidate'
+          metadata = json_request('/actions/artifacts/11284244218')
+          assert metadata['workflow_run']['head_sha'] == 'fb0b0dfd84d167207e471e4bfc1e81361885ac08'
+          archive = request('/actions/artifacts/11284244218/zip')
+          assert len(archive) == 169039
+          assert hashlib.sha256(archive).hexdigest() == 'b788937940864d859bfe4dfc8951645e7068ee454445804aedfb48a5b5edf686'
+          expected = {
+              'lane_h_after_send_thinking_390x844.png': '2fe02819a0e5fdb6c7660e37f3d582768a9ac767ba47a0a73f7df7e55ca5b828',
+              'lane_h_keyboard_open_390x844.png': 'e36b7dc631b8d3c48b1ca49b6463e3cc06d240e7ea23300abb964e6b21be71d3',
+              'lane_h_landing_resting_390x844.png': '0793cf40f1744e590d13a3b4b68101443ed07583131326b24d82be3f1ab4310e',
+              'lane_h_non_auto_tag_390x844.png': '0793cf40f1744e590d13a3b4b68101443ed07583131326b24d82be3f1ab4310e',
+              'lane_h_picker_end_390x844.png': 'fde2625e9eeb595f826da9fb8433913cbb40c13bb3e4f53a22d1df13fb3b6a38',
+              'lane_h_picker_open_390x844.png': '646fa98767b05fe3ffbdd186b1a553e6554e64ab2b9329371361a75bf16b3e42',
+          }
+          files = []
+          with zipfile.ZipFile(io.BytesIO(archive)) as z:
+              for name, digest in expected.items():
+                  entry = z.getinfo('build/lane-h-goldens/' + name)
+                  assert entry.file_size <= 60000
+                  image = z.read(entry)
+                  assert image.startswith(b'\x89PNG\r\n\x1a\n') and hashlib.sha256(image).hexdigest() == digest
+                  blob = json_request('/git/blobs', {'content': base64.b64encode(image).decode(), 'encoding': 'base64'})
+                  expected_blob = hashlib.sha1(b'blob ' + str(len(image)).encode() + b'\0' + image).hexdigest()
+                  assert blob['sha'] == expected_blob
+                  files.append({'path': 'apps/pandora-mobile/test/goldens/owner_screens/' + name, 'sha': blob['sha'], 'sha256': digest})
+          print('REVIEWED_GOLDEN_BLOBS=' + json.dumps(files, separators=(',', ':')))
+          print('No branches, releases, or customer data were changed.')
+          PY
