@@ -34,12 +34,16 @@ test('shell mode keeps one keyboard-aware 54px floating composer', () => {
   assert.doesNotMatch(chat, /PandoraComposerModelControls/);
   assert.doesNotMatch(chat, /BackdropFilter/);
 });
-test('empty landing is logo-only, opaque, and not draggable', () => {
+test('empty landing is logo-only and contextual history cannot replace the business workspace', () => {
   assert.match(chat, /pandora-logo-only-landing/);
   assert.match(chat, /_shellHistoryExpanded =\s*widget\.shellOverlay/);
   assert.match(chat, /color:\s*const Color\(0xFF0A0A0A\)/);
   assert.match(chat, /Offstage\([\s\S]*offstage: !_shellHistoryExpanded/);
+  assert.match(chat, /FractionallySizedBox\([\s\S]*heightFactor:\s*\.66/);
+  assert.match(chat, /borderRadius:\s*BorderRadius\.circular\(24\)/);
   assert.doesNotMatch(chat, /pandora-active-chat-minimize/);
+  assert.doesNotMatch(shell, /businessWorkspace:\s*Offstage\(/);
+  assert.match(shell, /active:\s*index == _index/);
   assert.match(shell, /_chatKey\.currentState\?\.minimizeHistory\(\)/);
 });
 test('Operations Room defers chat ownership to the app-level conversation', () => {

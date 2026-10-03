@@ -1514,7 +1514,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           )
         : root;
     return PandoraCoreRouteVisibility(
-      active: index == _index && !_chatVisible,
+      // Expanding Pandora must never deactivate, hide, or reconstruct the
+      // current business route. Chat is contextual to the live workspace.
+      active: index == _index,
       child: presented,
     );
   }
@@ -1600,17 +1602,14 @@ class _PandoraChatShellState extends State<PandoraChatShell>
             final chatScopeEpoch = _scopeEpoch;
             Widget activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
-              businessWorkspace: Offstage(
-                offstage: _chatVisible,
-                child: PandoraSharedConversationScope(
-                  submitPrompt: _submitSharedPrompt,
-                  openThread: _openSharedThread,
-                  showConversation: _showSharedConversation,
-                  bindEnterpriseContext: _bindEnterpriseContext,
-                  bindSelectedObject: _bindSelectedObject,
-                  reportFailure: _reportSharedFailure,
-                  child: businessBody,
-                ),
+              businessWorkspace: PandoraSharedConversationScope(
+                submitPrompt: _submitSharedPrompt,
+                openThread: _openSharedThread,
+                showConversation: _showSharedConversation,
+                bindEnterpriseContext: _bindEnterpriseContext,
+                bindSelectedObject: _bindSelectedObject,
+                reportFailure: _reportSharedFailure,
+                child: businessBody,
               ),
               conversation: AskPandoraScreen(
                 key: _chatKey,
