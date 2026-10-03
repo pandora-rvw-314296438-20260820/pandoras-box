@@ -32,7 +32,13 @@ void main() {
       ),
     );
     await tester.pump();
-
+    await tester.tap(find.byKey(
+      const ValueKey<String>('pandora-model-picker-advanced'),
+    ));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(
+      const ValueKey<String>('model-picker-fixture.gemma-3-4b'),
+    ));
     await tester.tap(
       find.byKey(const ValueKey<String>('model-picker-fixture.gemma-3-4b')),
     );
@@ -99,6 +105,11 @@ void main() {
     await tester.pump();
 
     expect(find.text('Locked Model'), findsNothing);
+    expect(find.text('1 more unavailable'), findsNothing);
+    await tester.tap(find.byKey(
+      const ValueKey<String>('pandora-model-picker-advanced'),
+    ));
+    await tester.pumpAndSettle();
     expect(find.text('1 more unavailable'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('model-picker-local-device')),

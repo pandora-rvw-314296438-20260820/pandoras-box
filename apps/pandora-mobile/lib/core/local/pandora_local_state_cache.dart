@@ -80,36 +80,44 @@ class PandoraLocalStateCache {
     required String threadIdentity,
     required List<Map<String, Object?>> messages,
   }) async {
-    if (messages.isEmpty) return;
+    final identity = threadIdentity.trim();
+    // A display-only alias is not a conversation identity. Never mirror one
+    // thread's text into a slot that can later be sent as a different thread.
+    // The Core shell persists its active identity with PandoraConversationStore.
+    if (identity.isEmpty || identity == 'local-chat' || messages.isEmpty) {
+      return;
+    }
     final now = _clock().toUtc();
     final bounded = messages.length <= 30
         ? messages
         : messages.sublist(messages.length - 30);
     final payload = <String, Object?>{
+      'schemaVersion': 2,
+      'threadIdentity': identity,
       'messages': bounded,
       'capturedAt': now.toIso8601String(),
     };
     final expiresAt = now.add(const Duration(days: 7));
     await _store.putCache(
       namespace: PandoraLocalNamespace.recentConversation,
-      key: 'thread_${_digest(threadIdentity)}',
+      key: 'thread_${_digest(identity)}',
       payload: payload,
       expiresAt: expiresAt,
     );
-    if (threadIdentity.trim() != 'local-chat') {
-      await _store.putCache(
-        namespace: PandoraLocalNamespace.recentConversation,
-        key: 'thread_${_digest('local-chat')}',
-        payload: payload,
-        expiresAt: expiresAt,
-      );
-    }
   }
 
   Future<List<Map<String, Object?>>> loadRecentConversation({
     required String threadIdentity,
   }) async {
-    final key = 'thread_${_digest(threadIdentity)}';
+    final identity = threadIdentity.trim();
+    if (identity.isEmpty) return const <Map<String, Object?>>[];
+    final key = 'thread_${_digest(identity)}';
+    if (identity == 'local-chat') {
+      // Legacy aliases contain no canonical thread ID. Discard only the alias;
+      // explicit thread history remains available under its own key.
+      await _store.deleteCache(PandoraLocalNamespace.recentConversation, key);
+      return const <Map<String, Object?>>[];
+    }
     final record = await _store.getCache(
       PandoraLocalNamespace.recentConversation,
       key,
@@ -123,6 +131,10 @@ class PandoraLocalStateCache {
     try {
       final decoded = jsonDecode(record.payloadJson);
       if (decoded is! Map || decoded['messages'] is! List) {
+        return const <Map<String, Object?>>[];
+      }
+      final storedIdentity = decoded['threadIdentity'];
+      if (storedIdentity != null && storedIdentity != identity) {
         return const <Map<String, Object?>>[];
       }
       final output = <Map<String, Object?>>[];

@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const shell = readFileSync('apps/pandora-mobile/lib/app/pandora_chat_shell.dart','utf8');
 const chat = readFileSync('apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart','utf8');
+const composer = readFileSync('apps/pandora-mobile/lib/features/simple/chat/pandora_chat_composer.dart','utf8');
 const layer = readFileSync('apps/pandora-mobile/lib/app/pandora_conversation_layer.dart','utf8');
 const operations = readFileSync('apps/pandora-mobile/lib/features/operations/operations_room_screen.dart','utf8');
 
@@ -22,22 +23,25 @@ test('generic pages no longer manufacture invalid enterprise context', () => {
   assert.match(shell, /route\.startsWith\('\/enterprise\/'\)/);
   assert.doesNotMatch(shell, /'surface': 'pandora_business_os'/);
 });
-test('shell mode keeps one keyboard-aware 54px floating composer', () => {
-  assert.match(chat, /bottom:\s*keyboardInset,[\s\S]*?key:\s*_composerKey/);
-  assert.match(chat, /Message Pandora…/);
-  assert.match(chat, /height:\s*54/);
-  assert.match(chat, /Color\(0xFF151515\)/);
-  assert.match(chat, /BorderRadius\.circular\(27\)/);
+test('shell mode uses one measured persistent composer inside the resized viewport', () => {
+  assert.equal((chat.match(/child: PandoraChatComposer\(/g) ?? []).length, 1);
+  assert.match(chat, /resizeToAvoidBottomInset:\s*true/);
+  assert.match(chat, /padding: EdgeInsets\.only\(bottom: safeBottom\)/);
+  assert.match(chat, /composerExtent: _composerHeight \+ safeBottom/);
+  assert.match(composer, /Message Pandora…/);
+  assert.match(composer, /height:\s*54/);
+  assert.match(composer, /Color\(0xFF151515\)/);
+  assert.match(composer, /BorderRadius\.circular\(27\)/);
   assert.match(chat, /ask-pandora-plus/);
-  assert.match(chat, /ask-pandora-model-control/);
-  assert.match(chat, /ask-pandora-submit/);
+  assert.match(composer, /ask-pandora-model-control/);
+  assert.match(composer, /ask-pandora-submit/);
   assert.doesNotMatch(chat, /PandoraComposerModelControls/);
   assert.doesNotMatch(chat, /BackdropFilter/);
 });
 test('empty landing is logo-only, opaque, and not draggable', () => {
   assert.match(chat, /pandora-logo-only-landing/);
   assert.match(chat, /_shellHistoryExpanded =\s*widget\.shellOverlay/);
-  assert.match(chat, /color:\s*const Color\(0xFF0A0A0A\)/);
+  assert.match(chat, /color:\s*PandoraSimpleColors\.canvas/);
   assert.match(chat, /Offstage\([\s\S]*offstage: !_shellHistoryExpanded/);
   assert.doesNotMatch(chat, /pandora-active-chat-minimize/);
   assert.match(shell, /_chatKey\.currentState\?\.minimizeHistory\(\)/);

@@ -24,7 +24,9 @@ does not replace the plan's acceptance criteria.
 | Resource | Bound baseline / treatment |
 |---|---|
 | Application repository | `pandora-rvw-314296438-20260820/pandoras-box` |
-| Baseline main | `593d8f5db34da6fc727c0449e807174cd3d9835a` |
+| Initial audited main | `593d8f5db34da6fc727c0449e807174cd3d9835a` |
+| Reconciled integration base | `614d11bee20928075545c411dc5799537778127d`; includes merged #946 and #947 |
+| Implementation branch | `chatgpt/core-mobile-shell-production-remediation` |
 | Memory repository/main | `pandora-rvw-314296438-20260820/pandoras-box-memory` at `aeef12b3fa20e18cee7e2d735055c7caba3464c4` |
 | Main Supabase | `jcyqixttuebxqqfkjonq` |
 | Memory Supabase | `ivmvufhcsezyhczzondn` |
@@ -34,13 +36,20 @@ does not replace the plan's acceptance criteria.
 | Pending audit candidate | [Memory PR #142](https://github.com/pandora-rvw-314296438-20260820/pandoras-box-memory/pull/142), pending review; no M5 approval or promotion implied |
 
 [PR #946](https://github.com/pandora-rvw-314296438-20260820/pandoras-box/pull/946)
-overlaps the core shell, intelligence and Memory integration. Its head continues
-to advance: the 16:21:56 UTC provider snapshot was
-`5e7e5f72aac9744614dd549f2cde8a0f3917fdfe`, based on the baseline main above.
-Re-read its exact diff before taking an overlapping correction. Do not import the
-whole PR as a substitute for this remediation or overwrite another active lane.
-Reconcile #941 and the already applied #946 migration from live source/ledger
-evidence before the release baseline is frozen.
+merged while remediation was in progress, from head
+`a47a0f6a6a149f414b8f279054283172f6719536`. Integration preserves its resolved
+dark theme, scoped owner navigation, explicit read-only inspection affordances,
+and existing capabilities while replacing overlapping chat/presentation flags
+with the authoritative lifecycle. Its two already applied migrations now appear
+in the canonical main source ledger. The PLP changes in that main commit remain
+baseline changes, not evidence for this Core mobile journey.
+
+The latest observed production-target Vercel deployment during integration was
+`dpl_E8Va4KNvkUyKUoUEgQzCAbt7BBne`, READY at source
+`5e7e5f72aac9744614dd549f2cde8a0f3917fdfe`. That deployment was made by the other
+lane and is not a remediation deployment. The initial baseline above remains a
+historical reference. Re-read source, migration ledger, deployment and aliases
+immediately before promotion.
 
 Use direct GitHub, Supabase and Vercel authority. Vault-backed credentials remain
 server-side. Retired ProjectOS and the blacklisted repository are excluded from
@@ -77,15 +86,57 @@ seams. Agents must coordinate changes outside their assigned paths.
 
 | Owner | Assigned paths / responsibility |
 |---|---|
-| Root integrator | `apps/pandora-mobile/lib/app/pandora_chat_shell.dart`, Flutter intelligence API, `api/operations-memory.ts`, `api/operations-inference.ts`, dependency manifests/locks, final integration and provider release actions |
+| Root integrator | Flutter intelligence API/wire transport, integration tests, dependency manifests/locks, final source reconciliation and provider release actions |
 | `mobile_source_audit` | `apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart`, `apps/pandora-mobile/lib/core/chat/**`, `lib/core/local/pandora_local_state_cache.dart`, `test/core/chat/**`, new `test/core/local/pandora_local_state_cache_test.dart` within the mobile app |
-| `mobile_presentation` | Mobile `lib/features/simple/pandora_model_picker.dart`; new `lib/features/simple/chat/pandora_chat_composer.dart`, `pandora_chat_viewport.dart`, `pandora_chat_presentation_controller.dart`; corresponding `test/features/simple/` coverage |
+| `mobile_presentation` | `lib/app/pandora_chat_shell.dart`, model picker, composer, viewport, presentation controller and associated navigation/widget coverage |
 | `backend_audit` | `supabase/functions/pandora-intelligence-chat/**`, new forward Supabase migrations/RPCs, chat-lifecycle Node/SQL tests and fixtures |
 | `backend_audit/provider_streaming` | `src/providers/aws-bedrock-runtime.js`, `src/providers/aws-bedrock-chat-http.js`, distinct provider-stream tests |
 | `release_audit` | `.github/workflows/pandora-core-mobile-journey.yml`, `apps/pandora-mobile/tool/core_*` runtime/provenance helpers and focused tests; exact-artifact runtime evidence |
+| `guard_regressions` | Native calendar/communication effect-boundary cancellation, device Activity cancellation projection, corresponding meaningful regressions and forward migration |
 | `memory_capture_path` | This execution envelope, scoped Memory readback, review-path discovery and coordinated significant-outcome candidate preparation |
 
 ## Phase exit gates
+
+### Current implementation boundary
+
+The candidate adds protocol v2 with atomic admission, logical turn and attempt
+identity, same-attempt transport replay, generation-fenced retry, cancellation,
+negative admission receipts, safe history reconstruction and native provider
+streaming. A local delivery epoch rejects obsolete callbacks even when an
+unacknowledged request is resent with its original server identifiers. Native
+actions check cancellation immediately before the OS mutation boundary; known
+effects retain their verified outcome after a later Stop.
+
+The mobile screen projects immutable conversation state. The persistent composer
+and presentation coordinator own mutually exclusive picker, drawer and context
+routes; the viewport retains deliberate reading anchors. Activity details and
+advanced model controls remain available without becoming ordinary transcript
+events. Auto preference is independent of the executed provider/model receipt.
+
+These are implementation descriptions. Passing source/unit/widget checks do not
+establish installed-artifact acceptance. Exact stage and test receipts belong in
+the final verification manifest.
+
+### Native acceptance prerequisites
+
+Read-only provider inventory found no established Core staging stack, protected
+Core QA environment, or sanctioned automated Core login. The existing APK defaults
+to canonical production Supabase. Consequently, authenticated premerge acceptance
+requires a reviewed backward-compatible backend candidate and a real protected
+login handoff. No identity, password, membership, owner role or authentication
+policy was changed to bypass that prerequisite.
+
+The new PR platform lane receives no login secret. It downloads the successful
+canonical mobile build, verifies the actual compiled SHA/tree and archive/APK
+digests, installs those exact bytes on accelerated Android, and exercises small
+and tall viewports. Authenticated acceptance additionally binds a reviewed source
+SHA and checks actual environment reviewer protection. Public artifacts contain
+content-free receipts; authenticated screenshots and raw transcripts are excluded.
+
+Local software emulation reached ADB availability but did not establish completed
+boot, installation or runtime acceptance. Flutter analytics are explicitly disabled
+for local checks. Full local Deno checking remains dependent on registry access;
+that environmental failure cannot be reported as a passing type check.
 
 Each phase below requires its own evidence. This document does not mark a phase
 complete merely because work was assigned or source exists.

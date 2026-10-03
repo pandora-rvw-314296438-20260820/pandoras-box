@@ -10,8 +10,9 @@ const chatPath = new URL(
 test('Universal Pandora entry never creates a Project just because intelligence is unavailable', async () => {
   const chat = await readFile(chatPath, 'utf8');
 
-  assert.match(chat, /A Project is optional persistent context, never a prerequisite/);
-  assert.match(chat, /_keys\.create\('simple-intake'\)/);
+  assert.match(chat, /dependencies\.repository\.ask\(/);
+  assert.match(chat, /idempotencyKey: token\.attemptId/);
+  assert.doesNotMatch(chat, /CreateProjectExperienceScreen\(/);
   assert.doesNotMatch(
     chat,
     /if \(intelligence == null\) \{\s*if \(dependencies\.projectExperienceRepository != null\)/,
@@ -22,7 +23,9 @@ test('empty Pandora chat is logo-only while the universal composer remains live'
   const chat = await readFile(chatPath, 'utf8');
 
   assert.match(chat, /pandora-logo-only-landing/);
-  assert.match(chat, /Message Pandora…/);
+  const composer = await readFile('apps/pandora-mobile/lib/features/simple/chat/pandora_chat_composer.dart', 'utf8');
+  assert.match(chat, /PandoraChatComposer\(/);
+  assert.match(composer, /Message Pandora…/);
   assert.doesNotMatch(
     chat,
     /What can I help with|What can you do for me now\?|Check my GitHub for failing CI|What needs my attention\?|_suggestions|_ObsidianSuggestion/,

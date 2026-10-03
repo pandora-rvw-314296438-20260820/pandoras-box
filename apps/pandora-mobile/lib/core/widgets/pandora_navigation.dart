@@ -32,6 +32,7 @@ class PandoraMenuButton extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
         message: tooltip,
         child: Semantics(
+          identifier: 'pandora.chat.navigation',
           button: true,
           label: tooltip,
           child: Material(
@@ -67,6 +68,7 @@ class PandoraPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final openDrawer = PandoraNavigationScope.maybeOf(context)?.openDrawer;
+    final isSecondaryRoute = ModalRoute.of(context)?.isFirst == false;
     final showPandoraChevron = title == 'Pandora';
     final background = Theme.of(context).scaffoldBackgroundColor;
     return SizedBox(
@@ -86,15 +88,29 @@ class PandoraPageHeader extends StatelessWidget {
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: openDrawer != null
-                        ? PandoraMenuButton(
-                            key: const ValueKey<String>('pandora-side-panel-open'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isSecondaryRoute)
+                          const SizedBox.square(
+                            dimension: 44,
+                            child: BackButton(),
+                          ),
+                        if (openDrawer != null)
+                          PandoraMenuButton(
+                            key: const ValueKey<String>(
+                                'pandora-side-panel-open'),
                             onPressed: openDrawer,
-                          )
-                        : const SizedBox(width: 48),
+                          ),
+                        if (!isSecondaryRoute && openDrawer == null)
+                          const SizedBox(width: 48),
+                      ],
+                    ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 64),
+                    padding: EdgeInsets.symmetric(
+                        horizontal:
+                            isSecondaryRoute && openDrawer != null ? 100 : 64),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -103,13 +119,15 @@ class PandoraPageHeader extends StatelessWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style:
-                                Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: -.2,
-                                      decoration: TextDecoration.none,
-                                    ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -.2,
+                                  decoration: TextDecoration.none,
+                                ),
                           ),
                         ),
                         if (showPandoraChevron) ...[

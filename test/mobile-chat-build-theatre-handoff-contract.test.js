@@ -10,10 +10,8 @@ const migration = readFileSync(
   join(root, "supabase", "migrations", "20260911060500_pandora_chat_projectos_build_theatre_handoff_v1.sql"),
   "utf8",
 );
-const ask = readFileSync(
-  join(root, "apps", "pandora-mobile", "lib", "features", "simple", "ask_pandora_screen.dart"),
-  "utf8",
-);
+const ask = ['ask_pandora_screen.dart', 'chat/pandora_chat_action_adapters.dart']
+  .map(file => readFileSync(join(root, 'apps/pandora-mobile/lib/features/simple', file), 'utf8')).join('\n');
 const theatre = readFileSync(
   join(root, "apps", "pandora-mobile", "lib", "features", "simple", "project_build_conversation.dart"),
   "utf8",
@@ -29,13 +27,13 @@ test("Pandora Chat stateful capability requests hand off only after ProjectOS in
 });
 
 test("mobile consumes the explicit project handoff in Universal Chat without a second command", () => {
-  assert.match(ask, /intelligence\.chat` owns exactly one dispatch/);
+  assert.match(ask, /intelligence\.executeChatTurn\(dispatch\)/);
   assert.match(ask, /handoff\?\.source == 'project_workspace_change'/);
-  assert.match(ask, /experience\.loadExperience\(handoffProjectId\)/);
+  assert.match(ask, /experience\.loadExperience\(projectId\)/);
   assert.match(ask, /experience\.submitChange\(/);
   assert.match(ask, /experience\.understanding\(/);
   assert.match(ask, /experience\.requestBuild\(/);
-  assert.match(ask, /keep this chat open while Pandora works/);
+  assert.match(ask, /You can follow it in Activity\./);
   assert.doesNotMatch(ask, /ProjectWorkspaceV2Screen\(/);
   assert.doesNotMatch(ask, /message: handoff\.request/);
   assert.doesNotMatch(ask, /intelligence-handoff/);

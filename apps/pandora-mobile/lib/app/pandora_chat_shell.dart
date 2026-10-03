@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../core/analytics/owner_analytics.dart';
 import '../core/data/pandora_core_api.dart';
 import '../core/data/pandora_enterprise_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
+import '../core/design/pandora_theme.dart';
 import '../core/design/pandora_tokens.dart';
 import '../core/local_ai/pandora_local_ai.dart';
 import '../core/security/pandora_identity_verification.dart';
@@ -26,6 +28,7 @@ import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
+import '../features/simple/chat/pandora_chat_presentation_controller.dart';
 import '../features/simple/more_screen.dart';
 import '../features/simple/offline_evidence_screen.dart';
 import '../features/simple/pandora_v2_ui.dart';
@@ -107,6 +110,8 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<NavigatorState> _clientNavigatorKey =
       GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _ownerNavigatorKey =
+      GlobalKey<NavigatorState>();
   GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
@@ -124,8 +129,14 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   int _index = 0;
   final _drawerScrollController = ScrollController();
   final _recentChatsScrollController = ScrollController();
-  bool _drawerOpenScheduled = false;
-  bool _recentChatsOpenScheduled = false;
+  final _drawerFocus = FocusScopeNode(debugLabel: 'Pandora navigation');
+  final _primaryDrawerPresence = GlobalKey();
+  final _recentDrawerPresence = GlobalKey();
+  _DrawerProjection? _drawerProjection;
+  bool _drawerProjectionScheduled = false;
+  bool _issuingDrawerCommand = false;
+  PandoraChatPresentationController? _preparedDrawerController;
+  int? _preparedDrawerIntent;
   late final PandoraCoreGateway _coreGateway;
   PandoraClientRuntime? _clientRuntime;
   PandoraClientEntry? _clientEntry;
@@ -153,6 +164,22 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   PandoraDependencies get _activeDependencies =>
       _clientRuntime?.dependencies ?? PandoraDependencies.of(context);
 
+  bool get _presentationOwnsBack {
+    final presentation = _chatKey.currentState?.presentationController;
+    if (_drawerProjection != null) return true;
+    if (presentation == null) return false;
+    return presentation.value.surface != PandoraChatSurface.none ||
+        presentation.value.transitioning ||
+        presentation.value.keyboardVisible ||
+        presentation.composerFocus.hasFocus;
+  }
+
+  bool get _canReturnFromOwnerChat =>
+      !_inClientWorkspace &&
+      _index != 0 &&
+      _chatVisible &&
+      !_presentationOwnsBack;
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -162,6 +189,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     _scopeEpoch++;
     _drawerScrollController.dispose();
     _recentChatsScrollController.dispose();
+    _drawerFocus.dispose();
     super.dispose();
   }
 
@@ -169,41 +197,259 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     if (_drawerScrollController.hasClients) _drawerScrollController.jumpTo(0);
   }
 
-  void _openDrawer() {
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (_drawerOpenScheduled) return;
-    _drawerOpenScheduled = true;
-    final scaffold = _scaffoldKey.currentState;
-    if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
-    _resetDrawerScroll();
+  void _openDrawer() => _requestDrawer(PandoraChatDrawerKind.primary);
+
+  void _openRecentChats() => _requestDrawer(PandoraChatDrawerKind.recent);
+
+  void _requestDrawer(PandoraChatDrawerKind kind) {
+    final presentation = _chatKey.currentState?.presentationController;
+    if (presentation == null) return;
+    presentation.attachDrawerFocus(_drawerFocus);
+    unawaited(presentation.showDrawer(kind: kind));
+    _scheduleDrawerProjection();
+  }
+
+  void _dismissDrawers() {
+    final presentation = _chatKey.currentState?.presentationController;
+    if (presentation?.value.surface == PandoraChatSurface.drawer ||
+        presentation?.value.pendingSurface == PandoraChatSurface.drawer) {
+      presentation?.closeSurface();
+    }
+    _scheduleDrawerProjection();
+  }
+
+  void _handleChatPresentation(PandoraChatPresentationState state) {
+    if (!mounted) return;
+    // Input/back intents can update the mounted Scaffold immediately. Waiting
+    // for a post-frame callback adds another frame before its animation starts
+    // and leaves the departing drawer intercepting the next interaction.
+    if (WidgetsBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      _projectDrawerSurface();
+    }
+    _scheduleDrawerProjection();
+    // The child coordinator owns presentation. Rebuild only its measured
+    // composer clearance and the policy for beginning a navigation gesture.
+    setState(() {});
+  }
+
+  void _scheduleDrawerProjection() {
+    if (!mounted || _drawerProjectionScheduled) return;
+    _drawerProjectionScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _drawerOpenScheduled = false;
-      _resetDrawerScroll();
-      final next = _scaffoldKey.currentState;
-      if (!(next?.isEndDrawerOpen ?? false)) next?.openDrawer();
+      _drawerProjectionScheduled = false;
+      if (mounted) _projectDrawerSurface();
     });
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
-  void _openRecentChats() {
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (_recentChatsOpenScheduled) return;
-    _recentChatsOpenScheduled = true;
+  GlobalKey _presenceKey(PandoraChatDrawerKind kind) =>
+      kind == PandoraChatDrawerKind.primary
+          ? _primaryDrawerPresence
+          : _recentDrawerPresence;
+
+  void _issueDrawerCommand(PandoraChatDrawerKind kind, {required bool open}) {
     final scaffold = _scaffoldKey.currentState;
-    if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
-    if (!_historyLoaded) _historyLoaded = true;
-    unawaited(_refreshHistory());
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _recentChatsOpenScheduled = false;
-      if (_recentChatsScrollController.hasClients) {
+    if (scaffold == null) return;
+    _issuingDrawerCommand = true;
+    try {
+      if (kind == PandoraChatDrawerKind.primary) {
+        open ? scaffold.openDrawer() : scaffold.closeDrawer();
+      } else {
+        open ? scaffold.openEndDrawer() : scaffold.closeEndDrawer();
+      }
+    } finally {
+      // Flutter's drawer callback acknowledges the start of the command, not
+      // animation completion. A programmatic false is never a user dismissal.
+      _issuingDrawerCommand = false;
+    }
+  }
+
+  void _projectDrawerSurface() {
+    final scaffold = _scaffoldKey.currentState;
+    final presentation = _chatKey.currentState?.presentationController;
+    if (scaffold == null || presentation == null) return;
+    presentation.attachDrawerFocus(_drawerFocus);
+    final state = presentation.value;
+    final requested =
+        state.surface == PandoraChatSurface.drawer ? state.drawerKind : null;
+    final supported = requested != null &&
+        (requested == PandoraChatDrawerKind.primary
+            ? scaffold.widget.drawer != null
+            : scaffold.widget.endDrawer != null);
+    final desired = supported ? requested : null;
+    if (requested != null && !supported) {
+      // A permanent desktop sidebar already fulfils primary navigation. Do not
+      // leave an invisible modal intent behind when crossing the breakpoint.
+      presentation.closeSurface();
+    }
+
+    final current = _drawerProjection;
+    if (current != null) {
+      if (current.closing) {
+        // This is also the close-before-first-paint case: no Drawer subtree was
+        // mounted, so no unmount notification can arrive. Read actual presence.
+        if (_presenceKey(current.kind).currentContext == null) {
+          setState(() => _drawerProjection = null);
+          _scheduleDrawerProjection();
+        }
+        return;
+      }
+      if (!identical(current.controller, presentation) ||
+          current.kind != desired) {
+        current.closing = true;
+        _issueDrawerCommand(current.kind, open: false);
+        _scheduleDrawerProjection();
+        return;
+      }
+      current.intentRevision = state.intentRevision;
+      return;
+    }
+    if (desired == null) return;
+
+    final prepare = !identical(_preparedDrawerController, presentation) ||
+        _preparedDrawerIntent != state.intentRevision;
+    if (prepare) {
+      _preparedDrawerController = presentation;
+      _preparedDrawerIntent = state.intentRevision;
+      if (desired == PandoraChatDrawerKind.recent) {
+        _historyLoaded = true;
+        unawaited(_refreshHistory());
+      }
+    }
+    _drawerProjection = _DrawerProjection(
+      controller: presentation,
+      kind: desired,
+      intentRevision: state.intentRevision,
+      resetScrollOnMount: prepare,
+    );
+    _issueDrawerCommand(desired, open: true);
+  }
+
+  void _onDrawerChanged(PandoraChatDrawerKind kind, bool open) {
+    if (!mounted || _issuingDrawerCommand) return;
+    final presentation = _chatKey.currentState?.presentationController;
+    if (presentation == null) return;
+    final current = _drawerProjection;
+    if (open) {
+      // Only an unmanaged edge gesture creates a new drawer intent here.
+      // A late callback from a departing drawer cannot replace another target.
+      if (current == null &&
+          presentation.value.surface == PandoraChatSurface.none &&
+          !presentation.value.transitioning) {
+        presentation.reportDrawer(true, kind: kind);
+        _drawerProjection = _DrawerProjection(
+          controller: presentation,
+          kind: kind,
+          intentRevision: presentation.value.intentRevision,
+          resetScrollOnMount: true,
+        );
+      } else if (current != null &&
+          current.kind == kind &&
+          current.closing &&
+          identical(current.controller, presentation) &&
+          presentation.value.surface == PandoraChatSurface.none &&
+          !presentation.value.transitioning) {
+        // The user may reverse a closing swipe before it reaches the edge.
+        // This is a fresh visible gesture, not a late close acknowledgement.
+        presentation.reportDrawer(true, kind: kind);
+        current
+          ..closing = false
+          ..intentRevision = presentation.value.intentRevision;
+      }
+      FocusManager.instance.primaryFocus?.unfocus();
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _onDrawerMounted(kind));
+      _scheduleDrawerProjection();
+      return;
+    }
+    if (current != null && current.kind == kind && !current.closing) {
+      current.closing = true;
+      if (identical(current.controller, presentation)) {
+        presentation.reportDrawer(false,
+            kind: kind, expectedIntent: current.intentRevision);
+      }
+    }
+    _scheduleDrawerProjection();
+  }
+
+  void _onDrawerMounted(PandoraChatDrawerKind kind) {
+    if (!mounted) return;
+    var current = _drawerProjection;
+    final presentation = _chatKey.currentState?.presentationController;
+    if (current == null &&
+        presentation != null &&
+        presentation.value.surface == PandoraChatSurface.none &&
+        !presentation.value.transitioning) {
+      // Capture an edge gesture at its first visible frame, before Flutter's
+      // halfway callback, so late IME metrics can still withhold this surface.
+      presentation.reportDrawer(true, kind: kind);
+      current = _DrawerProjection(
+        controller: presentation,
+        kind: kind,
+        intentRevision: presentation.value.intentRevision,
+        resetScrollOnMount: true,
+      );
+      _drawerProjection = current;
+      _scheduleDrawerProjection();
+    }
+    if (current != null &&
+        current.kind == kind &&
+        !current.closing &&
+        current.resetScrollOnMount) {
+      current.resetScrollOnMount = false;
+      if (kind == PandoraChatDrawerKind.primary) {
+        _resetDrawerScroll();
+      } else if (_recentChatsScrollController.hasClients) {
         _recentChatsScrollController.jumpTo(0);
       }
-      final next = _scaffoldKey.currentState;
-      if (!(next?.isDrawerOpen ?? false)) next?.openEndDrawer();
-    });
-    WidgetsBinding.instance.ensureVisualUpdate();
+    }
+  }
+
+  void _onDrawerUnmounted(PandoraChatDrawerKind kind) {
+    if (!mounted || _presenceKey(kind).currentContext != null) return;
+    if (_drawerProjection?.kind == kind) {
+      // Back eligibility also depends on physical removal, not just on the
+      // earlier dismissal intent. Publish this last rendering transition.
+      setState(() => _drawerProjection = null);
+    }
+    _scheduleDrawerProjection();
+  }
+
+  Widget _observedDrawer(PandoraChatDrawerKind kind, Widget child) {
+    final owner = _chatKey;
+    final presentation = owner.currentState?.presentationController;
+    final keyboardVisible = presentation?.value.keyboardVisible ?? false;
+    final drawerKeyboard = presentation?.drawerOwnsKeyboard ?? false;
+    final foreground = presentation?.value.surface;
+    return _DrawerPresence(
+      key: _presenceKey(kind),
+      onMounted: () {
+        if (identical(owner, _chatKey)) _onDrawerMounted(kind);
+      },
+      onUnmounted: () => _onDrawerUnmounted(kind),
+      // A late IME frame withholds the drawer immediately, while its actual
+      // closing animation/removal still supplies the completion receipt.
+      child: FocusScope(
+        node: _drawerFocus,
+        child: Visibility(
+          visible: (!keyboardVisible || drawerKeyboard) &&
+              foreground != PandoraChatSurface.picker &&
+              foreground != PandoraChatSurface.context,
+          maintainSize: true,
+          maintainState: true,
+          maintainAnimation: true,
+          child: Padding(
+            // Scaffold resizes its body for IME, but not its modal drawers.
+            padding: EdgeInsets.only(
+                bottom: drawerKeyboard
+                    ? presentation?.value.keyboardInset ?? 0
+                    : 0),
+            child: child,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -295,10 +541,11 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       return;
     }
     if (value < 0 || value >= _destinations.length) return;
+    // A drawer destination replaces secondary owner pages. Chat expansion uses
+    // separate visibility methods and retains the current business route.
+    _ownerNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     FocusManager.instance.primaryFocus?.unfocus();
-    final scaffold = _scaffoldKey.currentState;
-    if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
-    if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
+    _dismissDrawers();
     if (value != 0) {
       _chatKey.currentState?.minimizeHistory();
       if (_chatVisible) setState(() => _chatVisible = false);
@@ -339,14 +586,13 @@ class _PandoraChatShellState extends State<PandoraChatShell>
 
   void _openConversationHistory() {
     FocusManager.instance.primaryFocus?.unfocus();
-    final scaffold = _scaffoldKey.currentState;
-    if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
-    if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
+    _dismissDrawers();
     if (!_chatVisible) setState(() => _chatVisible = true);
     _chatKey.currentState?.showHistory();
   }
 
   void _newChat() {
+    _dismissDrawers();
     final chat = _chatKey.currentState;
     if (chat == null) return;
     if (!_chatVisible) setState(() => _chatVisible = true);
@@ -356,9 +602,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   }
 
   Future<void> _openThread(PandoraIntelligenceThread thread) async {
-    final scaffold = _scaffoldKey.currentState;
-    if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
-    if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
+    _dismissDrawers();
     final chat = _chatKey.currentState;
     if (chat == null) return;
     if (!_chatVisible) setState(() => _chatVisible = true);
@@ -366,12 +610,37 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     await chat.loadThread(thread.id);
   }
 
+  Future<T?> _presentThreadSheet<T>(WidgetBuilder builder,
+      {int? expectedIntent}) {
+    final chat = _chatKey.currentState;
+    if (chat == null) return Future<T?>.value();
+    return chat.presentContextRoute(
+      ModalBottomSheetRoute<T>(
+        builder: builder,
+        isScrollControlled: false,
+        useSafeArea: true,
+        showDragHandle: true,
+        barrierLabel:
+            MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        capturedThemes: InheritedTheme.capture(
+            from: context, to: Navigator.of(context).context),
+      ),
+      expectedIntent: expectedIntent,
+    );
+  }
+
+  Future<T?> _presentThreadDialog<T>(WidgetBuilder builder) {
+    final chat = _chatKey.currentState;
+    if (chat == null) return Future<T?>.value();
+    return chat.presentContextRoute(
+      DialogRoute<T>(context: context, builder: builder, useSafeArea: true),
+    );
+  }
+
   Future<void> _manageThread(PandoraIntelligenceThread thread) async {
-    final action = await showModalBottomSheet<_ThreadAction>(
-      context: context,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (sheetContext) => Padding(
+    final epoch = _scopeEpoch;
+    final action = await _presentThreadSheet<_ThreadAction>(
+      (sheetContext) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -404,7 +673,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
         ),
       ),
     );
-    if (!mounted || action == null) return;
+    if (!mounted || epoch != _scopeEpoch || action == null) return;
     switch (action) {
       case _ThreadAction.rename:
         await _renameThread(thread);
@@ -422,10 +691,12 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   }
 
   Future<void> _renameThread(PandoraIntelligenceThread thread) async {
+    final epoch = _scopeEpoch;
+    final intelligence = _activeDependencies.intelligence;
+    if (intelligence == null) return;
     final controller = TextEditingController(text: thread.title);
-    final title = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
+    final title = await _presentThreadDialog<String>(
+      (dialogContext) => AlertDialog(
         title: const Text('Rename conversation'),
         content: TextField(
           controller: controller,
@@ -447,26 +718,35 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       ),
     );
     controller.dispose();
-    if (!mounted || title == null || title.isEmpty || title == thread.title) {
+    if (!mounted ||
+        epoch != _scopeEpoch ||
+        title == null ||
+        title.isEmpty ||
+        title == thread.title) {
       return;
     }
     await _runThreadMutation(
-      () => _activeDependencies.intelligence!.renameThread(thread.id, title),
+      () => intelligence.renameThread(thread.id, title),
       success: 'Conversation renamed.',
+      expectedEpoch: epoch,
     );
   }
 
   Future<void> _archiveThread(PandoraIntelligenceThread thread) async {
+    final intelligence = _activeDependencies.intelligence;
+    if (intelligence == null) return;
     await _runThreadMutation(
-      () => _activeDependencies.intelligence!.archiveThread(thread.id),
+      () => intelligence.archiveThread(thread.id),
       success: 'Conversation archived.',
     );
   }
 
   Future<void> _deleteThread(PandoraIntelligenceThread thread) async {
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
+    final epoch = _scopeEpoch;
+    final intelligence = _activeDependencies.intelligence;
+    if (intelligence == null) return;
+    final confirmed = await _presentThreadDialog<bool>(
+          (dialogContext) => AlertDialog(
             title: const Text('Delete conversation?'),
             content: Text(
                 'Delete “${thread.title}” and its saved messages? This cannot be undone.'),
@@ -483,25 +763,35 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           ),
         ) ??
         false;
-    if (!mounted || !confirmed) return;
+    if (!mounted || epoch != _scopeEpoch || !confirmed) return;
     await _runThreadMutation(
-      () => _activeDependencies.intelligence!.deleteThread(thread.id),
+      () => intelligence.deleteThread(thread.id),
       success: 'Conversation deleted.',
+      expectedEpoch: epoch,
     );
   }
 
   Future<void> _moveThreadToProject(PandoraIntelligenceThread thread) async {
+    final epoch = _scopeEpoch;
+    final chat = _chatKey.currentState;
     final intelligence = _activeDependencies.intelligence;
-    if (intelligence == null) return;
+    if (chat == null || intelligence == null) return;
+    final repository = _activeDependencies.repository;
+    final presentation = chat.presentationController;
+    final opening = presentation.showContext();
+    final intent = presentation.value.intentRevision;
+    bool stillOwnsIntent() =>
+        mounted &&
+        epoch == _scopeEpoch &&
+        identical(chat, _chatKey.currentState) &&
+        presentation.value.intentRevision == intent &&
+        presentation.value.surface == PandoraChatSurface.context;
     try {
-      final projectSnapshot =
-          await _activeDependencies.repository.projects(allowCached: true);
-      if (!mounted) return;
-      final selected = await showModalBottomSheet<String>(
-        context: context,
-        useSafeArea: true,
-        showDragHandle: true,
-        builder: (sheetContext) => SafeArea(
+      if (!await opening || !stillOwnsIntent()) return;
+      final projectSnapshot = await repository.projects(allowCached: true);
+      if (!stillOwnsIntent()) return;
+      final selected = await _presentThreadSheet<String>(
+        (sheetContext) => SafeArea(
           child: ListView(
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
@@ -528,8 +818,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
             ],
           ),
         ),
+        expectedIntent: intent,
       );
-      if (!mounted || selected == null) return;
+      if (!mounted || epoch != _scopeEpoch || selected == null) return;
       await _runThreadMutation(
         () => intelligence.associateThreadWithProject(
           thread.id,
@@ -538,28 +829,36 @@ class _PandoraChatShellState extends State<PandoraChatShell>
         success: selected.isEmpty
             ? 'Project association removed.'
             : 'Conversation moved to project.',
+        expectedEpoch: epoch,
       );
     } on PandoraIntelligenceException catch (error) {
-      _showThreadMessage(error.message);
+      if (stillOwnsIntent()) _showThreadMessage(error.message);
     } on Exception {
-      _showThreadMessage(
-          'Pandora could not load projects for this conversation.');
+      if (stillOwnsIntent()) {
+        _showThreadMessage(
+            'Pandora could not load projects for this conversation.');
+      }
+    } finally {
+      if (stillOwnsIntent()) presentation.closeSurface();
     }
   }
 
   Future<void> _runThreadMutation(
     Future<void> Function() mutation, {
     required String success,
+    int? expectedEpoch,
   }) async {
+    final epoch = expectedEpoch ?? _scopeEpoch;
+    if (!mounted || epoch != _scopeEpoch) return;
     final intelligence = _activeDependencies.intelligence;
     if (intelligence == null) return;
     try {
       await mutation();
-      if (!mounted) return;
+      if (!mounted || epoch != _scopeEpoch) return;
       await _refreshHistory();
-      if (mounted) _showThreadMessage(success);
+      if (mounted && epoch == _scopeEpoch) _showThreadMessage(success);
     } on PandoraIntelligenceException catch (error) {
-      if (mounted) _showThreadMessage(error.message);
+      if (mounted && epoch == _scopeEpoch) _showThreadMessage(error.message);
     }
   }
 
@@ -1343,6 +1642,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
             ListTile(
               leading: const Icon(Icons.chat_bubble_outline_rounded),
               title: const Text('Pandora'),
+              selected: _chatVisible,
               onTap: _openConversationHistory,
             ),
             if (selection != null)
@@ -1350,6 +1650,8 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                 ListTile(
                   leading: Icon(section.icon),
                   title: Text(section.label),
+                  selected: !_chatVisible &&
+                      selection.section.routeSlug == section.routeSlug,
                   onTap: () => _openWorkspace(EnterpriseWorkspaceSelection(
                       workspace: selection.workspace, section: section)),
                 ),
@@ -1374,6 +1676,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   }
 
   ThemeData _theme(ThemeData base) {
+    // This shell always uses the locked dark palette. Copying a light ambient
+    // theme retains its resolved text/button/icon colours on the dark canvas.
+    final dark = PandoraTheme.graphite;
     const scheme = ColorScheme.dark(
       primary: PandoraV2Colors.ink,
       onPrimary: Colors.black,
@@ -1383,17 +1688,73 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       onSecondary: Colors.black,
       surface: PandoraV2Colors.surface,
       onSurface: PandoraV2Colors.ink,
+      onSurfaceVariant: PandoraV2Colors.muted,
+      surfaceContainerLowest: PandoraV2Colors.canvas,
+      surfaceContainerLow: PandoraV2Colors.canvas,
+      surfaceContainer: PandoraV2Colors.surface,
+      surfaceContainerHigh: PandoraV2Colors.soft,
+      surfaceContainerHighest: PandoraV2Colors.soft,
+      surfaceTint: Colors.transparent,
       error: PandoraV2Colors.danger,
       onError: Colors.black,
       outline: PandoraV2Colors.line,
       outlineVariant: PandoraV2Colors.line,
     );
-    return base.copyWith(
+    final actionForeground = WidgetStateProperty.resolveWith<Color>(
+      (states) => states.contains(WidgetState.disabled)
+          ? PandoraV2Colors.muted
+          : PandoraV2Colors.ink,
+    );
+    return dark.copyWith(
+      platform: base.platform,
+      visualDensity: base.visualDensity,
       brightness: Brightness.dark,
       colorScheme: scheme,
       scaffoldBackgroundColor: PandoraV2Colors.canvas,
       canvasColor: PandoraV2Colors.canvas,
-      extensions: const <ThemeExtension<dynamic>>[PandoraPalette.graphite],
+      extensions: <ThemeExtension<dynamic>>[
+        PandoraPalette.graphite.copyWith(
+          canvas: PandoraV2Colors.canvas,
+          subtleSurface: PandoraV2Colors.soft,
+          strongSurface: PandoraV2Colors.surface,
+          outlineSoft: PandoraV2Colors.line,
+        ),
+      ],
+      textTheme: dark.textTheme.apply(
+        bodyColor: PandoraV2Colors.ink,
+        displayColor: PandoraV2Colors.ink,
+      ),
+      iconTheme: dark.iconTheme.copyWith(color: PandoraV2Colors.ink),
+      primaryIconTheme:
+          dark.primaryIconTheme.copyWith(color: PandoraV2Colors.ink),
+      disabledColor: PandoraV2Colors.muted,
+      textButtonTheme: TextButtonThemeData(
+        style: dark.textButtonTheme.style?.copyWith(
+          foregroundColor: actionForeground,
+          overlayColor: WidgetStateProperty.resolveWith<Color?>((states) =>
+              states.contains(WidgetState.pressed) ||
+                      states.contains(WidgetState.focused) ||
+                      states.contains(WidgetState.hovered)
+                  ? PandoraV2Colors.ink.withValues(alpha: .12)
+                  : null),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: dark.iconButtonTheme.style
+            ?.copyWith(foregroundColor: actionForeground),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: dark.outlinedButtonTheme.style?.copyWith(
+          foregroundColor: actionForeground,
+          side: const WidgetStatePropertyAll(
+              BorderSide(color: PandoraV2Colors.line)),
+        ),
+      ),
+      cardTheme: dark.cardTheme.copyWith(color: PandoraV2Colors.surface),
+      dialogTheme:
+          dark.dialogTheme.copyWith(backgroundColor: PandoraV2Colors.surface),
+      popupMenuTheme:
+          dark.popupMenuTheme.copyWith(color: PandoraV2Colors.surface),
       appBarTheme: const AppBarTheme(
         backgroundColor: PandoraV2Colors.canvas,
         foregroundColor: PandoraV2Colors.ink,
@@ -1409,6 +1770,11 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: PandoraV2Colors.surface,
+        hintStyle: const TextStyle(color: PandoraV2Colors.muted),
+        labelStyle: const TextStyle(color: PandoraV2Colors.muted),
+        floatingLabelStyle: const TextStyle(color: PandoraV2Colors.ink),
+        prefixIconColor: PandoraV2Colors.muted,
+        suffixIconColor: PandoraV2Colors.muted,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         enabledBorder: OutlineInputBorder(
@@ -1427,12 +1793,29 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     );
   }
 
+  Widget _presentRoot(int index) {
+    final root = _root(index);
+    // PLP content owns its porcelain appearance; the shared composer remains
+    // a sibling under the Core theme, with no tenant or navigation change.
+    final presented = root is PlpEnterpriseShell
+        ? Theme(
+            key: const ValueKey('pandora-plp-content-theme'),
+            data: PandoraTheme.porcelain,
+            child: root,
+          )
+        : root;
+    return PandoraCoreRouteVisibility(
+      active: index == _index && !_chatVisible,
+      child: presented,
+    );
+  }
+
   Widget _sidePanel() => _inClientWorkspace
       ? _clientSidePanel()
       : _PandoraSidePanel(
           scrollController: _drawerScrollController,
           destinations: _destinations,
-          selectedIndex: _index,
+          selectedIndex: _chatVisible ? 0 : _index,
           onSelected: (value) {
             if (value == 0) {
               _openConversationHistory();
@@ -1456,6 +1839,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
         data: _theme(Theme.of(context)),
         child: LayoutBuilder(
           builder: (context, constraints) {
+            _scheduleDrawerProjection();
             if (_scopeInitializationFailure != null) {
               return Scaffold(
                   body: SafeArea(
@@ -1476,13 +1860,44 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               children: [
                 for (var i = 0; i < _destinations.length; i++)
                   _visited.contains(i) || i == _index
-                      ? _root(i)
+                      ? _presentRoot(i)
                       : const SizedBox.shrink(),
               ],
             );
 
+            Widget businessBody = body;
+            if (!_inClientWorkspace) {
+              final canPopOwnerContent =
+                  !_chatVisible && !_presentationOwnsBack;
+              businessBody = NavigatorPopHandler(
+                key: const ValueKey('pandora-owner-content-navigator'),
+                enabled: canPopOwnerContent,
+                onPopWithResult: (_) {
+                  if (!canPopOwnerContent ||
+                      _chatVisible ||
+                      _presentationOwnsBack) {
+                    return;
+                  }
+                  unawaited(_ownerNavigatorKey.currentState?.maybePop() ??
+                      Future<bool>.value(false));
+                },
+                child: Navigator(
+                  key: _ownerNavigatorKey,
+                  pages: [
+                    MaterialPage<void>(
+                      key: ValueKey('owner-surface-$_scopeEpoch'),
+                      child: body,
+                    ),
+                  ],
+                  onDidRemovePage: (_) {},
+                ),
+              );
+            }
+            final chatScopeEpoch = _scopeEpoch;
             Widget activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
+              composerExtent: _chatKey
+                  .currentState?.presentationController.value.composerExtent,
               businessWorkspace: Offstage(
                 offstage: _chatVisible,
                 child: PandoraSharedConversationScope(
@@ -1492,7 +1907,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                   bindEnterpriseContext: _bindEnterpriseContext,
                   bindSelectedObject: _bindSelectedObject,
                   reportFailure: _reportSharedFailure,
-                  child: body,
+                  child: businessBody,
                 ),
               ),
               conversation: AskPandoraScreen(
@@ -1503,8 +1918,41 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                 enterpriseContext: _conversationContextForCurrentSurface(),
                 shellOverlay: true,
                 initialHistoryExpanded: _chatVisible,
-                onCoreNavigate: _handleCoreNavigation,
+                onCoreNavigate: (handoff) {
+                  if (mounted && chatScopeEpoch == _scopeEpoch) {
+                    _handleCoreNavigation(handoff);
+                  }
+                },
+                onHistoryVisibilityChanged: (visible) {
+                  if (mounted &&
+                      chatScopeEpoch == _scopeEpoch &&
+                      _chatVisible != visible) {
+                    setState(() => _chatVisible = visible);
+                  }
+                },
+                onPresentationChanged: (state) {
+                  if (mounted && chatScopeEpoch == _scopeEpoch) {
+                    _handleChatPresentation(state);
+                  }
+                },
               ),
+            );
+
+            final canReturnFromOwnerChat = _canReturnFromOwnerChat;
+            activeChat = PopScope<void>(
+              canPop: !canReturnFromOwnerChat,
+              onPopInvokedWithResult: (didPop, _) {
+                // Multiple PopScopes see the same Back. Dismissing the IME
+                // must not make history eligible for this already-fired event.
+                if (didPop ||
+                    !canReturnFromOwnerChat ||
+                    !_canReturnFromOwnerChat) {
+                  return;
+                }
+                FocusManager.instance.primaryFocus?.unfocus();
+                _chatKey.currentState?.minimizeHistory();
+              },
+              child: activeChat,
             );
 
             final clientRuntime = _clientRuntime;
@@ -1538,19 +1986,25 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                 key: _scaffoldKey,
                 backgroundColor: PandoraV2Colors.canvas,
                 drawerScrimColor: const Color(0xD9000000),
-                endDrawer: Drawer(
-                  key: const ValueKey<String>('pandora-recent-chats-drawer'),
-                  width: 340,
-                  backgroundColor: const Color(0xFA000000),
-                  surfaceTintColor: Colors.transparent,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      bottomLeft: Radius.circular(24),
-                    ),
-                  ),
-                  child: SafeArea(child: _recentChatsPanel()),
-                ),
+                onEndDrawerChanged: (open) =>
+                    _onDrawerChanged(PandoraChatDrawerKind.recent, open),
+                endDrawerEnableOpenDragGesture: false,
+                endDrawer: _observedDrawer(
+                    PandoraChatDrawerKind.recent,
+                    Drawer(
+                      key:
+                          const ValueKey<String>('pandora-recent-chats-drawer'),
+                      width: 340,
+                      backgroundColor: const Color(0xFA000000),
+                      surfaceTintColor: Colors.transparent,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(24),
+                          bottomLeft: Radius.circular(24),
+                        ),
+                      ),
+                      child: SafeArea(child: _recentChatsPanel()),
+                    )),
                 body: Row(
                   children: [
                     SizedBox(width: 264, child: SafeArea(child: _sidePanel())),
@@ -1570,52 +2024,54 @@ class _PandoraChatShellState extends State<PandoraChatShell>
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: PandoraV2Colors.canvas,
-              onDrawerChanged: (open) {
-                if (open) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  _resetDrawerScroll();
-                }
-              },
-              onEndDrawerChanged: (open) {
-                if (open) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  if (_recentChatsScrollController.hasClients) {
-                    _recentChatsScrollController.jumpTo(0);
-                  }
-                  unawaited(_refreshHistory());
-                }
-              },
-              drawerEnableOpenDragGesture: true,
+              onDrawerChanged: (open) =>
+                  _onDrawerChanged(PandoraChatDrawerKind.primary, open),
+              onEndDrawerChanged: (open) =>
+                  _onDrawerChanged(PandoraChatDrawerKind.recent, open),
+              drawerEnableOpenDragGesture: !(_chatKey.currentState
+                          ?.presentationController.value.keyboardVisible ??
+                      false) &&
+                  !(_chatKey.currentState?.presentationController.value
+                          .transitioning ??
+                      false) &&
+                  (_chatKey.currentState?.presentationController.value
+                              .surface ??
+                          PandoraChatSurface.none) ==
+                      PandoraChatSurface.none,
               endDrawerEnableOpenDragGesture: false,
               drawerEdgeDragWidth: 32,
               drawerScrimColor: const Color(0xD9000000),
-              drawer: Drawer(
-                key:
-                    const ValueKey<String>('pandora-primary-navigation-drawer'),
-                width: 304,
-                backgroundColor: const Color(0xFA000000),
-                surfaceTintColor: Colors.transparent,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                ),
-                child: SafeArea(child: _sidePanel()),
-              ),
-              endDrawer: Drawer(
-                key: const ValueKey<String>('pandora-recent-chats-drawer'),
-                width: 340,
-                backgroundColor: const Color(0xFA000000),
-                surfaceTintColor: Colors.transparent,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    bottomLeft: Radius.circular(24),
-                  ),
-                ),
-                child: SafeArea(child: _recentChatsPanel()),
-              ),
+              drawer: _observedDrawer(
+                  PandoraChatDrawerKind.primary,
+                  Drawer(
+                    key: const ValueKey<String>(
+                        'pandora-primary-navigation-drawer'),
+                    width: 304,
+                    backgroundColor: const Color(0xFA000000),
+                    surfaceTintColor: Colors.transparent,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
+                      ),
+                    ),
+                    child: SafeArea(child: _sidePanel()),
+                  )),
+              endDrawer: _observedDrawer(
+                  PandoraChatDrawerKind.recent,
+                  Drawer(
+                    key: const ValueKey<String>('pandora-recent-chats-drawer'),
+                    width: 340,
+                    backgroundColor: const Color(0xFA000000),
+                    surfaceTintColor: Colors.transparent,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        bottomLeft: Radius.circular(24),
+                      ),
+                    ),
+                    child: SafeArea(child: _recentChatsPanel()),
+                  )),
               body: PandoraNavigationScope(
                 openDrawer: _openDrawer,
                 child: activeChat,
@@ -1624,6 +2080,62 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           },
         ),
       );
+}
+
+/// A rendering receipt for the one physical modal drawer. Desired kind and
+/// lifetime are owned by PandoraChatPresentationController.
+class _DrawerProjection {
+  _DrawerProjection({
+    required this.controller,
+    required this.kind,
+    required this.intentRevision,
+    required this.resetScrollOnMount,
+  });
+
+  final PandoraChatPresentationController controller;
+  final PandoraChatDrawerKind kind;
+  int intentRevision;
+  bool resetScrollOnMount;
+  bool closing = false;
+}
+
+/// Scaffold callbacks signal animation start. Widget removal proves the old
+/// drawer has actually left the viewport, allowing the next modal surface in.
+class _DrawerPresence extends StatefulWidget {
+  const _DrawerPresence({
+    super.key,
+    required this.onMounted,
+    required this.onUnmounted,
+    required this.child,
+  });
+
+  final VoidCallback onMounted;
+  final VoidCallback onUnmounted;
+  final Widget child;
+
+  @override
+  State<_DrawerPresence> createState() => _DrawerPresenceState();
+}
+
+class _DrawerPresenceState extends State<_DrawerPresence> {
+  @override
+  void initState() {
+    super.initState();
+    final onMounted = widget.onMounted;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) onMounted();
+    });
+  }
+
+  @override
+  void dispose() {
+    final onUnmounted = widget.onUnmounted;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onUnmounted());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _PandoraSidePanel extends StatelessWidget {
@@ -1671,39 +2183,42 @@ class _PandoraSidePanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _DrawerSection(
-                label: 'Core systems',
-                indices: const <int>[9, 10, 0, 8],
+                label: 'Pandora',
+                indices: const <int>[9, 0, 2],
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
               ),
               _DrawerSection(
                 label: 'Work',
-                indices: const <int>[2, 4, 1],
+                indices: const <int>[1, 12, 13, 4, 6],
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
               ),
-              _DrawerSection(
-                label: 'Enterprise & business',
-                indices: const <int>[12, 13],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-              ),
-              _DrawerSection(
-                label: 'Platform',
-                indices: const <int>[14, 15],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-              ),
-              _DrawerSection(
-                label: 'Capabilities',
-                indices: const <int>[11, 5, 6],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
+              ExpansionTile(
+                key: const ValueKey<String>('pandora-advanced-navigation'),
+                initiallyExpanded:
+                    const <int>[8, 10, 11, 5, 14, 15].contains(selectedIndex),
+                title: const Text('Advanced'),
+                subtitle: const Text('Connections and administration'),
+                children: [
+                  _DrawerSection(
+                    label: 'Tools',
+                    indices: const <int>[10, 8, 11, 5],
+                    destinations: destinations,
+                    selectedIndex: selectedIndex,
+                    onSelected: onSelected,
+                  ),
+                  _DrawerSection(
+                    label: 'Administration',
+                    indices: const <int>[14, 15],
+                    destinations: destinations,
+                    selectedIndex: selectedIndex,
+                    onSelected: onSelected,
+                    showDivider: false,
+                  ),
+                ],
               ),
               _DrawerSection(
                 label: 'Security',

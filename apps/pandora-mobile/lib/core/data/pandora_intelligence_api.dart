@@ -3,9 +3,13 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../chat/pandora_chat_state.dart';
+import '../network/pandora_sse_decoder.dart';
 import '../platform/pandora_native_io.dart';
 import 'pandora_activity_stream_api.dart';
 import 'pandora_operations_events.dart';
+
+part 'pandora_chat_wire.dart';
 
 class PandoraIntelligenceApi {
   PandoraIntelligenceApi({
@@ -16,8 +20,202 @@ class PandoraIntelligenceApi {
 
   final SupabaseClient _client;
   final String _organizationId;
+  String get organizationId => _organizationId;
 
   static const functionName = 'pandora-intelligence-chat';
+
+  /// Executes one immutable logical turn. Admission and the Activity job are
+  /// created together by v2; the client must never pre-create a second job.
+  /// Transport loss is an unknown outcome, never an automatic provider retry.
+  Stream<PandoraChatWireEvent> executeChatTurn(
+    PandoraChatDispatch dispatch,
+  ) async* {
+    _requireSession();
+    final sessionUser = _client.auth.currentUser?.id;
+    final request = <String, Object?>{
+      ...dispatch.request,
+      'protocolVersion': 2,
+      'operation': dispatch.isRetry ? 'retry' : 'send',
+      'clientTurnId': dispatch.token.turnId,
+      'clientAttemptId': dispatch.token.attemptId,
+      'generation': dispatch.token.generation,
+      if (dispatch.expectedGeneration != null)
+        'expectedGeneration': dispatch.expectedGeneration,
+      if (dispatch.threadId != null) 'threadId': dispatch.threadId,
+    };
+    var lastSequence = -1;
+    var lastStreamSequence = 0;
+    var boundThreadId = dispatch.threadId;
+    var terminal = false;
+    try {
+      final response = await _client.functions
+          .invoke(
+            functionName,
+            method: HttpMethod.post,
+            headers: <String, String>{
+              'x-organization-id': _organizationId,
+              'accept': 'text/event-stream',
+            },
+            body: request,
+          )
+          .timeout(const Duration(seconds: 25));
+      final Stream<Map<String, dynamic>> frames;
+      if (response.data is Stream<List<int>>) {
+        frames = decodePandoraSse(response.data as Stream<List<int>>)
+            .timeout(const Duration(seconds: 90));
+      } else {
+        frames = Stream.value(_map(response.data));
+      }
+      await for (final frame in frames) {
+        if (_client.auth.currentUser?.id != sessionUser) {
+          throw const PandoraIntelligenceException(
+            'The account changed. Return to the current conversation.',
+            code: 'CHAT_SCOPE_CHANGED',
+            recoverable: false,
+            outcomeUnknown: true,
+          );
+        }
+        final event = PandoraChatWireEvent.fromJson(frame);
+        event.requireIdentity(
+          organizationId: _organizationId,
+          turnId: dispatch.token.turnId,
+          attemptId: dispatch.token.attemptId,
+          generation: dispatch.token.generation,
+          threadId: boundThreadId,
+        );
+        boundThreadId ??= event.threadId;
+        // Durable transitions and token chunks have different clocks. Token
+        // volume cannot make a later cancellation/readback receipt look stale.
+        if (event.type == 'delta') {
+          if (event.sequence < lastSequence ||
+              event.streamSequence! <= lastStreamSequence) {
+            continue;
+          }
+          lastStreamSequence = event.streamSequence!;
+          if (event.sequence > lastSequence) lastSequence = event.sequence;
+        } else {
+          if (event.sequence <= lastSequence) continue;
+          lastSequence = event.sequence;
+        }
+        terminal = event.isTerminal;
+        yield event;
+        if (terminal) break;
+      }
+      if (!terminal) {
+        throw const PandoraIntelligenceException(
+          'The connection was interrupted. Checking this message…',
+          code: 'CHAT_STREAM_INTERRUPTED',
+          outcomeUnknown: true,
+        );
+      }
+    } on PandoraIntelligenceException {
+      rethrow;
+    } on FunctionException catch (error) {
+      throw _chatProtocolFailure(_map(error.details), status: error.status);
+    } on TimeoutException {
+      throw const PandoraIntelligenceException(
+        'The connection is taking longer than expected. Checking this message…',
+        code: 'CHAT_TRANSPORT_TIMEOUT',
+        outcomeUnknown: true,
+      );
+    } on FormatException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not confirm the response. Checking this message…',
+        code: 'CHAT_PROTOCOL_INVALID',
+        outcomeUnknown: true,
+      );
+    } catch (_) {
+      throw const PandoraIntelligenceException(
+        'The connection was interrupted. Checking this message…',
+        code: 'CHAT_TRANSPORT_INTERRUPTED',
+        outcomeUnknown: true,
+      );
+    }
+  }
+
+  Stream<Map<String, dynamic>> watchChatActivity(String activityJobId) {
+    _requireSession();
+    return PandoraActivityStreamApi(
+      client: _client,
+      organizationId: _organizationId,
+    ).watchJob(activityJobId);
+  }
+
+  Future<PandoraChatWireEvent?> readChatTurn({required String turnId}) async {
+    _requireSession();
+    final response = await _chatTurnControl(<String, Object?>{
+      'protocolVersion': 2,
+      'operation': 'readback',
+      'clientTurnId': turnId,
+    });
+    if (response['found'] == false) return null;
+    final event = PandoraChatWireEvent.fromJson(response);
+    event.requireIdentity(organizationId: _organizationId, turnId: turnId);
+    return event;
+  }
+
+  Future<PandoraChatWireEvent> cancelChatTurn({
+    required String turnId,
+    required int generation,
+    String? attemptId,
+  }) async {
+    _requireSession();
+    final response = await _chatTurnControl(<String, Object?>{
+      'protocolVersion': 2,
+      'operation': 'cancel',
+      'clientTurnId': turnId,
+      if (attemptId != null) 'clientAttemptId': attemptId,
+      'generation': generation,
+      'expectedGeneration': generation,
+    });
+    final event = PandoraChatWireEvent.fromJson(response);
+    event.requireIdentity(
+      organizationId: _organizationId,
+      turnId: turnId,
+      attemptId: attemptId,
+      generation: generation,
+    );
+    return event;
+  }
+
+  Future<Map<String, dynamic>> _chatTurnControl(
+    Map<String, Object?> body,
+  ) async {
+    final sessionUser = _client.auth.currentUser?.id;
+    try {
+      final response = await _client.functions
+          .invoke(
+            functionName,
+            method: HttpMethod.post,
+            headers: <String, String>{'x-organization-id': _organizationId},
+            body: body,
+          )
+          .timeout(const Duration(seconds: 15));
+      if (_client.auth.currentUser?.id != sessionUser) {
+        throw const PandoraIntelligenceException(
+          'The account changed. Return to the current conversation.',
+          code: 'CHAT_SCOPE_CHANGED',
+          recoverable: false,
+          outcomeUnknown: true,
+        );
+      }
+      final result = _map(response.data);
+      if (response.status < 200 ||
+          response.status >= 300 ||
+          result['ok'] == false) {
+        throw _chatProtocolFailure(result, status: response.status);
+      }
+      return result;
+    } on FunctionException catch (error) {
+      throw _chatProtocolFailure(_map(error.details), status: error.status);
+    } on TimeoutException {
+      throw const PandoraIntelligenceException(
+        'Pandora is checking the outcome of this message.',
+        code: 'CHAT_RECONCILIATION_PENDING',
+        outcomeUnknown: true,
+      );
+    }
+  }
 
   Future<List<PandoraIntelligenceThread>> recentThreads({
     int limit = 30,
@@ -114,14 +312,64 @@ class PandoraIntelligenceApi {
     _requireSession();
     final safeLimit = limit.clamp(1, 500).toInt();
     try {
+      final view = _map(await _client.rpc(
+        'pandora_chat_thread_view_v2',
+        params: <String, Object?>{
+          'p_thread_id': threadId,
+          'p_limit': safeLimit,
+        },
+      ));
+      if (view['protocolVersion'] != 2 ||
+          view['threadId'] != threadId ||
+          view['messages'] is! List ||
+          view['turns'] is! List) {
+        throw const PandoraIntelligenceException(
+          'Pandora could not confirm this conversation history.',
+        );
+      }
+      final byTurn = <String, Map<String, dynamic>>{};
+      for (final value in view['turns'] as List) {
+        final receipt = _map(value);
+        final event = PandoraChatWireEvent.fromJson(receipt);
+        event.requireIdentity(
+            organizationId: _organizationId,
+            threadId: threadId,
+            turnId: event.turnId);
+        byTurn[event.turnId] = receipt;
+      }
+      return List<PandoraIntelligenceMessage>.unmodifiable(
+        (view['messages'] as List).map((value) {
+          final row = _map(value);
+          if (row['thread_id'] != threadId) {
+            throw const PandoraIntelligenceException(
+              'Pandora received history from another conversation.',
+            );
+          }
+          return PandoraIntelligenceMessage.fromJson({
+            ...row,
+            'turnReceipt': byTurn[row['chat_turn_id']],
+          });
+        }),
+      );
+    } on PostgrestException catch (error) {
+      // Additive rollout compatibility only. A permission, network or server
+      // error must not quietly select a less authoritative history path.
+      if (!const {'PGRST202', '42883'}.contains(error.code)) {
+        throw const PandoraIntelligenceException(
+          'Pandora could not load that conversation.',
+        );
+      }
+    }
+    try {
       final rows = await _client
           .from('pandora_intelligence_messages')
           .select(
-            'id,thread_id,author_role,content,attachment_manifest,created_at',
+            'id,thread_id,author_role,content,attachment_manifest,structured_response,created_at',
           )
           .eq('organization_id', _organizationId)
           .eq('thread_id', threadId)
           .order('created_at', ascending: false)
+          .order('id', ascending: false)
           .limit(safeLimit);
       final latest = (rows as List<dynamic>)
           .map((row) => PandoraIntelligenceMessage.fromJson(_map(row)))
@@ -1081,6 +1329,14 @@ class PandoraIntelligenceMessage {
     required this.authorRole,
     required this.content,
     required this.createdAt,
+    this.turnId,
+    this.attemptId,
+    this.generation,
+    this.sequence,
+    this.turnReceipt,
+    this.clientOrigin,
+    this.clientHistoryTurnId,
+    this.inspectHandoff,
   });
 
   final String id;
@@ -1088,6 +1344,14 @@ class PandoraIntelligenceMessage {
   final String authorRole;
   final String content;
   final DateTime createdAt;
+  final String? turnId;
+  final String? attemptId;
+  final int? generation;
+  final int? sequence;
+  final PandoraChatWireEvent? turnReceipt;
+  final String? clientOrigin;
+  final String? clientHistoryTurnId;
+  final PandoraIntelligenceHandoff? inspectHandoff;
 
   bool get isUser => authorRole == 'user';
 
@@ -1098,6 +1362,19 @@ class PandoraIntelligenceMessage {
         authorRole: _requiredText(json['author_role']),
         content: _requiredText(json['content']),
         createdAt: _date(json['created_at']),
+        turnId: _optionalText(json['chat_turn_id']),
+        attemptId: _optionalText(json['chat_attempt_id']),
+        generation: (json['chat_generation'] as num?)?.toInt(),
+        sequence: (json['turn_sequence'] as num?)?.toInt(),
+        turnReceipt: json['turnReceipt'] is Map
+            ? PandoraChatWireEvent.fromJson(_map(json['turnReceipt']))
+            : null,
+        clientOrigin: _optionalText(json['client_origin']),
+        clientHistoryTurnId: _optionalText(json['client_history_turn_id']),
+        inspectHandoff: json['author_role'] == 'assistant'
+            ? PandoraIntelligenceHandoff.inspectFromJson(
+                _map(json['structured_response'])['handoff'])
+            : null,
       );
 }
 
@@ -1134,6 +1411,14 @@ class PandoraIntelligenceTurn {
     this.conversationLane,
     this.handoff,
     this.authorizationUrl,
+    this.turnId,
+    this.attemptId,
+    this.generation,
+    this.assistantMessageId,
+    this.routing = const <String, Object?>{},
+    this.usage = const <String, Object?>{},
+    this.timings = const <String, Object?>{},
+    this.receipt = const <String, Object?>{},
   });
 
   final String threadId;
@@ -1145,6 +1430,14 @@ class PandoraIntelligenceTurn {
   final String? conversationLane;
   final PandoraIntelligenceHandoff? handoff;
   final Uri? authorizationUrl;
+  final String? turnId;
+  final String? attemptId;
+  final int? generation;
+  final String? assistantMessageId;
+  final Map<String, Object?> routing;
+  final Map<String, Object?> usage;
+  final Map<String, Object?> timings;
+  final Map<String, Object?> receipt;
 
   factory PandoraIntelligenceTurn.fromJson(Map<String, dynamic> json) {
     final handoffJson = _map(json['handoff']);
@@ -1171,6 +1464,14 @@ class PandoraIntelligenceTurn {
           : null,
       authorizationUrl:
           _trustedProviderAuthorizationUri(authorization['authorizationUrl']),
+      turnId: _optionalText(json['turnId']),
+      attemptId: _optionalText(json['attemptId']),
+      generation: (json['generation'] as num?)?.toInt(),
+      assistantMessageId: _optionalText(json['assistantMessageId']),
+      routing: freezePandoraChatMap(_map(json['routing'])),
+      usage: freezePandoraChatMap(_map(json['usage'])),
+      timings: freezePandoraChatMap(_map(json['timings'])),
+      receipt: freezePandoraChatMap(json),
     );
   }
 }
@@ -1193,11 +1494,58 @@ class PandoraIntelligenceHandoff {
   final String? section;
   final String? action;
   final String? organizationId;
+
+  /// Restored navigation is an explicit read-only affordance, never an action
+  /// replay. The shell still validates the active scope before opening it.
+  static PandoraIntelligenceHandoff? inspectFromJson(Object? value) {
+    final json = _map(value);
+    final request = _optionalText(json['request']);
+    final section = _optionalText(json['section']);
+    final organizationId = _optionalText(json['organizationId']);
+    if (json['required'] != true ||
+        json['kind'] != 'core_navigation' ||
+        json['action'] != 'inspect' ||
+        request == null ||
+        request.length > 160 ||
+        !const {'clients', 'business', 'platform', 'administration'}
+            .contains(section) ||
+        (json['organizationId'] != null && organizationId == null) ||
+        (organizationId != null &&
+            !RegExp(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
+                .hasMatch(organizationId))) {
+      return null;
+    }
+    return PandoraIntelligenceHandoff(
+      request: request,
+      source: 'core_navigation',
+      kind: 'core_navigation',
+      section: section,
+      action: 'inspect',
+      organizationId: organizationId,
+    );
+  }
+
+  Map<String, Object?> get inspectionJson => {
+        'required': true,
+        'request': request,
+        'kind': kind,
+        'section': section,
+        'action': action,
+        if (organizationId != null) 'organizationId': organizationId,
+      };
 }
 
 class PandoraIntelligenceException implements Exception {
-  const PandoraIntelligenceException(this.message);
+  const PandoraIntelligenceException(
+    this.message, {
+    this.code,
+    this.recoverable = true,
+    this.outcomeUnknown = false,
+  });
   final String message;
+  final String? code;
+  final bool recoverable;
+  final bool outcomeUnknown;
 
   @override
   String toString() => message;

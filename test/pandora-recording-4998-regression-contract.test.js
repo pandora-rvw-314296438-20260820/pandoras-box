@@ -46,7 +46,7 @@ test('recording 4998: bounded status reads stay direct but audit/analyze takes d
 test('recording 4998: Recent chats owns search lifetime in the exclusive right drawer', () => {
   assert.doesNotMatch(shell, /_workspaceKey/);
   assert.doesNotMatch(shell, /key:\s*_workspaceKey/);
-  assert.match(shell, /endDrawer:\s*Drawer\(/);
+  assert.match(shell, /endDrawer:\s*_observedDrawer\(\s*PandoraChatDrawerKind\.recent,\s*Drawer\(/);
   assert.match(shell, /pandora-recent-chats-drawer/);
   assert.match(shell, /class _PandoraRecentChatsPanel extends StatefulWidget/);
   assert.match(shell, /final TextEditingController _search = TextEditingController\(\);/);
@@ -54,6 +54,10 @@ test('recording 4998: Recent chats owns search lifetime in the exclusive right d
   assert.match(shell, /pandora-recent-chats-panel/);
   assert.match(shell, /void _openRecentChats\(\)/);
   assert.match(shell, /openEndDrawer\(\)/);
+  assert.match(shell, /void _openRecentChats\(\) => _requestDrawer\(PandoraChatDrawerKind\.recent\)/);
+  assert.match(shell, /expectedIntent: current\.intentRevision/);
+  assert.match(shell, /void _onDrawerUnmounted/);
+  assert.match(shell, /current\.closing/);
   assert.match(shell, /onTap:\s*\(\) => widget\.onOpenThread\(thread\)/);
   assert.match(shell, /final chat = _chatKey\.currentState/);
   assert.match(shell, /await chat\.loadThread\(thread\.id\)/);
@@ -63,7 +67,12 @@ test('recording 4998: Recent chats owns search lifetime in the exclusive right d
 
 test('recording 4998: owner shell is deterministically Graphite', () => {
   assert.match(shell, /PandoraPalette\.graphite/);
-  assert.match(shell, /extensions: const <ThemeExtension<dynamic>>\[PandoraPalette\.graphite\]/);
+  const theme = shell.slice(shell.indexOf('ThemeData _theme('), shell.indexOf('Widget _presentRoot('));
+  assert.match(theme, /final dark = PandoraTheme\.graphite/);
+  assert.match(theme, /return dark\.copyWith\(/);
+  assert.doesNotMatch(theme, /return base\.copyWith\(/);
+  // Actual enabled controls and input contrast are exercised under both
+  // ambient themes by pandora_core_shell_scope_test.dart.
 });
 
 test('recording 4998: internal ProjectOS rows are excluded from owner project summaries', () => {

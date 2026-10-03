@@ -28,14 +28,14 @@ const batalla = fs.readFileSync(
   "utf8",
 );
 
-test("Kabukicho Vision Intelligence is wired into the current shell", () => {
+test("Kabukicho Vision Intelligence remains accessible in Advanced tools", () => {
   assert.match(shell, /'Vision Intelligence'/);
   assert.match(shell, /10 => 'vision_intelligence'/);
   assert.match(shell, /10 => EnterpriseVisionScreen\(/);
-  assert.match(shell, /label: 'Core systems'/);
-  assert.match(shell, /indices: const <int>\[9, 10, 0, 8\]/);
-  assert.match(shell, /label: 'Capabilities'/);
-  assert.match(shell, /indices: const <int>\[11, 5, 6\]/);
+  assert.match(shell, /ExpansionTile\([\s\S]*?pandora-advanced-navigation[\s\S]*?title: const Text\('Advanced'\)/);
+  assert.match(shell, /label: 'Tools',[\s\S]*?indices: const <int>\[10, 8, 11, 5\]/);
+  assert.match(shell, /label: 'Pandora',[\s\S]*?indices: const <int>\[9, 0, 2\]/);
+  assert.match(shell, /label: 'Work',[\s\S]*?indices: const <int>\[1, 12, 13, 4, 6\]/);
 });
 
 test("web and Android use the same provider-controlled CamStreamer feed", () => {

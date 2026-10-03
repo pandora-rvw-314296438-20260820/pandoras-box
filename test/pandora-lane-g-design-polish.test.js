@@ -20,6 +20,8 @@ test("shared top bar uses a soft fade with no divider edge",()=>{
 });
 test("business content reserves the real compact composer lane",()=>{
  assert.match(layer,/compactComposerHeight = 80/);
- assert.match(layer,/businessBottomInset = compactComposerHeight \+ safeAreaBottom/);
+ assert.match(layer,/final measured = composerExtent/);
+ assert.match(layer,/businessBottomInset = measured != null && measured > 0\s*\? measured\s*: compactComposerHeight \+ safeAreaBottom/);
+ assert.match(layer,/padding: EdgeInsets\.only\(bottom: businessBottomInset\)/);
  assert.doesNotMatch(layer,/compactComposerHeight = 68/);
 });

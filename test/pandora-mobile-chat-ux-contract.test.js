@@ -10,11 +10,21 @@ const screenPath = new URL(
   '../apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
   import.meta.url,
 );
+const viewportPath = new URL(
+  '../apps/pandora-mobile/lib/features/simple/chat/pandora_chat_viewport.dart',
+  import.meta.url,
+);
+const presentationPath = new URL(
+  '../apps/pandora-mobile/lib/features/simple/chat/pandora_chat_presentation_controller.dart',
+  import.meta.url,
+);
 
 test('mobile chat uses the full adaptive viewport and keeps Enterprise context internal', async () => {
-  const [edge, screen] = await Promise.all([
+  const [edge, screen, viewport, presentation] = await Promise.all([
     readFile(edgePath, 'utf8'),
     readFile(screenPath, 'utf8'),
+    readFile(viewportPath, 'utf8'),
+    readFile(presentationPath, 'utf8'),
   ]);
 
   assert.ok(
@@ -45,12 +55,23 @@ test('mobile chat uses the full adaptive viewport and keeps Enterprise context i
     ),
   );
 
-  assert.ok(screen.includes('with WidgetsBindingObserver'));
-  assert.ok(screen.includes('resizeToAvoidBottomInset: false'));
-  assert.ok(screen.includes('contentPadding: conversationPadding'));
-  assert.ok(screen.includes('bool _followLatest = true;'));
-  assert.ok(screen.includes('extentAfter < 96'));
-  assert.ok(screen.includes('if (!force && !_followLatest) return;'));
+  assert.match(presentation, /with WidgetsBindingObserver/);
+  assert.match(presentation, /view\.viewInsets\.bottom \/ view\.devicePixelRatio/);
+  assert.match(screen, /resizeToAvoidBottomInset: true/);
+  assert.match(screen, /LayoutBuilder\(builder: \(context, constraints\)/);
+  assert.match(screen, /viewportSize: constraints\.biggest/);
+  assert.match(screen, /PandoraChatViewport\(/);
+  assert.match(screen, /threadIdentity: '\$\{state\.scopeId\}:\$\{state\.conversationId\}'/);
+  assert.match(screen, /revision: state\.revision/);
+  assert.match(viewport, /List<PandoraChatViewportItem>\.unmodifiable\(items\)/);
+  assert.match(viewport, /PandoraChatReadingAnchor/);
+  assert.match(viewport, /anchor\.messageId/);
+  assert.match(viewport, /offset - anchor\.offset/);
+  assert.match(viewport, /thread != widget\.threadIdentity/);
+  assert.match(viewport, /UserScrollNotification/);
+  assert.match(viewport, /ScrollMetricsNotification/);
+  assert.match(viewport, /identifier: 'pandora\.chat\.latest'/);
+  assert.doesNotMatch(screen, /bool _followLatest|bottom: keyboardInset/);
   assert.ok(screen.includes('String _sanitizeVisiblePandoraText(String input)'));
   assert.ok(screen.includes('_sanitizeVisiblePandoraText(text)'));
 });

@@ -13,13 +13,18 @@ const [mobile, api, edge, migration] = await Promise.all([
   readFile(edgePath, 'utf8'),
   readFile(migrationPath, 'utf8'),
 ]);
+const viewport = await readFile('apps/pandora-mobile/lib/features/simple/chat/pandora_chat_viewport.dart', 'utf8');
 
-test('chat stays chronological and opens on the newest turn', () => {
-  assert.match(mobile, /class _Conversation extends StatefulWidget/);
-  assert.match(mobile, /ScrollController _scrollController/);
-  assert.match(mobile, /reverse: false/);
-  assert.match(mobile, /_scrollController\.position\.maxScrollExtent/);
-  assert.match(mobile, /_scheduleScrollToLatest\(jump: true\)/);
+test('chat delegates chronology and user reading intent to the shared viewport', () => {
+  assert.match(mobile, /PandoraChatViewport\(/);
+  assert.match(mobile, /for \(final turn in state\.turns\)/);
+  assert.match(viewport, /ListView\.builder\(/);
+  assert.doesNotMatch(viewport, /reverse:\s*true/);
+  assert.match(viewport, /thread != widget\.threadIdentity/);
+  assert.match(viewport, /_followingLatest/);
+  assert.match(viewport, /notification\.dragDetails != null/);
+  assert.match(mobile, /_viewport\.returnToLatest\(\)/);
+  assert.match(api, /pandora_chat_thread_view_v2/);
   assert.match(api, /\.order\('created_at', ascending: false\)/);
   assert.match(api, /return latest\.reversed\.toList\(growable: false\)/);
 });

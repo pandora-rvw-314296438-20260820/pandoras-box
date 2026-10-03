@@ -10,10 +10,8 @@ const intelligence = fs.readFileSync(
   'apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart',
   'utf8',
 );
-const ask = fs.readFileSync(
-  'apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
-  'utf8',
-);
+const ask = ['ask_pandora_screen.dart', 'chat/pandora_chat_action_adapters.dart']
+  .map(file => fs.readFileSync(`apps/pandora-mobile/lib/features/simple/${file}`, 'utf8')).join('\n');
 
 test('selected-project repository reads are Vault-backed, GET-only, and project-bound', () => {
   assert.match(migration, /pandora_project_github_read_v1/);
@@ -61,7 +59,7 @@ test('mobile attaches verified repository source to audit turns and uses dispatc
 
 test('explicit project handoffs execute in Universal Chat through the real builder', () => {
   assert.match(ask, /handoff\?\.source == 'project_workspace_change'/);
-  assert.match(ask, /experience\.loadExperience\(handoffProjectId\)/);
+  assert.match(ask, /experience\.loadExperience\(projectId\)/);
   assert.match(ask, /experience\.submitChange\(/);
   assert.match(ask, /experience\.understanding\(/);
   assert.match(ask, /experience\.requestBuild\(/);

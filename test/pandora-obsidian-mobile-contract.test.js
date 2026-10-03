@@ -10,6 +10,7 @@ const tokens = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'core', 
 const shell = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'app', 'pandora_chat_shell.dart'), 'utf8');
 const navigation = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'core', 'widgets', 'pandora_navigation.dart'), 'utf8');
 const chat = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'features', 'simple', 'ask_pandora_screen.dart'), 'utf8');
+const composer = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'features', 'simple', 'chat', 'pandora_chat_composer.dart'), 'utf8');
 const projects = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'features', 'simple', 'projects_screen.dart'), 'utf8');
 
 test('approved Obsidian palette is native Flutter dark UI', () => {
@@ -32,14 +33,19 @@ test('chat landing is logo-only with a bare borderless always-live composer', ()
     chat,
     /What can I help with|Ask a question, describe a change|_suggestions|_ObsidianSuggestion/,
   );
-  assert.match(chat, /Message Pandora…/);
-  assert.match(chat, /height:\s*54/);
-  assert.match(chat, /Color\(0xFF151515\)/);
-  assert.match(chat, /BorderRadius\.circular\(27\)/);
-  assert.match(chat, /ask-pandora-composer/);
-  assert.match(chat, /final voiceReady =\s*!submitting && empty/);
-  assert.match(chat, /tooltip: voiceReady[\s\S]*?'Voice input'[\s\S]*?'Send'/);
-  assert.doesNotMatch(chat, /backgroundColor:\s*Colors\.white/);
+  assert.match(chat, /PandoraChatComposer\(/);
+  assert.match(composer, /Message Pandora…/);
+  assert.match(composer, /BoxConstraints\(minHeight:\s*54\)/);
+  assert.match(composer, /Color\(0xFF151515\)/);
+  assert.match(composer, /BorderRadius\.circular\(27\)/);
+  assert.match(composer, /ask-pandora-composer/);
+  assert.match(composer, /bool get canDictate[\s\S]*?voiceAvailable[\s\S]*?phase == PandoraComposerPhase\.idle/);
+  assert.match(composer, /final voice = empty && widget\.onVoice != null/);
+  assert.match(composer, /'Voice input'/);
+  assert.match(composer, /'Send message'/);
+  assert.match(composer, /liveActivation:[\s\S]*?_activatePrimary/);
+  assert.doesNotMatch(composer, /hintText:\s*'Follow up|Text\('Back'\)/);
+  assert.doesNotMatch(chat + composer, /backgroundColor:\s*Colors\.white/);
   assert.doesNotMatch(chat, /WebView|InAppWebView/);
 });
 

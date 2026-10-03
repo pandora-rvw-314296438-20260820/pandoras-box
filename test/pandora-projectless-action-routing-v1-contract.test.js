@@ -38,7 +38,8 @@ test('mobile handoffs stay in Universal Chat, never create a Project implicitly,
   assert.doesNotMatch(screen,/initialIntent: handoff\.request/);
   assert.doesNotMatch(screen,/message: handoff\.request/);
   assert.doesNotMatch(screen,/intelligence-handoff/);
-  assert.match(screen,/owns exactly one dispatch/);
+  assert.match(screen,/intelligence\.executeChatTurn\(dispatch\)/);
+  assert.doesNotMatch(screen,/intelligence\.startChatExecution\(/);
 });
 
 test('model fallback is universal and cannot manufacture a Project prerequisite', () => {

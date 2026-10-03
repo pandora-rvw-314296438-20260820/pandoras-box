@@ -1,0 +1,587 @@
+#!/usr/bin/env python3
+"""Interact with the installed core APK using Android UIAutomator and its real IME.
+
+Platform mode verifies the native sign-in envelope only. Authenticated mode
+requires a sanctioned email/password supplied in the process environment, and
+fails closed when absent. No app rebuild, fake backend, JWT fabrication, session
+injection, owner grant, or alternate input-method installation is performed.
+Public receipts contain hashes/geometry/timings, never credentials or prose.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import logging
+import os
+from pathlib import Path
+import re
+import subprocess
+import time
+import uuid
+import xml.etree.ElementTree as ET
+
+from core_artifact_provenance import ANDROID_PACKAGE
+from core_android_device import AndroidDevice, DeviceFailure, require
+
+UUID = r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"
+TURN_PHASE = re.compile(r"^pandora\.chat\.turn\.(" + UUID + r")\.([a-zA-Z]+)$")
+THREAD = re.compile(r"^pandora\.chat\.thread\.(" + UUID + r")$")
+TURN = re.compile(r"^pandora\.chat\.turn\.(" + UUID + r")$")
+ACTIVE = {"pending", "accepted", "processing", "streaming", "reconciling"}
+TERMINAL = {"completed", "cancelled", "failedRecoverably", "failedPermanently", "superseded"}
+LEAKS = ("capability registry", "runtime evidence", "model assumption",
+         "provider routing", "internal connection state")
+
+
+def bounds(value: str) -> tuple[int, int, int, int]:
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", value)
+    require(match is not None, "INVALID_ACCESSIBILITY_BOUNDS")
+    return tuple(int(part) for part in match.groups())
+
+
+def identifier(node: ET.Element) -> str:
+    return node.get("resource-id", "").removeprefix(ANDROID_PACKAGE + ":id/")
+
+
+def text_of(node: ET.Element) -> str:
+    return "\n".join(value for item in node.iter() for key in ("text", "content-desc")
+                     if (value := item.get(key, "")))
+
+
+def semantic_snapshot(xml: str) -> dict:
+    root = ET.fromstring(xml)
+    ids = {}
+    for item in root.iter("node"):
+        key = identifier(item)
+        if key.startswith("pandora.chat."):
+            # Two independently rendered controls with the same identity are a
+            # defect. A merged accessibility node must still be unique.
+            require(key not in ids, "DUPLICATE_CHAT_SEMANTIC_ID")
+            ids[key] = item
+    threads = [match.group(1) for key in ids if (match := THREAD.fullmatch(key))]
+    require(len(set(threads)) <= 1, "MULTIPLE_ACTIVE_THREAD_IDENTITIES")
+    phases = {}
+    for key in ids:
+        if match := TURN_PHASE.fullmatch(key):
+            turn, phase = match.groups()
+            require(turn not in phases, "MULTIPLE_PHASES_FOR_ONE_TURN")
+            phases[turn] = phase
+    return {"root": root, "nodes": ids, "thread": threads[0] if threads else None,
+            "turns": {m.group(1) for key in ids if (m := TURN.fullmatch(key))},
+            "phases": phases}
+
+
+class Journey:
+    def __init__(self, android: AndroidDevice, installed: dict, output: Path,
+                 mode: str, private_evidence: Path | None = None):
+        # UIAutomation debug transport logs include ACTION_SET_TEXT payloads.
+        # Disable library logging before connecting and explicitly disable its
+        # independent HTTP request printer before any login values are entered.
+        logging.disable(logging.CRITICAL)
+        import uiautomator2 as u2
+        self.android = android
+        self.device = u2.connect(android.serial)
+        self.device.debug = False
+        self.device.jsonrpc.setConfigurator({"waitForIdleTimeout": 0, "waitForSelectorTimeout": 0})
+        self.installed = installed
+        self.output = output
+        self.mode = mode
+        self.private_evidence = private_evidence
+        self.steps = []
+        self.timings = []
+        self.thread = None
+        self.draft_thread = None
+        self.sent = {}
+        self.token = "PANDORAQA" + uuid.uuid4().hex[:8].upper()
+        self.fixture_only = False
+        self.initial_ime = android.shell("settings", "get", "secure", "default_input_method").strip()
+        self.started = time.monotonic()
+        self.authenticated = False
+        self.failure = None
+
+    def snapshot(self) -> dict:
+        return semantic_snapshot(self.device.dump_hierarchy(compressed=False))
+
+    def wait(self, predicate, code: str, seconds: float = 20):
+        until = time.monotonic() + seconds
+        while time.monotonic() < until:
+            result = predicate()
+            if isinstance(result, ET.Element) or result:
+                return result
+            time.sleep(.2)
+        raise DeviceFailure(code)
+
+    def node(self, key: str, seconds: float = 15) -> ET.Element:
+        return self.wait(lambda: self.snapshot()["nodes"].get(key), "MISSING_" + key, seconds)
+
+    def click(self, key: str):
+        item = self.node(key)
+        require(item.get("enabled", "true") == "true", "DISABLED_" + key)
+        left, top, right, bottom = bounds(item.get("bounds", ""))
+        require(right > left and bottom > top, "UNTAPPABLE_" + key)
+        self.device.click((left + right) // 2, (top + bottom) // 2)
+
+    def exact_text(self, value: str, seconds: float = 15):
+        def find():
+            for node in self.snapshot()["root"].iter("node"):
+                if node.get("text") == value or node.get("content-desc") == value:
+                    return node
+            return None
+        node = self.wait(find, "EXPECTED_CONTROL_TEXT_ABSENT", seconds)
+        left, top, right, bottom = bounds(node.get("bounds", ""))
+        self.device.click((left + right) // 2, (top + bottom) // 2)
+
+    def verify_thread(self):
+        snapshot = self.snapshot()
+        require(snapshot["thread"] is not None, "THREAD_ID_NOT_EXPOSED_TO_AUTOMATION")
+        if self.thread is None:
+            # An empty local conversation has no durable backend thread yet.
+            # The server binds it atomically with the first admitted turn. Do
+            # not confuse that legitimate one-time binding with navigation to
+            # another thread, or accept a later thread change after binding.
+            admitted = {"accepted", "processing", "streaming", "completed"}
+            if any(phase in admitted for phase in snapshot["phases"].values()):
+                self.thread = snapshot["thread"]
+            elif self.draft_thread is not None:
+                require(snapshot["thread"] == self.draft_thread, "DRAFT_THREAD_CHANGED_BEFORE_ADMISSION")
+        else:
+            require(snapshot["thread"] == self.thread, "ACTIVE_THREAD_CHANGED")
+        return snapshot
+
+    def open_keyboard(self):
+        self.click("pandora.chat.input")
+        self.wait(self.android.ime_visible, "REAL_IME_DID_NOT_OPEN")
+        self.assert_composer_contained()
+
+    def close_keyboard(self):
+        if self.android.ime_visible():
+            self.device.press("back")
+        self.wait(lambda: not self.android.ime_visible(), "HARDWARE_BACK_DID_NOT_CLOSE_IME")
+
+    def assert_composer_contained(self):
+        node = self.node("pandora.chat.input")
+        left, top, right, bottom = bounds(node.get("bounds", ""))
+        width, height = self.device.window_size()
+        require(0 <= left < right <= width and 0 <= top < bottom < height,
+                "COMPOSER_OUTSIDE_VIEWPORT")
+        snapshot = self.snapshot()
+        require(not any(item.get("text") == "Back" or item.get("content-desc") == "Back"
+                        for item in snapshot["root"].iter("node")
+                        if item.get("package") == ANDROID_PACKAGE),
+                "UNEXPLAINED_BACK_CONTROL_VISIBLE")
+
+    def set_input(self, value: str):
+        self.click("pandora.chat.input")
+        # UiObject.set_text invokes Android accessibility ACTION_SET_TEXT. It
+        # does not install/switch to a fake IME or bypass Flutter's text field.
+        editor = self.device(className="android.widget.EditText")
+        require(editor.count == 1, "COMPOSER_EDITABLE_NOT_UNIQUE")
+        editor.set_text(value)
+
+    def send(self, value: str, rapid=False, via_keyboard=False) -> str:
+        before = set(self.verify_thread()["turns"]) | set(self.sent)
+        self.set_input(value)
+        button = self.node("pandora.chat.send")
+        left, top, right, bottom = bounds(button.get("bounds", ""))
+        started = time.monotonic()
+        if via_keyboard:
+            self.android.shell("input", "keycombination", "113", "66")
+        else:
+            self.device.click((left + right) // 2, (top + bottom) // 2)
+        if rapid:
+            self.device.click((left + right) // 2, (top + bottom) // 2)
+        def accepted():
+            view = self.verify_thread()
+            new = view["turns"] - before
+            if len(new) > 1:
+                raise DeviceFailure("DUPLICATE_TURN_AFTER_SEND")
+            return next(iter(new)) if new else None
+        turn = self.wait(accepted, "SEND_NOT_ACKNOWLEDGED", 12)
+        self.sent[turn] = {"request_sha256": hashlib.sha256(value.encode()).hexdigest(),
+                           "start": started, "accepted": time.monotonic()}
+        return turn
+
+    def phase(self, turn: str):
+        return self.verify_thread()["phases"].get(turn)
+
+    def network_connected(self) -> bool:
+        # ConnectivityService's active default network is current state. A
+        # broad search for VALIDATED can accidentally match historical logs.
+        dump = self.android.shell("dumpsys", "connectivity")
+        match = re.search(r"^\s*Active default network:\s*(none|[0-9]+)\s*$", dump, re.MULTILINE)
+        require(match is not None, "ANDROID_NETWORK_STATE_NOT_OBSERVABLE")
+        return match.group(1) != "none"
+
+    def reconcile_interrupted(self, turn: str):
+        self.wait(lambda: self.phase(turn) == "reconciling", "TRANSPORT_UNCERTAINTY_NOT_OWNED", 120)
+        require("pandora.chat.retry." + turn not in self.snapshot()["nodes"],
+                "UNVERIFIED_TRANSPORT_RETRY_EXPOSED")
+        self.android.shell("svc", "wifi", "enable")
+        self.android.shell("svc", "data", "enable")
+        self.wait(self.network_connected, "NETWORK_DID_NOT_RECOVER", 45)
+        # No request is resent until the production readback proves the offline
+        # attempt was not admitted. The same logical turn then becomes retryable.
+        self.click("pandora.chat.check." + turn)
+        self.wait(lambda: self.phase(turn) == "failedRecoverably", "RECOVERABLE_FAILURE_NOT_OWNED", 120)
+        self.node("pandora.chat.retry." + turn)
+
+    def complete(self, turn: str, seconds=150) -> str:
+        first_content = None
+        def terminal():
+            nonlocal first_content
+            view = self.verify_thread()
+            response = view["nodes"].get("pandora.chat.response." + turn)
+            if response is not None and text_of(response).strip() and first_content is None:
+                first_content = time.monotonic()
+            phase = view["phases"].get(turn)
+            if phase in TERMINAL:
+                return phase
+            return None
+        phase = self.wait(terminal, "TURN_DID_NOT_FINISH", seconds)
+        require(phase == "completed", "TURN_FINISHED_" + str(phase))
+        response = self.node("pandora.chat.response." + turn)
+        content = text_of(response)
+        require(bool(content.strip()), "COMPLETED_TURN_HAS_NO_RESPONSE")
+        meta = self.sent.get(turn)
+        if meta:
+            end = time.monotonic()
+            self.timings.append({"turn_id": turn, "request_sha256": meta["request_sha256"],
+                "tap_to_visible_acceptance_ms": round((meta["accepted"] - meta["start"]) * 1000),
+                "tap_to_first_observed_content_ms": round((first_content - meta["start"]) * 1000)
+                    if first_content else None,
+                "tap_to_observed_completion_ms": round((end - meta["start"]) * 1000),
+                "response_sha256": hashlib.sha256(content.encode()).hexdigest(),
+                "response_characters": len(content),
+                "timing_kind": "UI observation, not provider TTFT"})
+        return content
+
+    def active_visible(self, turn: str):
+        node = self.node("pandora.chat.turn." + turn)
+        _, top, _, bottom = bounds(node.get("bounds", ""))
+        composer_top = bounds(self.node("pandora.chat.input").get("bounds", ""))[1]
+        require(top < composer_top and bottom > 0, "LATEST_EXCHANGE_NOT_VISIBLE")
+
+    def selection(self, key: str):
+        self.wait(lambda: self.snapshot()["nodes"].get(key) is not None
+                  and self.snapshot()["nodes"][key].get("selected") == "true",
+                  "SELECTION_NOT_CONFIRMED_" + key)
+        prefix = "pandora.chat.reasoning." if key.startswith("pandora.chat.reasoning.") else "pandora.chat.model."
+        selected = [node for identity, node in self.snapshot()["nodes"].items()
+                    if identity.startswith(prefix) and node.get("selected") == "true"]
+        require(len(selected) == 1, "AMBIGUOUS_SELECTION_STATE")
+
+    def picker_contained(self):
+        surface = self.node("pandora.chat.model-picker")
+        left, top, right, bottom = bounds(surface.get("bounds", ""))
+        width, height = self.device.window_size()
+        require(0 <= left < right <= width and 0 <= top < bottom <= height,
+                "MODEL_PICKER_OUTSIDE_VIEWPORT")
+        require(not self.android.ime_visible(), "MODEL_PICKER_IME_COLLISION")
+
+    def anchor(self):
+        view = self.verify_thread()
+        options = []
+        composer_top = bounds(view["nodes"]["pandora.chat.input"].get("bounds", ""))[1]
+        for key, node in view["nodes"].items():
+            if TURN.fullmatch(key):
+                rect = bounds(node.get("bounds", ""))
+                if rect[1] >= 0 and 32 < rect[3] < composer_top:
+                    options.append((rect[1], key))
+        require(bool(options), "READING_ANCHOR_UNAVAILABLE")
+        y, key = sorted(options)[0]
+        return key, y
+
+    def assert_anchor(self, anchor, tolerance=32):
+        key, y = anchor
+        current = bounds(self.node(key).get("bounds", ""))[1]
+        require(abs(current - y) <= tolerance, "INTENTIONAL_HISTORY_POSITION_MOVED")
+
+    def record(self, number: int | str, action: str, callback):
+        started = time.monotonic()
+        result = callback()
+        self.steps.append({"step": number, "action": action, "passed": True,
+                           "duration_ms": round((time.monotonic() - started) * 1000)})
+        print(json.dumps({"step": number, "passed": True}), flush=True)
+        # Only an explicitly private local directory may receive authenticated
+        # pixels. Public workflow artifacts are metadata-only.
+        if self.private_evidence is not None and self.fixture_only:
+            self.private_evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
+            self.device.screenshot(str(self.private_evidence / f"step-{number}.png"))
+        self.write_receipt(False)
+        return result
+
+    def launch(self):
+        self.android.shell("am", "force-stop", ANDROID_PACKAGE)
+        self.android.shell("am", "start", "-W", "-n", ANDROID_PACKAGE + "/.MainActivity")
+        self.wait(lambda: self.device(className="android.widget.EditText").exists
+                  or "pandora.chat.input" in self.snapshot()["nodes"], "APP_ENTRY_NOT_VISIBLE", 90)
+
+    def login(self):
+        email = os.environ.get("PANDORA_CORE_QA_EMAIL", "")
+        password = os.environ.get("PANDORA_CORE_QA_PASSWORD", "")
+        require(bool(email and password), "SANCTIONED_QA_LOGIN_NOT_AVAILABLE")
+        if "pandora.chat.input" not in self.snapshot()["nodes"]:
+            fields = self.device(className="android.widget.EditText")
+            require(fields.count == 2, "EXPECTED_NATIVE_SIGN_IN_FORM_ABSENT")
+            fields[0].set_text(email)
+            fields[1].set_text(password)
+            if self.android.ime_visible():
+                self.device.press("back")
+            self.exact_text("Sign in")
+            self.wait(lambda: "pandora.chat.input" in self.snapshot()["nodes"],
+                      "NATIVE_AUTHENTICATION_NOT_CONFIRMED", 90)
+        self.authenticated = True
+        # Credential-filled screenshots/hierarchies are never persisted.
+
+    def new_chat(self):
+        if "pandora.chat.new-chat" not in self.snapshot()["nodes"]:
+            if "pandora.chat.navigation" in self.snapshot()["nodes"]:
+                self.click("pandora.chat.navigation")
+            elif "pandora.chat.more" in self.snapshot()["nodes"]:
+                self.click("pandora.chat.more")
+            else:
+                self.exact_text("Chat options")
+        self.click("pandora.chat.new-chat")
+        self.wait(lambda: self.snapshot()["thread"], "NEW_THREAD_ID_UNAVAILABLE")
+        view = self.snapshot()
+        require(not view["turns"], "QA_THREAD_IS_NOT_EMPTY")
+        self.draft_thread = view["thread"]
+        self.thread = None
+        self.fixture_only = True
+
+    def platform(self):
+        self.record("platform-1", "Cold launch exact installed APK", self.launch)
+        require("pandora.chat.input" not in self.snapshot()["nodes"], "PLATFORM_MODE_REQUIRES_SIGNED_OUT_DEVICE")
+        self.record("platform-2", "Empty sign-in validates locally", lambda: self.exact_text("Sign in"))
+        self.wait(lambda: "Enter your email." in text_of(self.snapshot()["root"]), "EMAIL_VALIDATION_ABSENT")
+        for index in range(3):
+            def cycle():
+                self.device(className="android.widget.EditText", instance=0).click()
+                self.wait(self.android.ime_visible, "NATIVE_SIGN_IN_IME_NOT_VISIBLE")
+                self.device.press("back")
+                self.wait(lambda: not self.android.ime_visible(), "NATIVE_SIGN_IN_IME_DID_NOT_CLOSE")
+            self.record(f"platform-ime-{index + 1}", "Real IME open and hardware Back close", cycle)
+        self.record("platform-background", "Background native app", lambda: self.device.press("home"))
+        self.record("platform-resume", "Resume native app", lambda: self.android.shell(
+            "am", "start", "-W", "-n", ANDROID_PACKAGE + "/.MainActivity"))
+        self.record("platform-restart", "Force-stop and relaunch native sign-in", self.launch)
+        self.record("platform-scale", "Native sign-in at increased text scale", lambda: self.android.shell(
+            "settings", "put", "system", "font_scale", "1.3"))
+        require(self.device(className="android.widget.EditText").count == 2, "SCALED_SIGN_IN_FORM_MISSING")
+        self.android.shell("settings", "put", "system", "font_scale", "1.0")
+
+    def authenticated_journey(self):
+        self.record(1, "Cold launch", self.launch)
+        def enter():
+            self.login()
+            self.new_chat()
+        self.record(2, "Authenticate and open a fresh primary chat", enter)
+        first = self.record(3, "Send Hi", lambda: self.send("Hi"))
+        self.record(4, "Wait for first completion", lambda: self.complete(first))
+        hello = self.record(5, "Send Hello", lambda: self.send("Hello"))
+        short = self.record(6, "Send another short turn during/after generation", lambda: self.send("Hi"))
+        self.complete(hello)
+        self.complete(short)
+        current = self.record(7, "Send What's up?", lambda: self.send("What's up?"))
+        self.complete(current)
+        self.record(8, "Same thread and distinct logical turns", self.verify_thread)
+        self.record(9, "Open keyboard", self.open_keyboard)
+        self.record(10, "Close keyboard with hardware Back", self.close_keyboard)
+        self.record(11, "Open keyboard again", self.open_keyboard)
+        message = "Please remember the code " + self.token + " for this conversation. Acknowledge briefly."
+        self.record(12, "Type with conversation history present", lambda: self.set_input(message))
+        current = self.record(13, "Send typed message using keyboard shortcut", lambda: self.send(message, via_keyboard=True))
+        self.record(14, "Open options during/after generation", lambda: self.click("pandora.chat.model-options"))
+        def selection():
+            self.picker_contained()
+            if self.node("pandora.chat.model.auto").get("selected") != "true":
+                self.click("pandora.chat.model.auto")
+                self.click("pandora.chat.model-options")
+            self.selection("pandora.chat.model.auto")
+        self.record(15, "Inspect contained model surface and choose Auto", selection)
+        def reasoning():
+            self.click("pandora.chat.reasoning.deep")
+            self.click("pandora.chat.model-options")
+            self.selection("pandora.chat.reasoning.deep")
+            self.selection("pandora.chat.model.auto")
+        self.record(16, "Choose Deep reasoning and confirm independent Auto preference", reasoning)
+        self.record(17, "Close selector", lambda: self.click("pandora.chat.model-picker.close"))
+        self.complete(current)
+        self.record(18, "Latest exchange retained after selector", lambda: self.active_visible(current))
+        def drawer():
+            self.open_keyboard()
+            self.click("pandora.chat.navigation")
+            self.wait(lambda: not self.android.ime_visible(), "DRAWER_IME_COLLISION")
+        self.record(19, "Open navigation while keyboard is visible", drawer)
+        self.record(20, "Close drawer with hardware Back", lambda: self.device.press("back"))
+        self.record(21, "Return to primary chat", lambda: self.node("pandora.chat.input"))
+        self.record(22, "Confirm unchanged active thread", self.verify_thread)
+        def interrupted():
+            self.android.shell("svc", "wifi", "disable")
+            self.android.shell("svc", "data", "disable")
+            self.wait(lambda: not self.network_connected(), "DEVICE_NETWORK_DID_NOT_DISCONNECT", 30)
+            return self.send("Reply in one short sentence after the temporary connection interruption.")
+        failed = self.record(23, "Safe device network interruption for one intelligence turn", interrupted)
+        self.record(24, "Reconnect and reconcile exact turn before allowing retry",
+                    lambda: self.reconcile_interrupted(failed))
+        self.record(25, "Retry the verified unadmitted logical turn", lambda: self.click("pandora.chat.retry." + failed))
+        def recovered():
+            self.complete(failed)
+            require("pandora.chat.retry." + failed not in self.snapshot()["nodes"], "STALE_RETRY_AFTER_SUCCESS")
+        self.record(26, "Recovery resolves failure UI", recovered)
+        current = self.record(27, "Ask What can you do for me?", lambda: self.send("What can you do for me?"))
+        answer = self.complete(current)
+        self.record(28, "Ordinary answer excludes internal registry narration", lambda: require(
+            not any(phrase in answer.lower() for phrase in LEAKS), "INTERNAL_RUNTIME_PROSE_LEAK"))
+        self.record(29, "Open keyboard while latest response is visible", self.open_keyboard)
+        self.record(30, "Check latest exchange remains anchored", lambda: self.active_visible(current))
+        long_turn = self.send("Explain how to plan a small weekend garden in about 400 words, with practical steps.")
+        self.close_keyboard()
+        def review_history():
+            require(self.phase(long_turn) in ACTIVE, "STREAM_FINISHED_BEFORE_HISTORY_RACE_COULD_BE_EXERCISED")
+            width, height = self.device.window_size()
+            self.device.swipe(width // 2, height // 3, width // 2, height * 3 // 4, duration=.4)
+            self.node("pandora.chat.latest")
+            return self.anchor()
+        anchor = self.record(31, "Intentionally scroll upward into history", review_history)
+        # The off-screen response may correctly be absent from Android's
+        # accessibility tree. Observe the persistent stop control ending here,
+        # then inspect the completed turn only after explicitly returning.
+        self.record(32, "Receive additional content while reviewing history", lambda: self.wait(
+            lambda: "pandora.chat.stop" not in self.snapshot()["nodes"],
+            "HISTORY_VIEW_GENERATION_DID_NOT_FINISH", 150))
+        self.record(33, "History anchor is respected", lambda: self.assert_anchor(anchor))
+        self.record(34, "Explicitly return to latest", lambda: self.click("pandora.chat.latest"))
+        self.complete(long_turn)
+        def continue_context():
+            turn = self.send("What was the code I asked you to remember earlier? Reply only with that code.")
+            require(self.token in self.complete(turn), "CONVERSATION_HISTORY_NOT_RECONSTRUCTED")
+            return turn
+        current = self.record(35, "Continue with explicit context recall", continue_context)
+        self.record(36, "Background app", lambda: self.device.press("home"))
+        self.record(37, "Resume app", lambda: self.android.shell(
+            "am", "start", "-W", "-n", ANDROID_PACKAGE + "/.MainActivity"))
+        self.record(38, "Verify coherent resumed thread", self.verify_thread)
+        def more_turns():
+            for prompt in ("Thanks.", "Give me one useful next step.", "Keep it concise."):
+                self.complete(self.send(prompt))
+        self.record(39, "Repeat turns without resetting state", more_turns)
+        self.additional_cases()
+
+    def additional_cases(self):
+        def empty():
+            known = set(self.sent) | self.verify_thread()["turns"]
+            self.set_input("")
+            self.android.shell("input", "keycombination", "113", "66")
+            time.sleep(.5)
+            require(not (self.verify_thread()["turns"] - known), "EMPTY_MESSAGE_CREATED_A_TURN")
+        self.record("additional-empty", "Empty keyboard submission creates no turn", empty)
+        self.record("additional-rapid", "Rapid send remains one logical turn", lambda: self.complete(
+            self.send("Reply with one word: acknowledged.", rapid=True)))
+        self.record("additional-multiline", "Long multiline input", lambda: self.complete(self.send(
+            "Summarize these notes in two sentences:\n" + "A calm and continuous conversation. " * 24)))
+        def cancel_then_send():
+            turn = self.send("Write a detailed explanation of urban gardening, around 600 words.")
+            self.click("pandora.chat.stop")
+            next_turn = self.send("Reply only: continued.")
+            self.wait(lambda: self.phase(turn) == "cancelled", "CANCELLATION_NOT_OWNED")
+            self.complete(next_turn)
+            require(self.phase(turn) == "cancelled", "STALE_GENERATION_REPAINTED_CANCELLED_TURN")
+        self.record("additional-cancel", "Cancel and immediately send a new message", cancel_then_send)
+        def repeated_picker():
+            for _ in range(3):
+                self.click("pandora.chat.model-options")
+                self.picker_contained()
+                self.click("pandora.chat.reasoning.balanced")
+                self.click("pandora.chat.model-options")
+                self.selection("pandora.chat.reasoning.balanced")
+                self.click("pandora.chat.model-picker.close")
+                self.verify_thread()
+        self.record("additional-picker", "Repeated options surface open/close", repeated_picker)
+        def restart():
+            self.launch()
+            # Android deliberately keeps its Auth session in memory. Real
+            # re-authentication, followed by history restoration, is expected.
+            self.login()
+            self.verify_thread()
+            recalled = self.complete(self.send("Repeat the code I asked you to remember earlier."))
+            require(self.token in recalled, "RESTART_HISTORY_NOT_RESTORED")
+        self.record("additional-restart", "Restart, re-authenticate, restore same conversation", restart)
+
+    def write_receipt(self, passed: bool):
+        self.output.parent.mkdir(parents=True, exist_ok=True)
+        result = {"schema": "pandora-core-android-journey-v1", "mode": self.mode,
+            "source_sha": self.installed["source_sha"], "apk_sha256": self.installed["apk_sha256"],
+            "installed_apk_sha256": self.installed["installed_apk_sha256"],
+            "installed": True, "authenticated": self.authenticated,
+            "thread_id_sha256": hashlib.sha256(self.thread.encode()).hexdigest() if self.thread else None,
+            "steps": self.steps,
+            "turn_timings": [{**{key: value for key, value in timing.items() if key != "turn_id"},
+                              "turn_id_sha256": hashlib.sha256(timing["turn_id"].encode()).hexdigest()}
+                             for timing in self.timings],
+            "duration_seconds": round(time.monotonic() - self.started, 2),
+            "platform_journey_verified": passed and self.mode == "platform",
+            "continuous_chat_journey_verified": passed and self.mode == "authenticated",
+            "runtime_verified": passed and self.mode == "authenticated",
+            "production_verified": False,
+            "failure_code": self.failure,
+            "safe_failure_path": "device network interruption; provider outage not asserted",
+            "physical_device_verified": False,
+            "provider_timings_verified": False,
+            "visual_recording": "private local evidence only" if self.private_evidence else "not captured",
+            "raw_conversation_content_included": False,
+        }
+        if passed:
+            result["performance"] = self.android.metrics()
+        self.output.write_text(json.dumps(result, indent=2) + "\n")
+
+    def run(self) -> int:
+        try:
+            require(self.android.installed_digest() == self.installed["apk_sha256"],
+                    "INSTALLED_APK_CHANGED_BEFORE_JOURNEY")
+            if self.mode == "authenticated":
+                require(bool(os.environ.get("PANDORA_CORE_QA_EMAIL")
+                             and os.environ.get("PANDORA_CORE_QA_PASSWORD")),
+                        "SANCTIONED_QA_LOGIN_NOT_AVAILABLE")
+                self.authenticated_journey()
+            else:
+                self.platform()
+            require(self.android.shell("settings", "get", "secure", "default_input_method").strip()
+                    == self.initial_ime, "INPUT_METHOD_CHANGED_DURING_JOURNEY")
+            require(self.android.installed_digest() == self.installed["apk_sha256"],
+                    "INSTALLED_APK_CHANGED_DURING_JOURNEY")
+            self.write_receipt(True)
+            return 0
+        except Exception as error:
+            # Driver exception details can contain UI text. Only reviewed
+            # failure codes/type names belong in the public receipt/log.
+            self.failure = re.sub(UUID, "<turn-id>", str(error)) if isinstance(error, DeviceFailure) else type(error).__name__
+            self.write_receipt(False)
+            print(json.dumps({"runtime_verified": False, "failure_code": self.failure}), flush=True)
+            return 1
+        finally:
+            self.android.shell("svc", "wifi", "enable", check=False)
+            self.android.shell("svc", "data", "enable", check=False)
+            self.android.shell("settings", "put", "system", "font_scale", "1.0", check=False)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--serial", default="emulator-5554")
+    parser.add_argument("--adb", default="adb")
+    parser.add_argument("--installed-receipt", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--mode", choices=["platform", "authenticated"], required=True)
+    parser.add_argument("--private-evidence", type=Path)
+    args = parser.parse_args()
+    require(not (os.environ.get("GITHUB_ACTIONS") and args.private_evidence),
+            "AUTHENTICATED_PIXELS_MUST_NOT_ENTER_PUBLIC_WORKFLOW_ARTIFACTS")
+    installed = json.loads(args.installed_receipt.read_text())
+    require(installed.get("installed") is True, "INSTALLED_ARTIFACT_RECEIPT_REQUIRED")
+    return Journey(AndroidDevice(args.serial, args.adb), installed, args.output,
+                   args.mode, args.private_evidence).run()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

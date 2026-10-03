@@ -14,7 +14,9 @@ import 'simple_briefing_screen.dart';
 import 'simple_safety_screen.dart';
 
 void _openMore(BuildContext context, Widget screen) {
-  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  final themedScreen = InheritedTheme.captureAll(context, screen);
+  Navigator.of(context)
+      .push(MaterialPageRoute<void>(builder: (_) => themedScreen));
 }
 
 class MoreScreen extends StatelessWidget {

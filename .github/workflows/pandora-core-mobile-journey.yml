@@ -1,0 +1,240 @@
+name: Pandora core mobile runtime journey
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - '.github/workflows/pandora-core-mobile-journey.yml'
+      - 'apps/pandora-mobile/**'
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact compiled source SHA from the mobile artifact manifest
+        required: true
+        type: string
+      build_run_id:
+        description: Successful canonical mobile exact-source workflow run ID
+        required: true
+        type: string
+      artifact_id:
+        description: Android validation artifact ID from that run
+        required: true
+        type: string
+      build_kind:
+        description: Install these existing APK bytes; do not rebuild
+        required: true
+        default: debug
+        type: choice
+        options: [profile, debug]
+      mode:
+        description: Platform checks do not constitute authenticated chat acceptance
+        required: true
+        default: platform
+        type: choice
+        options: [platform, authenticated]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: pandora-core-mobile-journey-${{ github.event.pull_request.number || inputs.source_sha || github.sha }}-${{ inputs.mode || 'helpers' }}
+  cancel-in-progress: false
+
+jobs:
+  helper-tests:
+    name: Android evidence boundary tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          persist-credentials: false
+      - name: Verify provenance substitution and driver parsing boundaries
+        run: python3 -m unittest discover -s apps/pandora-mobile/tool -p 'core_*_test.py' -v
+
+  android:
+    name: Android ${{ matrix.viewport }} / ${{ inputs.mode || (github.event.label.name == 'core-mobile-qa-reviewed' && 'authenticated' || 'platform') }}
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    needs: helper-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        viewport: [small, tall]
+    # Credential-bearing runs require a separately governed environment with
+    # required reviewers. A name alone does not establish that protection;
+    # preflight below verifies the provider's actual rules before use.
+    environment:
+      name: ${{ (inputs.mode == 'authenticated' || github.event.label.name == 'core-mobile-qa-reviewed') && 'pandora-core-mobile-qa' || 'pandora-core-mobile-platform' }}
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      ARTIFACT_ID: ${{ inputs.artifact_id }}
+      BUILD_KIND: ${{ inputs.build_kind || 'debug' }}
+      JOURNEY_MODE: ${{ inputs.mode || (github.event.label.name == 'core-mobile-qa-reviewed' && 'authenticated' || 'platform') }}
+      VIEWPORT: ${{ matrix.viewport }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - name: Validate immutable identifiers before checkout or API calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$GITHUB_EVENT_NAME" = workflow_dispatch ]]; then
+            [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+            [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          fi
+          test "$GITHUB_REPOSITORY" = pandora-rvw-314296438-20260820/pandoras-box
+          RUNTIME_ROOT="$RUNNER_TEMP/pandora-core-runtime"
+          echo "RUNTIME_ROOT=$RUNTIME_ROOT" >> "$GITHUB_ENV"
+          mkdir -p "$RUNTIME_ROOT/provider-inputs" "$RUNTIME_ROOT/evidence"
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve the separate completed PR build without rebuilding
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROVIDER_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 apps/pandora-mobile/tool/core_resolve_mobile_build.py \
+            --source-sha "$SOURCE_SHA" --provider-head-sha "$PROVIDER_HEAD_SHA" \
+            --output "$RUNTIME_ROOT/provider-inputs/resolved-build.json"
+
+      - name: Fetch exact provider run, commit and Android artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" > "$RUNTIME_ROOT/provider-inputs/run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > "$RUNTIME_ROOT/provider-inputs/artifact.json"
+          gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_SHA" > "$RUNTIME_ROOT/provider-inputs/commit.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$RUNTIME_ROOT/candidate.zip"
+          python3 apps/pandora-mobile/tool/core_artifact_provenance.py \
+            --source-sha "$SOURCE_SHA" \
+            --run-json "$RUNTIME_ROOT/provider-inputs/run.json" \
+            --artifact-json "$RUNTIME_ROOT/provider-inputs/artifact.json" \
+            --commit-json "$RUNTIME_ROOT/provider-inputs/commit.json" \
+            --archive "$RUNTIME_ROOT/candidate.zip" \
+            --extract-dir "$RUNTIME_ROOT/candidate" \
+            --receipt "$RUNTIME_ROOT/evidence/artifact-receipt.json" \
+            --build-kind "$BUILD_KIND"
+
+      - name: Require protected real login for authenticated acceptance
+        if: env.JOURNEY_MODE == 'authenticated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PANDORA_CORE_QA_EMAIL: ${{ secrets.PANDORA_CORE_QA_EMAIL }}
+          PANDORA_CORE_QA_PASSWORD: ${{ secrets.PANDORA_CORE_QA_PASSWORD }}
+          PANDORA_CORE_QA_REVIEWED_SOURCE_SHA: ${{ vars.PANDORA_CORE_QA_REVIEWED_SOURCE_SHA }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/environments/pandora-core-mobile-qa" > "$RUNTIME_ROOT/provider-inputs/qa-environment.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNTIME_ROOT'])
+          rules = json.loads((root/'provider-inputs/qa-environment.json').read_text()).get('protection_rules', [])
+          protected = any(rule.get('type') == 'required_reviewers' and rule.get('reviewers') for rule in rules)
+          supplied = bool(os.environ.get('PANDORA_CORE_QA_EMAIL') and os.environ.get('PANDORA_CORE_QA_PASSWORD'))
+          source_bound = os.environ.get('PANDORA_CORE_QA_REVIEWED_SOURCE_SHA') == os.environ['SOURCE_SHA']
+          result = {'protected_environment_verified': protected, 'sanctioned_login_available': supplied,
+                    'independently_reviewed_source_bound': source_bound,
+                    'authenticated_journey_verified': False, 'production_verified': False}
+          (root/'evidence/auth-gate.json').write_text(json.dumps(result, indent=2)+'\n')
+          if not (protected and supplied and source_bound):
+              raise SystemExit('REVIEWED_EXACT_SOURCE_AND_PROTECTED_QA_LOGIN_REQUIRED; authenticated journey NOT_VERIFIED')
+          PY
+
+      - name: Install pinned external Android UI driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -c 'import sys; assert sys.version_info[:2] == (3, 12)'
+          python3 -m venv "$RUNTIME_ROOT/driver-venv"
+          "$RUNTIME_ROOT/driver-venv/bin/python" -m pip install \
+            --require-hashes --only-binary=:all: \
+            -r apps/pandora-mobile/tool/core_runtime/requirements.txt
+
+      - name: Prepare pinned Google APIs ARM translator on standard Linux runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod a+rw /dev/kvm
+          python3 apps/pandora-mobile/tool/core_android_emulator.py bootstrap \
+            --sdk-root "$RUNTIME_ROOT/sdk" \
+            --avd-home "$RUNTIME_ROOT/avds" \
+            --evidence "$RUNTIME_ROOT/evidence"
+
+      - name: Write exact install and native journey commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNTIME_ROOT'])
+          tools=Path('apps/pandora-mobile/tool').resolve()
+          python=str(root/'driver-venv/bin/python')
+          commands=[
+              [python, str(tools/'core_android_device.py'), '--artifact-receipt', str(root/'evidence/artifact-receipt.json'),
+               '--installed-receipt', str(root/'evidence/installed-receipt.json')],
+              [python, str(tools/'core_android_journey.py'), '--installed-receipt', str(root/'evidence/installed-receipt.json'),
+               '--output', str(root/'evidence/journey-receipt.json'), '--mode', os.environ['JOURNEY_MODE']],
+          ]
+          (root/'commands.json').write_text(json.dumps({'commands': commands}, indent=2)+'\n')
+          PY
+
+      - name: Boot, install the same APK, and exercise native interactions
+        env:
+          PANDORA_CORE_QA_EMAIL: ${{ env.JOURNEY_MODE == 'authenticated' && secrets.PANDORA_CORE_QA_EMAIL || '' }}
+          PANDORA_CORE_QA_PASSWORD: ${{ env.JOURNEY_MODE == 'authenticated' && secrets.PANDORA_CORE_QA_PASSWORD || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 apps/pandora-mobile/tool/core_android_emulator.py run \
+            --sdk-root "$RUNTIME_ROOT/sdk" \
+            --avd-home "$RUNTIME_ROOT/avds" \
+            --evidence "$RUNTIME_ROOT/evidence" \
+            --command-json "$RUNTIME_ROOT/commands.json" \
+            --acceleration on --viewport "$VIEWPORT"
+
+      - name: Report evidence stage without promoting platform checks to chat acceptance
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNTIME_ROOT'])
+          file=root/'evidence/journey-receipt.json'
+          receipt=json.loads(file.read_text()) if file.exists() else {}
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('### Core Android runtime evidence\n\n')
+              summary.write(f"Exact source: `{os.environ['SOURCE_SHA']}`\n\n")
+              summary.write(f"Mode: **{os.environ['JOURNEY_MODE']}**; viewport: **{os.environ['VIEWPORT']}**\n\n")
+              summary.write(f"Platform journey verified: **{receipt.get('platform_journey_verified', False)}**\n\n")
+              summary.write(f"Authenticated continuous chat journey verified: **{receipt.get('continuous_chat_journey_verified', False)}**\n\n")
+              summary.write('Production verification: **not asserted by this workflow**.\n')
+          PY
+
+      - name: Preserve content-free provenance and measured journey receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: pandora-core-runtime-${{ env.SOURCE_SHA }}-${{ env.BUILD_KIND }}-${{ env.JOURNEY_MODE }}-${{ matrix.viewport }}
+          path: ${{ runner.temp }}/pandora-core-runtime/evidence/*.json
+          if-no-files-found: warn
+          retention-days: 14
