@@ -287,10 +287,10 @@ void main() {
     final title = tester.widget<Text>(titleFinder);
     expect(title.data, 'RESORT STATUS');
     expect(title.style?.fontFamily, 'serif');
-    expect(title.style?.fontSize, 21);
-    expect(title.style?.fontWeight, FontWeight.w500);
+    expect(title.style?.fontSize, 16);
+    expect(title.style?.fontWeight, FontWeight.w400);
     expect(title.style?.color, const Color(0xFF171512));
-    expect(title.style?.letterSpacing, -.35);
+    expect(title.style?.letterSpacing, 2.6);
     expect(find.text('Today'), findsNothing);
     expect(find.text('PLP Boracay'), findsNothing);
     final menu = tester.getRect(
@@ -306,7 +306,7 @@ void main() {
         matching: titleFinder,
       ));
       expect(contextual.style?.fontFamily, 'serif');
-      expect(contextual.style?.fontSize, 21);
+      expect(contextual.style?.fontSize, 16);
       expect(find.text('PLP Boracay'), findsNothing);
       expect(tester.getRect(find.byKey(const ValueKey('plp-command-dock'))), dock);
     }
