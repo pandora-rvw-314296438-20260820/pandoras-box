@@ -221,13 +221,26 @@ async function authenticate(req: Request): Promise<Context> {
     .eq("user_id", authData.user.id)
     .eq("status", "active")
     .maybeSingle();
-  const membershipRole = String(membership?.role || "");
-  if (membershipError || !["owner", "admin"].includes(membershipRole)) {
-    throw new ApiError(
-      403,
-      "ADMIN_ROLE_REQUIRED",
-      "An active owner or administrator role is required.",
+  let membershipRole = String(membership?.role || "");
+  if (membershipError) {
+    throw new ApiError(503, "AUTHORITY_UNAVAILABLE", "User administration is temporarily unavailable.");
+  }
+  if (!["owner", "admin"].includes(membershipRole)) {
+    // Manage Client is an explicit operator capability, separate from entering
+    // the customer's business workspace. Never infer it from editable metadata.
+    const { data: authority, error: authorityError } = await userClient.rpc(
+      "pandora_core_authorize_user_admin_v1",
+      { p_organization_id: organizationId, p_write: req.method !== "GET" },
     );
+    if (authorityError || !["owner", "admin"].includes(String(record(authority).role || ""))) {
+      const stepUp = authorityError?.message === "STEP_UP_REQUIRED";
+      throw new ApiError(
+        403,
+        stepUp ? "STEP_UP_REQUIRED" : "ADMIN_ROLE_REQUIRED",
+        stepUp ? "Verify your security code to manage customer access." : "An authorized administrator role is required.",
+      );
+    }
+    membershipRole = String(record(authority).role);
   }
 
   return {
