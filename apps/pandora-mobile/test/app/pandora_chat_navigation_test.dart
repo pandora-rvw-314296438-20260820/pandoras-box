@@ -5,6 +5,7 @@ import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_conversation_layer.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
+import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
 import 'package:pandora_mobile/core/widgets/pandora_navigation.dart';
 import 'package:pandora_mobile/features/operations/operations_room_screen.dart';
@@ -19,6 +20,8 @@ void main() {
     Size size, {
     FakeRepository? repository,
   }) async {
+    PandoraLocalAiPreference.setCachedForTesting(false);
+    addTearDown(PandoraLocalAiPreference.resetForTesting);
     await setTestSurface(tester, logicalSize: size);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(

@@ -6,6 +6,7 @@ import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/data/pandora_repository.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
+import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
 import 'package:pandora_mobile/core/network/pandora_api_error.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
@@ -62,6 +63,8 @@ Future<void> _mount(
   WidgetTester tester, {
   FakeRepository? repository,
 }) async {
+  PandoraLocalAiPreference.setCachedForTesting(false);
+  addTearDown(PandoraLocalAiPreference.resetForTesting);
   await setTestSurface(tester, logicalSize: const Size(390, 844));
   await tester.pumpWidget(
     testApp(
