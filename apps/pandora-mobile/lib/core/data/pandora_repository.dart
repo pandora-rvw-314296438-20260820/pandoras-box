@@ -263,6 +263,17 @@ abstract interface class UserConnectAuthorizationSource {
   Future<UserConnectAuthorization> startUserConnectAuthorization();
 }
 
+/// Identity-scoped read-only snapshots that may be rendered immediately while
+/// the repository refreshes current evidence. Implementations must clear these
+/// snapshots whenever the authenticated identity epoch changes.
+abstract interface class ReadOnlyEvidenceCacheSource {
+  RepositorySnapshot<List<ProjectSummary>>? get cachedProjects;
+
+  RepositorySnapshot<List<ConnectionSummary>>? get cachedConnections;
+
+  RepositorySnapshot<List<AuditEvent>>? get cachedActivity;
+}
+
 abstract interface class PandoraRepository {
   Future<RepositorySnapshot<HomeSummary>> home();
 
