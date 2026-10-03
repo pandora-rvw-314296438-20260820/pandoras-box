@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'plp_activity_read_model.dart';
+
 class PlpResortSection {
   const PlpResortSection({
     required this.id,
@@ -157,7 +159,14 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
               48 + MediaQuery.viewPaddingOf(context).bottom,
             ),
             children: [
-              _ResortHeader(section: section),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 44),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  heightFactor: 1,
+                  child: _ResortHeader(section: section),
+                ),
+              ),
               const SizedBox(height: 12),
               ...children,
             ],
@@ -177,10 +186,13 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   bool get _cachedOperationalSnapshot =>
-      bootstrap['offlineBootstrap'] == true;
+      bootstrap['offlineBootstrap'] == true &&
+      bootstrap['cachedOperationalDataAvailable'] == true;
 
   bool get _operationalSnapshotAvailable =>
-      _liveOperationalDataAvailable || _cachedOperationalSnapshot;
+      bootstrap['offlineBootstrap'] == true
+          ? _cachedOperationalSnapshot
+          : _liveOperationalDataAvailable;
 
   List<Widget> _sourceContextPrelude() {
     if (!_cachedOperationalSnapshot) return const <Widget>[];
@@ -989,7 +1001,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final rawActivity = bootstrap['verifiedActivity'];
     final loaded = rawActivity is Map;
     final verified = loaded
-        ? _clientRecords(_maps(_map(rawActivity)['items']))
+        ? plpProductionActivityRecords(_map(rawActivity)['items'])
         : const <Map<String, Object?>>[];
     final rows = verified
         .map(
@@ -1009,7 +1021,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         action: rows.isNotEmpty ? rows.length.toString() : null,
       ),
       const SizedBox(height: 8),
-      if (!loaded)
+      if (!loaded && bootstrap['verifiedActivityLoading'] == true)
+        const _EmptyState('Loading verified activity…')
+      else if (!loaded)
         const _EmptyState(
           'Verified resort activity is temporarily unavailable. Refresh or open the activity feed to try again.',
         )
@@ -1043,7 +1057,8 @@ class _ResortHeader extends StatelessWidget {
           Expanded(
             child: Text(
               section.headerTitle,
-              maxLines: 1,
+              key: const ValueKey<String>('plp-contextual-page-title'),
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: PlpResortWorkspaceScreen.ink,
@@ -2091,7 +2106,7 @@ class _SourceRecoveryPanel extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             Text(
-              affectedArea + ' · ' + source + ' · ' + _humanStatus(state),
+              source + ' · ' + _humanStatus(state),
               style: const TextStyle(
                 color: PlpResortWorkspaceScreen.accent,
                 fontSize: 10.5,
@@ -2382,7 +2397,7 @@ bool _truthy(Object? value) {
 }
 
 bool _isInternalRecord(Map<String, Object?> item) {
-  if (_truthy(item['isMock'])) return true;
+  if (plpRecordIsTestData(item)) return true;
   final identities = <Object?>[
     item['displayName'],
     item['fullName'],
@@ -2476,7 +2491,13 @@ String _clientSourceMessage(String state) {
   if (normalized == 'not_connected') {
     return 'Live resort data is not connected yet.';
   }
-  return 'Some resort data may be delayed. Verified records remain available where possible.';
+  if (const {'stale', 'delayed'}.contains(normalized)) {
+    return 'The resort source is delayed. Previously verified records remain available.';
+  }
+  if (const {'offline', 'unavailable', 'error', 'failed'}.contains(normalized)) {
+    return 'The resort source is unavailable. Refresh its status to check recovery.';
+  }
+  return 'The resort source status is not verified. Refresh to confirm what is available.';
 }
 
 String _friendlyTimestamp(Object? value) {

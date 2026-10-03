@@ -177,7 +177,7 @@ test("PLP verified production activity excludes mock QA and synthetic history at
   assert.match(productionActivityIsolation, /not like '%synthetic%'/);
   assert.match(activity, /_productionActivity/);
   assert.match(operational, /_productionRecords/);
-  assert.match(operational, /reference\.startsWith\('mock-'\)/);
+  assert.match(operational, /plpRecordIsTestData\(item\)/);
 });
 
 test("PLP source outages remain actionable without manufacturing current business values", () => {
@@ -186,4 +186,28 @@ test("PLP source outages remain actionable without manufacturing current busines
   assert.match(resort, /Open infrastructure/);
   assert.match(resort, /_cachedOperationalSnapshot/);
   assert.match(resort, /_sourceAvailableActions/);
+});
+
+
+const activityModel = read("apps/pandora-mobile/lib/features/enterprise/plp_activity_read_model.dart");
+const markerPrecision = read("supabase/migrations/20261003215433_plp_activity_test_marker_precision_v2.sql");
+
+test("PLP summary and detail share lazy activity reads without adding startup work", () => {
+  assert.match(shell, /readModel: _activityReadModel/);
+  assert.match(shell, /_bootstrapInFlight/);
+  assert.match(shell, /Future\.wait<void>/);
+  assert.match(activityModel, /if \(pending != null\) return pending/);
+  assert.match(activityModel, /payload\['items'\] is! List/);
+  assert.match(activity, /widget\.readModel!\.load/);
+  assert.match(resort, /plpProductionActivityRecords/);
+});
+
+test("PLP explicit test provenance does not erase ordinary production descriptions", () => {
+  assert.match(markerPrecision, /plp_activity_record_is_test_v2/);
+  assert.match(markerPrecision, /PLP_PRODUCTION_FALSE_POSITIVE/);
+  assert.match(markerPrecision, /Mockingbird PMS/);
+  assert.match(activityModel, /bool plpRecordIsTestData/);
+  assert.match(resort, /plpRecordIsTestData\(item\)/);
+  assert.doesNotMatch(activityModel, /source\.contains\('mock'\)/);
+  assert.doesNotMatch(activityModel, /text\.contains\('synthetic'\)/);
 });
