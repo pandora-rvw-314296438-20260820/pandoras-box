@@ -24,6 +24,6 @@ test('OpenRouter billing and availability failures stay eligible for safe cross-
   assert.match(rollout,/p_status = 402[\s\S]*quota_exhausted/);
   assert.match(edge,/quota_exhausted/);
   assert.match(edge,/crossProviderEligible/);
-  assert.match(edge,/\.slice\(0,6\)/);
+  assert.match(edge,/prioritizeProviderDiversity\(routePlan\.candidates,6\)/);
   assert.match(edge,/provider-auto-failover-v4/);
 });

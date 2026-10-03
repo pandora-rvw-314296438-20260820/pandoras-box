@@ -55,7 +55,7 @@
         "posthog:version": "npm --prefix tooling run posthog:version",
         "posthog:contract": "npm run build:runtime --silent && node --test test/pandora-lifecycle.test.js test/pandora-posthog-transport.test.js",
         "supabase:contract": "npm run check:supabase && npm run check:supabase:types && npm run check:supabase:replay && npm run supabase:version",
-        "tooling:audit": "npm --prefix tooling audit --audit-level=high",
+        "tooling:audit": "node scripts/audit-tooling-dependencies.mjs",
         "providers:contract": "npm run posthog:contract && npm run supabase:contract && npm run tooling:audit"
     },
     "version": "1.3.0-observability",

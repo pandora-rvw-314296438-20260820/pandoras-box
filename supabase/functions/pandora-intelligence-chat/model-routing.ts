@@ -14,6 +14,12 @@ export function modelSelectionFromRoute(route:Record<string,unknown>|null):ChatM
   if(route?.selectionMode==="manual"&&text(route.requestedProvider)&&text(route.requestedModel))return normalizeChatModelSelection({selection:"manual",provider:text(route.requestedProvider),model:text(route.requestedModel),fallbackMode:route.fallbackMode==="allow_fallback"?"allow_fallback":"strict"});
   return normalizeChatModelSelection({selection:"auto"});
 }
+export function prioritizeProviderDiversity<T extends {provider:string}>(candidates:T[],limit=6):T[]{
+  if(!Number.isInteger(limit)||limit<1||!candidates.length)return[];
+  const seen=new Set<string>(),first:T[]=[],remainder:T[]=[];
+  for(const candidate of candidates){const provider=text(candidate.provider);if(!provider)continue;if(seen.has(provider))remainder.push(candidate);else{seen.add(provider);first.push(candidate)}}
+  return[...first,...remainder].slice(0,limit);
+}
 export function planChatModelCandidates(input:{requestId:string;task:string;hasImage:boolean;modelClass:string;configs:ChatProviderConfig[];route:Record<string,unknown>|null;selection:ChatModelSelection;policyVersion:string;performance:Record<string,unknown>;cohortKey:string}){
   const registry=new ModelCapabilityRegistry(),adapters:Record<string,{execute:()=>Promise<never>}>={},allowedProviders:string[]=[],allowedModels:string[]=[];
   let preferredProvider:string|null=null,preferredModel:string|null=null;
