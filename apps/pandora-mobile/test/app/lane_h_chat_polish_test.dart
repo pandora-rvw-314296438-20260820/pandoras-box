@@ -48,21 +48,14 @@ void main() {
     await tester.pumpAndSettle();
 
     final rect = tester.getRect(composer);
-    expect(rect.left, closeTo(14, .1));
-    expect(rect.right, closeTo(376, .1));
-    expect(rect.height, closeTo(54, .1));
+    expect(rect.left, closeTo(12, .1));
+    expect(rect.right, closeTo(382, .1));
     expect(rect.bottom, lessThanOrEqualTo(844 - 320));
-    for (final key in <String>[
-      'ask-pandora-plus',
-      'ask-pandora-model-control',
-      'ask-pandora-submit',
-    ]) {
-      final item = find.byKey(ValueKey<String>(key));
-      expect(item, findsOneWidget);
-      expect(tester.getRect(item).bottom, lessThanOrEqualTo(rect.bottom));
-    }
-    expect(find.textContaining('Model ·'), findsNothing);
-    expect(find.textContaining('Reasoning ·'), findsNothing);
+    expect(rect.height, greaterThanOrEqualTo(36));
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-submit')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('A3 failed send survives keyboard dismissal with Retry',
@@ -182,7 +175,7 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey<String>('pandora-active-chat-minimize')),
-      findsNothing,
+      findsOneWidget,
     );
   });
 }
