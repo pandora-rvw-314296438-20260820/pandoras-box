@@ -117,7 +117,7 @@ class PandoraIntelligenceApi {
       final rows = await _client
           .from('pandora_intelligence_messages')
           .select(
-            'id,thread_id,author_role,content,attachment_manifest,created_at',
+            'id,thread_id,author_role,content,attachment_manifest,structured_response,created_at',
           )
           .eq('organization_id', _organizationId)
           .eq('thread_id', threadId)
@@ -1081,6 +1081,7 @@ class PandoraIntelligenceMessage {
     required this.authorRole,
     required this.content,
     required this.createdAt,
+    this.inspectHandoff,
   });
 
   final String id;
@@ -1088,6 +1089,7 @@ class PandoraIntelligenceMessage {
   final String authorRole;
   final String content;
   final DateTime createdAt;
+  final PandoraIntelligenceHandoff? inspectHandoff;
 
   bool get isUser => authorRole == 'user';
 
@@ -1098,6 +1100,10 @@ class PandoraIntelligenceMessage {
         authorRole: _requiredText(json['author_role']),
         content: _requiredText(json['content']),
         createdAt: _date(json['created_at']),
+        inspectHandoff: json['author_role'] == 'assistant'
+            ? PandoraIntelligenceHandoff.inspectFromJson(
+                _map(json['structured_response'])['handoff'])
+            : null,
       );
 }
 
@@ -1193,6 +1199,45 @@ class PandoraIntelligenceHandoff {
   final String? section;
   final String? action;
   final String? organizationId;
+
+  /// Restored navigation is an explicit read-only affordance, never an action
+  /// replay. The shell still validates the active scope before opening it.
+  static PandoraIntelligenceHandoff? inspectFromJson(Object? value) {
+    final json = _map(value);
+    final request = _optionalText(json['request']);
+    final section = _optionalText(json['section']);
+    final organizationId = _optionalText(json['organizationId']);
+    if (json['required'] != true ||
+        json['kind'] != 'core_navigation' ||
+        json['action'] != 'inspect' ||
+        request == null ||
+        request.length > 160 ||
+        !const {'clients', 'business', 'platform', 'administration'}
+            .contains(section) ||
+        (json['organizationId'] != null && organizationId == null) ||
+        (organizationId != null &&
+            !RegExp(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
+                .hasMatch(organizationId))) {
+      return null;
+    }
+    return PandoraIntelligenceHandoff(
+      request: request,
+      source: 'core_navigation',
+      kind: 'core_navigation',
+      section: section,
+      action: 'inspect',
+      organizationId: organizationId,
+    );
+  }
+
+  Map<String, Object?> get inspectionJson => {
+        'required': true,
+        'request': request,
+        'kind': kind,
+        'section': section,
+        'action': action,
+        if (organizationId != null) 'organizationId': organizationId,
+      };
 }
 
 class PandoraIntelligenceException implements Exception {

@@ -50,5 +50,5 @@ test('Plugins UI fails closed when authorization is not verified', async () => {
 
   assert.match(plugins, /Verified authorization is required before Pandora can use this plugin/);
   assert.match(plugins, /Live plugin runtime detail is not verified/);
-  assert.match(plugins, /No verified plugins are connected right now/);
+  assert.match(plugins, /No verified connections in these records\./);
 });

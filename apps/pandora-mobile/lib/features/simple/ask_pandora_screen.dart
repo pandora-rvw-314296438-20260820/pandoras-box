@@ -48,6 +48,7 @@ class AskPandoraScreen extends StatefulWidget {
     this.shellOverlay = false,
     this.initialHistoryExpanded = true,
     this.onCoreNavigate,
+    this.onHistoryVisibilityChanged,
   });
 
   final String? initialPrompt;
@@ -61,6 +62,7 @@ class AskPandoraScreen extends StatefulWidget {
   final bool shellOverlay;
   final bool initialHistoryExpanded;
   final ValueChanged<PandoraIntelligenceHandoff>? onCoreNavigate;
+  final ValueChanged<bool>? onHistoryVisibilityChanged;
 
   @override
   State<AskPandoraScreen> createState() => AskPandoraScreenState();
@@ -221,7 +223,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
         if (entry['role'] == 'user') {
           restored.add(_ChatMessage.user(text));
         } else if (entry['role'] == 'pandora') {
-          restored.add(_ChatMessage.pandora(text));
+          restored.add(_ChatMessage.pandora(text,
+              coreNavigation: PandoraIntelligenceHandoff.inspectFromJson(
+                  entry['inspectHandoff'])));
         }
       }
       if (restored.isEmpty) return;
@@ -236,15 +240,17 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     }
   }
 
-  void showHistory() {
-    if (_shellHistoryExpanded) return;
-    setState(() => _shellHistoryExpanded = true);
+  void _setHistoryExpanded(bool expanded) {
+    if (_shellHistoryExpanded == expanded) return;
+    setState(() => _shellHistoryExpanded = expanded);
+    if (widget.shellOverlay) {
+      widget.onHistoryVisibilityChanged?.call(expanded);
+    }
   }
 
-  void minimizeHistory() {
-    if (!_shellHistoryExpanded) return;
-    setState(() => _shellHistoryExpanded = false);
-  }
+  void showHistory() => _setHistoryExpanded(true);
+
+  void minimizeHistory() => _setHistoryExpanded(false);
 
   void showExternalFailureMessage(String message) {
     final normalized = message.trim();
@@ -254,8 +260,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
         )) {
       return;
     }
+    showHistory();
     setState(() {
-      _shellHistoryExpanded = true;
       _messages.add(_ChatMessage.failure(normalized));
       _error = null;
     });
@@ -1228,8 +1234,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     await _activityController.clear();
     if (!mounted) return;
     _activeActivityJobId = null;
+    if (widget.shellOverlay) showHistory();
     setState(() {
-      if (widget.shellOverlay) _shellHistoryExpanded = true;
       _submitting = true;
       _activityTheatreRequested = requestActivityTheatre;
       _activityTheatreSuppressed = suppressActivityTheatre;
@@ -1380,6 +1386,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
         _messages.add(_ChatMessage.pandora(
           turn.reply,
           authorizationUrl: turn.authorizationUrl,
+          coreNavigation: turn.handoff?.kind == 'core_navigation' &&
+                  turn.handoff?.action == 'inspect' &&
+                  widget.onCoreNavigate != null
+              ? turn.handoff
+              : null,
         ));
         _pendingMessage = null;
         _attachment = null;
@@ -1402,7 +1413,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
       }
 
       final handoff = turn.handoff;
-      if (handoff?.kind == 'core_navigation' && widget.onCoreNavigate != null) {
+      if (handoff?.kind == 'core_navigation' &&
+          handoff?.action != 'inspect' &&
+          widget.onCoreNavigate != null) {
         coreHandoff = handoff;
       }
       final experience = dependencies.projectExperienceRepository;
@@ -1759,8 +1772,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     unawaited(_activityController.clear());
     unawaited(PandoraLocalAi.instance.resetConversation());
     _lastTurnUsedLocalAi = false;
+    if (widget.shellOverlay) showHistory();
     setState(() {
-      if (widget.shellOverlay) _shellHistoryExpanded = true;
       _teamAdministrationPending = false;
       _messages.clear();
       _objective.clear();
@@ -1907,8 +1920,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     _activityTheatreRequested = false;
     _activityTheatreSuppressed = false;
     await _activityController.clear();
+    if (widget.shellOverlay) showHistory();
     setState(() {
-      if (widget.shellOverlay) _shellHistoryExpanded = true;
       _loadingThread = true;
       _error = null;
       _pendingMessage = null;
@@ -1937,7 +1950,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
             history.map(
               (message) => message.isUser
                   ? _ChatMessage.user(message.content)
-                  : _ChatMessage.pandora(message.content),
+                  : _ChatMessage.pandora(message.content,
+                      coreNavigation: message.inspectHandoff),
             ),
           );
         _objective.clear();
@@ -2038,6 +2052,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                 activityError: _activityController.publicError,
                 inlineError: _error,
                 onRetry: (message) => unawaited(_retryFailedTurn(message)),
+                onCoreNavigate: widget.onCoreNavigate,
                 contentPadding: conversationPadding,
                 viewportSize: viewportSize,
               );
@@ -2338,6 +2353,7 @@ class _Conversation extends StatefulWidget {
     required this.contentPadding,
     required this.viewportSize,
     required this.onRetry,
+    this.onCoreNavigate,
     this.activityError,
     this.inlineError,
   });
@@ -2354,6 +2370,7 @@ class _Conversation extends StatefulWidget {
   final String? activityError;
   final String? inlineError;
   final ValueChanged<_ChatMessage> onRetry;
+  final ValueChanged<PandoraIntelligenceHandoff>? onCoreNavigate;
 
   @override
   State<_Conversation> createState() => _ConversationState();
@@ -2441,6 +2458,8 @@ class _ConversationState extends State<_Conversation> {
           return <String, Object?>{
             'role': message.isUser ? 'user' : 'pandora',
             'text': text,
+            if (message.coreNavigation != null)
+              'inspectHandoff': message.coreNavigation!.inspectionJson,
           };
         }).toList(growable: false),
       );
@@ -2499,6 +2518,7 @@ class _ConversationState extends State<_Conversation> {
       items.add(
         _ChatBubble(
           message: message,
+          onCoreNavigate: widget.onCoreNavigate,
           onRetry: message.retryObjective == null
               ? null
               : () => widget.onRetry(message),
@@ -2595,9 +2615,10 @@ class _InlineConversationError extends StatelessWidget {
 }
 
 class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({required this.message, this.onRetry});
+  const _ChatBubble({required this.message, this.onRetry, this.onCoreNavigate});
   final _ChatMessage message;
   final VoidCallback? onRetry;
+  final ValueChanged<PandoraIntelligenceHandoff>? onCoreNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -2682,14 +2703,29 @@ class _ChatBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SelectableText(
-                message.text,
-                style: const TextStyle(
-                  color: PandoraSimpleColors.ink,
-                  fontSize: 15.5,
-                  height: 1.52,
+              Semantics(
+                container: true,
+                label: 'Pandora: ${message.text}',
+                child: ExcludeSemantics(
+                  child: SelectableText(
+                    message.text,
+                    style: const TextStyle(
+                      color: PandoraSimpleColors.ink,
+                      fontSize: 15.5,
+                      height: 1.52,
+                    ),
+                  ),
                 ),
               ),
+              if (message.coreNavigation != null && onCoreNavigate != null)
+                TextButton.icon(
+                  key: const ValueKey('pandora-core-inspect-action'),
+                  onPressed: () => onCoreNavigate!(message.coreNavigation!),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: Text(message.coreNavigation!.request.trim().isEmpty
+                      ? 'Open details'
+                      : message.coreNavigation!.request),
+                ),
               if (message.authorizationUrl != null)
                 TextButton.icon(
                   onPressed: () => launchUrl(
@@ -3444,12 +3480,14 @@ class _ChatMessage {
     this.isUser,
     this.authorizationUrl, {
     this.retryObjective,
+    this.coreNavigation,
     this.isFailure = false,
   });
 
   _ChatMessage.user(String text)
       : this._(_sanitizeVisibleUserText(text), true, null);
-  _ChatMessage.pandora(String text, {Uri? authorizationUrl})
+  _ChatMessage.pandora(String text,
+      {Uri? authorizationUrl, PandoraIntelligenceHandoff? coreNavigation})
       : this._(
           _sanitizeVisiblePandoraText(text),
           false,
@@ -3458,6 +3496,10 @@ class _ChatMessage {
                   authorizationUrl?.path.endsWith('/dialog/oauth') == true
               ? authorizationUrl
               : null,
+          coreNavigation: coreNavigation == null
+              ? null
+              : PandoraIntelligenceHandoff.inspectFromJson(
+                  coreNavigation.inspectionJson),
         );
   _ChatMessage.failure(String text, {String? retryObjective})
       : this._(
@@ -3471,6 +3513,7 @@ class _ChatMessage {
   final String text;
   final bool isUser;
   final Uri? authorizationUrl;
+  final PandoraIntelligenceHandoff? coreNavigation;
   final String? retryObjective;
   final bool isFailure;
 }

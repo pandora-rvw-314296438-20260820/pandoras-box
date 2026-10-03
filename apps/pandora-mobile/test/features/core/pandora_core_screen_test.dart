@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/data/pandora_core_api.dart';
+import 'package:pandora_mobile/core/data/pandora_user_admin_api.dart';
 import 'package:pandora_mobile/features/core/pandora_core_screen.dart';
+import 'package:pandora_mobile/features/team/team_screen.dart';
 
 import '../../helpers/test_app.dart';
 
@@ -188,6 +190,55 @@ class _FakeCoreGateway implements PandoraCoreGateway {
   }
 }
 
+class _ScopedTeamGateway implements PandoraUserAdminGateway {
+  _ScopedTeamGateway(this.authority);
+  final String authority;
+  int organizationReads = 0;
+  PandoraUserAdminFailure? accessFailure;
+  final memberReads = <String>[];
+  int writes = 0;
+  List<PandoraTeamMember> members = const [
+    PandoraTeamMember(
+        id: _currentAssigneeId,
+        displayName: 'Northwind reception',
+        role: 'member',
+        status: 'active'),
+  ];
+
+  @override
+  Future<List<PandoraOrganizationAccess>> loadOrganizations() async {
+    organizationReads++;
+    if (accessFailure case final failure?) throw failure;
+    return [
+      PandoraOrganizationAccess(
+          id: _northClientId,
+          name: 'Northwind Guest House',
+          role: 'admin',
+          authority: authority),
+    ];
+  }
+
+  @override
+  Future<List<PandoraTeamMember>> loadMembers(String organizationId) async {
+    memberReads.add(organizationId);
+    return members;
+  }
+
+  @override
+  Future<PandoraInviteResult> inviteMember(
+      String organizationId, PandoraInviteRequest request) async {
+    writes++;
+    throw StateError('No team mutation is expected.');
+  }
+
+  @override
+  Future<PandoraMemberUpdateResult> updateMember(
+      String organizationId, PandoraMemberUpdateRequest request) async {
+    writes++;
+    throw StateError('No team mutation is expected.');
+  }
+}
+
 Future<void> _mount(
   WidgetTester tester,
   _FakeCoreGateway gateway, {
@@ -199,6 +250,7 @@ Future<void> _mount(
   Future<void> Function(PandoraCoreRecord)? onEnterClient,
   ValueChanged<PandoraCoreRecord>? onContextChanged,
   String? initialAction,
+  PandoraUserAdminGateway? teamGateway,
 }) async {
   await setTestSurface(tester, logicalSize: size);
   await tester.pumpWidget(
@@ -213,6 +265,7 @@ Future<void> _mount(
           onEnterClient: onEnterClient,
           onContextChanged: onContextChanged,
           initialAction: initialAction,
+          teamGateway: teamGateway,
         ),
       ),
     ),
@@ -389,6 +442,441 @@ Future<void> _fillRegistration(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+      'Platform hides only a candidate with the exact production identity',
+      (tester) async {
+    PandoraCoreRecord release(String title, String kind,
+            {String? deployment = 'dpl_exact', String? sha, String? commit}) =>
+        {
+          'title': title,
+          'release_observation_kind': kind,
+          if (deployment != null) 'provider_deployment_id': deployment,
+          if (sha != null) 'source_sha': sha,
+          if (commit != null) 'source_commit_sha': commit,
+          'status': 'READY',
+        };
+    final releases = <PandoraCoreRecord>[
+      release('Canonical production', 'canonical_production', sha: 'a' * 40),
+      release('Promoted exact candidate', 'candidate', sha: 'a' * 40),
+      release('Promoted commit-field candidate', 'candidate', commit: 'a' * 40),
+      release('Different source', 'candidate', sha: 'b' * 40),
+      release('Different deployment', 'candidate',
+          deployment: 'dpl_other', sha: 'a' * 40),
+      release('Missing deployment', 'candidate',
+          deployment: null, sha: 'a' * 40),
+      release('Invalid source', 'candidate', sha: 'short-sha'),
+      release('Conflicting sources', 'candidate',
+          sha: 'a' * 40, commit: 'b' * 40),
+      release('Different exact case', 'candidate', sha: 'A' * 40),
+    ];
+    final gateway = _FakeCoreGateway()
+      ..data = {..._snapshot(), 'deployments': releases};
+    await _mount(tester, gateway,
+        section: 'platform', size: const Size(600, 1600));
+    await _tap(tester, find.text('Deployments'));
+    expect(find.text('Canonical production'), findsOneWidget);
+    expect(find.text('Promoted exact candidate'), findsNothing);
+    expect(find.text('Promoted commit-field candidate'), findsNothing);
+    for (final title in [
+      'Different source',
+      'Different deployment',
+      'Missing deployment',
+      'Invalid source',
+      'Conflicting sources',
+      'Different exact case',
+    ]) {
+      expect(find.text(title), findsOneWidget);
+    }
+    expect(releases, hasLength(9),
+        reason: 'Simple presentation must not modify the snapshot evidence.');
+    gateway.data = {
+      ..._clientDetail(_client()),
+      'deployments': releases.take(2).toList(),
+    };
+    await _mount(tester, gateway,
+        section: 'client',
+        organizationId: _northClientId,
+        size: const Size(600, 1600));
+    await _tap(tester, find.text('Releases'));
+    expect(find.text('Canonical production'), findsOneWidget);
+    expect(find.text('Promoted exact candidate'), findsOneWidget,
+        reason: 'The client Releases evidence list is not deduplicated.');
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final identicalSources in [true, false]) {
+    testWidgets(
+        'release details ${identicalSources ? 'deduplicate identical' : 'retain conflicting'} source fields',
+        (tester) async {
+      final gateway = _FakeCoreGateway()
+        ..data = {
+          ..._snapshot(),
+          'deployments': [
+            {
+              'title': 'Release identity detail',
+              'release_observation_kind': 'candidate',
+              'source_sha': 'a' * 40,
+              'source_commit_sha': (identicalSources ? 'a' : 'b') * 40,
+              'provider_deployment_id': 'dpl_exact_identifier',
+            },
+          ],
+        };
+      await _mount(tester, gateway, section: 'platform');
+      await _tap(tester, find.text('Deployments'));
+      await _tap(tester, find.text('Release identity detail'));
+      expect(find.text('Source version'),
+          identicalSources ? findsOneWidget : findsNWidgets(2));
+      expect(find.text('a' * 40), findsOneWidget);
+      expect(find.text('b' * 40),
+          identicalSources ? findsNothing : findsOneWidget);
+      expect(find.text('dpl_exact_identifier'), findsOneWidget);
+      expect(gateway.operations, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+      'Audit shows real action scope and time without invented verification',
+      (tester) async {
+    const occurred = '2026-10-03T15:42:00Z';
+    final hash = 'd' * 64;
+    final gateway = _FakeCoreGateway()
+      ..data = {
+        ..._snapshot(),
+        'team': [
+          {'user_id': _currentAssigneeId, 'name': 'Ada Operator'},
+        ],
+        'audit': [
+          {
+            'event_type': 'core.client.register',
+            'organization_id': _northClientId,
+            'actor_user_id': _currentAssigneeId,
+            'created_at': occurred,
+            'event_hash': hash,
+          },
+        ],
+      };
+    await _mount(tester, gateway, section: 'administration');
+    await _tap(tester, find.text('Audit'));
+    final row = find.widgetWithText(ListTile, 'Client register');
+    expect(row, findsOneWidget);
+    expect(
+        find.descendant(of: row, matching: find.textContaining('Ada Operator')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: row, matching: find.textContaining('Northwind Guest House')),
+        findsOneWidget);
+    expect(find.descendant(of: row, matching: find.textContaining(occurred)),
+        findsOneWidget);
+    expect(find.text('Not verified'), findsNothing);
+    expect(find.text(_currentAssigneeId), findsNothing);
+    expect(find.text(_northClientId), findsNothing);
+    await _tap(tester, row);
+    expect(find.text('core.client.register'), findsOneWidget);
+    expect(find.text(_northClientId), findsOneWidget);
+    expect(find.text(_currentAssigneeId), findsOneWidget);
+    expect(find.text(hash), findsOneWidget);
+    expect(find.text('Not verified'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'operator summaries use actual names and scope while details retain IDs',
+      (tester) async {
+    const expiry = '2026-10-10T12:00:00Z';
+    final gateway = _FakeCoreGateway()
+      ..data = {
+        ..._snapshot(),
+        'team': [
+          {'user_id': _currentAssigneeId, 'name': 'Ada Operator'},
+        ],
+        'operators': [
+          {
+            'role': 'owner',
+            'organization_id': null,
+            'user_id': _currentAssigneeId,
+            'state': 'active',
+          },
+          {
+            'role': 'support',
+            'organization_id': _northClientId,
+            'user_id': _availableAssigneeId,
+            'state': 'active',
+            'expires_at': expiry,
+          },
+        ],
+      };
+    await _mount(tester, gateway, section: 'administration');
+    await _tap(tester, find.text('Security'));
+    final owner = find.widgetWithText(ListTile, 'Owner access');
+    final support = find.widgetWithText(ListTile, 'Support access');
+    expect(
+        find.descendant(
+            of: owner, matching: find.textContaining('Ada Operator')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: owner,
+            matching: find.textContaining('All clients and platform')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: support,
+            matching: find.textContaining('Northwind Guest House')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: support, matching: find.textContaining('Expires $expiry')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: support, matching: find.textContaining('Ada Operator')),
+        findsNothing);
+    for (final rawId in [
+      _currentAssigneeId,
+      _availableAssigneeId,
+      _northClientId
+    ]) {
+      expect(find.textContaining(rawId), findsNothing);
+    }
+    await _tap(tester, support);
+    expect(find.text(_availableAssigneeId), findsOneWidget);
+    expect(find.text(_northClientId), findsOneWidget);
+    expect(find.text(expiry), findsOneWidget);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final authority in ['explicit_operator_grant', 'tenant_membership']) {
+    testWidgets(
+        'embedded client Team shows $authority accurately and refreshes the same client once',
+        (tester) async {
+      final gateway = _FakeCoreGateway()
+        ..onSnapshot = (request) async => request.organizationId == null
+            ? _snapshot()
+            : _clientDetail(_client());
+      final team = _ScopedTeamGateway(authority);
+      await _mount(tester, gateway,
+          section: 'clients', size: const Size(360, 740), teamGateway: team);
+      await _tap(
+          tester, find.byKey(const ValueKey('core-manage-$_northClientId')));
+      await _tap(tester, find.text('People'));
+      await _tap(tester, find.text('Manage Team & Access'));
+      final embedded = tester.widget<TeamScreen>(find.byType(TeamScreen));
+      expect(embedded.organizationId, _northClientId);
+      expect(embedded.organizationName, 'Northwind Guest House');
+      expect(embedded.embedded, isTrue);
+      expect(find.text('Team & Access'), findsOneWidget);
+      expect(find.text('Team'), findsNothing,
+          reason: 'Embedded Team must not add a second page header.');
+      expect(find.text('Selected client'), findsNothing);
+      if (authority == 'explicit_operator_grant') {
+        expect(
+            find.text(
+                'Managing Northwind Guest House as Pandora Administrator'),
+            findsOneWidget);
+        expect(find.text('You are an administrator.'), findsNothing);
+      } else {
+        expect(find.text('Northwind Guest House'), findsOneWidget);
+        expect(find.text('You are an administrator.'), findsOneWidget);
+        expect(find.textContaining('as Pandora Administrator'), findsNothing);
+      }
+      expect(team.memberReads, [_northClientId]);
+      final coreReads = gateway.snapshots.length;
+      expect(find.byTooltip('Refresh'), findsNothing);
+      expect(find.byTooltip('Refresh team'), findsOneWidget);
+      team.members = const [
+        PandoraTeamMember(
+            id: _availableAssigneeId,
+            displayName: 'Newly authorized reception user',
+            role: 'member',
+            status: 'active'),
+      ];
+      await _tap(tester, find.byTooltip('Refresh team'));
+      expect(team.organizationReads, 2);
+      expect(team.memberReads, [_northClientId, _northClientId]);
+      expect(gateway.snapshots.length, coreReads,
+          reason: 'Team refresh must reload its own data rather than Core.');
+      expect(find.text('Newly authorized reception user'), findsOneWidget);
+      expect(find.text('Northwind reception'), findsNothing);
+      expect(find.text('Add person').hitTestable(), findsOneWidget);
+      await _tap(tester, find.text('Add person'));
+      expect(
+          find.widgetWithText(TextFormField, 'Email address'), findsOneWidget);
+      await _tap(tester, find.text('Cancel'));
+      expect(team.writes, 0);
+      team.accessFailure = const PandoraUserAdminFailure(
+        code: 'ORGANIZATION_ACCESS_REQUIRED',
+        message: 'You no longer have access to this client team.',
+      );
+      await _tap(tester, find.byTooltip('Refresh team'));
+      expect(team.organizationReads, 3);
+      expect(team.memberReads, [_northClientId, _northClientId],
+          reason: 'Denied authority must stop the subsequent member read.');
+      expect(
+          find.text('Owner or administrator access required'), findsOneWidget);
+      expect(find.text('Newly authorized reception user'), findsNothing);
+      expect(find.text('Add person'), findsNothing);
+      expect(find.text('Check access again'), findsOneWidget);
+      expect(team.writes, 0);
+      expect(gateway.operations, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final clientScoped in [false, true]) {
+    testWidgets(
+        '${clientScoped ? 'client' : 'platform'} connection decision opens its correct control surface',
+        (tester) async {
+      final data = _snapshot();
+      data['needs_you'] = [
+        {
+          'id': 'connection-attention',
+          'organization_id': clientScoped
+              ? _northClientId
+              : 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          'title': 'Reconnect the operations provider',
+          'why': 'Authorization expired.',
+          'action': 'open_connections',
+          'state': 'needs_decision',
+          'needs_decision': true,
+        },
+      ];
+      final gateway = _FakeCoreGateway()
+        ..onSnapshot = (request) async =>
+            request.organizationId == null ? data : _clientDetail(_client());
+      final destinations = <String>[];
+      await _mount(tester, gateway,
+          initialAction: 'needs_you', onNavigate: destinations.add);
+      await _tap(tester, find.text('Reconnect the operations provider'));
+      await _tap(tester, find.text('Open action'));
+      if (clientScoped) {
+        expect(destinations, isEmpty);
+        expect(gateway.snapshots.last.section, 'client');
+        expect(gateway.snapshots.last.organizationId, _northClientId);
+        expect(find.text('No connections verified for this client.'),
+            findsOneWidget);
+      } else {
+        expect(destinations, ['connections']);
+        expect(gateway.snapshots, hasLength(1));
+      }
+      expect(gateway.operations, isEmpty);
+      expect(gateway.entries, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('a human decision remains distinct from its verified evidence',
+      (tester) async {
+    final data = _snapshot();
+    data['needs_you'] = [
+      {
+        'id': 'verified-decision',
+        'title': 'Review the client allowance',
+        'why': 'Measured cloud-chat requests reached the recorded limit.',
+        'needs_decision': true,
+        'state': 'needs_decision',
+        'verification_state': 'verified',
+        'action': 'open_client_commercial',
+        'organization_id': _northClientId,
+      },
+      {
+        'id': 'decision-state-missing',
+        'title': 'Decision missing explicit state',
+        'verification_state': 'verified',
+      },
+    ];
+    final gateway = _FakeCoreGateway()..data = data;
+    await _mount(tester, gateway, initialAction: 'needs_you');
+    final decision =
+        find.widgetWithText(ListTile, 'Review the client allowance');
+    expect(find.descendant(of: decision, matching: find.text('Needs decision')),
+        findsOneWidget);
+    expect(find.descendant(of: decision, matching: find.text('verified')),
+        findsNothing);
+    final missingState =
+        find.widgetWithText(ListTile, 'Decision missing explicit state');
+    expect(
+        find.descendant(
+            of: missingState,
+            matching: find.text('Decision state unavailable')),
+        findsOneWidget);
+    expect(find.descendant(of: missingState, matching: find.text('verified')),
+        findsNothing);
+    await _tap(tester, decision);
+    expect(find.text('Verification'), findsOneWidget);
+    expect(find.text('verified'), findsOneWidget);
+    expect(find.text('Needs decision'), findsWidgets);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'focused client search detaches while Manage loads and Back restores only the filter',
+      (tester) async {
+    final client = _client(name: 'PLP Boracay');
+    final other = _client(id: _southClientId, name: 'Harbor Logistics');
+    final detail = Completer<PandoraCoreRecord>();
+    final gateway = _FakeCoreGateway()
+      ..onSnapshot = (request) => request.organizationId == null
+          ? Future.value(_snapshot(clients: [client, other]))
+          : detail.future;
+    final contexts = <PandoraCoreRecord>[];
+    var entries = 0;
+    await _mount(tester, gateway,
+        section: 'clients',
+        size: const Size(360, 740),
+        onContextChanged: contexts.add,
+        onEnterClient: (_) async => entries++);
+    final search = find.widgetWithText(TextField, 'Find a client');
+    await tester.enterText(search, 'PLP');
+    await tester.pump();
+    final searchEditor = tester.widget<EditableText>(
+        find.descendant(of: search, matching: find.byType(EditableText)));
+    expect(searchEditor.focusNode.hasFocus, isTrue);
+    expect(find.byKey(const ValueKey('core-client-$_northClientId')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('core-client-$_southClientId')),
+        findsNothing);
+    final manage = find.byKey(const ValueKey('core-manage-$_northClientId'));
+    await tester.ensureVisible(manage);
+    await tester.tap(manage);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 20));
+    expect(gateway.snapshots.last.section, 'client');
+    expect(gateway.snapshots.last.organizationId, _northClientId);
+    expect(searchEditor.focusNode.hasFocus, isFalse);
+    expect(find.byType(EditableText), findsNothing);
+    expect(tester.testTextInput.hasAnyClients, isFalse);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    detail.complete(_clientDetail(client));
+    await tester.pumpAndSettle();
+    expect(find.text('PLP Boracay'), findsOneWidget);
+    expect(find.text('Summary'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Find a client'), findsNothing);
+    expect(contexts.last, {
+      'coreSection': 'client',
+      'organizationId': _northClientId,
+    });
+    await _tap(tester, find.byKey(const ValueKey('core-back')));
+    final restored = tester.widget<EditableText>(find.descendant(
+        of: find.widgetWithText(TextField, 'Find a client'),
+        matching: find.byType(EditableText)));
+    expect(restored.controller.text, 'PLP');
+    expect(restored.focusNode.hasFocus, isFalse);
+    expect(tester.testTextInput.hasAnyClients, isFalse);
+    expect(find.byKey(const ValueKey('core-client-$_northClientId')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('core-client-$_southClientId')),
+        findsNothing);
+    expect(contexts.last, {'coreSection': 'clients'});
+    expect(entries, 0);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final kind in ['access', 'training']) {
     testWidgets(
         'editing a $kind case retains its low priority and existing assignee',
@@ -693,7 +1181,7 @@ void main() {
       };
     await _mount(tester, gateway, section: 'business');
     await _tap(tester, find.text('Usage & Costs'));
-    await _tap(tester, find.text('Northwind request allowance'));
+    await _tap(tester, find.text('Northwind Guest House allowances'));
     final sheet = find.byType(BottomSheet);
     final scroll =
         find.descendant(of: sheet, matching: find.byType(Scrollable)).first;
@@ -1031,7 +1519,8 @@ void main() {
     await _tap(tester, find.text('Deployments'));
     expect(find.text('Canonical production'), findsOneWidget);
     expect(find.text('Latest candidate'), findsOneWidget);
-    expect(find.text('READY'), findsNWidgets(2));
+    expect(find.text('Deployment ready'), findsNWidgets(2));
+    expect(find.text('READY'), findsNothing);
     expect(find.textContaining('Stale provider evidence'), findsOneWidget);
     expect(find.textContaining('Runtime and user flows not verified'),
         findsOneWidget);
@@ -1050,6 +1539,123 @@ void main() {
     expect(find.text('pandora-intelligence-chat'), findsOneWidget);
     expect(find.text('82'), findsOneWidget);
     expect(find.text('must-never-render'), findsNothing);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'evidence rows name the recorded type scope and date without a verdict',
+      (tester) async {
+    final gateway = _FakeCoreGateway()
+      ..data = {
+        ..._snapshot(),
+        'evidence': <PandoraCoreRecord>[
+          {
+            'id': 'evidence-1',
+            'organization_id': _northClientId,
+            'kind': 'provider_readback',
+            'created_at': '2026-10-03T04:00:00Z',
+            'content_sha256': 'd' * 64,
+          },
+          {'kind': 'incomplete_record'},
+        ],
+      };
+    await _mount(tester, gateway, section: 'platform');
+    await _tap(tester, find.text('Evidence'));
+    expect(find.text('Provider readback'), findsOneWidget);
+    expect(find.textContaining('Northwind Guest House · '), findsOneWidget);
+    final date =
+        MaterialLocalizations.of(tester.element(find.text('Provider readback')))
+            .formatShortDate(DateTime.parse('2026-10-03T04:00:00Z').toLocal());
+    expect(find.textContaining(date), findsOneWidget);
+    expect(find.text('Recorded'), findsOneWidget);
+    expect(find.text('Recorded item'), findsNothing);
+    expect(find.text('Not verified'), findsNothing);
+    expect(find.text('Verified'), findsNothing);
+    await _tap(tester, find.text('Provider readback'));
+    expect(find.text('Content SHA-256'), findsOneWidget);
+    expect(find.text('d' * 64), findsOneWidget);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'Automation history uses recorded titles scope and queued dates without claiming active work',
+      (tester) async {
+    final navigations = <String>[];
+    final gateway = _FakeCoreGateway()
+      ..data = {
+        ..._snapshot(),
+        'automations': <PandoraCoreRecord>[
+          {
+            'name': 'Verify resort source connection',
+            'title_state': 'recorded',
+            'client_name': 'Northwind Guest House',
+            'organization_id': _northClientId,
+            'project_id': 'project-detail-only',
+            'task_key': 'task-detail-only',
+            'state': 'complete',
+            'queued_at': '2026-10-01T04:00:00Z',
+            'attempts': 2,
+          },
+          {'name': null, 'title_state': 'missing', 'state': 'cancelled'},
+        ],
+      };
+    await _mount(tester, gateway,
+        section: 'platform', onNavigate: navigations.add);
+    await _tap(tester, find.text('Automations'));
+    expect(find.text('Recent work'), findsOneWidget);
+    expect(find.text('Verify resort source connection'), findsOneWidget);
+    expect(
+        find.textContaining('Northwind Guest House · Queued '), findsOneWidget);
+    expect(find.text('Task title unavailable'), findsOneWidget);
+    expect(find.text('Complete'), findsOneWidget);
+    expect(find.text('Cancelled'), findsOneWidget);
+    expect(find.text('task-detail-only'), findsNothing);
+    expect(find.text('project-detail-only'), findsNothing);
+    await _tap(tester, find.text('Open Operations Room'));
+    expect(navigations, ['operations']);
+    await _tap(tester, find.text('Verify resort source connection'));
+    expect(find.text('task-detail-only'), findsOneWidget);
+    expect(find.text('project-detail-only'), findsOneWidget);
+    expect(find.text('2026-10-01T04:00:00Z'), findsOneWidget);
+    expect(gateway.operations, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'deployment observations preserve explicit and unavailable verification states',
+      (tester) async {
+    final gateway = _FakeCoreGateway()
+      ..data = {
+        ..._snapshot(),
+        'deployments': <PandoraCoreRecord>[
+          {
+            'title': 'Verified runtime only',
+            'release_observation_kind': 'candidate',
+            'provider_state': 'READY',
+            'runtime_verified': true,
+            'owner_flow_verified': false,
+            'client_flow_verified': false,
+          },
+          {
+            'title': 'No acceptance evidence',
+            'release_observation_kind': 'candidate',
+            'provider_state': 'BUILDING',
+          },
+        ],
+      };
+    await _mount(tester, gateway, section: 'platform');
+    await _tap(tester, find.text('Deployments'));
+    expect(find.text('Deployment ready'), findsOneWidget);
+    expect(find.text('Deployment building'), findsOneWidget);
+    expect(find.text('Runtime verified · User flows not verified'),
+        findsOneWidget);
+    expect(
+        find.text(
+            'Runtime verification unavailable · User-flow verification unavailable'),
+        findsOneWidget);
+    expect(find.text('Production verified'), findsNothing);
     expect(gateway.operations, isEmpty);
     expect(tester.takeException(), isNull);
   });

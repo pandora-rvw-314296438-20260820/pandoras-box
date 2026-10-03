@@ -110,6 +110,9 @@ class _PluginsScreenState extends State<PluginsScreen> {
                 }
                 return !_personal || item.accountVerified;
               }).toList(growable: false);
+              final readsPending = controller.isLoading || _runtimeLoading;
+              final readFailed =
+                  controller.error != null || _runtimeError != null;
 
               return RefreshIndicator(
                 onRefresh: () async {
@@ -194,7 +197,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
                         label: const Text('Browse provider catalog'),
                       ),
                     ),
-                    if (_runtimeError != null) ...[
+                    if (_runtimeError != null && items.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       _RuntimeNotice(
                         message: _runtimeError!,
@@ -222,16 +225,16 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    if (controller.isLoading &&
-                        controller.data == null &&
-                        _runtimeProviders == null)
+                    if (installed.isEmpty && readsPending)
                       const SizedBox(
                         height: 68,
                         child: Center(child: CircularProgressIndicator()),
                       )
                     else if (installed.isEmpty)
-                      const Text(
-                        'No verified plugins are connected right now.',
+                      Text(
+                        readFailed
+                            ? 'Connection verification is unavailable.'
+                            : 'No verified connections in these records.',
                         style: TextStyle(
                           color: PandoraV2Colors.muted,
                           fontSize: 13,
@@ -329,15 +332,28 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (controller.error != null &&
-                        controller.data == null &&
-                        _runtimeProviders == null)
+                    if (available.isEmpty && readsPending)
+                      const _InlineState(
+                        icon: Icons.sync_rounded,
+                        title: 'Loading connection records',
+                        message: 'Checking the available connection evidence.',
+                      )
+                    else if (items.isEmpty && readFailed)
                       _InlineState(
                         icon: Icons.warning_amber_rounded,
-                        title: 'Plugin state could not load',
-                        message: controller.error!.message,
+                        title: 'Connection records could not load',
+                        message: 'Refresh to try again.',
                         actionLabel: 'Retry',
-                        onAction: controller.load,
+                        onAction: () {
+                          unawaited(controller.refresh());
+                          unawaited(_loadRuntimeRegistry());
+                        },
+                      )
+                    else if (available.isEmpty && _query.isNotEmpty)
+                      const _InlineState(
+                        icon: Icons.search_off_rounded,
+                        title: 'No matching connections',
+                        message: 'Try a different search term.',
                       )
                     else if (_personal && available.isEmpty)
                       const _InlineState(
@@ -349,8 +365,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
                     else if (available.isEmpty)
                       const _InlineState(
                         icon: Icons.extension_off_outlined,
-                        title: 'No matching plugins',
-                        message: 'Try a different search term.',
+                        title: 'No connection records available',
+                        message: 'Refresh or browse the provider catalog.',
                       )
                     else
                       for (final item in available)
@@ -537,12 +553,10 @@ class _PluginsScreenState extends State<PluginsScreen> {
     final prompt = switch (action) {
       _PluginAction.manage =>
         'Manage ${plugin.name}. First verify the live connection, account identity, current scopes and capabilities. Use bounded reads when authorized. Use Pandora\'s governed Tool Gateway for consequential changes and show me only the approval or blocker that actually needs me.',
-      _PluginAction.connect when plugin.id == 'meta' =>
-        'Connect Facebook',
+      _PluginAction.connect when plugin.id == 'meta' => 'Connect Facebook',
       _PluginAction.connect =>
         'Connect ${plugin.name}. Check the live authorization state, exact account and scopes required. If owner authorization is required, show the secure Needs You step. Do not claim this plugin is connected until provider readback verifies it.',
-      _PluginAction.reconnect when plugin.id == 'meta' =>
-        'Connect Facebook',
+      _PluginAction.reconnect when plugin.id == 'meta' => 'Connect Facebook',
       _PluginAction.reconnect =>
         'Reconnect ${plugin.name}. Verify the current failure first, preserve existing safe state, request only the authorization actually required, then read back provider health. Do not claim recovery until the provider is verified usable.',
       _PluginAction.disconnect =>
@@ -558,7 +572,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
     };
     if (shared == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Use the Pandora composer to manage this provider.')),
+        const SnackBar(
+            content: Text('Use the Pandora composer to manage this provider.')),
       );
       return;
     }

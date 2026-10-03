@@ -34,10 +34,15 @@ test("consumer Gemini shares the canonical MCP function instead of consuming ano
 });
 
 test("operations Memory avoids CommonJS require of ESM runtime modules", () => {
-  assert.doesNotMatch(route, /import \{createWorkloadOperationsMemory\} from '..\/packages\/pandora-operations-memory\/workload-rpc\.mjs'/);
-  assert.doesNotMatch(route, /import \{createOwnerMemoryRead,OPERATIONS_MEMORY_MAPPING\} from '..\/packages\/pandora-operations-memory\/owner-read\.mjs'/);
-  assert.match(route, /import\('\.\.\/packages\/pandora-operations-memory\/workload-rpc\.mjs'\)/);
-  assert.match(route, /import\('\.\.\/packages\/pandora-operations-memory\/owner-read\.mjs'\)/);
+  const ts = require('typescript');
+  const config = ts.readConfigFile('tsconfig.json', ts.sys.readFile);
+  assert.equal(config.error, undefined);
+  const options = ts.convertCompilerOptionsFromJson(config.config.compilerOptions, process.cwd());
+  assert.deepEqual(options.errors, []);
+  const compiled = ts.transpileModule(route, {fileName:'api/operations-memory.ts', compilerOptions:options.options}).outputText;
+  // A source-level import() assertion missed Vercel lowering it to require().
+  assert.doesNotMatch(compiled, /\brequire\(['"][^'"]+\.mjs['"]\)/);
+  assert.match(compiled, /return import\(specifier\)/);
   assert.match(route, /await loadOwnerMemoryModules\(\)/);
 });
 
