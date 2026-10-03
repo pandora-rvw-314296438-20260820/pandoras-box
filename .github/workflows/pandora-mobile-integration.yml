@@ -340,6 +340,10 @@ jobs:
             --target-platform android-arm64 \
             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
             --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+          flutter build apk --profile \
+            --target-platform android-arm64 \
+            --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
+            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
 
       - name: Inspect Android identity and permissions
         shell: bash
@@ -374,6 +378,7 @@ jobs:
         run: |
           set -euo pipefail
           apk=.pandora-mobile-build/build/app/outputs/flutter-apk/app-debug.apk
+          profile_apk=.pandora-mobile-build/build/app/outputs/flutter-apk/app-profile.apk
           web=.pandora-mobile-build/build/web
           evidence=.pandora-mobile-build/android-package-evidence
           {
@@ -401,6 +406,8 @@ jobs:
             echo 'rollback_verified=false'
             echo "apk_sha256=$(sha256sum "$apk" | cut -d ' ' -f1)"
             echo "apk_size_bytes=$(stat -c '%s' "$apk")"
+            echo "profile_apk_sha256=$(sha256sum "$profile_apk" | cut -d ' ' -f1)"
+            echo "profile_apk_size_bytes=$(stat -c '%s' "$profile_apk")"
             echo "web_tree_sha256=$(find "$web" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d ' ' -f1)"
             echo "android_badging_sha256=$(sha256sum "$evidence/badging.txt" | cut -d ' ' -f1)"
             echo "android_permissions_sha256=$(sha256sum "$evidence/permissions.txt" | cut -d ' ' -f1)"
@@ -427,12 +434,27 @@ jobs:
           name: ${{ env.ANDROID_ARTIFACT_NAME }}
           path: |
             .pandora-mobile-build/build/app/outputs/flutter-apk/app-debug.apk
+            .pandora-mobile-build/build/app/outputs/flutter-apk/app-profile.apk
             .pandora-mobile-build/pandora-mobile-artifact-manifest.txt
             .pandora-mobile-build/android-package-evidence
           if-no-files-found: error
           include-hidden-files: true
           # Only push-to-main artifacts can become canonical release authority.
           retention-days: ${{ github.event_name == 'push' && 14 || 1 }}
+
+      - name: Upload PR Android debug and profile candidates
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: pandora-mobile-android-candidates-${{ env.SOURCE_SHA }}
+          path: |
+            .pandora-mobile-build/build/app/outputs/flutter-apk/app-debug.apk
+            .pandora-mobile-build/build/app/outputs/flutter-apk/app-profile.apk
+            .pandora-mobile-build/pandora-mobile-artifact-manifest.txt
+            .pandora-mobile-build/android-package-evidence
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
 
       - name: Publish the Android provider locator
         if: ${{ github.event_name != 'pull_request' }}
