@@ -97,6 +97,25 @@ class _PlpResortOperationalScreenState
   List<Map<String, Object?>> get _requests =>
       _productionRecords(_command['experienceSignals']);
 
+  bool get _workKnown => _operations['workItems'] is List;
+  bool get _roomsKnown => _command['rooms'] is List;
+  bool get _staysKnown => _command['stays'] is List;
+  bool get _requestsKnown => _command['experienceSignals'] is List;
+  bool get _conflictsKnown => _operations['channelConflicts'] is List;
+
+  bool get _queueKnown => switch (widget.moduleId) {
+        'housekeeping' || 'maintenance' || 'linen' || 'property' || 'security' =>
+          _workKnown,
+        'concierge' || 'dining' || 'wellness' || 'activities' || 'events' =>
+          _workKnown && _requestsKnown,
+        'vip' => _requestsKnown && _staysKnown,
+        'transfers' || 'transport' => _workKnown && _staysKnown,
+        'rates' => _roomsKnown,
+        'channels' => _conflictsKnown,
+        'forecast' => _staysKnown,
+        _ => false,
+      };
+
   bool _containsAny(Map<String, Object?> item, List<String> words) {
     final haystack = <Object?>[
       item['title'], item['note'], item['category'], item['kind'],
@@ -288,8 +307,15 @@ class _PlpResortOperationalScreenState
               ),
               const SizedBox(height: 14),
               _MetricBand(items: [
-                _Metric('Visible', records.length.toString(), _spec.unitLabel),
-                _Metric('Open work', openWork.toString(), 'resort'),
+                _Metric(
+                  'Visible',
+                  _queueKnown || records.isNotEmpty
+                      ? records.length.toString()
+                      : '—',
+                  _spec.unitLabel,
+                ),
+                _Metric('Open work', _workKnown ? openWork.toString() : '—',
+                    'resort'),
                 _moduleMetric(),
               ]),
               const SizedBox(height: 18),
@@ -307,7 +333,12 @@ class _PlpResortOperationalScreenState
               _SectionLabel(_spec.queueLabel, count: records.length),
               const SizedBox(height: 8),
               if (records.isEmpty)
-                _TruthfulEmptyState(message: _spec.emptyMessage)
+                _TruthfulEmptyState(
+                  message: _queueKnown
+                      ? _spec.emptyMessage
+                      : 'This work queue could not be loaded. Pull to refresh. '
+                          'Available workspace actions remain below the search.',
+                )
               else
                 ...records.take(40).map(
                       (record) => _OperationalRow(
@@ -329,21 +360,26 @@ class _PlpResortOperationalScreenState
 
   _Metric _moduleMetric() {
     if (widget.moduleId == 'channels') {
-      return _Metric('Exceptions', _conflicts.length.toString(), 'channels');
+      return _Metric('Exceptions',
+          _conflictsKnown ? _conflicts.length.toString() : '—', 'channels');
     }
     if (widget.moduleId == 'rates') {
-      return _Metric('Rooms', _rooms.length.toString(), 'priced');
+      return _Metric('Rooms', _roomsKnown ? _rooms.length.toString() : '—',
+          'priced');
     }
     if (widget.moduleId == 'forecast') {
-      return _Metric('Stays', _stays.length.toString(), '30 days');
+      return _Metric('Stays', _staysKnown ? _stays.length.toString() : '—',
+          '30 days');
     }
     if (widget.moduleId == 'housekeeping') {
       final turnovers = _rooms.where((room) =>
           const {'arrival', 'departure'}
               .contains(_text(room['state']).toLowerCase())).length;
-      return _Metric('Turnovers', turnovers.toString(), 'rooms');
+      return _Metric('Turnovers', _roomsKnown ? turnovers.toString() : '—',
+          'rooms');
     }
-    return _Metric('Requests', _requests.length.toString(), 'connected');
+    return _Metric('Requests',
+        _requestsKnown ? _requests.length.toString() : '—', 'connected');
   }
 
   List<Widget> _secondaryContext() {

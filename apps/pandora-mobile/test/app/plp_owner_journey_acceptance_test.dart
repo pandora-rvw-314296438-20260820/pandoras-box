@@ -279,6 +279,58 @@ Future<void> _tapVisibleText(WidgetTester tester, String label) async {
 }
 
 void main() {
+  testWidgets('contextual title keeps PLP typography and content clears the hamburger',
+      (tester) async {
+    await _mountOwnerShell(tester);
+    final titleFinder = find.byKey(
+        const ValueKey<String>('plp-contextual-page-title'));
+    final title = tester.widget<Text>(titleFinder);
+    expect(title.data, 'RESORT STATUS');
+    expect(title.style?.fontFamily, 'serif');
+    expect(title.style?.fontSize, 21);
+    expect(title.style?.fontWeight, FontWeight.w500);
+    expect(title.style?.color, const Color(0xFF171512));
+    expect(title.style?.letterSpacing, -.35);
+    expect(find.text('Today'), findsNothing);
+    expect(find.text('PLP Boracay'), findsNothing);
+    final menu = tester.getRect(
+        find.byKey(const ValueKey('plp-floating-navigation')));
+    final firstContent = tester.getRect(find.text('NEEDS ATTENTION'));
+    expect(firstContent.top, greaterThanOrEqualTo(menu.bottom));
+    expect(firstContent.top - menu.bottom, lessThanOrEqualTo(24));
+    final dock = tester.getRect(find.byKey(const ValueKey('plp-command-dock')));
+    for (final section in const ['stays', 'rooms', 'guests', 'revenue', 'team']) {
+      await _openSection(tester, section);
+      final contextual = tester.widget<Text>(titleFinder);
+      expect(contextual.style?.fontFamily, 'serif');
+      expect(contextual.style?.fontSize, 21);
+      expect(find.text('PLP Boracay'), findsNothing);
+      expect(tester.getRect(find.byKey(const ValueKey('plp-command-dock'))), dock);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('missing operational sources stay unknown rather than zero',
+      (tester) async {
+    await setTestSurface(tester, logicalSize: const Size(390, 844));
+    await tester.pumpWidget(MaterialApp(
+      home: PlpResortOperationalScreen(
+        moduleId: 'housekeeping',
+        bootstrap: const <String, Object?>{},
+        onBack: () {},
+        onRefresh: () {},
+        onOpenRecord: (_, __) {},
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('0'), findsNothing);
+    expect(find.text('—'), findsNWidgets(3));
+    expect(find.textContaining('This work queue could not be loaded.'),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-module-search')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Activity feed shares production history and Android Back restores its parent',
       (tester) async {
     await _mountOwnerShell(tester);

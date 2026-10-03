@@ -159,7 +159,14 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
               48 + MediaQuery.viewPaddingOf(context).bottom,
             ),
             children: [
-              _ResortHeader(section: section),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 44),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  heightFactor: 1,
+                  child: _ResortHeader(section: section),
+                ),
+              ),
               const SizedBox(height: 12),
               ...children,
             ],
@@ -1050,7 +1057,8 @@ class _ResortHeader extends StatelessWidget {
           Expanded(
             child: Text(
               section.headerTitle,
-              maxLines: 1,
+              key: const ValueKey<String>('plp-contextual-page-title'),
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: PlpResortWorkspaceScreen.ink,
