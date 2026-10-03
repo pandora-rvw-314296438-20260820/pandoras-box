@@ -46,6 +46,7 @@ class AskPandoraScreen extends StatefulWidget {
     this.allowCharacterContext = true,
     this.allowProjectContext = true,
     this.shellOverlay = false,
+    this.initialHistoryExpanded = true,
     this.onCoreNavigate,
   });
 
@@ -58,6 +59,7 @@ class AskPandoraScreen extends StatefulWidget {
   final bool allowCharacterContext;
   final bool allowProjectContext;
   final bool shellOverlay;
+  final bool initialHistoryExpanded;
   final ValueChanged<PandoraIntelligenceHandoff>? onCoreNavigate;
 
   @override
@@ -118,13 +120,21 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
   String? _pickerLocalAiModelName;
   bool _pickerStartAtEnd = false;
 
+  bool get _isCommonWorkspace {
+    final selected = widget.enterpriseContext?['selectedObject'];
+    return selected is Map &&
+        selected['adapterKey'] == 'enterprise_core_v1' &&
+        const {'member', 'administrator'}.contains(selected['workspaceMode']);
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _activityController.addListener(_handleActivityTimelineChanged);
     unawaited(PandoraLocalAiPreference.load());
-    _shellHistoryExpanded = widget.shellOverlay;
+    _shellHistoryExpanded =
+        widget.shellOverlay && widget.initialHistoryExpanded;
     final initial = widget.initialPrompt?.trim();
     if (initial != null && initial.isNotEmpty) {
       _objective.text = initial;
@@ -641,7 +651,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
   }
 
   Map<String, Object?>? _cloudEnterpriseContext() {
-    if (_isPlpEnterpriseContext) {
+    final selection = widget.enterpriseContext?['selectedObject'];
+    final memberWorkspace =
+        selection is Map && selection['workspaceMode'] == 'member';
+    if (_isPlpEnterpriseContext && !memberWorkspace) {
       return <String, Object?>{
         'surface': 'enterprise_overview',
         'route': '/enterprise/plp-boracay/alfred',
@@ -649,7 +662,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
           'workspaceSlug': 'plp-boracay',
           'assistant': 'alfred',
           if (widget.enterpriseContext?['selectedObject'] is Map)
-            for (final key in const ['organizationId', 'entryId'])
+            for (final key in const [
+              'organizationId',
+              'entryId',
+              'workspaceMode',
+              'adapterKey'
+            ])
               if ((widget.enterpriseContext!['selectedObject'] as Map)[key] !=
                   null)
                 key: (widget.enterpriseContext!['selectedObject'] as Map)[key],
@@ -1223,7 +1241,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     final selectedScope = widget.enterpriseContext?['selectedObject'];
     final coreScope = selectedScope is Map &&
         (selectedScope['coreMode'] == 'owner' ||
-            selectedScope['entryId'] != null);
+            selectedScope['entryId'] != null ||
+            selectedScope['workspaceMode'] == 'member' ||
+            selectedScope['workspaceMode'] == 'administrator');
     try {
       if (_characterContext != null && !coreScope) {
         _lastTurnUsedLocalAi = false;
@@ -1775,6 +1795,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
       _activeActivityJobId != null;
 
   Future<void> _pickModel() async {
+    if (_isCommonWorkspace) return;
     if (_pickerOpen) {
       setState(() {
         _pickerOpen = false;
@@ -1898,7 +1919,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
       final history = await intelligence.messages(threadId);
       PandoraChatModelPickerSnapshot? picker;
       try {
-        picker = await intelligence.modelPicker(threadId: threadId);
+        if (!_isCommonWorkspace)
+          picker = await intelligence.modelPicker(threadId: threadId);
       } on PandoraIntelligenceException {
         picker = null;
       }
@@ -2090,6 +2112,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                 modelLabel: _modelLabel,
                 pickerOpen: _pickerOpen,
                 onModel: _pickModel,
+                showModelControl: !_isCommonWorkspace,
+                showContextControls: !_isCommonWorkspace,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                 },
@@ -2171,6 +2195,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                 modelLabel: _modelLabel,
                 pickerOpen: _pickerOpen,
                 onModel: _pickModel,
+                showModelControl: !_isCommonWorkspace,
+                showContextControls: !_isCommonWorkspace,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                 },
@@ -2726,6 +2752,8 @@ class _Composer extends StatelessWidget {
     required this.modelLabel,
     required this.pickerOpen,
     required this.onModel,
+    this.showModelControl = true,
+    this.showContextControls = true,
     required this.onChanged,
     required this.onCamera,
     required this.onPhotos,
@@ -2755,6 +2783,8 @@ class _Composer extends StatelessWidget {
   final String modelLabel;
   final bool pickerOpen;
   final VoidCallback onModel;
+  final bool showModelControl;
+  final bool showContextControls;
   final VoidCallback onChanged;
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
@@ -2846,15 +2876,16 @@ class _Composer extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _CompactAttachmentMenu(
-                        disabled: disabled || submitting,
-                        onCamera: onCamera,
-                        onPhotos: onPhotos,
-                        onAttach: onAttach,
-                        onCharacters: onCharacters,
-                        onServices: onServices,
-                        onProjectContext: onProjectContext,
-                      ),
+                      if (showContextControls)
+                        _CompactAttachmentMenu(
+                          disabled: disabled || submitting,
+                          onCamera: onCamera,
+                          onPhotos: onPhotos,
+                          onAttach: onAttach,
+                          onCharacters: onCharacters,
+                          onServices: onServices,
+                          onProjectContext: onProjectContext,
+                        ),
                       Expanded(
                         child: TextField(
                           key: const ValueKey<String>('ask-pandora-objective'),
@@ -2891,12 +2922,13 @@ class _Composer extends StatelessWidget {
                           onChanged: (_) => onChanged(),
                         ),
                       ),
-                      _CompactModelControl(
-                        label: modelLabel,
-                        open: pickerOpen,
-                        enabled: !disabled && !submitting,
-                        onTap: onModel,
-                      ),
+                      if (showModelControl)
+                        _CompactModelControl(
+                          label: modelLabel,
+                          open: pickerOpen,
+                          enabled: !disabled && !submitting,
+                          onTap: onModel,
+                        ),
                       ValueListenableBuilder<TextEditingValue>(
                         valueListenable: controller,
                         builder: (context, value, child) {

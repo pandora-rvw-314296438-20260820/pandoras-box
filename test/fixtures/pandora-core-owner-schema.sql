@@ -1759,3 +1759,36 @@ alter table public.approvals enable row level security;
 create policy approvals_select_member on public.approvals for select to authenticated
  using(private.is_org_member(organization_id));
 grant select on public.approvals to authenticated;
+
+-- Canonical source metadata for the member-facing document projection.
+create table public.enterprise_source_records (
+ id uuid primary key default gen_random_uuid(),
+ organization_id uuid not null references public.organizations(id) on delete cascade,
+ source_connection_id uuid not null,
+ source_object_id text not null check(length(source_object_id) between 1 and 500),
+ object_type text not null check(object_type~'^[a-z][a-z0-9_.:-]{0,127}$'),
+ source_schema_version text check(length(source_schema_version)<=80),
+ source_observed_at timestamptz not null,
+ content_sha256 text not null check(content_sha256~'^[0-9a-f]{64}$'),
+ source_locator text check(length(source_locator)<=1000),
+ payload_metadata_redacted jsonb not null default '{}' check(jsonb_typeof(payload_metadata_redacted)='object'),
+ created_at timestamptz not null default clock_timestamp(),
+ unique(id,organization_id),
+ unique(organization_id,source_connection_id,source_object_id,content_sha256),
+ foreign key(source_connection_id,organization_id) references public.enterprise_integration_connections(id,organization_id) on delete restrict
+);
+alter table public.enterprise_documents add constraint enterprise_documents_source_org_fkey
+ foreign key(source_record_id,organization_id) references public.enterprise_source_records(id,organization_id) on delete restrict;
+
+-- Baseline member SELECT policies exist on these canonical tables. The tested
+-- migration adds a restrictive staff-entry guard without broadening them.
+do $$
+declare t text;
+begin
+ foreach t in array array['enterprise_entities','enterprise_tasks','enterprise_documents','enterprise_source_records','enterprise_business_activity','enterprise_source_connections'] loop
+  execute format('alter table public.%I enable row level security',t);
+  execute format('grant select on public.%I to authenticated',t);
+  execute format('create policy fixture_existing_member_select on public.%I for select to authenticated using (private.is_org_member(organization_id))',t);
+ end loop;
+end;
+$$;

@@ -4,13 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_conversation_layer.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
+import 'package:pandora_mobile/core/data/pandora_intelligence_api.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
-import 'package:pandora_mobile/core/models/pandora_models.dart';
 import 'package:pandora_mobile/core/widgets/pandora_navigation.dart';
 import 'package:pandora_mobile/features/operations/operations_room_screen.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
 
+import '../helpers/fake_chat_intelligence.dart';
 import '../helpers/fake_owner_api.dart';
 import '../helpers/test_app.dart';
 
@@ -19,6 +20,7 @@ void main() {
     WidgetTester tester,
     Size size, {
     FakeRepository? repository,
+    PandoraIntelligenceApi? intelligence,
   }) async {
     PandoraLocalAiPreference.setCachedForTesting(false);
     addTearDown(PandoraLocalAiPreference.resetForTesting);
@@ -46,6 +48,7 @@ void main() {
         child: PandoraDependencies(
           auth: const FakeAuth(),
           repository: repository ?? FakeRepository(),
+          intelligence: intelligence,
           diagnostics: DiagnosticsStore(),
           child: const PandoraChatShell(),
         ),
@@ -84,10 +87,12 @@ void main() {
   );
 
   Future<Finder> drawerTile(WidgetTester tester, String title) async {
-    final scrollable = find.descendant(
-      of: primaryDrawer,
-      matching: find.byType(Scrollable),
-    ).first;
+    final scrollable = find
+        .descendant(
+          of: primaryDrawer,
+          matching: find.byType(Scrollable),
+        )
+        .first;
     final state = tester.state<ScrollableState>(scrollable);
     state.position.jumpTo(state.position.minScrollExtent);
     await tester.pump();
@@ -158,10 +163,13 @@ void main() {
     });
   }
 
-  testWidgets('focused composer opens bounded drawer and reopening resets its scroll', (tester) async {
+  testWidgets(
+      'focused composer opens bounded drawer and reopening resets its scroll',
+      (tester) async {
     await mount(tester, const Size(390, 844));
     addTearDown(tester.view.resetViewInsets);
-    final objective = find.byKey(const ValueKey<String>('ask-pandora-objective'));
+    final objective =
+        find.byKey(const ValueKey<String>('ask-pandora-objective'));
     await tester.enterText(objective, 'Keep the keyboard draft');
     tester.view.viewInsets = const FakeViewPadding(bottom: 320);
     await tester.pumpAndSettle();
@@ -170,17 +178,28 @@ void main() {
     expect(tester.widget<TextField>(objective).focusNode!.hasFocus, isFalse);
     tester.view.viewInsets = const FakeViewPadding();
     await tester.pumpAndSettle();
-    final header = find.byKey(const ValueKey<String>('pandora-side-panel-top-overlay'));
-    final viewport = find.byKey(const ValueKey<String>('pandora-side-panel-scroll'));
-    expect(tester.getRect(viewport).top, greaterThanOrEqualTo(tester.getRect(header).bottom));
-    final position = tester.state<ScrollableState>(find.descendant(of: viewport, matching: find.byType(Scrollable)).first).position;
+    final header =
+        find.byKey(const ValueKey<String>('pandora-side-panel-top-overlay'));
+    final viewport =
+        find.byKey(const ValueKey<String>('pandora-side-panel-scroll'));
+    expect(tester.getRect(viewport).top,
+        greaterThanOrEqualTo(tester.getRect(header).bottom));
+    final position = tester
+        .state<ScrollableState>(find
+            .descendant(of: viewport, matching: find.byType(Scrollable))
+            .first)
+        .position;
     position.jumpTo(position.maxScrollExtent);
     await tester.pumpAndSettle();
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     await tester.tap(menu);
     await tester.pumpAndSettle();
-    final reopened = tester.state<ScrollableState>(find.descendant(of: viewport, matching: find.byType(Scrollable)).first).position;
+    final reopened = tester
+        .state<ScrollableState>(find
+            .descendant(of: viewport, matching: find.byType(Scrollable))
+            .first)
+        .position;
     expect(reopened.pixels, 0);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
@@ -193,7 +212,8 @@ void main() {
     await mount(tester, const Size(1024, 800));
     expect(menu, findsNothing);
     expect(primaryDrawer, findsNothing);
-    expect(find.widgetWithText(ListTile, 'Capabilities & Providers'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Capabilities & Providers'),
+        findsOneWidget);
     expect(tester.getSize(find.byType(AskPandoraScreen)).width, 759);
     expect(tester.takeException(), isNull);
   });
@@ -311,7 +331,8 @@ void main() {
     expect(voice, findsNothing);
     expect(submit, findsOneWidget);
     expect(
-      find.descendant(of: submit, matching: find.byIcon(Icons.mic_none_rounded)),
+      find.descendant(
+          of: submit, matching: find.byIcon(Icons.mic_none_rounded)),
       findsOneWidget,
     );
     expect(
@@ -409,7 +430,8 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(recentDrawer, findsNothing);
-      expect(tester.takeException(), isNull, reason: 'history attempt $attempt');
+      expect(tester.takeException(), isNull,
+          reason: 'history attempt $attempt');
     }
 
     await tester.tap(menu);
@@ -420,10 +442,10 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('primary and recent-chat drawers can never stack', (tester) async {
+  testWidgets('primary and recent-chat drawers can never stack',
+      (tester) async {
     await mount(tester, const Size(390, 800));
-    final openRecentChats =
-        tester.widget<IconButton>(recentChats).onPressed!;
+    final openRecentChats = tester.widget<IconButton>(recentChats).onPressed!;
     final menuButton = find.ancestor(
       of: menu,
       matching: find.byType(PandoraMenuButton),
@@ -504,14 +526,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-      'chat state survives keyboard changes and cross-page navigation',
+  testWidgets('chat state survives keyboard changes and cross-page navigation',
       (tester) async {
-    final repository = _ConversationRepository();
+    final intelligence = FakeChatIntelligence();
     await mount(
       tester,
       const Size(390, 800),
-      repository: repository,
+      intelligence: intelligence,
     );
     final conversationState = tester.state<AskPandoraScreenState>(
       find.byType(AskPandoraScreen),
@@ -530,11 +551,17 @@ void main() {
       'Start this conversation',
       requestFocus: false,
     );
-    for (var i = 0; i < 40 && find.text('Conversation started.').evaluate().isEmpty; i++) {
+    for (var i = 0;
+        i < 40 && find.text('Conversation started.').evaluate().isEmpty;
+        i++) {
       await tester.pump(const Duration(milliseconds: 25));
     }
     expect(find.text('Start this conversation'), findsOneWidget);
-    expect(repository.lastMessage, 'Start this conversation');
+    expect(intelligence.lastMessage, 'Start this conversation');
+    expect(
+        (intelligence.lastEnterpriseContext?['selectedObject']
+            as Map?)?['coreMode'],
+        'owner');
 
     addTearDown(tester.view.resetViewInsets);
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
@@ -575,30 +602,5 @@ void main() {
       isTrue,
     );
     expect(tester.takeException(), isNull);
-  });;
-}
-
-class _ConversationRepository extends FakeRepository {
-  String? lastMessage;
-
-  @override
-  Future<IntakeReceipt> ask({
-    required String message,
-    String? projectId,
-    String? idempotencyKey,
-  }) async {
-    lastMessage = message;
-    return const IntakeReceipt(
-      reply: 'Conversation started.',
-      needsApproval: false,
-      actionId: 'action-chat-header-1',
-      status: IntakeStatus(
-        whatChanged: 'Message recorded.',
-        whereWeAre: 'Conversation',
-        whatIsDone: 'First turn complete.',
-        whatIsHappeningNow: 'Waiting for the next message.',
-        whatIWillDoNext: 'Continue the conversation.',
-      ),
-    );
-  }
+  });
 }

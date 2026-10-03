@@ -3216,6 +3216,11 @@ async function main() {
     ['20260731122011_projectos_product_intelligence_schema.sql', await readFile(join(fixtureRoot, 'after-20260731122011.sql'), 'utf8')],
     ['20260825085155_pandora_canonical_control_plane_foundation_v1.sql', await readFile(join(fixtureRoot, 'after-20260825085155.sql'), 'utf8')],
   ]);
+  // Existing provider-owned table shape is required by the Core RLS migration.
+  // This remains an explicit emulator supplement, never production DDL.
+  const beforeFixtures = new Map([
+    ['20261003044349_pandora_core_owner_system_v1.sql', await readFile(join(repositoryRoot, 'test', 'fixtures', 'pandora-core-live-provider-baseline.sql'), 'utf8')],
+  ]);
 
   const db = new PGlite({ extensions: { pgcrypto } });
   let currentMigration = 'bootstrap';
@@ -3224,6 +3229,7 @@ async function main() {
     await bootstrap(db);
     for (const migration of migrationFiles) {
       currentMigration = migration.filename;
+      if (beforeFixtures.has(migration.filename)) await db.exec(beforeFixtures.get(migration.filename));
       await db.exec(portableSql(migration.filename, migration.source));
       if (fixtures.has(migration.filename)) await db.exec(fixtures.get(migration.filename));
     }

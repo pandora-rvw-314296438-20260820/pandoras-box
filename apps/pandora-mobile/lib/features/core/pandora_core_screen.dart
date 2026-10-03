@@ -7,6 +7,7 @@ import '../../core/security/pandora_identity_verification.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../approvals/approvals_screen.dart';
 import '../team/team_screen.dart';
+import 'pandora_core_memory_panel.dart';
 
 const _ink = Color(0xFFF2F2F2);
 const _muted = Color(0xFFA0A3A8);
@@ -1020,9 +1021,14 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
               'The composer uses current routing policy. Catalog discovery '
               'does not prove a model is available.',
         ),
+      if (tab == 'Memory') const PandoraCoreMemoryPanel(),
       const SizedBox(height: 10),
-      ..._recordList(tab.toLowerCase(),
-          'No verified ${tab.toLowerCase()} state in this snapshot.'),
+      if (tab == 'Memory') const _Heading('Pending learning delivery'),
+      ..._recordList(
+          tab.toLowerCase(),
+          tab == 'Memory'
+              ? 'No pending learning deliveries.'
+              : 'No verified ${tab.toLowerCase()} state in this snapshot.'),
     ];
   }
 

@@ -12,6 +12,8 @@ const migration = readFileSync(join(__dirname,
   "../supabase/migrations/20261003044349_pandora_core_owner_system_v1.sql"), "utf8");
 const fixture = readFileSync(join(__dirname,
   "fixtures/pandora-core-owner-schema.sql"), "utf8");
+const composerFixture = readFileSync(join(__dirname,
+  "fixtures/pandora-core-composer-provider-schema.sql"), "utf8");
 
 // These UUIDs exercise the migration's exact bootstrap binding. All auth rows,
 // sessions, claims, and commercial records below are synthetic test fixtures.
@@ -33,6 +35,7 @@ const users = [owner, legacyOwner, clientOwner, platformAdmin, scopedOperator,
 const sessions = new Map(users.map((user, index) => [user,
   `30000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`]));
 let db;
+let providerFenceBaselines;
 
 async function asActor(user, options = {}) {
   const role = options.role || "authenticated";
@@ -71,9 +74,25 @@ async function operate(operation, organization, payload, key = randomUUID()) {
     [operation, organization, JSON.stringify(payload), key])).rows[0].result;
 }
 
+async function enterpriseSnapshot(organization, section = "overview", entryId = null) {
+  return (await db.query("select public.pandora_enterprise_workspace_v1($1,$2,$3) as result",
+    [organization,section,entryId])).rows[0].result;
+}
+
+async function enterpriseOperate(organization, operation, payload, key = randomUUID(), entryId = null) {
+  return (await db.query("select public.pandora_enterprise_operate_v1($1,$2,$3::jsonb,$4,$5) as result",
+    [organization,operation,JSON.stringify(payload),key,entryId])).rows[0].result;
+}
+
 test.before(async () => {
   db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(fixture);
+  await db.exec(composerFixture);
+  const fenceSignatures=[...migration.matchAll(/\('(public\.[a-z0-9_]+\([^']+\))','[a-f0-9]{64}','perform private\./g)].map((m)=>m[1]);
+  providerFenceBaselines=[];
+  for(const signature of fenceSignatures){
+    providerFenceBaselines.push((await db.query("select pg_get_functiondef(to_regprocedure($1)) as definition",[signature])).rows[0].definition);
+  }
   for (const [index, user] of users.entries()) {
     await db.query("insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())",
       [user, `owner-core-fixture-${index}@example.invalid`]);
@@ -706,7 +725,12 @@ test("suspending a customer stops existing customer data access as well as Core 
   await db.query("update public.organizations set status='active' where id=$1",[client]);
   await asActor(clientOwner);
   assert.equal((await db.query("select count(*)::int as n from public.enterprise_properties where organization_id=$1",
-    [client])).rows[0].n,1,"restoring canonical organization state restores otherwise valid membership access");
+    [client])).rows[0].n,0,"an independently suspended customer account still denies access");
+  await db.exec("reset role");
+  await db.query("update public.pandora_enterprise_accounts set lifecycle_state='onboarding' where organization_id=$1",[client]);
+  await asActor(clientOwner);
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_properties where organization_id=$1",
+    [client])).rows[0].n,1,"both organization and account must permit access");
 });
 
 test("banned or deleted customer identities cannot retain legacy enterprise RLS access", async () => {
@@ -768,11 +792,571 @@ test("Needs You includes only current actionable canonical approvals for the act
   assert.ok(visible.every((n) => n.organization_id === platform));
   assert.equal((await snapshot("client",client)).needs_you.filter((n) => n.kind === "approval").length,0);
   // Operator status alone cannot surface a customer's approval for decision.
-  // After a real target membership exists, the exact scoped pending item appears.
+  // A real target membership and live audited entry are both required.
   await db.exec("reset role");
   await db.query(`insert into public.memberships
     (organization_id,user_id,role,status,joined_at) values($1,$2,'admin','active',now())`,[client,owner]);
   await asActor(owner);
+  assert.equal((await snapshot("client",client)).needs_you.filter((n) => n.kind === "approval").length,0);
+  await db.query("select public.pandora_core_enter_client_v1($1,'Review customer approval')",[client]);
   const scoped = (await snapshot("client",client)).needs_you.filter((n) => n.kind === "approval");
   assert.deepEqual(scoped.map((n) => n.id),[ids.customerWithoutMembership]);
+});
+
+test("customer workspace discovery comes from actual active membership without granting Core access", async () => {
+  await asActor(clientOwner,{aal:"aal1",sessionId:null});
+  const found = (await db.query("select public.pandora_enterprise_my_workspaces_v1() as result")).rows[0].result;
+  assert.equal(found.operator_mode,false);
+  assert.equal(found.workspaces.length,1);
+  assert.equal(found.workspaces[0].organization_id,client);
+  assert.equal(found.workspaces[0].requires_operator_entry,false);
+  assert.equal(found.workspaces[0].adapter_key,"plp_v1");
+  const workspace = await enterpriseSnapshot(client);
+  assert.equal(workspace.organization_id,client);
+  assert.equal(workspace.workspace.organization_id,client);
+  assert.equal(workspace.actor_role,"owner");
+  assert.equal(workspace.viewing_as,"member");
+  assert.equal(workspace.entry_id,null);
+  assert.equal(workspace.workspace.adapter,"enterprise_core_v1");
+  for (const forbidden of ["clients","operator","plans","subscription","invoices","cases","providers","operators","business"]) {
+    assert.equal(Object.hasOwn(workspace,forbidden),false,`${forbidden} must stay outside the customer envelope`);
+  }
+  await rejectedSql("select public.pandora_core_snapshot_v1('home',null)");
+  await rejectedSql("select public.pandora_enterprise_workspace_v1($1,'overview',null)",[otherClient]);
+  await asActor(null,{role:"anon"});
+  await rejectedSql("select public.pandora_enterprise_my_workspaces_v1()");
+});
+
+test("common Enterprise work is canonical, idempotent, tenant-isolated and conflict safe", async () => {
+  await asActor(clientOwner,{aal:"aal1",sessionId:null});
+  const key = randomUUID();
+  const payload = {title:"Customer fixture work",description:"Synthetic work capture",due_at:"2026-10-04T10:00:00Z"};
+  const saved = await enterpriseOperate(client,"task.create",payload,key);
+  assert.equal(saved.organization_id,client);
+  assert.equal(saved.task.state,"open");
+  assert.equal(saved.task.editable,true);
+  const replay = await enterpriseOperate(client,"task.create",payload,key);
+  assert.equal(replay.task.id,saved.task.id);
+  assert.equal(replay.replayed,true);
+  await rejectedSql("select public.pandora_enterprise_operate_v1($1,$2,$3::jsonb,$4,null)",
+    [client,"task.create",JSON.stringify({...payload,title:"Different retry"}),key],/CONFLICT/);
+  const workspace = await enterpriseSnapshot(client,"work");
+  assert.equal(workspace.tasks[0].id,saved.task.id);
+  assert.equal(workspace.counts.open_tasks,1);
+  const updated = await enterpriseOperate(client,"task.update",{id:saved.task.id,state:"completed",expected_updated_at:saved.task.updated_at});
+  assert.equal(updated.task.state,"completed");
+  assert.ok(updated.task.completed_at);
+  await rejectedSql("select public.pandora_enterprise_operate_v1($1,$2,$3::jsonb,$4,null)",
+    [client,"task.update",JSON.stringify({id:saved.task.id,title:"Stale edit",expected_updated_at:saved.task.updated_at}),randomUUID()],/CONFLICT/);
+  await db.exec("reset role");
+  await db.query("insert into public.pandora_enterprise_accounts(organization_id,industry,workspace_type,created_by) values($1,'custom','generic',$2)",[otherClient,owner]);
+  assert.equal((await db.query("select task_type from public.enterprise_tasks where entity_id=$1",[saved.task.id])).rows[0].task_type,"workspace_work");
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_entities where id=$1 and organization_id=$2",[saved.task.id,client])).rows[0].n,1);
+  assert.equal((await db.query("select count(*)::int as n from public.audit_events where organization_id=$1 and event_type='enterprise.workspace.task.create'",[client])).rows[0].n,1);
+  await asActor(unrelated);
+  await rejectedSql("select public.pandora_enterprise_operate_v1($1,$2,$3::jsonb,$4,null)",
+    [otherClient,"task.update",JSON.stringify({id:saved.task.id,state:"open",expected_updated_at:updated.task.updated_at}),randomUUID()]);
+  assert.equal((await enterpriseSnapshot(otherClient)).tasks.length,0);
+});
+
+test("customer viewers can read work but cannot write tasks directly or through the member RPC", async () => {
+  await asActor(clientOwner);
+  const saved = await enterpriseOperate(client,"task.create",{title:"Viewer fixture work"});
+  await db.exec("reset role");
+  await db.query("update public.memberships set role='viewer' where user_id=$1 and organization_id=$2",[clientOwner,client]);
+  await asActor(clientOwner);
+  const view = await enterpriseSnapshot(client);
+  assert.equal(view.permissions.can_manage_work,false);
+  assert.equal(view.tasks[0].editable,false);
+  await rejectedSql("select public.pandora_enterprise_operate_v1($1,'task.create',$2::jsonb,$3,null)",
+    [client,JSON.stringify({title:"Forbidden viewer task"}),randomUUID()]);
+  await rejectedSql("update public.enterprise_tasks set title='Bypass' where entity_id=$1",[saved.task.id],/permission denied/i);
+  await rejectedSql("insert into public.enterprise_entities(organization_id,entity_kind) values($1,'task')",[client],/permission denied/i);
+});
+
+test("internal operator workspace reads and writes require the exact live entry receipt", async () => {
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'admin','active',now())",[client,owner]);
+  await asActor(owner);
+  await rejectedSql("select public.pandora_enterprise_workspace_v1($1,'work',null)",[client],/CLIENT_ENTRY_REQUIRED/);
+  const entry = (await db.query("select public.pandora_core_enter_client_v1($1,'Synthetic common workspace entry') as result",[client])).rows[0].result;
+  const saved = await enterpriseOperate(client,"task.create",{title:"Operator fixture work"},randomUUID(),entry.entry_id);
+  const view = await enterpriseSnapshot(client,"work",entry.entry_id);
+  assert.equal(view.viewing_as,"pandora_administrator");
+  assert.equal(view.entry_id,entry.entry_id);
+  assert.equal(view.tasks[0].id,saved.task.id);
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_tasks where organization_id=$1",[client])).rows[0].n,1);
+  await db.query("select public.pandora_core_leave_client_v1($1)",[entry.entry_id]);
+  await rejectedSql("select public.pandora_enterprise_workspace_v1($1,'work',$2)",[client,entry.entry_id],/CLIENT_ENTRY_REQUIRED/);
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_tasks where organization_id=$1",[client])).rows[0].n,0,
+    "direct REST reads must not bypass an ended internal entry");
+  await rejectedSql("select public.pandora_enterprise_operate_v1($1,'task.update',$2::jsonb,$3,$4)",
+    [client,JSON.stringify({id:saved.task.id,state:"completed",expected_updated_at:saved.task.updated_at}),randomUUID(),entry.entry_id],/CLIENT_ENTRY_REQUIRED/);
+  await db.exec("reset role");
+  await db.query("update public.memberships set status='revoked' where user_id=$1 and organization_id=$2",[owner,platform]);
+  await asActor(owner);
+  await rejectedSql("select public.pandora_enterprise_workspace_v1($1,'overview',null)",[client],/CLIENT_ENTRY_REQUIRED/);
+});
+
+test("entry receipt expiry, another tenant, and grant revocation fail closed in the common runtime", async () => {
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'admin','active',now())",[client,owner]);
+  await asActor(owner);
+  const entry = (await db.query("select public.pandora_core_enter_client_v1($1,'Synthetic expiry validation') as result",[client])).rows[0].result;
+  const other = (await snapshot()).clients.find((x) => x.workspace_type === "bok").organization_id;
+  await db.exec("reset role");
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'admin','active',now())",[other,owner]);
+  await asActor(owner);
+  await rejectedSql("select public.pandora_enterprise_workspace_v1($1,'overview',$2)",[other,entry.entry_id],/CLIENT_ENTRY_REQUIRED/);
+  await db.exec("reset role");
+  await db.query("update private.pandora_client_entry_sessions set started_at=now()-interval '2 hours',expires_at=now()-interval '1 hour' where id=$1",[entry.entry_id]);
+  await asActor(owner);
+  await rejectedSql("select public.pandora_enterprise_workspace_v1($1,'overview',$2)",[client,entry.entry_id],/CLIENT_ENTRY_REQUIRED/);
+  const nextEntry = (await db.query("select public.pandora_core_enter_client_v1($1,'Synthetic revoked grant validation') as result",[client])).rows[0].result;
+  await db.exec("reset role");
+  await db.query("update private.pandora_operator_grants set state='revoked' where user_id=$1",[owner]);
+  await asActor(owner);
+  await rejectedSql("select public.pandora_enterprise_workspace_v1($1,'overview',$2)",[client,nextEntry.entry_id],/CLIENT_ENTRY_REQUIRED/);
+});
+
+test("member work never exposes or mutates Pandora customer support cases", async () => {
+  await asActor(owner);
+  const support = await operate("case.save",client,{subject:"Private operator support case",description:"Internal escalation details",needs_owner:true});
+  await asActor(clientOwner);
+  const workspace = await enterpriseSnapshot(client);
+  assert.equal(workspace.tasks.length,0);
+  assert.equal(workspace.counts.open_tasks,0);
+  assert.equal(workspace.activity.length,0);
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_tasks where organization_id=$1",[client])).rows[0].n,0);
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_entities where organization_id=$1",[client])).rows[0].n,0);
+  await rejectedSql("select public.pandora_enterprise_operate_v1($1,'task.update',$2::jsonb,$3,null)",
+    [client,JSON.stringify({id:support.id,title:"Customer attempt",expected_updated_at:new Date().toISOString()}),randomUUID()]);
+});
+
+test("common workspace documents use tenant source metadata and never emit signed or unsafe URLs", async () => {
+  const connection = randomUUID();
+  await db.query(`insert into public.enterprise_integration_connections
+    (id,organization_id,source_system_key,display_name,connection_key) values($1,$2,'fixture.documents','Fixture documents','fixture-docs')`,[connection,client]);
+  for (const [index,url] of ["https://example.invalid/document","https://example.invalid/document?token=fixture","javascript:alert(1)"].entries()) {
+    const sourceId = randomUUID(), documentId = randomUUID();
+    await db.query(`insert into public.enterprise_source_records
+      (id,organization_id,source_connection_id,source_object_id,object_type,source_observed_at,content_sha256,source_locator,payload_metadata_redacted)
+      values($1,$2,$3,$4,'document',now(),$5,$6,$7::jsonb)`,
+      [sourceId,client,connection,`fixture-${index}`,"f".repeat(64),url,JSON.stringify({title:`Fixture document ${index}`,private_unrelated_field:"Never project this payload field"})]);
+    await db.query("insert into public.enterprise_entities(id,organization_id,entity_kind) values($1,$2,'document')",[documentId,client]);
+    await db.query(`insert into public.enterprise_documents
+      (entity_id,organization_id,document_type,source_record_id,content_sha256,media_type) values($1,$2,'agreement',$3,$4,'application/pdf')`,
+      [documentId,client,sourceId,"f".repeat(64)]);
+  }
+  await asActor(clientOwner);
+  const view = await enterpriseSnapshot(client,"documents");
+  assert.equal(view.documents.length,3);
+  assert.equal(view.documents.filter((d) => d.source_url !== null).length,1);
+  assert.equal(view.documents.find((d) => d.source_url !== null).source_url,"https://example.invalid/document");
+  assert.equal(JSON.stringify(view).includes("private_unrelated_field"),false);
+  assert.equal(view.sources[0].status,"configured");
+  assert.equal(view.counts.documents,3);
+});
+
+test("common customer go-live requires real same-tenant recent runtime receipt and owner attestation", async () => {
+  await asActor(owner);
+  const customer = await operate("client.register",null,{name:"Common runtime fixture",slug:"common-runtime-fixture",industry:"trade",workspace_type:"eurofish"});
+  await db.exec("reset role");
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'owner','active',now())",[customer.organization_id,clientOwner]);
+  await asActor(clientOwner,{aal:"aal1",sessionId:null});
+  const work = await enterpriseOperate(customer.organization_id,"task.create",{title:"Actual local test work"});
+  assert.equal((await enterpriseSnapshot(customer.organization_id)).tasks[0].id,work.task.id);
+  await asActor(owner);
+  await operate("capability.activate",customer.organization_id,{pack_key:"trade",pack_version:"1.0.0"});
+  const plan = await operate("plan.save",null,{code:"common-plan-fixture",name:"Common fixture",state:"active",currency:"PHP",monthly_fee_micros:0,limits:{users:1}});
+  await operate("subscription.save",customer.organization_id,{plan_id:plan.id,state:"trial"});
+  for (const [step,state] of [["connections","not_required"],["routing","verified"]]) {
+    await operate("onboarding.attest",customer.organization_id,{step,state,note:"Synthetic fixture attestation",evidence_ref:`fixture:${step}`});
+  }
+  await operate("onboarding.attest",customer.organization_id,{step:"verification",state:"verified",note:"Synthetic actual local runtime readback",evidence_ref:work.evidence_ref});
+  const live = await operate("client.go_live",customer.organization_id,{evidence_ref:work.evidence_ref});
+  assert.equal(live.status,"active");
+  assert.equal(live.verification_kind,"owner_attested");
+  const final = await snapshot("client",customer.organization_id);
+  assert.equal(final.client.adapter_key,"enterprise_core_v1");
+  assert.equal(final.client.lifecycle_state,"active");
+  assert.equal(final.client.property_id,null);
+  await db.exec("reset role");
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_properties where organization_id=$1",[customer.organization_id])).rows[0].n,0);
+});
+
+test("new workspace guard preserves existing authorized platform reads without exposing other tenants", async () => {
+  const entity = randomUUID(),task = randomUUID();
+  await db.query("insert into public.enterprise_entities(id,organization_id,entity_kind) values($1,$3,'document'),($2,$3,'task')",[entity,task,platform]);
+  await db.query("insert into public.enterprise_tasks(entity_id,organization_id,task_type,title) values($1,$2,'workspace_work','Existing platform work fixture')",[task,platform]);
+  await asActor(owner);
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_entities where organization_id=$1",[platform])).rows[0].n,2);
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_tasks where organization_id=$1",[platform])).rows[0].n,1);
+  await rejectedSql("select public.pandora_enterprise_workspace_v1($1,'overview',null)",[platform]);
+  await asActor(clientOwner);
+  assert.equal((await db.query("select count(*)::int as n from public.enterprise_entities where organization_id=$1",[platform])).rows[0].n,0);
+});
+
+test("scoped staff can discover and enter assigned customer work without global Core access", async () => {
+  const target = (await db.query("select organization_id from public.pandora_enterprise_accounts where workspace_type='bok'")).rows[0].organization_id;
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'member','active',now())",[target,scopedOperator]);
+  await db.query("insert into private.pandora_operator_grants(user_id,organization_id,role,granted_by,reason) values($1,$2,'support',$3,'Scoped common workspace fixture')",[scopedOperator,target,owner]);
+  await asActor(scopedOperator);
+  const discovery = (await db.query("select public.pandora_enterprise_my_workspaces_v1() as result")).rows[0].result;
+  assert.equal(discovery.operator_mode,false);
+  assert.equal(discovery.workspaces.length,1);
+  assert.equal(discovery.workspaces[0].organization_id,target);
+  assert.equal(discovery.workspaces[0].requires_operator_entry,true);
+  assert.equal(discovery.workspaces[0].adapter_key,"enterprise_core_v1");
+  await rejectedSql("select public.pandora_core_snapshot_v1('home',null)");
+  const entry = (await db.query("select public.pandora_core_enter_client_v1($1,'Scoped customer assistance') as result",[target])).rows[0].result;
+  assert.equal(entry.adapter,"enterprise_core_v1");
+  const workspace = await enterpriseSnapshot(target,"overview",entry.entry_id);
+  assert.equal(workspace.organization_id,target);
+  assert.equal(workspace.viewing_as,"pandora_administrator");
+  assert.equal(workspace.actor_role,"member");
+  assert.equal(Object.hasOwn(workspace,"business"),false);
+});
+
+test("controlled Memory authorization requires a current explicit global Core owner or operator", async () => {
+  await db.query("insert into private.pandora_operator_grants(user_id,organization_id,role,granted_by,reason) values($1,$2,'support',$3,'Scoped Memory denial fixture')",[scopedOperator,client,owner]);
+  await db.query("insert into private.pandora_operator_grants(user_id,role,granted_by,reason) values($1,'finance',$2,'Finance Memory denial fixture')",[finance,owner]);
+  for (const user of [clientOwner,platformAdmin,legacyOwner,scopedOperator,finance]) {
+    await asActor(user);
+    await rejectedSql("select public.pandora_core_authorize_memory_v1()");
+  }
+  await asActor(owner);
+  assert.equal((await db.query("select public.pandora_core_authorize_memory_v1() as allowed")).rows[0].allowed,true);
+  await db.exec("reset role");
+  await db.query("insert into private.pandora_operator_grants(user_id,role,granted_by,reason) values($1,'operator',$2,'Global operator Memory fixture')",[platformAdmin,owner]);
+  await asActor(platformAdmin);
+  assert.equal((await db.query("select public.pandora_core_authorize_memory_v1() as allowed")).rows[0].allowed,true);
+  await db.exec("reset role");
+  await db.query("update private.pandora_operator_grants set state='revoked' where user_id=$1",[platformAdmin]);
+  await asActor(platformAdmin);
+  await rejectedSql("select public.pandora_core_authorize_memory_v1()");
+});
+
+test("internal client owners cannot bypass explicit Core authority or live MFA in user administration", async () => {
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'owner','active',now())",[client,platformAdmin]);
+  await asActor(platformAdmin);
+  await rejectedSql("select public.pandora_core_authorize_user_admin_v1($1,false)",[client]);
+  await asActor(platformAdmin,{role:"service_role"});
+  await rejectedSql("select public.pandora_admin_add_organization_member($1,$2,$3,'member')",[platformAdmin,client,finance],/owner|administrator|required/i);
+  await rejectedSql("select public.pandora_admin_update_organization_member($1,$2,$3,'member',null)",[platformAdmin,client,clientOwner],/owner|administrator|required/i);
+  await db.exec("reset role");
+  await db.query("insert into private.pandora_operator_grants(user_id,role,granted_by,reason) values($1,'operator',$2,'Explicit internal user-admin fixture')",[platformAdmin,owner]);
+  await asActor(platformAdmin,{aal:"aal1"});
+  await rejectedSql("select public.pandora_core_authorize_user_admin_v1($1,true)",[client],/STEP_UP_REQUIRED/);
+  await asActor(platformAdmin);
+  const authz = (await db.query("select public.pandora_core_authorize_user_admin_v1($1,true) as result",[client])).rows[0].result;
+  assert.deepEqual(authz,{organization_id:client,role:"admin",authority:"explicit_operator_grant"});
+  await asActor(platformAdmin,{role:"service_role"});
+  const added = (await db.query("select public.pandora_admin_add_organization_member($1,$2,$3,'member') as result",[platformAdmin,client,finance])).rows[0].result;
+  assert.equal(added.role,"member");
+  await db.exec("reset role");
+  await db.query("update private.pandora_operator_grants set state='revoked' where user_id=$1",[platformAdmin]);
+  await asActor(platformAdmin);
+  await rejectedSql("select public.pandora_core_authorize_user_admin_v1($1,true)",[client]);
+  await asActor(platformAdmin,{role:"service_role"});
+  await rejectedSql("select public.pandora_admin_update_organization_member($1,$2,$3,null,'suspended')",[platformAdmin,client,finance],/owner|administrator|required/i);
+});
+
+test("external customer administrators retain own-team authority and platform team uses explicit global Core authority", async () => {
+  await asActor(clientOwner,{aal:"aal1",sessionId:null});
+  const customer = (await db.query("select public.pandora_core_authorize_user_admin_v1($1,true) as result",[client])).rows[0].result;
+  assert.deepEqual(customer,{organization_id:client,role:"owner",authority:"tenant_membership"});
+  await rejectedSql("select public.pandora_core_authorize_user_admin_v1($1,true)",[otherClient]);
+  await asActor(clientOwner,{role:"service_role"});
+  const added = (await db.query("select public.pandora_admin_add_organization_member($1,$2,$3,'viewer') as result",[clientOwner,client,unrelated])).rows[0].result;
+  assert.equal(added.role,"viewer");
+  await asActor(platformAdmin);
+  await rejectedSql("select public.pandora_core_authorize_user_admin_v1($1,true)",[platform]);
+  await asActor(owner);
+  const team = (await db.query("select public.pandora_core_authorize_user_admin_v1($1,true) as result",[platform])).rows[0].result;
+  assert.deepEqual(team,{organization_id:platform,role:"owner",authority:"explicit_operator_grant"});
+  await asActor(owner,{role:"service_role"});
+  const updated = (await db.query("select public.pandora_admin_update_organization_member($1,$2,$3,'viewer',null) as result",[owner,platform,finance])).rows[0].result;
+  assert.equal(updated.role,"viewer");
+});
+
+test("administrator invitations stay pending until accepted and expose the real onboarding blocker", async () => {
+  await asActor(owner);
+  const customer = await operate("client.register",null,{name:"Invitation fixture",slug:"invitation-fixture",industry:"custom",workspace_type:"generic"});
+  await db.exec("reset role");
+  await db.query("insert into public.memberships(organization_id,user_id,role,status) values($1,$2,'admin','invited')",[customer.organization_id,clientOwner]);
+  await asActor(owner);
+  const verification = await operate("onboarding.verify",customer.organization_id,{});
+  assert.equal(verification.ready_for_runtime_verification,false);
+  const view = await snapshot("client",customer.organization_id);
+  const step = view.onboarding.find((s) => s.key === "administrator");
+  assert.equal(step.state,"pending");
+  assert.equal(step.reason,"Administrator invitation awaiting acceptance");
+  assert.equal(view.client.users,0);
+  assert.equal(view.client.admins,0);
+  assert.equal(view.client.lifecycle_state,"onboarding");
+});
+
+async function ownerClientEntry() {
+  await db.exec("reset role");
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'admin','active',now()) on conflict(organization_id,user_id) do update set status='active'",[client,owner]);
+  await asActor(owner);
+  return (await db.query("select public.pandora_core_enter_client_v1($1,'Synthetic scope regression') as result",[client])).rows[0].result.entry_id;
+}
+
+test("chat authority derives customer mode from canonical actor and tenant rather than supplied context", async () => {
+  await asActor(clientOwner,{aal:"aal1",sessionId:null});
+  const member=(await db.query("select public.pandora_enterprise_chat_authority_v1($1,null) as result",[client])).rows[0].result;
+  assert.equal(member.scope_kind,"member");
+  assert.equal(member.actor_role,"owner");
+  assert.equal(member.can_execute_core,false);
+  assert.equal(member.core_role,null);
+  await rejectedSql("select public.pandora_enterprise_chat_authority_v1($1,null)",[platform]);
+  await rejectedSql("select public.pandora_enterprise_chat_authority_v1($1,null)",[otherClient]);
+  await db.exec("reset role");
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'owner','active',now())",[client,owner]);
+  await asActor(owner,{claims:{user_metadata:{enterpriseContext:"member",role:"owner"}}});
+  await rejectedSql("select public.pandora_enterprise_chat_authority_v1($1,null)",[client],/CLIENT_ENTRY_REQUIRED/);
+  const entry=(await db.query("select public.pandora_core_enter_client_v1($1,'Synthetic classification test') as result",[client])).rows[0].result;
+  const internal=(await db.query("select public.pandora_enterprise_chat_authority_v1($1,$2) as result",[client,entry.entry_id])).rows[0].result;
+  assert.equal(internal.scope_kind,"administrator");
+  assert.equal(internal.requires_operator_entry,true);
+  assert.equal(internal.organization_id,client);
+  await rejectedSql("select public.pandora_enterprise_chat_authority_v1($1,null)",[client],/CLIENT_ENTRY_REQUIRED/);
+});
+
+test("platform chat permits explicit read roles while marking only owner and operator executable", async () => {
+  await asActor(owner);
+  let result=(await db.query("select public.pandora_enterprise_chat_authority_v1($1,null) as result",[platform])).rows[0].result;
+  assert.equal(result.scope_kind,"platform");
+  assert.equal(result.core_role,"owner");
+  assert.equal(result.can_execute_core,true);
+  await operate("operator.grant",null,{user_id:finance,role:"finance",reason:"Synthetic finance read test"});
+  await asActor(finance);
+  result=(await db.query("select public.pandora_enterprise_chat_authority_v1($1,null) as result",[platform])).rows[0].result;
+  assert.equal(result.core_role,"finance");
+  assert.equal(result.can_execute_core,false);
+  await asActor(platformAdmin);
+  await rejectedSql("select public.pandora_enterprise_chat_authority_v1($1,null)",[platform]);
+  await asActor(owner);
+  await rejectedSql("select public.pandora_enterprise_chat_authority_v1($1,$2)",[platform,randomUUID()]);
+});
+
+test("existing activity admission and wrapper require an unexpired customer entry for internal staff", async () => {
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'admin','active',now())",[client,owner]);
+  await asActor(owner);
+  await rejectedSql("select public.pandora_activity_job_begin_v1($1,'no-entry-request',null,null)",[client]);
+  await rejectedSql("select public.pandora_core_activity_begin_v1($1,'no-entry-wrapper',null,null,null)",[client]);
+  const entry=(await db.query("select public.pandora_core_enter_client_v1($1,'Synthetic activity regression') as result",[client])).rows[0].result.entry_id;
+  const first=(await db.query("select public.pandora_core_activity_begin_v1($1,'same-activity-request',null,null,$2) as result",[client,entry])).rows[0].result;
+  const again=(await db.query("select public.pandora_core_activity_begin_v1($1,'same-activity-request',null,null,$2) as result",[client,entry])).rows[0].result;
+  assert.equal(first.jobId,again.jobId);
+  assert.equal(first.lastSequence,1);
+  await rejectedSql("select public.pandora_core_activity_begin_v1($1,'exact-entry-required',null,null,null)",[client],/CLIENT_ENTRY_REQUIRED/);
+  await db.exec("reset role");
+  assert.equal((await db.query("select count(*)::int as n from public.pandora_activity_events where job_id=$1",[first.jobId])).rows[0].n,1);
+  await db.query("update private.pandora_client_entry_sessions set started_at=now()-interval '30 minutes',expires_at=now()-interval '1 second' where id=$1",[entry]);
+  await asActor(owner);
+  await rejectedSql("select public.pandora_activity_job_begin_v1($1,'expired-entry-request',null,null)",[client]);
+  await rejectedSql("select public.pandora_core_activity_begin_v1($1,'expired-entry-wrapper',null,null,$2)",[client,entry]);
+  await db.exec("reset role");
+  assert.equal((await db.query("select count(*)::int as n from public.pandora_activity_jobs where organization_id=$1",[client])).rows[0].n,1);
+});
+
+test("ordinary customer activity transport binds the real actor thread and exact tenant", async () => {
+  const thread=randomUUID(),otherThread=randomUUID();
+  await db.query("insert into public.pandora_intelligence_threads(id,organization_id,created_by,title) values($1,$3,$4,'Customer thread'),($2,$5,$6,'Other thread')",[thread,otherThread,client,clientOwner,otherClient,unrelated]);
+  await asActor(clientOwner,{aal:"aal1",sessionId:null});
+  const started=(await db.query("select public.pandora_core_activity_begin_v1($1,'member-activity-request',$2,null,null) as result",[client,thread])).rows[0].result;
+  assert.equal(started.threadId,thread);
+  assert.equal(started.projectId,null);
+  const replay=(await db.query("select public.pandora_activity_replay_v1($1,$2,0,100) as result",[client,started.jobId])).rows[0].result;
+  assert.equal(replay.events.length,1);
+  const renamed=(await db.query("select public.pandora_intelligence_thread_manage_v1($1,$2,'rename','Updated customer thread',null) as result",[client,thread])).rows[0].result;
+  assert.equal(renamed.ok,true);
+  await rejectedSql("select public.pandora_core_activity_begin_v1($1,'foreign-thread-request',$2,null,null)",[client,otherThread],/thread_not_available/);
+  await rejectedSql("select public.pandora_core_activity_begin_v1($1,'foreign-tenant-request',null,null,null)",[otherClient]);
+  await rejectedSql("select public.pandora_core_activity_begin_v1($1,'forbidden-project-request',null,$2,null)",[client,randomUUID()],/INVALID_PROJECT_SCOPE/);
+  await db.exec("reset role");
+  await db.query("update public.memberships set status='revoked' where organization_id=$1 and user_id=$2",[client,clientOwner]);
+  await asActor(clientOwner,{aal:"aal1",sessionId:null});
+  await rejectedSql("select public.pandora_activity_job_begin_v1($1,'revoked-member-request',null,null)",[client]);
+});
+
+test("expired entry blocks direct REST conversation history, events and controls as well as helper-scoped property reads", async () => {
+  const entry=await ownerClientEntry();
+  const thread=randomUUID();
+  await db.exec("reset role");
+  await db.query("insert into public.pandora_intelligence_threads(id,organization_id,created_by,title) values($1,$2,$3,'Operator client thread')",[thread,client,owner]);
+  await db.query("insert into public.pandora_intelligence_messages(thread_id,organization_id,author_role,content) values($1,$2,'user','Synthetic customer scoped message')",[thread,client]);
+  await asActor(owner);
+  const job=(await db.query("select public.pandora_core_activity_begin_v1($1,'scoped-history-request',$2,null,$3) as result",[client,thread,entry])).rows[0].result;
+  await db.query("select public.pandora_activity_control_request_v1($1,$2,'scoped-control-request','cancel',null)",[client,job.jobId]);
+  for(const table of ["pandora_intelligence_threads","pandora_intelligence_messages","pandora_activity_jobs","pandora_activity_events","pandora_activity_controls","enterprise_properties"]){
+    assert.equal((await db.query(`select count(*)::int as n from public.${table} where organization_id=$1`,[client])).rows[0].n,1,table+" available within active entry");
+  }
+  await db.exec("reset role");
+  await db.query("update private.pandora_client_entry_sessions set started_at=now()-interval '30 minutes',expires_at=now()-interval '1 second' where id=$1",[entry]);
+  await asActor(owner);
+  for(const table of ["pandora_intelligence_threads","pandora_intelligence_messages","pandora_activity_jobs","pandora_activity_events","pandora_activity_controls","enterprise_properties"]){
+    assert.equal((await db.query(`select count(*)::int as n from public.${table} where organization_id=$1`,[client])).rows[0].n,0,table+" denied after entry expiry");
+  }
+  await rejectedSql("select public.pandora_activity_replay_v1($1,$2,0,100)",[client,job.jobId]);
+  await rejectedSql("select public.pandora_activity_control_request_v1($1,$2,'expired-control-request','cancel',null)",[client,job.jobId]);
+  await rejectedSql("select public.pandora_activity_device_fact_v1($1,$2,'expired-device-operation','reminder.local','acting',now())",[client,job.jobId]);
+  await rejectedSql("select public.pandora_intelligence_thread_manage_v1($1,$2,'rename','Forbidden after expiry',null)",[client,thread]);
+  await db.exec("reset role");
+  assert.equal((await db.query("select title from public.pandora_intelligence_threads where id=$1",[thread])).rows[0].title,"Operator client thread");
+  assert.equal((await db.query("select count(*)::int as n from public.pandora_activity_controls where job_id=$1",[job.jobId])).rows[0].n,1);
+});
+
+test("all inspected legacy business APIs reject internal entry omission before their unchanged provider logic", async () => {
+  await asActor(owner);
+  const calls=[
+    ["pandora_eurofish_private_workspace_v1('overview')",[]],
+    ["pandora_eurofish_workspace_v1('overview')",[]],
+    ["pandora_tax_workspace_v1($1)",[client]],
+    ["plp_create_staff_task_v1('fixture-request','fixture-booking','Fixture title','Fixture note','operations','normal')",[]],
+    ["plp_enterprise_mobile_bootstrap_v1()",[]],
+    ["plp_pandora_activity_logs_v2(null,null,null,10,null)",[]],
+    ["plp_recent_business_activity_v1(10)",[]],
+    ["plp_resort_audit_v1(10)",[]],
+    ["plp_resort_command_center_v1()",[]],
+    ["plp_resort_operating_manifest_v1()",[]],
+    ["plp_resort_operations_v1()",[]],
+    ["plp_resort_transaction_v1('fixture-operation','fixture-id','{}')",[]],
+    ["plp_room_operations_v1()",[]],
+  ];
+  for(const [expression,params] of calls){
+    await rejectedSql("select public."+expression,params,/CLIENT_ENTRY_REQUIRED/);
+  }
+});
+
+test("read-only customer tables cannot be truncated or maintained through inherited authenticated privileges", async () => {
+  for(const table of ["memberships","enterprise_entities","enterprise_tasks","enterprise_documents",
+    "enterprise_source_records","enterprise_business_activity","enterprise_source_connections",
+    "enterprise_integration_connections","enterprise_properties","pandora_activity_jobs",
+    "pandora_activity_events","pandora_activity_controls","pandora_intelligence_threads","pandora_intelligence_messages"]){
+    for(const privilege of ["INSERT","UPDATE","DELETE","TRUNCATE","REFERENCES","TRIGGER","MAINTAIN"]){
+      assert.equal((await db.query("select has_table_privilege('authenticated',$1,$2) as allowed",["public."+table,privilege])).rows[0].allowed,false,table+" "+privilege);
+    }
+    assert.equal((await db.query("select has_table_privilege('authenticated',$1,'SELECT') as allowed",["public."+table])).rows[0].allowed,true);
+  }
+});
+
+test("legacy function body fences reject unexpected source instead of patching unknown provider implementations", async () => {
+  const bodyFence=migration.slice(migration.indexOf("-- These exact provider-read definitions"),migration.indexOf("create function public.pandora_core_activity_begin_v1"));
+  assert.ok(bodyFence.includes("CORE_PROVIDER_BASELINE_CHANGED"));
+  for(const definition of providerFenceBaselines) await db.exec(definition+";");
+  await db.exec("create or replace function public.pandora_eurofish_private_workspace_v1(p_surface text default 'overview') returns jsonb language plpgsql security definer as $$begin return '{}'::jsonb;end;$$;");
+  await rejectedSql(bodyFence,[],/CORE_PROVIDER_BASELINE_CHANGED: public.pandora_eurofish_private_workspace_v1/);
+});
+
+
+
+test("shared provider and tax authority retains external owners while enforcing internal entry and explicit grants", async () => {
+  await asActor(clientOwner,{aal:"aal1",sessionId:null});
+  assert.equal((await db.query("select public.pandora_tax_can_read_org_v1($1) as allowed",[client])).rows[0].allowed,true);
+  assert.equal((await db.query("select public.pandora_tax_can_manage_org_v1($1) as allowed",[client])).rows[0].allowed,true);
+  await asActor(legacyOwner);
+  assert.equal((await db.query("select public.pandora_tax_can_read_org_v1($1) as allowed",[platform])).rows[0].allowed,false);
+  assert.equal((await db.query("select public.pandora_tax_can_manage_org_v1($1) as allowed",[platform])).rows[0].allowed,false);
+  await db.exec("reset role");
+  await db.query("insert into public.memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'owner','active',now())",[client,owner]);
+  await asActor(owner);
+  assert.equal((await db.query("select public.pandora_tax_can_read_org_v1($1) as allowed",[client])).rows[0].allowed,false);
+  const entry=(await db.query("select public.pandora_core_enter_client_v1($1,'Synthetic provider authority test') as result",[client])).rows[0].result.entry_id;
+  assert.equal((await db.query("select public.pandora_tax_can_manage_org_v1($1) as allowed",[client])).rows[0].allowed,true);
+  await db.query("select public.pandora_core_leave_client_v1($1)",[entry]);
+  assert.equal((await db.query("select public.pandora_tax_can_manage_org_v1($1) as allowed",[client])).rows[0].allowed,false);
+  await asActor(clientOwner);
+  await db.exec("reset role");
+  await db.query("update auth.users set banned_until=now()+interval '1 day' where id=$1",[clientOwner]);
+  await asActor(clientOwner);
+  assert.equal((await db.query("select public.pandora_tax_can_read_org_v1($1) as allowed",[client])).rows[0].allowed,false);
+});
+
+test("retired dispatcher relays are closed to direct clients while preserving service-owned history", async () => {
+  const names=["pandora_chat_capability_dispatch_v1",...Array.from({length:8},(_,i)=>"pandora_chat_universal_dispatch_v"+(i+1))];
+  for(const name of names){
+    const signature="public."+name+"(uuid,text,uuid,uuid)";
+    for(const role of ["anon","authenticated"]){
+      assert.equal((await db.query("select has_function_privilege($1,$2,'EXECUTE') as allowed",[role,signature])).rows[0].allowed,false);
+    }
+    assert.equal((await db.query("select has_function_privilege('service_role',$1,'EXECUTE') as allowed",[signature])).rows[0].allowed,true);
+  }
+  await asActor(owner);
+  await rejectedSql("select public.pandora_chat_universal_dispatch_v8($1,'Synthetic retired call',null,null)",[platform],/permission denied/);
+});
+
+test("catalog and evidence legacy reads reject omitted or expired operator entry before accessing provider state", async () => {
+  const entry=await ownerClientEntry();
+  await db.exec("reset role");
+  await db.query("update private.pandora_client_entry_sessions set ended_at=now() where id=$1",[entry]);
+  await asActor(owner);
+  for(const query of ["select public.pandora_chat_model_picker_v1($1,null)",
+    "select public.pandora_intelligence_model_catalog_v1($1)",
+    "select public.pandora_action_evidence_v1($1,10)"]){
+    await rejectedSql(query,[client],/membership_required/);
+  }
+});
+
+test("client entry reasons are redacted before audit and sequential switches leave one live receipt", async () => {
+  const first=await ownerClientEntry();
+  const second=(await db.query("select public.pandora_core_enter_client_v1($1,'Synthetic second audited entry') as result",[client])).rows[0].result.entry_id;
+  assert.notEqual(first,second);
+  assert.equal((await db.query("select public.pandora_core_validate_entry_v1($1,$2) as valid",[first,client])).rows[0].valid,false);
+  assert.equal((await db.query("select public.pandora_core_validate_entry_v1($1,$2) as valid",[second,client])).rows[0].valid,true);
+  await rejectedSql("select public.pandora_core_enter_client_v1($1,$2)",[client,"Bearer "+"syntheticcredential".repeat(2)],/INVALID_REQUEST/);
+  await db.exec("reset role");
+  const active=(await db.query("select count(*)::int as n from private.pandora_client_entry_sessions where actor_user_id=$1 and ended_at is null",[owner])).rows[0].n;
+  assert.equal(active,1);
+  assert.equal((await db.query("select count(*)::int as n from private.pandora_client_entry_sessions where reason like 'Bearer%'")).rows[0].n,0);
+});
+
+test("explicit MFA resume restores onboarding access without granting membership or declaring go-live", async () => {
+  await asActor(owner);
+  await operate("client.update",client,{lifecycle_state:"suspended"});
+  await operate("client.update",client,{notes:"Synthetic profile note while suspended"});
+  await asActor(clientOwner);
+  await rejectedSql("select public.pandora_enterprise_workspace_v1($1,'overview',null)",[client]);
+  await asActor(owner,{aal:"aal1"});
+  await rejectedSql("select public.pandora_core_operate_v1('client.update',$1,$2::jsonb,$3)",[client,JSON.stringify({lifecycle_state:"onboarding"}),randomUUID()]);
+  await asActor(owner);
+  const resumed=await operate("client.update",client,{lifecycle_state:"onboarding"});
+  assert.equal(resumed.lifecycle_state,"onboarding");
+  await db.exec("reset role");
+  assert.equal((await db.query("select status from public.organizations where id=$1",[client])).rows[0].status,"active");
+  assert.equal((await db.query("select count(*)::int as n from public.memberships where organization_id=$1 and status='active'",[client])).rows[0].n,1);
+  assert.equal((await db.query("select state from public.pandora_customer_onboarding_steps where organization_id=$1 and step='go_live'",[client])).rows[0].state,"pending");
+  await asActor(clientOwner,{aal:"aal1",sessionId:null});
+  const work=await enterpriseOperate(client,"task.create",{title:"Verify resumed workspace"});
+  assert.equal(work.status,"saved");
+  await asActor(owner);
+  await operate("onboarding.attest",client,{step:"verification",state:"verified",note:"Synthetic resumed runtime write and readback verified",evidence_ref:work.evidence_ref});
+  const state=await snapshot("client",client);
+  assert.equal(state.client.lifecycle_state,"onboarding");
+});
+
+test("connection approvals require a current matching AAL2 Auth session and preserve external customer administration", async () => {
+  const approval=randomUUID(),connection=randomUUID(),hash="a".repeat(64);
+  await db.query("insert into private.pandora_connection_write_approvals_v1(id,organization_id,provider_key,connection_id,tenant_key,requested_by,operation,target_preview,target_hash,expires_at) values($1,$2,'fixture.provider',$3,'fixture-tenant',$4,'fixture.write','{}',$5,now()+interval '1 hour')",[approval,client,connection,clientOwner,hash]);
+  const query="select public.pandora_connection_write_approve_v1($1,$2,'fixture.provider',$3,'fixture-tenant',$4) as result";
+  for(const change of ["not_after=now()-interval '1 second'","aal='aal1'"]){
+    await db.exec("reset role");
+    await db.query("update auth.sessions set aal='aal2',not_after=now()+interval '1 hour' where id=$1",[sessions.get(clientOwner)]);
+    await db.query("update auth.sessions set "+change+" where id=$1",[sessions.get(clientOwner)]);
+    await asActor(clientOwner);
+    await rejectedSql(query,[client,approval,connection,hash],/step_up_required/);
+  }
+  await asActor(clientOwner,{sessionId:sessions.get(owner)});
+  await rejectedSql(query,[client,approval,connection,hash],/step_up_required/);
+  await asActor(clientOwner,{sessionId:null});
+  await rejectedSql(query,[client,approval,connection,hash],/step_up_required/);
+  await db.exec("reset role");
+  assert.equal((await db.query("select status from private.pandora_connection_write_approvals_v1 where id=$1",[approval])).rows[0].status,"pending");
+  await db.query("update auth.sessions set aal='aal2',not_after=now()+interval '1 hour' where id=$1",[sessions.get(clientOwner)]);
+  await asActor(clientOwner);
+  const approved=(await db.query(query,[client,approval,connection,hash])).rows[0].result;
+  assert.equal(approved.ok,true);
+  assert.equal(approved.status,"approved");
+  assert.equal(approved.tenantId,client);
 });

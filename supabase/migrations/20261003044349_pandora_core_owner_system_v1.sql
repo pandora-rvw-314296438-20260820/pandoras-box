@@ -63,6 +63,25 @@ begin
 end;
 $$;
 
+-- Raw membership is reserved for entry creation/validation and scope classifiers.
+-- Business readers use is_org_member / has_org_role, which also enforce entry.
+create function private.pandora_tenant_member_role_v1(p_organization_id uuid)
+returns text language sql stable security definer set search_path='' as $$
+ select m.role::text from public.memberships m
+ join public.organizations o on o.id=m.organization_id and o.status='active'
+ join auth.users u on u.id=m.user_id and not coalesce(u.is_anonymous,false)
+ where auth.uid() is not null and coalesce(auth.jwt()->>'is_anonymous','false')<>'true'
+  and m.organization_id=p_organization_id and m.user_id=auth.uid() and m.status='active'
+  and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now());
+$$;
+create function private.pandora_enterprise_internal_actor_v1()
+returns boolean language sql stable security definer set search_path='' as $$
+ select exists(select 1 from public.memberships m join private.pandora_core_config c
+  on c.platform_organization_id=m.organization_id where m.user_id=auth.uid())
+  or exists(select 1 from private.pandora_operator_grants g where g.user_id=auth.uid());
+$$;
+revoke all on function private.pandora_tenant_member_role_v1(uuid),private.pandora_enterprise_internal_actor_v1() from public,anon,authenticated;
+
 create table public.pandora_enterprise_accounts (
  organization_id uuid primary key references public.organizations(id),
  industry text not null check (industry in ('hospitality','trade','legal','restaurant','retail','custom')),
@@ -282,7 +301,8 @@ end;
 $$;
 -- The former direct UPDATE policy allowed lowering an existing owner's role.
 -- Preserve SELECT and the audited service-role user-admin broker.
-revoke insert,update,delete on public.memberships from authenticated;
+revoke all on public.memberships from public,anon,authenticated;
+grant select on public.memberships to authenticated;
 
 -- Bootstrap only inspected canonical identities. Missing installations remain unconfigured.
 -- Never rename an existing organization or turn historical demo properties into customers.
@@ -300,8 +320,8 @@ join public.enterprise_properties p on p.organization_id=o.id and p.slug='plp-bo
 cross join private.pandora_operator_grants g
 where o.slug='plp-boracay' and g.role='owner' and g.organization_id is null and g.state='active'
 on conflict(organization_id) do nothing;
--- Other named customers are registered by the same governed flow after migration,
--- with onboarding state only. This keeps generated IDs out of data migrations.
+-- The owner-requested remaining customer identities are registered below within
+-- this migration, in onboarding only; no activity, users or subscriptions are invented.
 
 create function private.pandora_core_connections_v1(p_organization_id uuid default null)
 returns jsonb language sql stable security definer set search_path='' as $$
@@ -328,6 +348,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
  select coalesce(jsonb_agg(x order by x->>'display_name'),'[]') from (
  select jsonb_build_object('organization_id',a.organization_id,'display_name',o.name,'slug',o.slug,
   'industry',a.industry,'workspace_type',a.workspace_type,'lifecycle_state',a.lifecycle_state,
+  'adapter_key',case when a.workspace_type='plp' and o.slug='plp-boracay' and a.property_id is not null then 'plp_v1' else 'enterprise_core_v1' end,
   'onboarding_state',case when exists(select 1 from public.pandora_customer_onboarding_steps s where s.organization_id=a.organization_id and s.step='go_live' and s.state='verified') then 'complete'
    when exists(select 1 from public.pandora_customer_onboarding_steps s where s.organization_id=a.organization_id and s.state='blocked') then 'blocked' else 'in_progress' end,
   'property_id',a.property_id,'primary_contact_name',a.primary_contact_name,'primary_contact_email',a.primary_contact_email,
@@ -344,7 +365,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
   'last_active',(select max(u.last_sign_in_at) from public.memberships m join auth.users u on u.id=m.user_id where m.organization_id=a.organization_id and m.status='active'),
   'can_enter',exists(select 1 from public.memberships m where m.organization_id=a.organization_id and m.user_id=auth.uid() and m.status='active')
     and a.lifecycle_state not in ('suspended','offboarding','archived')
-    and a.workspace_type='plp' and o.slug='plp-boracay' and a.property_id is not null,
+    and o.status='active' and private.pandora_core_role_v1(a.organization_id) in ('owner','operator','support'),
   'entry_requires','active_target_membership_and_aal2',
   'plan',(select p.name from public.pandora_customer_subscriptions s join public.pandora_service_plans p on p.id=s.plan_id where s.organization_id=a.organization_id)) x
  from public.pandora_enterprise_accounts a join public.organizations o on o.id=a.organization_id
@@ -586,8 +607,12 @@ begin
   case s.step
    when 'identity' then v_ok:=true;v_reason:='Canonical organization registered';
    when 'administrator' then
-    select exists(select 1 from public.memberships where organization_id=p_organization_id and role in ('owner','admin') and status='active') into v_ok;
-    v_reason:=case when v_ok then 'Active customer administrator recorded' else 'Invite and verify a customer administrator' end;
+    select exists(select 1 from public.memberships m join auth.users u on u.id=m.user_id
+     where m.organization_id=p_organization_id and m.role in ('owner','admin') and m.status='active'
+      and not coalesce(u.is_anonymous,false) and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now())) into v_ok;
+    v_reason:=case when v_ok then 'Active customer administrator recorded'
+     when exists(select 1 from public.memberships where organization_id=p_organization_id and role in ('owner','admin') and status='invited') then 'Administrator invitation awaiting acceptance'
+     else 'Invite and verify a customer administrator' end;
    when 'capabilities' then
     select exists(select 1 from public.pandora_workspace_industry_packs where organization_id=p_organization_id and activation_state='active') into v_ok;
     v_reason:=case when v_ok then 'Workspace capability pack is active' else 'Select an available workspace capability pack' end;
@@ -701,8 +726,16 @@ begin
   if p_payload->>'lifecycle_state' in ('suspended','archived','offboarding') then
    update public.organizations set status='suspended',updated_at=now() where id=v_org;
    update private.pandora_client_entry_sessions set ended_at=now() where organization_id=v_org and ended_at is null;
+  elsif p_payload->>'lifecycle_state'='onboarding' then
+   -- Explicit MFA-authorized resume restores only onboarding access. Ordinary
+   -- profile edits never reactivate an organization or imply go-live evidence.
+   update public.organizations set status='active',updated_at=now() where id=v_org;
+   update public.pandora_customer_onboarding_steps set state='pending',evidence_ref=null,
+    note='Verify the resumed customer workspace before go-live',updated_by=v_actor,updated_at=now()
+    where organization_id=v_org and step in ('verification','go_live');
   end if;
-  v_result:=jsonb_build_object('status','saved','organization_id',v_org);
+  v_result:=jsonb_build_object('status','saved','organization_id',v_org,
+   'lifecycle_state',(select lifecycle_state from public.pandora_enterprise_accounts where organization_id=v_org));
  when 'onboarding.checkpoint' then
   if p_payload->>'state' not in ('pending','blocked') or length(coalesce(p_payload->>'note',''))<3 then raise exception 'INVALID_REQUEST' using errcode='22023';end if;
   update public.pandora_customer_onboarding_steps set state=p_payload->>'state',note=p_payload->>'note',source_kind='owner_attested',evidence_ref=null,updated_by=v_actor,updated_at=now()
@@ -721,7 +754,8 @@ begin
  when 'onboarding.verify' then
   v_result:=private.pandora_core_onboarding_verify_v1(v_org)||jsonb_build_object('status','checked','organization_id',v_org);
  when 'client.go_live' then
-  if not exists(select 1 from public.pandora_enterprise_accounts a join public.organizations o on o.id=a.organization_id where a.organization_id=v_org and a.workspace_type='plp' and o.slug='plp-boracay' and a.property_id is not null) then raise exception 'WORKSPACE_NOT_VERIFIED' using errcode='22023';end if;
+  if not exists(select 1 from public.pandora_enterprise_accounts a join public.organizations o on o.id=a.organization_id where a.organization_id=v_org and a.workspace_type='plp' and o.slug='plp-boracay' and a.property_id is not null)
+   and not private.pandora_enterprise_runtime_ready_v1(v_org) then raise exception 'WORKSPACE_NOT_VERIFIED' using errcode='22023';end if;
   perform private.pandora_core_onboarding_verify_v1(v_org);
   if exists(select 1 from public.pandora_customer_onboarding_steps where organization_id=v_org and step<>'go_live' and state not in ('verified','not_required'))
    or length(coalesce(p_payload->>'evidence_ref',''))<3 then raise exception 'GO_LIVE_VERIFICATION_REQUIRED' using errcode='22023';end if;
@@ -864,20 +898,26 @@ declare v_role text;v_entry uuid;v_session uuid;v_client record;v_expiry timesta
 begin
  v_role:=private.pandora_core_assert_v1(p_organization_id,array['owner','operator','support'],true);
  if length(coalesce(trim(p_reason),'')) not between 3 and 500 then raise exception 'INVALID_REQUEST' using errcode='22023';end if;
+ perform private.pandora_core_payload_v1(jsonb_build_object('reason',p_reason),array['reason']);
+ v_session:=(auth.jwt()->>'session_id')::uuid;
+ perform pg_advisory_xact_lock(hashtextextended('pandora-client-entry:'||auth.uid()::text||':'||v_session::text,0));
+ -- Recheck authority after a competing switch or revocation has completed.
+ v_role:=private.pandora_core_assert_v1(p_organization_id,array['owner','operator','support'],true);
  select a.*,o.name,o.slug into v_client from public.pandora_enterprise_accounts a join public.organizations o on o.id=a.organization_id
  where a.organization_id=p_organization_id and o.status='active' and a.lifecycle_state not in ('suspended','offboarding','archived');
- if not found or not private.is_org_member(p_organization_id) then raise exception 'CLIENT_MEMBERSHIP_REQUIRED' using errcode='42501';end if;
- -- Existing PLP adapter is bound to the actual PLP organization/property pair.
- -- Other workspaces remain onboarding until their runtime adapter proves exact scope.
- if v_client.workspace_type<>'plp' or v_client.slug<>'plp-boracay' or v_client.property_id is null then raise exception 'WORKSPACE_NOT_VERIFIED' using errcode='22023';end if;
- v_session:=(auth.jwt()->>'session_id')::uuid;
+ if not found or private.pandora_tenant_member_role_v1(p_organization_id) is null then raise exception 'CLIENT_MEMBERSHIP_REQUIRED' using errcode='42501';end if;
+ -- The specialized PLP adapter preserves its exact property binding. Every other
+ -- customer enters the common member-scoped Enterprise adapter while onboarding.
+ -- Entry never marks an account active or supplies missing provider evidence.
  update private.pandora_client_entry_sessions set ended_at=now() where actor_user_id=auth.uid() and auth_session_id=v_session and ended_at is null;
  insert into private.pandora_client_entry_sessions(actor_user_id,auth_session_id,organization_id,reason,expires_at)
  values(auth.uid(),v_session,p_organization_id,trim(p_reason),v_expiry) returning id into v_entry;
  perform private.append_audit_event(p_organization_id,null,null,'human'::public.audit_actor_type,auth.uid(),'core.client.enter',
   jsonb_build_object('entry_id',v_entry,'authorization',v_role,'reason',trim(p_reason),'expires_at',v_expiry,'source','pandora-core-v1'));
  return jsonb_build_object('entry_id',v_entry,'organization_id',p_organization_id,'property_id',v_client.property_id,
-  'workspace_type',v_client.workspace_type,'display_name',v_client.name,'expires_at',v_expiry);
+  'workspace_type',v_client.workspace_type,'display_name',v_client.name,'expires_at',v_expiry,
+  'adapter',case when v_client.workspace_type='plp' and v_client.slug='plp-boracay' and v_client.property_id is not null then 'plp_v1' else 'enterprise_core_v1' end,
+  'adapter_key',case when v_client.workspace_type='plp' and v_client.slug='plp-boracay' and v_client.property_id is not null then 'plp_v1' else 'enterprise_core_v1' end);
 end;
 $$;
 create function public.pandora_core_leave_client_v1(p_entry_id uuid)
@@ -895,7 +935,7 @@ end;
 $$;
 create function public.pandora_core_validate_entry_v1(p_entry_id uuid,p_organization_id uuid)
 returns boolean language sql stable security definer set search_path='' as $$
- select private.pandora_core_role_v1(p_organization_id) in ('owner','operator','support') and private.is_org_member(p_organization_id)
+ select private.pandora_core_role_v1(p_organization_id) in ('owner','operator','support') and private.pandora_tenant_member_role_v1(p_organization_id) is not null
  and exists(select 1 from private.pandora_client_entry_sessions e join auth.sessions s on s.id=e.auth_session_id
   join public.organizations o on o.id=e.organization_id
   join public.pandora_enterprise_accounts a on a.organization_id=e.organization_id
@@ -906,11 +946,30 @@ returns boolean language sql stable security definer set search_path='' as $$
 $$;
 create function public.pandora_core_authorize_user_admin_v1(p_organization_id uuid,p_write boolean default false)
 returns jsonb language plpgsql stable security definer set search_path='' as $$
-declare v_role text;
+declare v_role text;v_platform uuid;v_authority text;
 begin
- if not exists(select 1 from public.pandora_enterprise_accounts where organization_id=p_organization_id) then raise exception 'ACCESS_DENIED' using errcode='42501';end if;
- v_role:=private.pandora_core_assert_v1(p_organization_id,array['owner','operator'],p_write);
- return jsonb_build_object('organization_id',p_organization_id,'role',case when v_role='owner' then 'owner' else 'admin' end,'authority','explicit_operator_grant');
+ select platform_organization_id into v_platform from private.pandora_core_config where singleton;
+ if p_organization_id is null or not exists(select 1 from public.organizations where id=p_organization_id)
+  or (p_write and not exists(select 1 from public.organizations where id=p_organization_id and status='active')) then
+  raise exception 'ACCESS_DENIED' using errcode='42501';
+ end if;
+ if p_organization_id=v_platform or private.pandora_enterprise_internal_actor_v1() then
+  if p_organization_id<>v_platform and not exists(select 1 from public.pandora_enterprise_accounts where organization_id=p_organization_id) then
+   raise exception 'ACCESS_DENIED' using errcode='42501';
+  end if;
+  -- Internal staff cannot substitute a target owner/admin membership for Core
+  -- authority or bypass live MFA. Own-platform administration requires a global grant.
+  v_role:=private.pandora_core_assert_v1(case when p_organization_id=v_platform then null else p_organization_id end,array['owner','operator'],p_write);
+  v_role:=case when v_role='owner' then 'owner' else 'admin' end;
+  v_authority:='explicit_operator_grant';
+ else
+  if not private.has_org_role(p_organization_id,array['owner','admin']::public.member_role[]) then
+   raise exception 'ACCESS_DENIED' using errcode='42501';
+  end if;
+  select role::text into v_role from public.memberships where organization_id=p_organization_id and user_id=auth.uid() and status='active';
+  v_authority:='tenant_membership';
+ end if;
+ return jsonb_build_object('organization_id',p_organization_id,'role',v_role,'authority',v_authority);
 end;
 $$;
 
@@ -955,6 +1014,8 @@ begin
        from auth.users caller
        where caller.id = actor_user_id
          and coalesce(caller.is_anonymous, false) = false
+         and caller.deleted_at is null
+         and (caller.banned_until is null or caller.banned_until<=now())
      ) then
     raise exception 'existing non-anonymous administrator required'
       using errcode = '22023';
@@ -981,11 +1042,18 @@ begin
 
   -- The broker remains service-role-only. The Edge gateway first validates the
   -- caller's actual JWT and live AAL2 through pandora_core_authorize_user_admin_v1.
-  -- Re-check the server-controlled operator grant at mutation time.
-  if actor_role is null or actor_role not in ('owner'::public.member_role,'admin'::public.member_role) then
-    actor_role := case private.pandora_core_actor_role_v1(actor_user_id,p_organization_id)
-      when 'owner' then 'owner'::public.member_role
-      when 'operator' then 'admin'::public.member_role else null end;
+  -- Internal identity never falls back to a customer's membership. Re-check
+  -- the server-controlled operator grant even when that actor owns the tenant.
+  if exists(select 1 from public.memberships m join private.pandora_core_config c on c.platform_organization_id=m.organization_id where m.user_id=actor_user_id)
+     or exists(select 1 from private.pandora_operator_grants g where g.user_id=actor_user_id) then
+    actor_role:=null;
+    if exists(select 1 from private.pandora_core_config c where c.platform_organization_id=p_organization_id)
+       or exists(select 1 from public.pandora_enterprise_accounts a where a.organization_id=p_organization_id) then
+      actor_role := case private.pandora_core_actor_role_v1(actor_user_id,
+        case when exists(select 1 from private.pandora_core_config c where c.platform_organization_id=p_organization_id) then null else p_organization_id end)
+        when 'owner' then 'owner'::public.member_role
+        when 'operator' then 'admin'::public.member_role else null end;
+    end if;
   end if;
   if not exists(select 1 from public.organizations where id=p_organization_id and status='active') then
     raise exception 'active organization required' using errcode='42501';
@@ -1161,6 +1229,8 @@ begin
        from auth.users caller
        where caller.id = p_actor_user_id
          and coalesce(caller.is_anonymous, false) = false
+         and caller.deleted_at is null
+         and (caller.banned_until is null or caller.banned_until<=now())
      ) then
     raise exception 'existing non-anonymous administrator required'
       using errcode = '22023';
@@ -1192,11 +1262,18 @@ begin
 
   -- The broker remains service-role-only. The Edge gateway first validates the
   -- caller's actual JWT and live AAL2 through pandora_core_authorize_user_admin_v1.
-  -- Re-check the server-controlled operator grant at mutation time.
-  if actor_role is null or actor_role not in ('owner'::public.member_role,'admin'::public.member_role) then
-    actor_role := case private.pandora_core_actor_role_v1(p_actor_user_id,p_organization_id)
-      when 'owner' then 'owner'::public.member_role
-      when 'operator' then 'admin'::public.member_role else null end;
+  -- Internal identity never falls back to a customer's membership. Re-check
+  -- the server-controlled operator grant even when that actor owns the tenant.
+  if exists(select 1 from public.memberships m join private.pandora_core_config c on c.platform_organization_id=m.organization_id where m.user_id=p_actor_user_id)
+     or exists(select 1 from private.pandora_operator_grants g where g.user_id=p_actor_user_id) then
+    actor_role:=null;
+    if exists(select 1 from private.pandora_core_config c where c.platform_organization_id=p_organization_id)
+       or exists(select 1 from public.pandora_enterprise_accounts a where a.organization_id=p_organization_id) then
+      actor_role := case private.pandora_core_actor_role_v1(p_actor_user_id,
+        case when exists(select 1 from private.pandora_core_config c where c.platform_organization_id=p_organization_id) then null else p_organization_id end)
+        when 'owner' then 'owner'::public.member_role
+        when 'operator' then 'admin'::public.member_role else null end;
+    end if;
   end if;
   if not exists(select 1 from public.organizations where id=p_organization_id and status='active') then
     raise exception 'active organization required' using errcode='42501';
@@ -1340,25 +1417,486 @@ begin
 end;
 $function$;
 
--- Account suspension is enforced by the existing tenant RLS helpers. This only
--- narrows existing membership authority; operator grants never bypass these checks.
+-- These conditions protect legacy readers as well as the common adapter. The
+-- entry validator uses raw membership above, so this introduces no recursion.
+create function private.pandora_enterprise_session_scope_v1(p_organization_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+ select not exists(select 1 from public.pandora_enterprise_accounts where organization_id=p_organization_id)
+  or exists(select 1 from public.pandora_enterprise_accounts a where a.organization_id=p_organization_id
+   and a.lifecycle_state not in ('suspended','offboarding','archived')
+   and (not private.pandora_enterprise_internal_actor_v1() or exists(
+    select 1 from private.pandora_client_entry_sessions e where e.organization_id=p_organization_id
+     and e.actor_user_id=auth.uid() and e.ended_at is null and e.expires_at>now()
+     and public.pandora_core_validate_entry_v1(e.id,p_organization_id))));
+$$;
+revoke all on function private.pandora_enterprise_session_scope_v1(uuid) from public,anon,authenticated;
+
 create or replace function private.is_org_member(target_organization_id uuid)
 returns boolean language sql stable security definer set search_path='' as $$
- select auth.uid() is not null and coalesce(auth.jwt()->>'is_anonymous','false')<>'true'
- and exists(select 1 from public.memberships m
-  join public.organizations o on o.id=m.organization_id and o.status='active'
-  join auth.users u on u.id=m.user_id and not coalesce(u.is_anonymous,false)
-  where m.organization_id=target_organization_id and m.user_id=auth.uid() and m.status='active'
-  and (u.banned_until is null or u.banned_until<=now()) and u.deleted_at is null);
+ select private.pandora_tenant_member_role_v1(target_organization_id) is not null
+  and private.pandora_enterprise_session_scope_v1(target_organization_id);
 $$;
 create or replace function private.has_org_role(target_organization_id uuid,allowed_roles public.member_role[])
 returns boolean language sql stable security definer set search_path='' as $$
- select auth.uid() is not null and coalesce(auth.jwt()->>'is_anonymous','false')<>'true'
- and exists(select 1 from public.memberships m
-  join public.organizations o on o.id=m.organization_id and o.status='active'
-  join auth.users u on u.id=m.user_id and not coalesce(u.is_anonymous,false)
-  where m.organization_id=target_organization_id and m.user_id=auth.uid() and m.status='active' and m.role=any(allowed_roles)
-  and (u.banned_until is null or u.banned_until<=now()) and u.deleted_at is null);
+ select coalesce(private.pandora_tenant_member_role_v1(target_organization_id)::public.member_role=any(allowed_roles),false)
+  and private.pandora_enterprise_session_scope_v1(target_organization_id);
+$$;
+
+-- Common Enterprise runtime: capture work in the canonical task model. Nullable
+-- columns preserve older operational and automation writers without inventing data.
+alter table public.enterprise_tasks
+ add column title text check(title is null or length(trim(title)) between 1 and 160),
+ add column description text check(description is null or length(description)<=4000);
+create index enterprise_tasks_workspace_updated_idx on public.enterprise_tasks(organization_id,updated_at desc)
+ where task_type='workspace_work';
+revoke all on public.enterprise_entities,public.enterprise_tasks,
+ public.enterprise_documents,public.enterprise_source_records,public.enterprise_business_activity,
+ public.enterprise_source_connections,public.enterprise_integration_connections,public.enterprise_properties from public,anon,authenticated;
+grant select on public.enterprise_entities,public.enterprise_tasks,public.enterprise_documents,
+ public.enterprise_source_records,public.enterprise_business_activity,public.enterprise_source_connections,
+ public.enterprise_integration_connections,public.enterprise_properties to authenticated;
+create function private.pandora_enterprise_member_scope_v1(p_organization_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+ select private.is_org_member(p_organization_id);
+$$;
+create function private.pandora_enterprise_assert_v1(p_organization_id uuid,p_entry_id uuid,p_write boolean default false)
+returns text language plpgsql stable security definer set search_path='' as $$
+declare v_role text;
+begin
+ if p_organization_id is null or private.pandora_tenant_member_role_v1(p_organization_id) is null
+  or not exists(select 1 from public.pandora_enterprise_accounts a where a.organization_id=p_organization_id
+   and a.lifecycle_state not in ('suspended','offboarding','archived')) then
+  raise exception 'ACCESS_DENIED' using errcode='42501';
+ end if;
+ if private.pandora_enterprise_internal_actor_v1() or p_entry_id is not null then
+  if p_entry_id is null or public.pandora_core_validate_entry_v1(p_entry_id,p_organization_id) is not true then
+   raise exception 'CLIENT_ENTRY_REQUIRED' using errcode='42501';
+  end if;
+ end if;
+ select m.role::text into v_role from public.memberships m
+  where m.organization_id=p_organization_id and m.user_id=auth.uid() and m.status='active';
+ if p_write and v_role not in ('owner','admin','operator','member') then
+  raise exception 'ACCESS_DENIED' using errcode='42501';
+ end if;
+ return v_role;
+end;
+$$;
+
+-- Keep existing member policies, adding a restrictive guard to new workspace
+-- surfaces. Internal staff cannot bypass an audited entry through direct REST.
+do $$
+declare t text;
+begin
+ foreach t in array array['enterprise_entities','enterprise_tasks','enterprise_documents','enterprise_source_records','enterprise_business_activity','enterprise_source_connections',
+  'pandora_intelligence_threads','pandora_intelligence_messages','pandora_activity_jobs','pandora_activity_events','pandora_activity_controls'] loop
+  execute format('alter table public.%I enable row level security',t);
+  execute format('create policy enterprise_workspace_scope_guard on public.%I as restrictive for select to authenticated using (private.pandora_enterprise_member_scope_v1(organization_id))',t);
+ end loop;
+end;
+$$;
+
+-- Internal support records remain in the existing task engine but are only
+-- returned by the authorized Core projection, never customer-facing REST.
+create policy enterprise_tasks_customer_work_guard on public.enterprise_tasks as restrictive
+ for select to authenticated using (task_type<>'customer_support');
+create function private.pandora_enterprise_customer_entity_v1(p_entity_id uuid,p_organization_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+ select not exists(select 1 from public.enterprise_tasks t where t.entity_id=p_entity_id
+  and t.organization_id=p_organization_id and t.task_type='customer_support');
+$$;
+revoke all on function private.pandora_enterprise_customer_entity_v1(uuid,uuid) from public,anon;
+grant execute on function private.pandora_enterprise_customer_entity_v1(uuid,uuid) to authenticated;
+create policy enterprise_entities_customer_work_guard on public.enterprise_entities as restrictive
+ for select to authenticated using (private.pandora_enterprise_customer_entity_v1(id,organization_id));
+revoke all on public.pandora_intelligence_threads,public.pandora_intelligence_messages,
+ public.pandora_activity_jobs,public.pandora_activity_events,public.pandora_activity_controls from public,anon,authenticated;
+grant select on public.pandora_intelligence_threads,public.pandora_intelligence_messages,
+ public.pandora_activity_jobs,public.pandora_activity_events,public.pandora_activity_controls to authenticated;
+
+create function public.pandora_enterprise_my_workspaces_v1()
+returns jsonb language plpgsql stable security definer set search_path='' as $$
+begin
+ if auth.uid() is null or coalesce(auth.jwt()->>'is_anonymous','false')='true'
+  or not exists(select 1 from auth.users u where u.id=auth.uid() and not coalesce(u.is_anonymous,false)
+   and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now())) then
+  raise exception 'ACCESS_DENIED' using errcode='42501';
+ end if;
+ return jsonb_build_object('operator_mode',private.pandora_core_role_v1(null) is not null,
+  'workspaces',coalesce((select jsonb_agg(jsonb_build_object('organization_id',o.id,'display_name',o.name,'slug',o.slug,
+   'workspace_type',a.workspace_type,'property_id',a.property_id,'role',m.role,
+   'adapter_key',case when a.workspace_type='plp' and o.slug='plp-boracay' and a.property_id is not null then 'plp_v1' else 'enterprise_core_v1' end,
+   'requires_operator_entry',private.pandora_enterprise_internal_actor_v1()) order by o.name)
+   from public.memberships m join public.organizations o on o.id=m.organization_id and o.status='active'
+   join public.pandora_enterprise_accounts a on a.organization_id=o.id
+   where m.user_id=auth.uid() and m.status='active' and a.lifecycle_state not in ('suspended','offboarding','archived')),'[]'::jsonb));
+end;
+$$;
+
+create function public.pandora_enterprise_workspace_v1(p_organization_id uuid,p_section text default 'overview',p_entry_id uuid default null)
+returns jsonb language plpgsql stable security definer set search_path='' as $$
+declare v_role text;v_workspace jsonb;v_tasks jsonb;v_documents jsonb;v_people jsonb;v_activity jsonb;v_sources jsonb;
+begin
+ v_role:=private.pandora_enterprise_assert_v1(p_organization_id,p_entry_id,false);
+ if p_section is null or p_section not in ('overview','work','documents','activity','people') then
+  raise exception 'INVALID_REQUEST' using errcode='22023';
+ end if;
+ select jsonb_build_object('organization_id',o.id,'display_name',o.name,'industry',a.industry,
+  'workspace_type',a.workspace_type,'adapter','enterprise_core_v1','lifecycle_state',a.lifecycle_state)
+ into v_workspace from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id
+ where o.id=p_organization_id;
+ select coalesce(jsonb_agg(to_jsonb(q) order by q.updated_at desc),'[]') into v_tasks from (
+  select t.entity_id id,coalesce(t.title,initcap(replace(t.task_type,'_',' '))) title,
+   t.description,t.task_state state,t.due_at,t.completed_at,t.created_at,t.updated_at,
+   t.task_type='workspace_work' and v_role in ('owner','admin','operator','member') editable
+  from public.enterprise_tasks t join public.enterprise_entities e on e.id=t.entity_id and e.organization_id=t.organization_id
+  where t.organization_id=p_organization_id and e.lifecycle_state='active'
+   and not exists(select 1 from public.pandora_customer_cases c where c.task_entity_id=t.entity_id)
+  order by t.updated_at desc limit 100
+ ) q;
+ select coalesce(jsonb_agg(to_jsonb(q) order by q.created_at desc),'[]') into v_documents from (
+  select d.entity_id id,
+   left(coalesce(nullif(trim(r.payload_metadata_redacted->>'title'),''),nullif(trim(r.payload_metadata_redacted->>'name'),''),initcap(replace(d.document_type,'_',' '))),160) title,
+   d.document_type,d.media_type,d.version_number,c.display_name source_name,
+   case when c.revoked_at is null and r.source_locator ~ '^https://[^/?#@[:space:]]+(/[^?#[:space:]]*)?$'
+    and length(r.source_locator)<=1000 then r.source_locator else null end source_url,
+   r.source_observed_at,d.content_sha256,d.created_at
+  from public.enterprise_documents d join public.enterprise_entities e on e.id=d.entity_id and e.organization_id=d.organization_id
+  left join public.enterprise_source_records r on r.id=d.source_record_id and r.organization_id=d.organization_id
+  left join public.enterprise_integration_connections c on c.id=r.source_connection_id and c.organization_id=d.organization_id
+  where d.organization_id=p_organization_id and e.lifecycle_state='active'
+  order by d.created_at desc limit 100
+ ) q;
+ select coalesce(jsonb_agg(to_jsonb(q) order by q.display_name),'[]') into v_people from (
+  select m.user_id,left(coalesce(nullif(trim(u.raw_user_meta_data->>'full_name'),''),split_part(u.email,'@',1)),160) display_name,m.role
+  from public.memberships m join auth.users u on u.id=m.user_id
+  where m.organization_id=p_organization_id and m.status='active' and not coalesce(u.is_anonymous,false)
+   and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now())
+  order by m.joined_at limit 100
+ ) q;
+ select coalesce(jsonb_agg(to_jsonb(q) order by q.occurred_at desc),'[]') into v_activity from (
+  select a.id::text id,a.title,a.summary,a.occurred_at,coalesce(a.source_label,'Business source') source
+  from public.enterprise_business_activity a where a.organization_id=p_organization_id
+  union all
+  select a.id::text,case when a.event_type='enterprise.workspace.task.create' then 'Task created' else 'Task updated' end,
+   null::text,a.created_at,'Workspace' from public.audit_events a
+  where a.organization_id=p_organization_id and a.event_type in ('enterprise.workspace.task.create','enterprise.workspace.task.update')
+  order by occurred_at desc limit 100
+ ) q;
+ select coalesce(jsonb_agg(to_jsonb(q) order by q.name),'[]') into v_sources from (
+  select s.id,s.display_name name,s.status,s.last_success_at from public.enterprise_source_connections s
+  where s.organization_id=p_organization_id
+  union all
+  select c.id,c.display_name,case when c.revoked_at is not null then 'revoked' else c.capability_state end,c.last_synced_at
+  from public.enterprise_integration_connections c where c.organization_id=p_organization_id
+  limit 100
+ ) q;
+ return jsonb_build_object('schema_version','1','organization_id',p_organization_id,'section',p_section,
+  'workspace',v_workspace,'actor_role',v_role,'entry_id',p_entry_id,
+  'viewing_as',case when p_entry_id is null then 'member' else 'pandora_administrator' end,
+  'permissions',jsonb_build_object('can_manage_work',v_role in ('owner','admin','operator','member')),
+  'counts',jsonb_build_object(
+   'open_tasks',(select count(*) from public.enterprise_tasks t join public.enterprise_entities e on e.id=t.entity_id and e.organization_id=t.organization_id where t.organization_id=p_organization_id and e.lifecycle_state='active' and t.task_state not in ('completed','cancelled') and not exists(select 1 from public.pandora_customer_cases c where c.task_entity_id=t.entity_id)),
+   'overdue_tasks',(select count(*) from public.enterprise_tasks t join public.enterprise_entities e on e.id=t.entity_id and e.organization_id=t.organization_id where t.organization_id=p_organization_id and e.lifecycle_state='active' and t.task_state not in ('completed','cancelled') and t.due_at<now() and not exists(select 1 from public.pandora_customer_cases c where c.task_entity_id=t.entity_id)),
+   'documents',(select count(*) from public.enterprise_documents d join public.enterprise_entities e on e.id=d.entity_id and e.organization_id=d.organization_id where d.organization_id=p_organization_id and e.lifecycle_state='active'),
+   'people',(select count(*) from public.memberships m join auth.users u on u.id=m.user_id where m.organization_id=p_organization_id and m.status='active' and not coalesce(u.is_anonymous,false) and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now()))),
+  'tasks',v_tasks,'documents',v_documents,'activity',v_activity,'people',v_people,'sources',v_sources,
+  'page_limit',100,'generated_at',now());
+end;
+$$;
+
+create function public.pandora_enterprise_operate_v1(p_organization_id uuid,p_operation text,p_payload jsonb,p_idempotency_key uuid,p_entry_id uuid default null)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare v_role text;v_actor uuid:=auth.uid();v_hash text;v_receipt private.pandora_core_operation_receipts%rowtype;
+ v_task public.enterprise_tasks%rowtype;v_id uuid;v_result jsonb;v_before jsonb;v_after jsonb;v_state text;
+begin
+ v_role:=private.pandora_enterprise_assert_v1(p_organization_id,p_entry_id,true);
+ if p_idempotency_key is null or p_operation is null or p_operation not in ('task.create','task.update') then
+  raise exception 'INVALID_REQUEST' using errcode='22023';
+ end if;
+ perform private.pandora_core_payload_v1(p_payload,case when p_operation='task.create'
+  then array['title','description','due_at'] else array['id','title','description','due_at','state','expected_updated_at'] end);
+ if (p_payload?'title' and (jsonb_typeof(p_payload->'title')<>'string' or length(trim(p_payload->>'title')) not between 1 and 160))
+  or (p_operation='task.create' and not(p_payload?'title'))
+  or (p_payload?'description' and p_payload->'description'<>'null'::jsonb and (jsonb_typeof(p_payload->'description')<>'string' or length(p_payload->>'description')>4000)) then
+  raise exception 'INVALID_REQUEST' using errcode='22023';
+ end if;
+ v_hash:=encode(extensions.digest(convert_to(jsonb_build_object('operation','enterprise.'||p_operation,
+  'organization_id',p_organization_id,'payload',p_payload)::text,'UTF8'),'sha256'),'hex');
+ perform pg_advisory_xact_lock(hashtextextended('pandora-core:'||v_actor::text||':'||p_idempotency_key::text,0));
+ select * into v_receipt from private.pandora_core_operation_receipts where actor_user_id=v_actor and idempotency_key=p_idempotency_key;
+ if found then
+  if v_receipt.payload_hash<>v_hash then raise exception 'CONFLICT' using errcode='23505';end if;
+  return v_receipt.result||jsonb_build_object('replayed',true);
+ end if;
+ perform pg_advisory_xact_lock(hashtextextended('pandora-core-actor:'||v_actor::text,0));
+ if (select count(*) from private.pandora_core_operation_receipts where actor_user_id=v_actor and created_at>now()-interval '1 minute')>=30 then raise exception 'RATE_LIMITED' using errcode='P0001';end if;
+ perform pg_advisory_xact_lock(hashtextextended('pandora-core-org:'||p_organization_id::text,0));
+ perform private.pandora_enterprise_assert_v1(p_organization_id,p_entry_id,true);
+ insert into private.pandora_core_operation_receipts(actor_user_id,idempotency_key,organization_id,operation,payload_hash)
+  values(v_actor,p_idempotency_key,p_organization_id,'enterprise.'||p_operation,v_hash) returning * into v_receipt;
+ if p_operation='task.create' then
+  insert into public.enterprise_entities(organization_id,entity_kind) values(p_organization_id,'task') returning id into v_id;
+  insert into public.enterprise_tasks(entity_id,organization_id,task_type,title,description,due_at)
+   values(v_id,p_organization_id,'workspace_work',trim(p_payload->>'title'),p_payload->>'description',nullif(p_payload->>'due_at','')::timestamptz)
+   returning * into v_task;
+ else
+  v_id:=nullif(p_payload->>'id','')::uuid;
+  select t.* into v_task from public.enterprise_tasks t join public.enterprise_entities e on e.id=t.entity_id and e.organization_id=t.organization_id
+   where t.entity_id=v_id and t.organization_id=p_organization_id and t.task_type='workspace_work' and e.lifecycle_state='active'
+    and not exists(select 1 from public.pandora_customer_cases c where c.task_entity_id=t.entity_id) for update of t;
+  if not found then raise exception 'ACCESS_DENIED' using errcode='42501';end if;
+  if nullif(p_payload->>'expected_updated_at','') is null or (p_payload->>'expected_updated_at')::timestamptz<>v_task.updated_at then
+   raise exception 'CONFLICT' using errcode='23505';
+  end if;
+  v_before:=to_jsonb(v_task);v_state:=coalesce(p_payload->>'state',v_task.task_state);
+  update public.enterprise_tasks set title=case when p_payload?'title' then trim(p_payload->>'title') else title end,
+   description=case when p_payload?'description' then p_payload->>'description' else description end,
+   due_at=case when p_payload?'due_at' then nullif(p_payload->>'due_at','')::timestamptz else due_at end,
+   task_state=v_state,completed_at=case when v_state='completed' then coalesce(completed_at,clock_timestamp()) else null end,
+   updated_at=clock_timestamp() where entity_id=v_id and organization_id=p_organization_id returning * into v_task;
+ end if;
+ v_after:=jsonb_build_object('id',v_task.entity_id,'title',v_task.title,'description',v_task.description,
+  'state',v_task.task_state,'due_at',v_task.due_at,'completed_at',v_task.completed_at,
+  'created_at',v_task.created_at,'updated_at',v_task.updated_at,'editable',true);
+ v_result:=jsonb_build_object('status','saved','organization_id',p_organization_id,'task',v_after,
+  'receipt_id',v_receipt.id,'evidence_ref','enterprise-receipt:'||v_receipt.id,'replayed',false);
+ update private.pandora_core_operation_receipts set result=v_result where id=v_receipt.id;
+ perform private.append_audit_event(p_organization_id,null,null,'human'::public.audit_actor_type,v_actor,
+  'enterprise.workspace.'||p_operation,jsonb_build_object('task_id',v_id,'task_state',v_task.task_state,
+   'receipt_id',v_receipt.id,'entry_id',p_entry_id,'authorization',v_role,
+   'changed_fields',(select jsonb_agg(k) from jsonb_object_keys(p_payload) k),'payload_sha256',v_hash,
+   'before_sha256',case when v_before is null then null else encode(extensions.digest(convert_to(v_before::text,'UTF8'),'sha256'),'hex') end,
+   'readback_sha256',encode(extensions.digest(convert_to(v_after::text,'UTF8'),'sha256'),'hex'),'source','enterprise_core_v1'));
+ return v_result;
+end;
+$$;
+
+create function private.pandora_enterprise_runtime_ready_v1(p_organization_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+ select exists(select 1 from public.pandora_customer_onboarding_steps s
+  join private.pandora_core_operation_receipts r on 'enterprise-receipt:'||r.id=s.evidence_ref
+  where s.organization_id=p_organization_id and s.step='verification' and s.state='verified' and s.source_kind='owner_attested'
+   and r.organization_id=p_organization_id and r.operation in ('enterprise.task.create','enterprise.task.update')
+   and r.created_at>now()-interval '7 days' and r.result->>'status'='saved' and r.result->'task'->>'id' is not null);
+$$;
+
+revoke all on function private.pandora_enterprise_internal_actor_v1(),private.pandora_enterprise_member_scope_v1(uuid),private.pandora_enterprise_assert_v1(uuid,uuid,boolean),private.pandora_enterprise_runtime_ready_v1(uuid) from public,anon,authenticated;
+grant execute on function private.pandora_enterprise_member_scope_v1(uuid) to authenticated;
+revoke all on function public.pandora_enterprise_my_workspaces_v1(),public.pandora_enterprise_workspace_v1(uuid,text,uuid),public.pandora_enterprise_operate_v1(uuid,text,jsonb,uuid,uuid) from public,anon;
+grant execute on function public.pandora_enterprise_my_workspaces_v1(),public.pandora_enterprise_workspace_v1(uuid,text,uuid),public.pandora_enterprise_operate_v1(uuid,text,jsonb,uuid,uuid) to authenticated;
+comment on function public.pandora_enterprise_workspace_v1(uuid,text,uuid) is 'Active-member business projection; internal staff require an exact live audited client entry. No Pandora commercial or operator records.';
+comment on function public.pandora_enterprise_operate_v1(uuid,text,jsonb,uuid,uuid) is 'Canonical Enterprise task capture with exact tenant/member scope, payload-bound idempotency, optimistic concurrency and audit. No external side effects.';
+
+create function public.pandora_core_authorize_memory_v1()
+returns boolean language plpgsql stable security definer set search_path='' as $$
+begin
+ perform private.pandora_core_assert_v1(null,array['owner','operator'],false);
+ return true;
+end;
+$$;
+revoke all on function public.pandora_core_authorize_memory_v1() from public,anon;
+grant execute on function public.pandora_core_authorize_memory_v1() to authenticated;
+comment on function public.pandora_core_authorize_memory_v1() is 'Current global Core owner/operator authorization for the existing controlled Memory gateway. Recheck after provider reads; no actor override.';
+
+create function public.pandora_enterprise_chat_authority_v1(p_organization_id uuid,p_entry_id uuid default null)
+returns jsonb language plpgsql stable security definer set search_path='' as $$
+declare v_platform uuid;v_role text;v_core text;v_account public.pandora_enterprise_accounts%rowtype;v_internal boolean;
+begin
+ select platform_organization_id into v_platform from private.pandora_core_config where singleton;
+ if p_organization_id is null then raise exception 'ACCESS_DENIED' using errcode='42501';end if;
+ if p_organization_id=v_platform then
+  if p_entry_id is not null then raise exception 'ACCESS_DENIED' using errcode='42501';end if;
+  v_core:=private.pandora_core_assert_v1(null,array['owner','operator','support','finance'],false);
+  v_role:=private.pandora_tenant_member_role_v1(p_organization_id);
+  return jsonb_build_object('organization_id',p_organization_id,'actor_role',v_role,'scope_kind','platform',
+   'requires_operator_entry',false,'adapter_key','pandora_core_v1','core_role',v_core,'can_execute_core',v_core in ('owner','operator'));
+ end if;
+ select * into v_account from public.pandora_enterprise_accounts where organization_id=p_organization_id;
+ if not found then raise exception 'ACCESS_DENIED' using errcode='42501';end if;
+ v_role:=private.pandora_enterprise_assert_v1(p_organization_id,p_entry_id,false);
+ v_internal:=private.pandora_enterprise_internal_actor_v1();
+ return jsonb_build_object('organization_id',p_organization_id,'actor_role',v_role,
+  'scope_kind',case when v_internal then 'administrator' else 'member' end,
+  'requires_operator_entry',v_internal,'core_role',null,'can_execute_core',false,
+  'adapter_key',case when v_account.workspace_type='plp' and v_account.property_id is not null
+   and exists(select 1 from public.organizations where id=p_organization_id and slug='plp-boracay') then 'plp_v1' else 'enterprise_core_v1' end);
+end;
+$$;
+revoke all on function public.pandora_enterprise_chat_authority_v1(uuid,uuid) from public,anon;
+grant execute on function public.pandora_enterprise_chat_authority_v1(uuid,uuid) to authenticated;
+
+create function private.pandora_core_legacy_client_scope_v1(p_organization_id uuid)
+returns void language plpgsql stable security definer set search_path='' as $$
+begin
+ -- Preserve external legacy ACL checks in their existing functions. Known
+ -- internal identities must use canonical membership and the audited entry.
+ if private.pandora_enterprise_internal_actor_v1() then
+  if p_organization_id is null or not private.is_org_member(p_organization_id) then
+   raise exception 'CLIENT_ENTRY_REQUIRED' using errcode='42501';
+  end if;
+ elsif exists(select 1 from public.pandora_enterprise_accounts a join public.organizations o on o.id=a.organization_id
+  where a.organization_id=p_organization_id and (o.status<>'active' or a.lifecycle_state in ('suspended','offboarding','archived'))) then
+  raise exception 'ACCESS_DENIED' using errcode='42501';
+ end if;
+end;
+$$;
+revoke all on function private.pandora_core_legacy_client_scope_v1(uuid) from public,anon,authenticated;
+
+
+-- The original transport remains the sole job engine. Its own admission boundary
+-- rechecks membership, organization state and an internal actor's live entry,
+-- including callers that omit the new wrapper or any UI context.
+create function private.pandora_core_activity_scope_v1(p_organization_id uuid)
+returns void language plpgsql stable security definer set search_path='' as $$
+begin
+ if not private.is_org_member(p_organization_id) then
+  raise exception 'pandora_activity_membership_required' using errcode='42501';
+ end if;
+ if exists(select 1 from private.pandora_core_config where singleton and platform_organization_id=p_organization_id) then
+  perform private.pandora_core_assert_v1(null,array['owner','operator','support','finance'],false);
+ end if;
+end;
+$$;
+revoke all on function private.pandora_core_activity_scope_v1(uuid) from public,anon,authenticated;
+
+-- A high-risk connection approval needs an actual current Auth session, not
+-- only an AAL claim in an otherwise still-valid token.
+create function private.pandora_live_aal2_v1()
+returns void language plpgsql security definer set search_path='' as $$
+declare v_session text:=auth.jwt()->>'session_id';
+begin
+ if auth.uid() is null or auth.jwt()->>'aal' is distinct from 'aal2'
+  or v_session is null or v_session!~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+  raise exception 'pandora_connection_write_step_up_required' using errcode='42501';
+ end if;
+ if not exists(select 1 from auth.sessions s join auth.users u on u.id=s.user_id
+  where s.id=v_session::uuid and s.user_id=auth.uid() and s.aal::text='aal2'
+   and (s.not_after is null or s.not_after>clock_timestamp())
+   and not coalesce(u.is_anonymous,false) and coalesce(auth.jwt()->>'is_anonymous','false')='false'
+   and u.deleted_at is null and (u.banned_until is null or u.banned_until<=clock_timestamp())) then
+  raise exception 'pandora_connection_write_step_up_required' using errcode='42501';
+ end if;
+end;
+$$;
+revoke all on function private.pandora_live_aal2_v1() from public,anon,authenticated;
+
+-- These exact provider-read definitions retain their original external ACLs,
+-- behavior and grants. Only an internal customer-entry preflight is inserted.
+-- Refuse an absent or drifted provider function; never patch an unknown body.
+do $$
+declare v record;v_oid oid;v_definition text;v_hash text;
+begin
+ for v in select * from (values
+   ('public.pandora_connection_write_approve_v1(uuid,uuid,text,uuid,text,text)','adea670bc841410d6d12ee5a8271fb83f5774f82e8c2c177b3160d661c39910a','perform private.pandora_live_aal2_v1();'),
+   ('public.pandora_action_evidence_v1(uuid,integer)','446473e10e609df63ce4be11b6988f6734876e8b7e0ad045f11277a7124ee5c8','perform private.pandora_core_activity_scope_v1(p_organization_id);'),
+   ('public.pandora_chat_model_picker_v1(uuid,uuid)','6d701a1006c4d60097e216097e8f55980385c71c9c0722679a5c397bddaca3d1','perform private.pandora_core_activity_scope_v1(p_organization_id);'),
+   ('public.pandora_intelligence_model_catalog_v1(uuid)','31039422ad9e587237f212563d82c4e9b4f0aa06be011900d5bd8105fb735b10','perform private.pandora_core_activity_scope_v1(p_organization_id);'),
+   ('public.pandora_activity_control_request_v1(uuid,uuid,text,text,text)','8d1cd80bfba19e67082b45f52cc7d2956b5e5bd08e3926494996f35c192cb792','perform private.pandora_core_activity_scope_v1(p_organization_id);'),
+   ('public.pandora_activity_device_fact_v1(uuid,uuid,text,text,text,timestamp with time zone)','ce966a29b43ef163df9b188dd60541a5cb1f74b75d3a75d2cea31e7accef15e3','perform private.pandora_core_activity_scope_v1(p_organization_id);'),
+   ('public.pandora_activity_replay_v1(uuid,uuid,bigint,integer)','209bdf969f5bc225546c6cc99cda964633d0a819b4c264e44331fc69559a6849','perform private.pandora_core_activity_scope_v1(p_organization_id);'),
+   ('public.pandora_intelligence_thread_manage_v1(uuid,uuid,text,text,uuid)','c46199e37b568fb467061642f546ccd4514ff08e75da014e92c796b46d827993','perform private.pandora_core_activity_scope_v1(p_organization_id);'),
+   ('public.pandora_eurofish_private_workspace_v1(text)','a2c84512551e689e204d8bc4b852bdb9d9d27ddf57dbc2c7440896e7356bba79','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''1064-euro-fish-traders''));'),
+   ('public.pandora_eurofish_workspace_v1(text)','01b1d2e621517b7e83350e8a885e568a693e57a5ddc6fb68fc5d6791503c6850','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''1064-euro-fish-traders''));'),
+   ('public.pandora_tax_workspace_v1(uuid)','c1da504253d6e00efe27f1ef2d13a14a2c4b32e44a966a4bce8b0c400b47721d','perform private.pandora_core_legacy_client_scope_v1(p_organization_id);'),
+   ('public.plp_create_staff_task_v1(text,text,text,text,text,text)','eadfce73ab97b61ee556c3ef620bb72f2c3cdd56be0895f3facda6598692ce1b','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.plp_enterprise_mobile_bootstrap_v1()','da7400c7f56ebde251e1c4cda622e051ad2e2d50760c1f446b08947151f34183','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.plp_pandora_activity_logs_v2(timestamp with time zone,uuid,bigint,integer,text)','70f4fcda2c1adf5858f2b9266d37d8c3fed9536d65213f3b2aa40093e62f830d','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.plp_recent_business_activity_v1(integer)','de2b7187043157d4faf391fd74407562c3d8e6b86439792d351f9c7ef4defba9','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.plp_resort_audit_v1(integer)','ebb478d4091c3473aa59296ead0825edad6dbf99562b1d38bd298c04adb5de71','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.plp_resort_command_center_v1()','d78cb3ecb09b613ceb10e0058e410556327230ec097174aa2278f6311db7f8a4','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.plp_resort_operating_manifest_v1()','d28d073857be81d383ae87da0aa66080d943bf289a080aad35aa70ae29ea53d0','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.plp_resort_operations_v1()','15953f2daee88c73cecb0c8b45a3f9f99f6cbc19a68f1fb0d54f9c43789d719d','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.plp_resort_transaction_v1(text,text,jsonb)','9f5cb780269529db3374cdd91fc1acc12c9e29245e4792f5ec120706cfe43d74','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.plp_room_operations_v1()','adbc3aadde32d6ca66528e412bf20dc4176bf45d912320f96e5b5ef8c0a831ac','perform private.pandora_core_legacy_client_scope_v1((select o.id from public.organizations o join public.pandora_enterprise_accounts a on a.organization_id=o.id where o.slug=''plp-boracay''));'),
+   ('public.pandora_activity_job_begin_v1(uuid,text,uuid,uuid)','2c7bd0bcb0b030dfc5413a0396b19fc94f3eea814aab201fa4d70b1d88e3ac94','perform private.pandora_core_activity_scope_v1(p_organization_id);')
+ ) as expected(signature,body_sha256,preflight) loop
+  v_oid:=to_regprocedure(v.signature);
+  if v_oid is null then
+   raise exception 'CORE_PROVIDER_BASELINE_MISSING: %',v.signature using errcode='55000';
+  end if;
+  v_definition:=pg_get_functiondef(v_oid);
+  select encode(extensions.digest(convert_to(p.prosrc,'UTF8'),'sha256'),'hex') into v_hash from pg_proc p where p.oid=v_oid
+   and p.prosecdef and p.prorettype='jsonb'::regtype and p.prolang=(select oid from pg_language where lanname='plpgsql');
+  if v_hash is distinct from v.body_sha256 or strpos(v_definition,E'\nbegin\n')=0 then
+   raise exception 'CORE_PROVIDER_BASELINE_CHANGED: %',v.signature using errcode='55000';
+  end if;
+  v_definition:=replace(v_definition,E'\nbegin\n',E'\nbegin\n  '||v.preflight||E'\n');
+  if v.signature='public.pandora_connection_write_approve_v1(uuid,uuid,text,uuid,text,text)' then
+   v_definition:=replace(v_definition,E'returning * into v_row;\n',E'returning * into v_row;\n  perform private.pandora_live_aal2_v1();\n  if not private.pandora_is_active_org_admin_v1(p_organization_id) then raise exception ''pandora_connection_active_admin_required'' using errcode=''42501'';end if;\n');
+  end if;
+  execute v_definition;
+ end loop;
+end;
+$$;
+
+create function public.pandora_core_activity_begin_v1(p_organization_id uuid,p_request_id text,
+ p_thread_id uuid default null,p_project_id uuid default null,p_entry_id uuid default null)
+returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+ perform public.pandora_enterprise_chat_authority_v1(p_organization_id,p_entry_id);
+ -- Enterprise business work has no project-registry routing parameter.
+ if p_project_id is not null and exists(select 1 from public.pandora_enterprise_accounts where organization_id=p_organization_id) then
+  raise exception 'INVALID_PROJECT_SCOPE' using errcode='22023';
+ end if;
+ return public.pandora_activity_job_begin_v1(p_organization_id,p_request_id,p_thread_id,p_project_id);
+end;
+$$;
+revoke all on function public.pandora_core_activity_begin_v1(uuid,text,uuid,uuid,uuid) from public,anon;
+grant execute on function public.pandora_core_activity_begin_v1(uuid,text,uuid,uuid,uuid) to authenticated;
+comment on function public.pandora_core_activity_begin_v1(uuid,text,uuid,uuid,uuid) is 'Actor-derived Core or Enterprise authority before the existing activity job admission; exact client entry and unchanged request/thread binding.';
+
+
+-- Shared provider-admin predicates previously used inline membership checks.
+-- Bind their replacement to the exact inspected baseline before narrowing it.
+do $$
+declare v record;v_hash text;
+begin
+ for v in select * from (values
+  ('private.pandora_is_active_org_admin_v1(uuid)','e797e7fc5838100fe92eccee71d5ab007203bcac723c1fdfca92d41fdf52dc89'),
+  ('public.pandora_tax_can_read_org_v1(uuid)','a68a0c12fe71c30037d302b07be202ee2c239a1492317dee14601883b58af502'),
+  ('public.pandora_tax_can_manage_org_v1(uuid)','a68a0c12fe71c30037d302b07be202ee2c239a1492317dee14601883b58af502')
+ ) as expected(signature,body_sha256) loop
+  select encode(extensions.digest(convert_to(prosrc,'UTF8'),'sha256'),'hex') into v_hash
+  from pg_proc where oid=to_regprocedure(v.signature) and prorettype='boolean'::regtype;
+  if v_hash is distinct from v.body_sha256 then
+   raise exception 'CORE_PROVIDER_BASELINE_CHANGED: %',v.signature using errcode='55000';
+  end if;
+ end loop;
+end;
+$$;
+create or replace function private.pandora_is_active_org_admin_v1(p_organization_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+ select private.has_org_role(p_organization_id,array['owner','admin']::public.member_role[])
+  and (not private.pandora_enterprise_internal_actor_v1()
+   or coalesce(private.pandora_core_role_v1(case when exists(select 1 from private.pandora_core_config where singleton and platform_organization_id=p_organization_id)
+    then null else p_organization_id end) in ('owner','operator'),false));
+$$;
+create or replace function public.pandora_tax_can_read_org_v1(p_organization_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+ select private.has_org_role(p_organization_id,array['owner','admin']::public.member_role[])
+  and (not exists(select 1 from private.pandora_core_config where singleton and platform_organization_id=p_organization_id)
+   or coalesce(private.pandora_core_role_v1(null) in ('owner','operator'),false));
+$$;
+create or replace function public.pandora_tax_can_manage_org_v1(p_organization_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+ select private.pandora_is_active_org_admin_v1(p_organization_id);
+$$;
+
+-- The active universal v9 route does not call these retired relay endpoints.
+-- Keep historical definitions and service access; remove direct client entry.
+do $$
+declare v_name text;v_oid oid;
+begin
+ foreach v_name in array array['pandora_chat_capability_dispatch_v1',
+  'pandora_chat_universal_dispatch_v1','pandora_chat_universal_dispatch_v2','pandora_chat_universal_dispatch_v3',
+  'pandora_chat_universal_dispatch_v4','pandora_chat_universal_dispatch_v5','pandora_chat_universal_dispatch_v6',
+  'pandora_chat_universal_dispatch_v7','pandora_chat_universal_dispatch_v8'] loop
+  v_oid:=to_regprocedure('public.'||v_name||'(uuid,text,uuid,uuid)');
+  if v_oid is not null then
+   execute format('revoke all on function %s from public,anon,authenticated',v_oid::regprocedure);
+  end if;
+ end loop;
+end;
 $$;
 
 commit;

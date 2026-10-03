@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { tryCoreOwnerCommand, validateCoreChatScope } from "../supabase/functions/pandora-intelligence-chat/core-owner-commands.ts";
+import { authorizeCoreChatActor, authorizeCoreChatRequest, bindPlpBusinessSnapshot, revalidateCoreExecutionScope, tryCoreOwnerCommand, validateCoreChatScope } from "../supabase/functions/pandora-intelligence-chat/core-owner-commands.ts";
 
 const platform = "2270b266-59da-4c39-bfd9-9f8d08352af0";
 const client = "076a9306-5c4e-4d9d-98d3-e3a6fea968fb";
@@ -10,6 +10,18 @@ const entry = "f1200000-0000-4000-8000-000000000003";
 const noScope = { context: null, kind: "none", targetOrganizationId: null, snapshot: null };
 const ownerContext = (target) => ({ surface: "enterprise_settings", route: "/enterprise/core/home", identityScope: "pandora_organization", selectedObject: { coreMode: "owner", coreSection: target ? "client" : "home", ...(target ? { organizationId: target } : {}) } });
 const workspaceContext = (target = client, entryId = entry) => ({ surface: "enterprise_overview", route: "/enterprise/plp-boracay/alfred", identityScope: "enterprise_workspace", selectedObject: { organizationId: target, entryId, workspaceSlug: "plp-boracay" } });
+const commonContext = (target = client, mode = "member", section = "overview") => ({ surface: "enterprise_overview", route: `/enterprise/workspace/${target}/${section}`, identityScope: "enterprise_workspace", selectedObject: { organizationId: target, workspaceMode: mode, adapterKey: "enterprise_core_v1", workspaceKey: "customer", section, ...(mode === "administrator" ? { entryId: entry } : {}) } });
+function memberSnapshot(overrides = {}) {
+  return { schema_version: "1", generated_at: "2026-10-03T05:00:00Z", organization_id: client, section: "overview",
+    workspace: { organization_id: client, display_name: "Customer workspace", adapter: "enterprise_core_v1" },
+    actor_role: "member", entry_id: null, viewing_as: "member", permissions: { can_manage_work: true },
+    counts: { open_tasks: 2, overdue_tasks: 1, documents: 1, people: 2 },
+    tasks: [{ title: "Receive delivery", state: "open", due_at: "2026-10-02T10:00:00Z" }],
+    documents: [{ title: "Supplier agreement", source_name: "Document system" }],
+    people: [{ display_name: "Workspace member", role: "member" }],
+    activity: [{ title: "Delivery received", occurred_at: "2026-10-03T04:00:00Z" }],
+    sources: [{ name: "Warehouse", status: "stale" }], ...overrides };
+}
 function snapshot(overrides = {}) {
   return {
     schema_version: "1", generated_at: "2026-10-03T05:00:00Z", operator: { role: "owner", platform_organization_id: platform },
@@ -24,6 +36,111 @@ function caller(data = snapshot(), error = null) {
   const calls = [];
   return { calls, rpc: async (name, parameters) => { calls.push({ name, parameters }); return { data, error }; } };
 }
+function chatAuthority(kind = "platform", role = "owner", overrides = {}) {
+  return { organization_id: kind === "platform" ? platform : client, actor_role: role, scope_kind: kind,
+    requires_operator_entry: kind === "administrator", adapter_key: kind === "platform" ? "pandora_core_v1" : "enterprise_core_v1",
+    core_role: kind === "platform" ? "owner" : null, can_execute_core: kind === "platform", ...overrides };
+}
+function requestCaller(authority = chatAuthority(), projection = snapshot(), authorityError = null) {
+  const calls = [];
+  return { calls, rpc: async (name, parameters) => {
+    calls.push({ name, parameters });
+    if (name === "pandora_enterprise_chat_authority_v1") {
+      if (authorityError instanceof Error) throw authorityError;
+      return { data: authority, error: authorityError };
+    }
+    if (name === "pandora_core_validate_entry_v1") return { data: true, error: null };
+    assert.ok(["pandora_core_snapshot_v1", "pandora_enterprise_workspace_v1"].includes(name));
+    return { data: projection, error: null };
+  } };
+}
+
+test("every context-less platform chat first verifies explicit server authority", async () => {
+  const user = requestCaller();
+  const scope = await authorizeCoreChatRequest(user, platform, "owner", null, null);
+  assert.equal(scope.kind, "none");
+  assert.equal(scope.authority.scopeKind, "platform");
+  assert.deepEqual(user.calls, [{ name: "pandora_enterprise_chat_authority_v1", parameters: { p_organization_id: platform, p_entry_id: null } }]);
+});
+
+test("omitting all context cannot turn customer owner membership into legacy execution authority", async () => {
+  const user = requestCaller(chatAuthority("member", "owner"));
+  await assert.rejects(authorizeCoreChatRequest(user, client, "owner", null, null), { message: "CORE_WORKSPACE_ACTION_UNAVAILABLE" });
+  assert.equal(user.calls.length, 1);
+  assert.equal(user.calls[0].name, "pandora_enterprise_chat_authority_v1");
+});
+
+test("an internal customer owner cannot omit a receipt or relabel itself as a normal member", async () => {
+  for (const context of [null, commonContext()]) {
+    const user = requestCaller(null, null, { code: "42501", message: "CLIENT_ENTRY_REQUIRED" });
+    await assert.rejects(authorizeCoreChatRequest(user, client, "owner", context, null), { message: "CORE_ACCESS_DENIED" });
+    assert.deepEqual(user.calls.map((call) => call.name), ["pandora_enterprise_chat_authority_v1"]);
+  }
+});
+
+test("customer mode cannot query owner records by adding owner UI labels", async () => {
+  const user = requestCaller(chatAuthority("member", "owner"));
+  await assert.rejects(authorizeCoreChatRequest(user, client, "owner", ownerContext(), null), { message: "CORE_SCOPE_MISMATCH" });
+  assert.equal(user.calls.length, 1);
+});
+
+test("ordinary member transport binds server authority to the common workspace read", async () => {
+  const user = requestCaller(chatAuthority("member", "member"), memberSnapshot());
+  const scope = await authorizeCoreChatRequest(user, client, "member", commonContext(), null);
+  assert.equal(scope.kind, "workspace");
+  assert.equal(scope.context.actorRole, "member");
+  assert.deepEqual(user.calls.map((call) => call.name), ["pandora_enterprise_chat_authority_v1", "pandora_enterprise_workspace_v1"]);
+  await assert.rejects(revalidateCoreExecutionScope(user, client, scope), { message: "CORE_WORKSPACE_ACTION_UNAVAILABLE" });
+});
+
+test("administrator authority requires the verified receipt and the actual tenant adapter", async () => {
+  const user = requestCaller(chatAuthority("administrator", "admin", { adapter_key: "plp_v1" }));
+  const scope = await authorizeCoreChatRequest(user, client, "admin", workspaceContext(), null);
+  assert.equal(scope.kind, "client");
+  assert.equal(user.calls[0].parameters.p_entry_id, entry);
+  const wrongAdapter = requestCaller(chatAuthority("administrator", "admin"));
+  await assert.rejects(authorizeCoreChatRequest(wrongAdapter, client, "admin", workspaceContext(), null), { message: "CORE_SCOPE_MISMATCH" });
+});
+
+test("malformed role, scope and execution flags fail before any owner read", async () => {
+  for (const change of [{ organization_id: client }, { actor_role: "member" }, { core_role: "support", can_execute_core: true },
+    { can_execute_core: "true" }, { requires_operator_entry: true }, { adapter_key: "plp_v1" }]) {
+    const user = requestCaller(chatAuthority("platform", "owner", change));
+    await assert.rejects(authorizeCoreChatRequest(user, platform, "owner", ownerContext(), null), { message: "CORE_SCOPE_MISMATCH" });
+    assert.equal(user.calls.length, 1);
+  }
+});
+
+test("scope authority failures redact database details and never fall back to metadata", async () => {
+  for (const error of [new Error("Bearer confidential-transport"), { code: "XX000", message: "postgres://private:credential@internal" }]) {
+    const user = requestCaller(null, null, error);
+    await assert.rejects(authorizeCoreChatRequest(user, platform, "owner", ownerContext(), null), { message: "CORE_CONTEXT_UNAVAILABLE" });
+    assert.equal(user.calls.length, 1);
+  }
+});
+
+test("support and finance retain authorized Core reads without inheriting owner engine power", async () => {
+  for (const coreRole of ["support", "finance"]) {
+    const user = requestCaller(chatAuthority("platform", "owner", { core_role: coreRole, can_execute_core: false }),
+      snapshot({ operator: { role: coreRole, platform_organization_id: platform } }));
+    const scope = await authorizeCoreChatRequest(user, platform, "owner", null, null);
+    const result = await tryCoreOwnerCommand(user, platform, "Which clients need attention?", scope);
+    assert.match(result.reply, /PLP Boracay/);
+    await assert.rejects(revalidateCoreExecutionScope(user, platform, scope), { message: "CORE_WORKSPACE_ACTION_UNAVAILABLE" });
+  }
+});
+
+test("platform grants and temporary entries are checked again immediately before legacy execution", async () => {
+  const user = requestCaller();
+  const scope = await authorizeCoreChatRequest(user, platform, "owner", null, null);
+  const revoked = requestCaller(null, null, { code: "42501", message: "ACCESS_DENIED" });
+  await assert.rejects(revalidateCoreExecutionScope(revoked, platform, scope), { message: "CORE_ACCESS_DENIED" });
+  const downgraded = requestCaller(chatAuthority("platform", "owner", { core_role: "support", can_execute_core: false }));
+  await assert.rejects(revalidateCoreExecutionScope(downgraded, platform, scope), { message: "CORE_WORKSPACE_ACTION_UNAVAILABLE" });
+  const admin = requestCaller(chatAuthority("administrator", "admin", { adapter_key: "plp_v1" }));
+  const entered = await authorizeCoreChatRequest(admin, client, "admin", workspaceContext(), null);
+  await assert.rejects(revalidateCoreExecutionScope(revoked, client, entered), { message: "CORE_ACCESS_DENIED" });
+});
 
 test("ordinary conversation performs no Core read and preserves the regular chat lane", async () => {
   const user = caller();
@@ -237,10 +354,143 @@ test("malformed snapshots fail closed rather than reporting successful empty dat
   await assert.rejects(tryCoreOwnerCommand(caller(snapshot({ usage: [{ organization_id: client, currency: "USD", requests: 1, requests_with_cost: 2 }] })), platform, "How much did AI cost by client this month?", noScope), { message: "CORE_CONTEXT_UNAVAILABLE" });
 });
 
+test("ordinary member mode uses the exact caller-scoped workspace RPC", async () => {
+  const user = caller(memberSnapshot());
+  const scope = await validateCoreChatScope(user, client, commonContext());
+  assert.equal(scope.kind, "workspace");
+  assert.equal(authorizeCoreChatActor("member", scope, null).actorRole, "member");
+  assert.deepEqual(user.calls, [{ name: "pandora_enterprise_workspace_v1", parameters: { p_organization_id: client, p_section: "overview", p_entry_id: null } }]);
+});
+
+test("client members cannot relabel or select a different organization through UI metadata", async () => {
+  const user = caller(memberSnapshot());
+  await assert.rejects(validateCoreChatScope(user, client, commonContext(second)), { message: "CORE_SCOPE_MISMATCH" });
+  await assert.rejects(validateCoreChatScope(user, client, { ...commonContext(), route: `/enterprise/workspace/${second}/overview` }), { message: "CORE_SCOPE_MISMATCH" });
+  const mislabeled = commonContext();
+  mislabeled.selectedObject.adapterKey = "plp_v1";
+  await assert.rejects(validateCoreChatScope(user, client, mislabeled), { message: "CORE_SCOPE_MISMATCH" });
+  assert.deepEqual(user.calls, []);
+});
+
+test("member mode validates returned organization, membership role and adapter", async () => {
+  for (const change of [{ organization_id: second }, { workspace: { organization_id: second, adapter: "enterprise_core_v1" } }, { viewing_as: "pandora_administrator" }, { actor_role: "superuser" }, { entry_id: entry }]) {
+    await assert.rejects(validateCoreChatScope(caller(memberSnapshot(change)), client, commonContext()), { message: "CORE_SCOPE_MISMATCH" });
+  }
+  const scope = await validateCoreChatScope(caller(memberSnapshot()), client, commonContext());
+  assert.throws(() => authorizeCoreChatActor("viewer", scope, null), { message: "CORE_SCOPE_MISMATCH" });
+  assert.throws(() => authorizeCoreChatActor("member", scope, second), { message: "CORE_SCOPE_MISMATCH" });
+});
+
+test("ordinary non-owner roles cannot reach legacy owner/admin execution without a verified common workspace", () => {
+  for (const role of ["operator", "member", "viewer"]) {
+    assert.throws(() => authorizeCoreChatActor(role, noScope, null), { message: "OWNER_ROLE_REQUIRED" });
+    assert.throws(() => authorizeCoreChatActor(role, { ...noScope, kind: "client" }, null), { message: "OWNER_ROLE_REQUIRED" });
+  }
+});
+
+test("common administrator mode requires a matching server-verified live entry envelope", async () => {
+  const user = caller(memberSnapshot({ entry_id: entry, viewing_as: "pandora_administrator", actor_role: "admin" }));
+  const scope = await validateCoreChatScope(user, client, commonContext(client, "administrator"));
+  assert.equal(scope.kind, "workspace");
+  assert.equal(authorizeCoreChatActor("admin", scope, null).actorRole, "admin");
+  assert.equal(user.calls[0].parameters.p_entry_id, entry);
+  const missing = commonContext(client, "administrator");
+  delete missing.selectedObject.entryId;
+  await assert.rejects(validateCoreChatScope(user, client, missing), { message: "CORE_SCOPE_MISMATCH" });
+  await assert.rejects(validateCoreChatScope(caller(null, { code: "42501", message: "CLIENT_ENTRY_REQUIRED" }), client, commonContext(client, "administrator")), { message: "CORE_ACCESS_DENIED" });
+});
+
+test("specialized PLP administrator entry remains receipt-gated without becoming common member authority", async () => {
+  const context = workspaceContext();
+  context.selectedObject.workspaceMode = "administrator";
+  context.selectedObject.adapterKey = "plp_v1";
+  const user = caller(true);
+  const scope = await validateCoreChatScope(user, client, context);
+  assert.equal(scope.kind, "client");
+  assert.equal(user.calls[0].name, "pandora_core_validate_entry_v1");
+  assert.equal(authorizeCoreChatActor("admin", scope, null).actorRole, "admin");
+  context.selectedObject.workspaceMode = "member";
+  delete context.selectedObject.entryId;
+  await assert.rejects(validateCoreChatScope(user, client, context), { message: "CORE_SCOPE_MISMATCH" });
+});
+
+test("ordinary member read/ask answers only the authenticated workspace projection", async () => {
+  const user = caller(memberSnapshot());
+  const scope = await validateCoreChatScope(user, client, commonContext());
+  for (const [message, expected] of [["What work needs attention?", /Receive delivery/], ["Show documents", /Supplier agreement/], ["Who is in this workspace?", /Workspace member/], ["What happened recently?", /Delivery received/], ["Show connected sources", /Warehouse — stale/]]) {
+    const result = await tryCoreOwnerCommand(user, client, message, scope);
+    assert.equal(result.conversationLane, "enterprise_workspace");
+    assert.equal(result.providerReadback.organizationId, client);
+    assert.equal(result.providerReadback.source, "pandora_enterprise_workspace_v1");
+    assert.equal(result.providerReadback.actionExecuted, false);
+    assert.match(result.reply, expected);
+  }
+  assert.equal(user.calls.length, 1);
+});
+
+test("member owner/security/commercial commands never fall through to owner projections or mutations", async () => {
+  const user = caller(memberSnapshot());
+  const scope = await validateCoreChatScope(user, client, commonContext());
+  for (const message of ["Which clients need attention?", "Give PLP another administrator", "How much did AI cost by client?", "Show all customers", "Create a new enterprise client", "Which provider should we stop using?", "Deploy this release"]) {
+    const result = await tryCoreOwnerCommand(user, client, message, scope);
+    assert.ok(result);
+    assert.equal(result.handoff, null);
+    assert.equal(result.providerReadback.actionExecuted, false);
+    assert.match(result.reply, /unavailable|no verified execution path/);
+    assert.doesNotMatch(result.reply, /BOK|PLP Boracay|USD|PHP/);
+  }
+  assert.equal(user.calls.length, 1);
+});
+
+test("member task commands direct to permitted UI and viewer role does not gain writes", async () => {
+  const memberUser = caller(memberSnapshot());
+  const memberScope = await validateCoreChatScope(memberUser, client, commonContext());
+  const memberTurn = await tryCoreOwnerCommand(memberUser, client, "Create a task to call the supplier", memberScope);
+  assert.match(memberTurn.reply, /Work to review and save the task/);
+  assert.match(memberTurn.reply, /No task has changed/);
+  const viewerUser = caller(memberSnapshot({ actor_role: "viewer", permissions: { can_manage_work: false } }));
+  const viewerScope = await validateCoreChatScope(viewerUser, client, commonContext());
+  assert.equal(authorizeCoreChatActor("viewer", viewerScope, null).actorRole, "viewer");
+  const viewerTurn = await tryCoreOwnerCommand(viewerUser, client, "Update the task", viewerScope);
+  assert.match(viewerTurn.reply, /can read work/);
+  assert.equal(viewerTurn.providerReadback.actionExecuted, false);
+});
+
+test("administrator owner commands return to Pandora while common member mode never receives that control", async () => {
+  const user = caller(memberSnapshot({ entry_id: entry, viewing_as: "pandora_administrator", actor_role: "admin" }));
+  const scope = await validateCoreChatScope(user, client, commonContext(client, "administrator"));
+  const result = await tryCoreOwnerCommand(user, client, "Show every customer's costs", scope);
+  assert.equal(result.handoff.action, "return_owner");
+  assert.equal(result.providerReadback.snapshotVerified, false);
+  assert.equal(user.calls.length, 1);
+});
+
+test("expired operator entries stop immediately before legacy side effects and common mode is never admitted", async () => {
+  const scope = await validateCoreChatScope(caller(true), client, workspaceContext());
+  const revoked = caller(false);
+  await assert.rejects(revalidateCoreExecutionScope(revoked, client, scope), { message: "CORE_ENTRY_REQUIRED" });
+  assert.equal(revoked.calls[0].name, "pandora_core_validate_entry_v1");
+  await assert.rejects(revalidateCoreExecutionScope(caller(), client, { ...noScope, kind: "workspace" }), { message: "CORE_WORKSPACE_ACTION_UNAVAILABLE" });
+});
+
+test("implicit PLP bootstrap results cannot be relabeled into another organization's conversation", () => {
+  const secretData = { organization: { id: client }, today: { bookings: "client-only booking evidence" }, generatedAt: "2026-10-03T05:00:00Z" };
+  assert.throws(() => bindPlpBusinessSnapshot({ selectedObject: { organizationId: second, workspaceSlug: "plp-boracay" } }, second, secretData), { message: "CORE_SCOPE_MISMATCH" });
+  assert.throws(() => bindPlpBusinessSnapshot({}, client, { today: { bookings: "missing organization" } }), { message: "CORE_SCOPE_MISMATCH" });
+  const result = bindPlpBusinessSnapshot({}, client, secretData);
+  assert.equal(result.businessSnapshot.bookings, "client-only booking evidence");
+});
+
 test("chat validates entry before hydrators and routes Core before team or model dispatch", () => {
   const source = readFileSync("supabase/functions/pandora-intelligence-chat/index.ts", "utf8");
   const handle = source.slice(source.indexOf("async function handle(req:Request)"));
-  assert.ok(handle.indexOf("validateCoreChatScope(c.user,c.organizationId,i.enterpriseContext)") < handle.indexOf("hydratePlpBusinessContext(c.user,i.enterpriseContext)"));
+  const authorityGuard = handle.indexOf("authorizeCoreChatRequest(c.user,c.organizationId,c.role,i.enterpriseContext,i.projectId)");
+  assert.ok(authorityGuard >= 0 && authorityGuard < handle.indexOf("hydratePlpBusinessContext(c.user,c.organizationId,i.enterpriseContext)"));
+  assert.ok(authorityGuard < handle.indexOf("claimActivityExecution("));
+  assert.match(handle, /if\(coreScope\.kind!=="workspace"\)\{i\.enterpriseContext=await hydratePlpBusinessContext/);
+  assert.match(handle, /if\(!\["owner","admin"\]\.includes\(c\.role\)\)throw Error\("OWNER_ROLE_REQUIRED"\);await revalidateCoreExecutionScope/);
+  assert.match(handle, /await revalidateCoreExecutionScope\(c\.user,c\.organizationId,coreScope\);dispatched=/);
+  assert.match(handle, /const cand=list\[index\];await revalidateCoreExecutionScope/);
   assert.ok(handle.indexOf("tryCoreOwnerCommand(c.user,c.organizationId,controlState.message,coreScope)") < handle.indexOf("tryTeamAdminChat(c,"));
   assert.ok(handle.indexOf("tryCoreOwnerCommand(c.user,c.organizationId,controlState.message,coreScope)") < handle.indexOf("universalDispatch(c.user,"));
   assert.match(source, /const tid=await thread\(c\.admin,c\.organizationId,c\.userId,i\.threadId,i\.projectId,i\.message\)/);

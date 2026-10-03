@@ -284,11 +284,47 @@ class PandoraIntelligenceApi {
       client: _client,
       organizationId: _organizationId,
     );
-    final jobId = await activity.beginJob(
-      requestId: requestId,
-      threadId: threadId,
-      projectId: projectId,
-    );
+    final selectedScope = _map(enterpriseContext?['selectedObject']);
+    final entryId = _optionalText(selectedScope['entryId']);
+    final workspaceMode = _optionalText(selectedScope['workspaceMode']);
+    final protectedScope = selectedScope['coreMode'] == 'owner' ||
+        entryId != null ||
+        workspaceMode == 'member' ||
+        workspaceMode == 'administrator';
+    String jobId;
+    if (protectedScope) {
+      if ((entryId != null || workspaceMode != null) &&
+          selectedScope['organizationId'] != _organizationId) {
+        throw const PandoraIntelligenceException(
+            'The conversation does not match this workspace. Return and check access.');
+      }
+      try {
+        // This delegates to the existing activity engine only after the server
+        // verifies actual membership, operator authority and the entry receipt.
+        final result = await _client
+            .rpc('pandora_core_activity_begin_v1', params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_request_id': requestId,
+          'p_thread_id': threadId,
+          'p_project_id': projectId,
+          'p_entry_id': entryId,
+        });
+        jobId = _text(_map(result)['jobId']);
+        if (jobId.isEmpty) {
+          throw const PandoraIntelligenceException(
+              'Pandora could not verify this request. Retry.');
+        }
+      } on PostgrestException {
+        throw const PandoraIntelligenceException(
+            'Pandora could not verify your current workspace access. Return and check access.');
+      }
+    } else {
+      jobId = await activity.beginJob(
+        requestId: requestId,
+        threadId: threadId,
+        projectId: projectId,
+      );
+    }
     final turn = chat(
       message: message,
       threadId: threadId,
@@ -322,7 +358,9 @@ class PandoraIntelligenceApi {
     _requireSession();
     final scopeSelection = _map(enterpriseContext?['selectedObject']);
     final coreScope = scopeSelection['coreMode'] == 'owner' ||
-        _text(scopeSelection['entryId']).isNotEmpty;
+        _text(scopeSelection['entryId']).isNotEmpty ||
+        scopeSelection['workspaceMode'] == 'member' ||
+        scopeSelection['workspaceMode'] == 'administrator';
     final auditAttachments = !coreScope &&
             textAttachment == null &&
             imageAttachment == null &&

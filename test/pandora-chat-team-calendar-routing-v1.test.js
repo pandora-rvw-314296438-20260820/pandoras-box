@@ -8,8 +8,8 @@ const calendar = readFileSync('apps/pandora-mobile/lib/core/device/pandora_calen
 const localAi = readFileSync('apps/pandora-mobile/lib/core/local_ai/pandora_local_ai.dart', 'utf8');
 const edge = readFileSync('supabase/functions/pandora-intelligence-chat/index.ts', 'utf8');
 
-test('team administration is classified before calendar and local AI pre-routers', () => {
-  assert.match(ask, /final teamAdministrationTurn\s*=\s*_teamAdministrationPending\s*\|\|/s);
+test('Core scope and team administration reach authorization before calendar and local AI pre-routers', () => {
+  assert.match(ask, /final teamAdministrationTurn\s*=\s*coreScope\s*\|\|\s*_teamAdministrationPending\s*\|\|/s);
   assert.match(ask, /final calendarParse = teamAdministrationTurn\s*\?\s*null\s*:\s*PandoraCalendarCommand\.tryParse/s);
   assert.match(ask, /final deviceCommunication = teamAdministrationTurn\s*\?\s*null/s);
   assert.match(ask, /if \(!teamAdministrationTurn &&[\s\S]*_trySubmitLocalAi\(objective, forceLocal: forceLocal\)\)/);

@@ -36,7 +36,7 @@ test('shell mode keeps one keyboard-aware 54px floating composer', () => {
 });
 test('empty landing is logo-only, opaque, and not draggable', () => {
   assert.match(chat, /pandora-logo-only-landing/);
-  assert.match(chat, /_shellHistoryExpanded = widget\.shellOverlay/);
+  assert.match(chat, /_shellHistoryExpanded =\s*widget\.shellOverlay/);
   assert.match(chat, /color:\s*const Color\(0xFF0A0A0A\)/);
   assert.match(chat, /Offstage\([\s\S]*offstage: !_shellHistoryExpanded/);
   assert.doesNotMatch(chat, /pandora-active-chat-minimize/);

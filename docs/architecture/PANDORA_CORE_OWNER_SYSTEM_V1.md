@@ -128,19 +128,51 @@ registration, onboarding checkpoints/attestations, plans, subscriptions, invoice
 payment/credit/refund capture, prospects, linked enterprise contracts, support
 cases, incidents, partner records, device trust revocation and operator grants.
 
-Customer entry requires actual target membership, an explicit operator grant,
+Operator customer entry requires actual target membership, an explicit operator grant,
 a live AAL2 session and an expiring audited entry receipt. The shell rebuilds
 scope-bound services and its ephemeral cache, fences stale asynchronous replies,
 clears conversation state and displays persistent administrator context. The
 existing PLP adapter validates its organization/property before loading data.
-Other adapters remain visibly unverified; they cannot be activated by checklist
-attestation alone. This is an explicit remaining product/runtime boundary.
+A common Enterprise workspace supplies actual task capture, documents, people and
+activity for other clients. It extends canonical `enterprise_tasks`, with scoped,
+idempotent operations and optimistic concurrency. Go-live requires recent
+same-tenant runtime task evidence in addition to onboarding verification.
+Specialized industry workflows remain separate from this common adapter and
+cannot be claimed verified from its availability.
+
+Normal customer launch resolves only active, server-authorized memberships and
+starts a runtime bound to the selected organization. Scoped Pandora staff use the
+same chooser with mandatory audited entry; they do not receive the global Core
+control plane. Ordinary member chat reaches a bounded, authenticated workspace
+read path before legacy owner, provider or team execution. PLP context hydration
+verifies the authenticated organization before retaining business data.
 
 The membership bypass is closed by removing raw authenticated DML. The existing
-user-admin Edge broker accepts explicit Core authority without changing the user
-store, serializes membership changes by organization and preserves last-owner
-protections. Shared tenant helpers now enforce organization suspension and
-banned/deleted account state, without adding cross-tenant operator shortcuts.
+user-admin Edge broker requires explicit Core authority for internal actors even
+when they also hold a customer owner role. Customer owners retain their own team
+administration boundary. Membership changes serialize by organization and retain
+last-owner protection. Invitation failures preserve the global Auth account,
+record partial outcomes and resume the existing account. Shared tenant helpers
+enforce organization suspension and banned/deleted account state without adding
+cross-tenant operator shortcuts.
+
+Chat authority is classified from the requested organization and current server
+records before context hydration, regardless of omitted or editable UI metadata.
+Known internal identities need a current audited entry for registered customer
+business reads, including direct table reads and the older business RPCs. Exact
+inspected function-body hashes fence those bounded legacy changes. The existing
+activity engine receives the same scope checks at its original begin operation;
+the client wrapper does not replace the engine. Revocation and expiry invalidate
+both customer navigation and its execution authority.
+
+The Memory tab retrieves bounded approved policy/advisory records through the
+existing production workload bridge. The owner HTTP entrypoint checks a live
+global Core owner/operator grant before and after the provider read. Flutter
+rejects mismatched scope, draft records, authority expansion and a changed session.
+Learning outbox rows remain labeled delivery state, not approved Memory. The
+generic evidence-candidate handler is absent from the currently deployed native
+Memory bridge; general release evidence must use a canonical Memory repository
+review candidate rather than a fabricated execution.
 
 Commercial values entered through Core are manual. They cannot self-promote to
 provider-verified billing. Payments enforce invoice organization, currency and
@@ -149,14 +181,26 @@ Subscription changes retain sanitized before/after commercial values in audit.
 Plan limits are authoritative configured terms, but full execution admission and
 billing reconciliation are separate capabilities and are not claimed complete.
 
-Current focused local results: 35 database/authorization tests; 49 Flutter tests
-across Core, scope/receipt/handoff/money and Team; 36 Core-chat and existing
-team/Growth regressions. The broader Node run passed 4,159 tests with one optional
-native-SQL test skipped, plus 52 worker tests, before the final approvals-projection
-fixture was added. Exact final-commit CI must supersede these working-tree counts.
-The full migration chain has replayed locally with provider substitutions; it is
-not equivalent to hosted Supabase verification. The replay harness now uses the
-hosted UTC timezone and inspected auth-user columns.
+The first complete candidate in PR #944 was
+`f29118135393b69abee89476c5b74a11f940217a`. GitHub executed its frozen Deno checks
+and full migration replay successfully. It also caught stale source assertions
+and four shell test failures, corrected in the follow-up candidate. Working-tree
+results are superseded by final exact-commit CI evidence; no initial-candidate
+result is silently credited to a later head. The replay harness uses the hosted
+UTC timezone and inspected auth-user columns, but its provider substitutions are
+not equivalent to hosted Supabase verification.
+
+Main advanced during implementation to
+`7884d2fe2851a8f06ac2329e30c772ffd25134d5`, through separately merged PR #943.
+Its provider-diverse routing change must be retained alongside the new caller
+authority checks. It also adds a source audit exception for the unchanged braces
+advisory (`GHSA-vfj7-8cjw-p6xm`), expiring October 17. The original candidate's raw
+audit failure remains valid historical evidence. This lane did not create that
+exception and does not infer a named security acceptance from the merge account.
+The vulnerability remains open, with no compatible published patch found on
+October 3. The root production dependency audit reports no findings; this does
+not prove every provider-generated bundle excludes the dependency. Audit policy
+passing under an exception is not vulnerability remediation.
 
 No production acceptance follows from these local results. Required remaining
 proof is tracked with the PR: hosted migration/readback/advisors, exact deployed

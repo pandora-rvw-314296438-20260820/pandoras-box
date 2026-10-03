@@ -1,7 +1,6 @@
 import express from 'express';
 import {loadOperatorPublicConfig} from '../src/operator-public-config.js';
 import {SupabaseBearerAuthenticator} from '../apps/meta-business-mcp/src/auth/supabase-bearer.js';
-import {SupabaseOrganizationMembershipResolver} from '../apps/meta-business-mcp/src/auth/membership.js';
 import {resolveVercelWorkloadToken} from '../src/runtime/vercel-workload-identity.js';
 let ownerMemoryModulesPromise:any;
 function loadOwnerMemoryModules(){
@@ -11,6 +10,7 @@ function loadOwnerMemoryModules(){
   ]).then(([workload,owner])=>({
     createWorkloadOperationsMemory:workload.createWorkloadOperationsMemory,
     createOwnerMemoryRead:owner.createOwnerMemoryRead,
+    CoreOwnerMemoryAuthorizer:owner.CoreOwnerMemoryAuthorizer,
     OPERATIONS_MEMORY_MAPPING:owner.OPERATIONS_MEMORY_MAPPING,
   }));
 }
@@ -47,6 +47,7 @@ app.use(async(req:any,res:any)=>{
     const {
       createWorkloadOperationsMemory,
       createOwnerMemoryRead,
+      CoreOwnerMemoryAuthorizer,
       OPERATIONS_MEMORY_MAPPING,
     }=await loadOwnerMemoryModules();
     const settings=loadOperatorPublicConfig(process.env);
@@ -54,7 +55,8 @@ app.use(async(req:any,res:any)=>{
     const options={supabaseUrl:settings.supabaseUrl,publishableKey:settings.supabasePublishableKey,timeoutMs:6000};
     const memory=createWorkloadOperationsMemory({mapping:OPERATIONS_MEMORY_MAPPING,
       resolveWorkloadToken:()=>process.env.VERCEL==='1'?resolveVercelWorkloadToken():Promise.resolve(undefined)});
-    const run=createOwnerMemoryRead({authenticator:new SupabaseBearerAuthenticator(options),membershipResolver:new SupabaseOrganizationMembershipResolver(options),memory});
+    const run=createOwnerMemoryRead({authenticator:new SupabaseBearerAuthenticator(options),
+      coreAuthorizer:new CoreOwnerMemoryAuthorizer(options),memory});
     return res.status(200).json(await run(String(req.headers.authorization||''),req.body));
   }catch(error:any){
     const code=/^OPS_MEMORY_[A-Z0-9_]{1,100}$/.test(error?.code||'')?error.code:'OPS_MEMORY_OWNER_READ_UNAVAILABLE';

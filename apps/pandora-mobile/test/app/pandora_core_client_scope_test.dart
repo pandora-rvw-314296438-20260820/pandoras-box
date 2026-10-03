@@ -12,6 +12,7 @@ PandoraCoreRecord _receipt() => <String, dynamic>{
       'organization_id': _organizationId,
       'property_id': 'property-client',
       'workspace_type': 'enterprise',
+      'adapter': 'enterprise_core_v1',
       'display_name': 'Client workspace name',
       'expires_at': _now.add(const Duration(minutes: 5)).toIso8601String(),
     };
@@ -78,6 +79,7 @@ void main() {
       expect(entry.organizationId, _organizationId);
       expect(entry.propertyId, 'property-client');
       expect(entry.workspaceType, 'enterprise');
+      expect(entry.adapter, 'enterprise_core_v1');
       expect(entry.displayName, 'Client workspace name');
       expect(entry.expiresAt, _now.add(const Duration(minutes: 5)));
     });
@@ -104,6 +106,7 @@ void main() {
       'entry_id',
       'organization_id',
       'workspace_type',
+      'adapter',
     ]) {
       test('rejects a missing $field', () {
         final receipt = _receipt()..remove(field);

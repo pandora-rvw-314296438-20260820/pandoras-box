@@ -10,11 +10,11 @@ import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/data/pandora_intelligence_api.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
-import 'package:pandora_mobile/core/models/pandora_models.dart';
 import 'package:pandora_mobile/core/widgets/pandora_mark.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
 
 import '../helpers/fake_owner_api.dart';
+import '../helpers/fake_chat_intelligence.dart';
 import '../helpers/test_app.dart';
 
 const _surfaceKey = ValueKey<String>('lane-h-golden-surface');
@@ -40,9 +40,15 @@ Future<void> _loadFonts() async {
   File? textFont;
   File? iconFont;
   for (final root in roots) {
-    final materialFonts =
-        root + separator + 'bin' + separator + 'cache' + separator +
-        'artifacts' + separator + 'material_fonts';
+    final materialFonts = root +
+        separator +
+        'bin' +
+        separator +
+        'cache' +
+        separator +
+        'artifacts' +
+        separator +
+        'material_fonts';
     final textCandidate =
         File(materialFonts + separator + 'Roboto-Regular.ttf');
     final iconCandidate =
@@ -87,36 +93,6 @@ Widget _withFonts(Widget child) => Builder(
         );
       },
     );
-
-class _PendingGoldenRepository extends FakeRepository {
-  final Completer<IntakeReceipt> pending = Completer<IntakeReceipt>();
-
-  @override
-  Future<IntakeReceipt> ask({
-    required String message,
-    String? projectId,
-    String? idempotencyKey,
-  }) =>
-      pending.future;
-
-  void complete() {
-    if (pending.isCompleted) return;
-    pending.complete(
-      const IntakeReceipt(
-        reply: 'Ready.',
-        needsApproval: false,
-        actionId: 'lane-h-golden',
-        status: IntakeStatus(
-          whatChanged: 'Reply ready.',
-          whereWeAre: 'Chat',
-          whatIsDone: 'Reply ready.',
-          whatIsHappeningNow: 'Idle.',
-          whatIWillDoNext: 'Wait.',
-        ),
-      ),
-    );
-  }
-}
 
 List<PandoraChatModelOption> _pickerModels() {
   const names = <String>[
@@ -169,8 +145,7 @@ List<PandoraChatModelOption> _pickerModels() {
   ];
 }
 
-PandoraChatModelPickerSnapshot _snapshot() =>
-    PandoraChatModelPickerSnapshot(
+PandoraChatModelPickerSnapshot _snapshot() => PandoraChatModelPickerSnapshot(
       models: _pickerModels(),
       selection: const PandoraChatModelSelection.auto(),
       reasoningMode: PandoraIntelligenceMode.auto,
@@ -201,13 +176,14 @@ Future<void> _precacheMark(WidgetTester tester) async {
 
 Future<void> _mount(
   WidgetTester tester, {
-  FakeRepository? repository,
+  PandoraIntelligenceApi? intelligence,
 }) async {
   await setTestSurface(tester, logicalSize: _phoneSize);
   await tester.pumpWidget(
     PandoraDependencies(
       auth: const FakeAuth(),
-      repository: repository ?? FakeRepository(),
+      repository: FakeRepository(),
+      intelligence: intelligence ?? FakeChatIntelligence(),
       diagnostics: DiagnosticsStore(),
       child: testApp(
         themeMode: ThemeMode.dark,
@@ -276,9 +252,16 @@ void main() {
     await _capture(tester, 'lane_h_keyboard_open_390x844');
   });
 
-  testWidgets('captures lane_h_after_send_thinking_390x844', (tester) async {
-    final repository = _PendingGoldenRepository();
-    await _mount(tester, repository: repository);
+  // Keep the reviewed asset path stable. A real pending greeting has a busy
+  // composer; the live routing policy deliberately omits Thinking and Activity
+  // for trivial conversation, even while its scoped response is pending.
+  testWidgets('captures pending greeting without fabricated Activity',
+      (tester) async {
+    final pending = Completer<PandoraIntelligenceTurn>();
+    final activity = StreamController<Map<String, dynamic>>();
+    final intelligence = FakeChatIntelligence(
+        onReply: (_) => pending.future, events: activity.stream);
+    await _mount(tester, intelligence: intelligence);
     final objective =
         find.byKey(const ValueKey<String>('ask-pandora-objective'));
     await tester.tap(objective);
@@ -287,9 +270,23 @@ void main() {
       find.byKey(const ValueKey<String>('ask-pandora-submit')),
     );
     await tester.pump();
+    expect(intelligence.lastMessage, 'Hello');
+    expect(intelligence.lastEnterpriseContext?['selectedObject'],
+        containsPair('coreMode', 'owner'));
     await _capture(tester, 'lane_h_after_send_thinking_390x844');
-    repository.complete();
+    expect(find.text('Hello'), findsOneWidget);
+    expect(find.text('Ready.'), findsNothing);
+    expect(find.text('Thinking through the request…'), findsNothing);
+    expect(find.byKey(const ValueKey('ask-pandora-activity-theatre')),
+        findsNothing);
+    pending.complete(const PandoraIntelligenceTurn(
+        threadId: 'lane-h-golden',
+        reply: 'Ready.',
+        intent: 'conversation',
+        confidence: 1,
+        needsClarification: false));
     await tester.pumpAndSettle();
+    await activity.close();
   });
 
   testWidgets('captures lane_h_picker_open_390x844', (tester) async {

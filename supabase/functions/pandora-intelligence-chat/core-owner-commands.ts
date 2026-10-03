@@ -13,9 +13,19 @@ export type CoreRpcClient = {
 
 export type CoreChatScope = {
   context: Row | null;
-  kind: "none" | "owner" | "client";
+  kind: "none" | "owner" | "client" | "workspace";
   targetOrganizationId: string | null;
   snapshot: Row | null;
+  authority?: CoreChatAuthority;
+};
+
+type CoreChatAuthority = {
+  organizationId: string;
+  actorRole: string;
+  scopeKind: "platform" | "member" | "administrator";
+  adapterKey: string;
+  coreRole: string | null;
+  canExecuteCore: boolean;
 };
 
 type Navigation = {
@@ -35,7 +45,7 @@ export type CoreOwnerReply = {
   confidence: number;
   needsClarification: false;
   clarifyingQuestion: null;
-  conversationLane: "core_owner";
+  conversationLane: "core_owner" | "enterprise_workspace";
   handoff: Navigation | null;
   providerReadback: Row;
 };
@@ -81,6 +91,53 @@ async function readSnapshot(user: CoreRpcClient, organizationId: string, section
   return snapshot;
 }
 
+async function readChatAuthority(user: CoreRpcClient, organizationId: string, entryId: string | null): Promise<CoreChatAuthority> {
+  let result;
+  try {
+    result = await user.rpc("pandora_enterprise_chat_authority_v1", { p_organization_id: organizationId, p_entry_id: entryId });
+  } catch {
+    throw new Error("CORE_CONTEXT_UNAVAILABLE");
+  }
+  if (result.error) throw new Error(text(row(result.error).code) === "42501" ? "CORE_ACCESS_DENIED" : "CORE_CONTEXT_UNAVAILABLE");
+  const value = row(result.data), scopeKind = text(value.scope_kind), coreRole = text(value.core_role) || null;
+  if (value.organization_id !== organizationId || !["owner", "admin", "operator", "member", "viewer"].includes(text(value.actor_role)) ||
+    !["platform", "member", "administrator"].includes(scopeKind) || typeof value.can_execute_core !== "boolean" ||
+    value.requires_operator_entry !== (scopeKind === "administrator")) throw new Error("CORE_SCOPE_MISMATCH");
+  if (scopeKind === "platform") {
+    if (entryId || value.adapter_key !== "pandora_core_v1" || !["owner", "operator", "support", "finance"].includes(coreRole || "") ||
+      value.can_execute_core !== ["owner", "operator"].includes(coreRole || "")) throw new Error("CORE_SCOPE_MISMATCH");
+  } else if (!["enterprise_core_v1", "plp_v1"].includes(text(value.adapter_key)) ||
+    (scopeKind === "administrator" ? !entryId : !!entryId) || value.can_execute_core !== false) throw new Error("CORE_SCOPE_MISMATCH");
+  return { organizationId, actorRole: text(value.actor_role), scopeKind: scopeKind as CoreChatAuthority["scopeKind"],
+    adapterKey: text(value.adapter_key), coreRole, canExecuteCore: value.can_execute_core };
+}
+
+/** Authorize the actor independently of optional UI metadata on every request. */
+export async function authorizeCoreChatRequest(user: CoreRpcClient, organizationId: string, actorRole: string, value: unknown, projectId: string | null): Promise<CoreChatScope> {
+  const selected = row(row(value).selectedObject), target = text(selected.organizationId), entryId = text(selected.entryId) || null;
+  if ((target && !uuid(target)) || (entryId && !uuid(entryId))) throw new Error("CORE_SCOPE_MISMATCH");
+  const authority = await readChatAuthority(user, organizationId, entryId);
+  if (authority.actorRole !== actorRole) throw new Error("CORE_SCOPE_MISMATCH");
+  if (authority.scopeKind !== "platform" && selected.coreMode === "owner") throw new Error("CORE_SCOPE_MISMATCH");
+  if (authority.scopeKind === "member" && (selected.workspaceMode !== "member" || selected.adapterKey !== "enterprise_core_v1")) {
+    throw new Error("CORE_WORKSPACE_ACTION_UNAVAILABLE");
+  }
+  const scope = await validateCoreChatScope(user, organizationId, value);
+  if (authority.scopeKind === "member") {
+    if (scope.kind !== "workspace" || selected.workspaceMode !== "member") throw new Error("CORE_WORKSPACE_ACTION_UNAVAILABLE");
+  } else if (authority.scopeKind === "administrator") {
+    const common = scope.kind === "workspace" && selected.workspaceMode === "administrator";
+    const specialized = scope.kind === "client" && authority.adapterKey === "plp_v1" &&
+      selected.workspaceSlug === "plp-boracay" && text(scope.context?.route).startsWith("/enterprise/plp-boracay/");
+    if (!common && !specialized) throw new Error("CORE_SCOPE_MISMATCH");
+  } else if (!["none", "owner"].includes(scope.kind) || selected.workspaceMode ||
+    text(scope.context?.route).startsWith("/enterprise/workspace/") || text(scope.context?.route).startsWith("/enterprise/plp-boracay/") || selected.workspaceSlug) {
+    throw new Error("CORE_SCOPE_MISMATCH");
+  }
+  const authorized = { ...scope, authority };
+  return { ...authorized, context: authorizeCoreChatActor(actorRole, authorized, projectId) };
+}
+
 export async function validateCoreChatScope(user: CoreRpcClient, organizationId: string, value: unknown): Promise<CoreChatScope> {
   const context = value == null ? null : row(value), selected = row(context?.selectedObject);
   const target = text(selected.organizationId) || null, entryId = text(selected.entryId);
@@ -94,6 +151,33 @@ export async function validateCoreChatScope(user: CoreRpcClient, organizationId:
     return { context, kind: "owner", targetOrganizationId: target, snapshot };
   }
   if (target && target !== organizationId) throw new Error("CORE_SCOPE_MISMATCH");
+  const workspaceMode = text(selected.workspaceMode);
+  if (workspaceMode && !["member", "administrator"].includes(workspaceMode)) throw new Error("CORE_SCOPE_MISMATCH");
+  if (workspaceMode && selected.adapterKey === "enterprise_core_v1") {
+    const section = text(selected.section), administrator = selected.workspaceMode === "administrator";
+    if (!target || selected.adapterKey !== "enterprise_core_v1" || context?.identityScope !== "enterprise_workspace" ||
+      !["overview", "work", "documents", "activity", "people"].includes(section) ||
+      context?.route !== `/enterprise/workspace/${organizationId}/${section}` ||
+      (administrator ? !entryId : !!entryId)) throw new Error("CORE_SCOPE_MISMATCH");
+    let result;
+    try {
+      result = await user.rpc("pandora_enterprise_workspace_v1", { p_organization_id: organizationId, p_section: section, p_entry_id: entryId || null });
+    } catch {
+      throw new Error("CORE_CONTEXT_UNAVAILABLE");
+    }
+    if (result.error) throw new Error(text(row(result.error).code) === "42501" ? "CORE_ACCESS_DENIED" : "CORE_CONTEXT_UNAVAILABLE");
+    const snapshot = row(result.data), workspace = row(snapshot.workspace);
+    if (snapshot.schema_version !== "1" || snapshot.organization_id !== organizationId || workspace.organization_id !== organizationId ||
+      workspace.adapter !== "enterprise_core_v1" || snapshot.section !== section ||
+      snapshot.viewing_as !== (administrator ? "pandora_administrator" : "member") ||
+      snapshot.entry_id !== (entryId || null) || !["owner", "admin", "operator", "member", "viewer"].includes(text(snapshot.actor_role)) ||
+      !Number.isFinite(Date.parse(text(snapshot.generated_at)))) throw new Error("CORE_SCOPE_MISMATCH");
+    return { context, kind: "workspace", targetOrganizationId: organizationId, snapshot };
+  }
+  if (workspaceMode && (workspaceMode !== "administrator" || selected.adapterKey !== "plp_v1" || !entryId ||
+    selected.workspaceSlug !== "plp-boracay" || !text(context?.route).startsWith("/enterprise/plp-boracay/"))) {
+    throw new Error("CORE_SCOPE_MISMATCH");
+  }
   if (entryId) {
     if (!target) throw new Error("CORE_SCOPE_MISMATCH");
     let result;
@@ -106,6 +190,40 @@ export async function validateCoreChatScope(user: CoreRpcClient, organizationId:
     return { context, kind: "client", targetOrganizationId: organizationId, snapshot: null };
   }
   return { context, kind: "none", targetOrganizationId: target, snapshot: null };
+}
+
+/** Derived membership role and server-validated workspace must agree. */
+export function authorizeCoreChatActor(role: string, scope: CoreChatScope, projectId: string | null): Row | null {
+  if (!["owner", "admin", "operator", "member", "viewer"].includes(role)) throw new Error("OWNER_ROLE_REQUIRED");
+  if (scope.kind === "workspace") {
+    if (scope.snapshot?.actor_role !== role || projectId) throw new Error("CORE_SCOPE_MISMATCH");
+  } else if (!["owner", "admin"].includes(role) && scope.kind !== "owner" && scope.authority?.scopeKind !== "platform") {
+    throw new Error("OWNER_ROLE_REQUIRED");
+  }
+  return scope.context ? { ...scope.context, actorRole: role } : null;
+}
+
+/** The implicit PLP bootstrap may select another membership; never relabel it. */
+export function bindPlpBusinessSnapshot(context: Row, organizationId: string, value: unknown): Row {
+  const bootstrap = row(value), organization = row(bootstrap.organization);
+  if (organization.id !== organizationId) throw new Error("CORE_SCOPE_MISMATCH");
+  const local = row(bootstrap.localAiContext), payload = row(local.payload);
+  return { ...context, businessSnapshot: Object.keys(payload).length ? payload : row(bootstrap.today),
+    businessSourceHealth: row(bootstrap.sourceHealth), businessSnapshotAsOf: text(local.authoritativeAsOf) || text(bootstrap.generatedAt) };
+}
+
+/** Recheck temporary operator access immediately before a consequential dispatch. */
+export async function revalidateCoreExecutionScope(user: CoreRpcClient, organizationId: string, scope: CoreChatScope): Promise<void> {
+  if (scope.kind === "workspace") throw new Error("CORE_WORKSPACE_ACTION_UNAVAILABLE");
+  if (scope.authority) {
+    const current = await readChatAuthority(user, organizationId, text(row(scope.context?.selectedObject).entryId) || null);
+    if (current.actorRole !== scope.authority.actorRole || current.scopeKind !== scope.authority.scopeKind ||
+      current.adapterKey !== scope.authority.adapterKey) throw new Error("CORE_SCOPE_MISMATCH");
+    if (current.scopeKind === "member" || (current.scopeKind === "platform" && !current.canExecuteCore)) {
+      throw new Error("CORE_WORKSPACE_ACTION_UNAVAILABLE");
+    }
+  }
+  if (scope.kind === "client") await validateCoreChatScope(user, organizationId, scope.context);
 }
 
 type Intent = "attention" | "onboarding" | "clients" | "connections" | "costs" | "local" | "deployments" | "providers" | "limits" | "create" | "proposal" | "team" | null;
@@ -268,8 +386,62 @@ function allowanceSummary(snapshot: Row): string {
   return `${approaching.length ? `Recorded usage at or above 80% of a configured limit:\n\n${approaching.slice(0, 12).join("\n")}` : "No recorded request or token total reaches 80% of its configured limit in this view."}\n\nOnly recorded model runs are included. Missing telemetry can understate consumption; this does not establish remaining billed allowance or an enforced execution quota.`;
 }
 
+function workspaceReply(content: string, snapshot: Row): CoreOwnerReply {
+  return { ...reply(content, snapshot), conversationLane: "enterprise_workspace", providerReadback: {
+    source: "pandora_enterprise_workspace_v1", state: "authenticated_read", snapshotVerified: true,
+    organizationId: snapshot.organization_id, observedAt: snapshot.generated_at, actionExecuted: false,
+  } };
+}
+
+function commonWorkspaceReply(message: string, scope: CoreChatScope): CoreOwnerReply {
+  const snapshot = scope.snapshot!;
+  const workspace = row(snapshot.workspace), counts = row(snapshot.counts);
+  const name = label(workspace.display_name, "This workspace"), m = message.toLowerCase();
+  const ownerIntent = commandIntent(message);
+  const ownerControls = ownerIntent && ownerIntent !== "connections";
+  if (ownerControls || /\b(pandora|platform)\b.*\b(clients?|customers?|billing|revenue|security|deployment|providers?)\b/.test(m) ||
+    /\b(?:all|other|every)\s+(?:clients?|customers?|tenants?)\b/.test(m)) {
+    if (snapshot.viewing_as === "pandora_administrator") return reply("Return to Pandora to open operator controls. This conversation is scoped to the client workspace.", null,
+      navigation("home", "return_owner", "Return to Pandora"));
+    return workspaceReply("Owner, access, commercial and provider controls are unavailable in this workspace conversation. Ask about this workspace’s work, documents, activity, people or connected sources.", snapshot);
+  }
+  const mutation = /\b(create|add|update|change|delete|remove|complete|finish|assign|move|reopen|cancel)\b/.test(m);
+  if (mutation && /\b(task|work|item)\b/.test(m)) {
+    return workspaceReply(row(snapshot.permissions).can_manage_work === true
+      ? `Open ${name} → Work to review and save the task. No task has changed.`
+      : "Your current workspace role can read work. A member with work-management permission must make task changes.", snapshot);
+  }
+  if (/\b(task|tasks|work|overdue|blocked|attention|due|pending)\b/.test(m)) {
+    const tasks = rows(snapshot, "tasks").filter((task) => /\b(completed|finished)\b/.test(m)
+      ? task.state === "completed" : /\bblocked\b/.test(m) ? task.state === "blocked" : !["completed", "cancelled"].includes(text(task.state)));
+    const heading = `${name}: ${integer(counts.open_tasks)?.toString() ?? "unknown"} open tasks; ${integer(counts.overdue_tasks)?.toString() ?? "unknown"} overdue.`;
+    return workspaceReply(`${heading}${tasks.length ? `\n\n${tasks.slice(0, 10).map((task) => `• ${label(task.title, "Task")} — ${label(task.state, "unknown").replace(/_/g, " ")}${text(task.due_at) ? `; due ${label(task.due_at, "unknown")}` : ""}.`).join("\n")}` : " No matching task is recorded in this view."}${tasks.length > 10 ? "\nOpen Work for more records." : ""}`, snapshot);
+  }
+  if (/\b(document|documents|file|files|agreement|agreements)\b/.test(m)) {
+    const documents = rows(snapshot, "documents");
+    return workspaceReply(documents.length ? `Documents in ${name}:\n\n${documents.slice(0, 10).map((document) => `• ${label(document.title, "Document")} — ${label(document.source_name, "source not recorded")}.`).join("\n")}\n\nOpen Documents to follow the source access link.` : `No source-linked document is recorded in ${name}.`, snapshot);
+  }
+  if (/\b(people|team|who|staff|members)\b/.test(m)) {
+    const people = rows(snapshot, "people");
+    return workspaceReply(people.length ? `People in ${name}:\n\n${people.slice(0, 10).map((person) => `• ${label(person.display_name, "Workspace member")} — ${label(person.role, "member")}.`).join("\n")}` : `No active workspace members are recorded in this view.`, snapshot);
+  }
+  if (/\b(activity|happened|recent|outcomes?|changed)\b/.test(m)) {
+    const activity = rows(snapshot, "activity");
+    return workspaceReply(activity.length ? `Recent recorded activity in ${name}:\n\n${activity.slice(0, 10).map((event) => `• ${label(event.title, "Workspace activity")} — ${label(event.occurred_at, "time not recorded")}.`).join("\n")}` : `No recent business activity is recorded in ${name}.`, snapshot);
+  }
+  if (/\b(sources?|connected|connections?|integrations?)\b/.test(m)) {
+    const sources = rows(snapshot, "sources");
+    return workspaceReply(sources.length ? `Recorded sources for ${name}:\n\n${sources.slice(0, 10).map((source) => `• ${label(source.name, "Source")} — ${label(source.status, "unverified").replace(/_/g, " ")}.`).join("\n")}\n\nThese are recorded source states, not a new provider verification.` : `No connected business source is recorded for ${name}.`, snapshot);
+  }
+  if (/^(hi|hello|hey|thanks|thank you)[.! ]*$/i.test(message.trim()) || /\b(summary|overview|status|help|what can)\b/.test(m)) {
+    return workspaceReply(`${name}: ${integer(counts.open_tasks)?.toString() ?? "unknown"} open tasks; ${integer(counts.documents)?.toString() ?? "unknown"} documents; ${integer(counts.people)?.toString() ?? "unknown"} active members. Ask about work, documents, recent activity, people or connected sources.`, snapshot);
+  }
+  return workspaceReply("This workspace conversation can read recorded work, documents, activity, people and source states. That request has no verified execution path here; no external action was performed.", snapshot);
+}
+
 /** Returns null only when the normal chat/team lanes should handle the request. */
 export async function tryCoreOwnerCommand(user: CoreRpcClient, organizationId: string, message: string, scope: CoreChatScope): Promise<CoreOwnerReply | null> {
+  if (scope.kind === "workspace") return commonWorkspaceReply(message, scope);
   const intent = commandIntent(message);
   if (!intent) return null;
   if (scope.kind === "client") {

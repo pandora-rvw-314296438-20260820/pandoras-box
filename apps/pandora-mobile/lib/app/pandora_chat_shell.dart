@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../core/analytics/owner_analytics.dart';
 import '../core/data/pandora_core_api.dart';
+import '../core/data/pandora_enterprise_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/design/pandora_tokens.dart';
 import '../core/local_ai/pandora_local_ai.dart';
@@ -19,6 +20,7 @@ import '../features/enterprise/bok_workspace_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/enterprise_workspace_home.dart';
 import '../features/enterprise/marketing_growth_workspace_screen.dart';
+import '../features/enterprise/pandora_enterprise_workspace_screen.dart';
 import '../features/enterprise/provider_ecosystem_screen.dart';
 import '../features/enterprise/tax_compliance_screen.dart';
 import '../features/operations/operations_room_screen.dart';
@@ -39,10 +41,22 @@ import 'plp_enterprise_shell.dart';
 
 class PandoraChatShell extends StatefulWidget {
   const PandoraChatShell(
-      {super.key, this.coreGateway, this.clientRuntimeFactory});
+      {super.key,
+      this.coreGateway,
+      this.clientRuntimeFactory,
+      this.enterpriseGateway,
+      this.memberWorkspace,
+      this.initialEntry,
+      this.onLeaveMemberWorkspace,
+      this.onMemberSignOut});
 
   final PandoraCoreGateway? coreGateway;
   final PandoraClientRuntimeFactory? clientRuntimeFactory;
+  final PandoraEnterpriseGateway? enterpriseGateway;
+  final PandoraEnterpriseMembership? memberWorkspace;
+  final PandoraClientEntry? initialEntry;
+  final VoidCallback? onLeaveMemberWorkspace;
+  final Future<void> Function()? onMemberSignOut;
 
   @override
   State<PandoraChatShell> createState() => _PandoraChatShellState();
@@ -87,6 +101,8 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<NavigatorState> _clientNavigatorKey =
+      GlobalKey<NavigatorState>();
   GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
@@ -114,6 +130,21 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   bool _entryValidationInFlight = false;
   int _scopeEpoch = 0;
   bool _switchingScope = false;
+  bool _enterpriseMutationPending = false;
+  PandoraCoreFailure? _scopeInitializationFailure;
+  late final PandoraEnterpriseGateway _enterpriseGateway;
+  bool get _inClientWorkspace =>
+      _clientEntry != null || widget.memberWorkspace != null;
+  String? get _workspaceOrganizationId =>
+      _clientEntry?.organizationId ?? widget.memberWorkspace?.organizationId;
+  String get _workspaceName =>
+      _clientEntry?.displayName ??
+      widget.memberWorkspace?.displayName ??
+      'Workspace';
+  String get _workspaceAdapter =>
+      _clientEntry?.adapter ?? widget.memberWorkspace?.adapter ?? '';
+  String? get _workspacePropertyId =>
+      _clientEntry?.propertyId ?? widget.memberWorkspace?.propertyId;
 
   PandoraDependencies get _activeDependencies =>
       _clientRuntime?.dependencies ?? PandoraDependencies.of(context);
@@ -176,6 +207,40 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _coreGateway = widget.coreGateway ?? SupabasePandoraCoreGateway();
+    _enterpriseGateway =
+        widget.enterpriseGateway ?? SupabasePandoraEnterpriseGateway();
+    final membership = widget.memberWorkspace;
+    if (membership != null) {
+      try {
+        final entry = widget.initialEntry;
+        if ((membership.requiresOperatorEntry && entry == null) ||
+            (entry != null &&
+                (entry.organizationId != membership.organizationId ||
+                    entry.adapter != membership.adapter ||
+                    !entry.expiresAt.isAfter(DateTime.now())))) {
+          throw const PandoraCoreFailure('ACCESS_DENIED',
+              'Administrator entry needs a verified access receipt.');
+        }
+        _assertAdapter(membership.adapter, membership.organizationId,
+            membership.propertyId);
+        _clientEntry = entry;
+        _clientRuntime = (widget.clientRuntimeFactory ??
+            PandoraClientRuntime.create)(membership.organizationId);
+        final workspace = _clientProfile(membership.organizationId,
+            membership.displayName, membership.adapter);
+        final selection = EnterpriseWorkspaceSelection(
+            workspace: workspace, section: workspace.sections.first);
+        _activeWorkspaceSelection = selection;
+        _activeEnterpriseContext = _clientContext(selection);
+        _chatVisible = false;
+        if (entry != null) _scheduleEntryValidation(entry);
+      } on PandoraCoreFailure catch (error) {
+        _scopeInitializationFailure = error;
+      } catch (_) {
+        _scopeInitializationFailure = const PandoraCoreFailure(
+            'UNAVAILABLE', 'Pandora could not open this workspace. Retry.');
+      }
+    }
     unawaited(OwnerAnalytics.shared.capture(OwnerAnalyticsEvent.appOpened));
     unawaited(
       OwnerAnalytics.shared.capture(
@@ -195,7 +260,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   }
 
   Future<void> _refreshHistory() async {
-    if (_historyLoading) return;
+    if (_historyLoading || _scopeInitializationFailure != null) return;
     final intelligence = _activeDependencies.intelligence;
     if (intelligence == null) return;
     final epoch = _scopeEpoch;
@@ -214,7 +279,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   }
 
   void _select(int value) {
-    if (_clientEntry != null && value != 0) {
+    if (_inClientWorkspace && value != 0) {
       if (value == 9) _selectClientHome();
       return;
     }
@@ -513,27 +578,101 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     return _sessionWorkspaceProfileKey();
   }
 
+  void _assertAdapter(
+      String adapter, String organizationId, String? propertyId) {
+    if (adapter == 'enterprise_core_v1') return;
+    if (adapter == 'plp_v1' &&
+        organizationId == PandoraConfig.plpOrganizationId &&
+        propertyId == 'ada9befb-b821-4ae6-86bf-a6d93376815b') return;
+    throw const PandoraCoreFailure('WORKSPACE_SETUP_REQUIRED',
+        'This workspace adapter could not be verified.');
+  }
+
+  EnterpriseWorkspaceProfile _clientProfile(
+      String organizationId, String displayName, String adapter) {
+    if (adapter == 'plp_v1')
+      return enterpriseWorkspaces
+          .firstWhere((item) => item.key == 'plp-boracay');
+    return EnterpriseWorkspaceProfile(
+        key: 'client-$organizationId',
+        name: displayName,
+        subtitle: 'Enterprise workspace',
+        initials: displayName.trim().isEmpty ? 'P' : displayName.trim()[0],
+        icon: Icons.business_outlined,
+        logoAsset: '',
+        accent: const Color(0xFF88AEDA),
+        sections: const [
+          EnterpriseWorkspaceSection(
+              'Overview', 'enterprise_overview', 'overview',
+              icon: Icons.home_outlined),
+          EnterpriseWorkspaceSection('Work', 'enterprise_workflows', 'work',
+              icon: Icons.task_alt_rounded),
+          EnterpriseWorkspaceSection(
+              'Documents', 'enterprise_data', 'documents',
+              icon: Icons.description_outlined),
+          EnterpriseWorkspaceSection('Activity', 'enterprise_logs', 'activity',
+              icon: Icons.history_rounded),
+          EnterpriseWorkspaceSection('People', 'enterprise_security', 'people',
+              icon: Icons.group_outlined),
+        ]);
+  }
+
+  Map<String, Object?> _clientContext(EnterpriseWorkspaceSelection selection) {
+    final organizationId = _workspaceOrganizationId!;
+    final entry = _clientEntry;
+    final section = entry == null && _workspaceAdapter == 'plp_v1'
+        ? (const {'work', 'documents', 'activity', 'people'}
+                .contains(selection.section.routeSlug)
+            ? selection.section.routeSlug
+            : 'overview')
+        : selection.section.routeSlug;
+    final selected = <String, Object?>{
+      'organizationId': organizationId,
+      'workspaceMode': entry == null ? 'member' : 'administrator',
+      'adapterKey': entry == null ? 'enterprise_core_v1' : _workspaceAdapter,
+      'section': section,
+      if (entry != null) 'entryId': entry.entryId,
+    };
+    if (_workspaceAdapter == 'plp_v1' && entry != null) {
+      selected.addAll({'workspaceSlug': 'plp-boracay', 'assistant': 'alfred'});
+      return {
+        ...selection.enterpriseContext,
+        'selectedObject': selected,
+        'organization': {
+          'id': organizationId,
+          'propertyId': _workspacePropertyId,
+          'propertySlug': 'plp-boracay',
+        }
+      };
+    }
+    return {
+      'surface': selection.section.surface,
+      'route': '/enterprise/workspace/$organizationId/$section',
+      'identityScope': 'enterprise_workspace',
+      'capabilities': const <String>[],
+      'selectedObject': selected,
+      'organization': {'id': organizationId},
+    };
+  }
+
+  void _scheduleEntryValidation(PandoraClientEntry entry) {
+    _clientExpiry?.cancel();
+    _clientExpiry = Timer(entry.expiresAt.difference(DateTime.now()),
+        () => unawaited(_returnToPandora(expired: true)));
+    _clientValidation?.cancel();
+    _clientValidation = Timer.periodic(
+        const Duration(seconds: 30), (_) => unawaited(_validateClientEntry()));
+  }
+
   void _openWorkspace(EnterpriseWorkspaceSelection selection) {
     if (selection.workspace.key != 'pandora-marketing-growth' &&
-        _clientEntry == null) {
+        !_inClientWorkspace) {
       _showThreadMessage('Open this customer from Clients to verify access.');
       return;
     }
-    final nextContext = selection.enterpriseContext;
-    final entry = _clientEntry;
-    if (entry != null) {
-      nextContext['selectedObject'] = <String, Object?>{
-        'workspaceSlug': 'plp-boracay',
-        'assistant': 'alfred',
-        'organizationId': entry.organizationId,
-        'entryId': entry.entryId,
-      };
-      nextContext['organization'] = <String, Object?>{
-        'id': entry.organizationId,
-        'propertyId': entry.propertyId,
-        'propertySlug': selection.workspace.key,
-      };
-    }
+    final nextContext = _inClientWorkspace
+        ? _clientContext(selection)
+        : selection.enterpriseContext;
     if (selection.workspace.key == 'batalla-associates') {
       final selected = Map<String, Object?>.from(
         nextContext['selectedObject']! as Map,
@@ -565,22 +704,24 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   void _bindEnterpriseContext(Map<String, Object?> context) {
     if (!mounted) return;
     final organization = context['organization'];
-    if (_clientEntry != null &&
+    if (_inClientWorkspace &&
         organization is Map &&
-        organization['id']?.toString() != _clientEntry!.organizationId) {
+        organization['id']?.toString() != _workspaceOrganizationId) {
       _showThreadMessage('The page context does not match this client.');
       return;
     }
     setState(() {
       _activeEnterpriseContext = Map<String, Object?>.from(context);
-      final entry = _clientEntry;
-      if (entry != null) {
-        _activeEnterpriseContext!['selectedObject'] = <String, Object?>{
-          'workspaceSlug': 'plp-boracay',
-          'assistant': 'alfred',
-          'organizationId': entry.organizationId,
-          'entryId': entry.entryId,
-        };
+      if (_inClientWorkspace && _activeWorkspaceSelection != null) {
+        final scopedContext = _clientContext(_activeWorkspaceSelection!);
+        _activeEnterpriseContext!['selectedObject'] =
+            scopedContext['selectedObject'];
+        if (_clientEntry == null) {
+          _activeEnterpriseContext!['route'] = scopedContext['route'];
+          _activeEnterpriseContext!['surface'] = scopedContext['surface'];
+          _activeEnterpriseContext!['identityScope'] =
+              scopedContext['identityScope'];
+        }
       }
       _surfaceSelectedObject = const <String, String>{};
     });
@@ -630,7 +771,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   }
 
   Map<String, Object?>? _conversationContextForCurrentSurface() {
-    if (_clientEntry != null && _activeEnterpriseContext != null) {
+    if (_inClientWorkspace && _activeEnterpriseContext != null) {
       return Map<String, Object?>.from(_activeEnterpriseContext!);
     }
     if (const <int>{2, 9, 12, 13, 14, 15}.contains(_index) ||
@@ -702,57 +843,87 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   Widget _root(int index) => _roots.putIfAbsent(
         index,
         () => switch (index) {
-          0 => _activeWorkspaceSelection?.section.routeSlug == 'tax-compliance'
-              ? TaxComplianceScreen(
-                  workspaceKey: _activeWorkspaceSelection!.workspace.key,
-                  workspaceName: _activeWorkspaceSelection!.workspace.name,
-                  organizationId: _clientEntry?.organizationId,
-                  enterpriseContext: _activeEnterpriseContext ??
-                      _activeWorkspaceSelection!.enterpriseContext,
-                  onHome: () => _select(9),
-                )
-              : _activeWorkspaceSelection?.workspace.key ==
-                      'pandora-marketing-growth'
-                  ? MarketingGrowthWorkspaceScreen(
-                      initialRouteSlug:
-                          _activeWorkspaceSelection!.section.routeSlug,
-                      enterpriseContext: _activeEnterpriseContext ??
-                          _activeWorkspaceSelection!.enterpriseContext,
-                      onHome: () => _select(9),
-                      onApprovals: () => _select(2),
+          0 => _scopeInitializationFailure != null
+              ? Center(child: Text(_scopeInitializationFailure!.message))
+              : _inClientWorkspace && _workspaceAdapter == 'enterprise_core_v1'
+                  ? PandoraEnterpriseWorkspaceScreen(
+                      gateway: _enterpriseGateway,
+                      organizationId: _workspaceOrganizationId!,
+                      entryId: _clientEntry?.entryId,
+                      section: _activeWorkspaceSelection?.section.routeSlug ??
+                          'overview',
+                      onNavigate: (section) {
+                        final selection = _activeWorkspaceSelection;
+                        if (selection == null) return;
+                        final match = selection.workspace.sections
+                            .where((item) => item.routeSlug == section);
+                        if (match.isNotEmpty)
+                          _openWorkspace(EnterpriseWorkspaceSelection(
+                              workspace: selection.workspace,
+                              section: match.first));
+                      },
+                      onPendingWorkChanged: (pending) =>
+                          _enterpriseMutationPending = pending,
                     )
-                  : _activeWorkspaceSelection?.workspace.key ==
-                          'batalla-associates'
-                      ? BatallaWorkspaceScreen(
-                          initialRouteSlug:
-                              _activeWorkspaceSelection!.section.routeSlug,
-                          profileKey: _activeWorkspaceProfileKey(),
-                          onBackToWorkspaces: () => _select(9),
+                  : _activeWorkspaceSelection?.section.routeSlug ==
+                          'tax-compliance'
+                      ? TaxComplianceScreen(
+                          workspaceKey:
+                              _activeWorkspaceSelection!.workspace.key,
+                          workspaceName:
+                              _activeWorkspaceSelection!.workspace.name,
+                          organizationId: _workspaceOrganizationId,
+                          enterpriseContext: _activeEnterpriseContext ??
+                              _activeWorkspaceSelection!.enterpriseContext,
+                          onHome: () => _select(9),
                         )
                       : _activeWorkspaceSelection?.workspace.key ==
-                              'plp-boracay'
-                          ? PlpEnterpriseShell(
-                              organizationId: _clientEntry?.organizationId,
-                              propertyId: _clientEntry?.propertyId,
-                              embeddedRouteSlug:
+                              'pandora-marketing-growth'
+                          ? MarketingGrowthWorkspaceScreen(
+                              initialRouteSlug:
                                   _activeWorkspaceSelection!.section.routeSlug,
+                              enterpriseContext: _activeEnterpriseContext ??
+                                  _activeWorkspaceSelection!.enterpriseContext,
+                              onHome: () => _select(9),
+                              onApprovals: () => _select(2),
                             )
                           : _activeWorkspaceSelection?.workspace.key ==
-                                  '1064-euro-fish-traders'
-                              ? EurofishEnterpriseShell(
-                                  embedded: true,
+                                  'batalla-associates'
+                              ? BatallaWorkspaceScreen(
                                   initialRouteSlug: _activeWorkspaceSelection!
                                       .section.routeSlug,
+                                  profileKey: _activeWorkspaceProfileKey(),
+                                  onBackToWorkspaces: () => _select(9),
                                 )
                               : _activeWorkspaceSelection?.workspace.key ==
-                                      'bok'
-                                  ? BokWorkspaceScreen(
-                                      workspace:
-                                          _activeWorkspaceSelection!.workspace,
-                                      section:
-                                          _activeWorkspaceSelection!.section,
+                                      'plp-boracay'
+                                  ? PlpEnterpriseShell(
+                                      organizationId: _workspaceOrganizationId,
+                                      propertyId: _workspacePropertyId,
+                                      embeddedRouteSlug:
+                                          _activeWorkspaceSelection!
+                                              .section.routeSlug,
                                     )
-                                  : const SizedBox.expand(),
+                                  : _activeWorkspaceSelection?.workspace.key ==
+                                          '1064-euro-fish-traders'
+                                      ? EurofishEnterpriseShell(
+                                          embedded: true,
+                                          initialRouteSlug:
+                                              _activeWorkspaceSelection!
+                                                  .section.routeSlug,
+                                        )
+                                      : _activeWorkspaceSelection
+                                                  ?.workspace.key ==
+                                              'bok'
+                                          ? BokWorkspaceScreen(
+                                              workspace:
+                                                  _activeWorkspaceSelection!
+                                                      .workspace,
+                                              section:
+                                                  _activeWorkspaceSelection!
+                                                      .section,
+                                            )
+                                          : const SizedBox.expand(),
           1 => const ProjectsScreen(),
           2 => _coreScreen('home', initialAction: 'needs_you'),
           3 => const MoreScreen(),
@@ -804,7 +975,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       onEnterClient: _enterClient,
       onContextChanged: (value) {
         if (!mounted ||
-            _clientEntry != null ||
+            _inClientWorkspace ||
             !identical(_coreContextTokens[routeIndex], token)) return;
         final scoped = {
           for (final entry in value.entries) entry.key: entry.value.toString()
@@ -835,8 +1006,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
 
   void _handleCoreNavigation(PandoraIntelligenceHandoff handoff) {
     if (handoff.kind != 'core_navigation') return;
-    if (_clientEntry != null) {
-      if (handoff.action == 'return_owner') unawaited(_returnToPandora());
+    if (_inClientWorkspace) {
+      if (handoff.action == 'return_owner' && widget.memberWorkspace == null)
+        unawaited(_returnToPandora());
       return;
     }
     final section = handoff.section;
@@ -875,6 +1047,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
 
   bool get _canChangeScope =>
       !_switchingScope &&
+      !_enterpriseMutationPending &&
       !(_chatKey.currentState?.hasPendingScopeWork ?? false);
 
   Future<void> _enterClient(PandoraCoreRecord client) async {
@@ -943,27 +1116,20 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       if (!mounted || epoch != _scopeEpoch) return;
       final entry = PandoraClientEntry.verify(raw,
           requestedOrganizationId: organizationId);
-      // Existing PLP RPCs select one canonical property. They must never be
-      // presented as a generic adapter for another resort organization.
-      if (entry.workspaceType != 'plp' ||
-          entry.organizationId != PandoraConfig.plpOrganizationId ||
-          entry.propertyId != 'ada9befb-b821-4ae6-86bf-a6d93376815b') {
-        throw const PandoraCoreFailure(
-          'WORKSPACE_SETUP_REQUIRED',
-          'This client workspace needs its verified adapter before entry.',
-        );
-      }
+      _assertAdapter(entry.adapter, entry.organizationId, entry.propertyId);
       nextRuntime = (widget.clientRuntimeFactory ??
           PandoraClientRuntime.create)(entry.organizationId);
-      await PandoraLocalAi.instance.resetConversation().timeout(const Duration(seconds: 3));
+      await PandoraLocalAi.instance
+          .resetConversation()
+          .timeout(const Duration(seconds: 3));
       if (!mounted || epoch != _scopeEpoch) {
         nextRuntime.dispose();
         nextRuntime = null;
         return;
       }
       final previous = _clientRuntime;
-      final workspace =
-          enterpriseWorkspaces.firstWhere((item) => item.key == 'plp-boracay');
+      final workspace = _clientProfile(
+          entry.organizationId, entry.displayName, entry.adapter);
       final selection = EnterpriseWorkspaceSelection(
           workspace: workspace, section: workspace.sections.first);
       setState(() {
@@ -984,30 +1150,10 @@ class _PandoraChatShellState extends State<PandoraChatShell>
         _index = 0;
         _surfaceSelectedObject = const {};
         _activeWorkspaceSelection = selection;
-        _activeEnterpriseContext = {
-          ...selection.enterpriseContext,
-          'selectedObject': <String, Object?>{
-            'workspaceSlug': 'plp-boracay',
-            'assistant': 'alfred',
-            'organizationId': entry.organizationId,
-            'entryId': entry.entryId,
-          },
-          'organization': <String, Object?>{
-            'id': entry.organizationId,
-            'propertyId': entry.propertyId,
-            'propertySlug': workspace.key,
-          },
-        };
+        _activeEnterpriseContext = _clientContext(selection);
       });
       nextRuntime = null;
-      _clientExpiry?.cancel();
-      _clientExpiry = Timer(
-        entry.expiresAt.difference(DateTime.now()),
-        () => unawaited(_returnToPandora(expired: true)),
-      );
-      _clientValidation?.cancel();
-      _clientValidation = Timer.periodic(const Duration(seconds: 30),
-          (_) => unawaited(_validateClientEntry()));
+      _scheduleEntryValidation(entry);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         previous?.dispose();
         if (mounted) unawaited(_refreshHistory());
@@ -1021,17 +1167,19 @@ class _PandoraChatShellState extends State<PandoraChatShell>
   }
 
   Future<void> _returnToPandora({bool expired = false}) async {
-    if (_clientEntry == null) return;
+    if (!_inClientWorkspace) return;
     if (!expired && !_canChangeScope) {
       _showThreadMessage(
           'Finish or reconcile the current client action before returning.');
       return;
     }
-    _switchingScope = true;
+    setState(() => _switchingScope = true);
     final previous = _clientRuntime;
     final closingEntry = _clientEntry;
     try {
-      await PandoraLocalAi.instance.resetConversation().timeout(const Duration(seconds: 3));
+      await PandoraLocalAi.instance
+          .resetConversation()
+          .timeout(const Duration(seconds: 3));
     } catch (_) {
       if (!expired) {
         _switchingScope = false;
@@ -1040,6 +1188,20 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       }
     }
     if (!mounted) return;
+    if (widget.memberWorkspace != null) {
+      _scopeEpoch++;
+      _clientExpiry?.cancel();
+      _clientValidation?.cancel();
+      final entry = _clientEntry;
+      final gateway = _coreGateway;
+      if (entry != null && gateway is PandoraCoreEntryGateway) {
+        unawaited((gateway as PandoraCoreEntryGateway)
+            .leaveClient(entry.entryId)
+            .catchError((Object _) {}));
+      }
+      widget.onLeaveMemberWorkspace?.call();
+      return;
+    }
     _clientExpiry?.cancel();
     _clientValidation?.cancel();
     final gateway = _coreGateway;
@@ -1112,7 +1274,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
 
   void _selectClientHome() {
     final selection = _activeWorkspaceSelection;
-    if (_clientEntry == null || selection == null) return;
+    if (!_inClientWorkspace || selection == null) return;
     _openWorkspace(EnterpriseWorkspaceSelection(
       workspace: selection.workspace,
       section: selection.workspace.sections.first,
@@ -1129,7 +1291,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
             child: Row(children: [
               Expanded(
                 child: Text(
-                  'Viewing ${_clientEntry!.displayName} as Pandora Administrator',
+                  _clientEntry != null
+                      ? 'Viewing $_workspaceName as Pandora Administrator'
+                      : _workspaceName,
                   style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ),
@@ -1139,8 +1303,11 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                 onPressed: _switchingScope
                     ? null
                     : () => unawaited(_returnToPandora()),
-                child: const Text('Return to Pandora',
-                    style: TextStyle(fontSize: 11)),
+                child: Text(
+                    widget.memberWorkspace == null
+                        ? 'Return to Pandora'
+                        : 'Workspaces',
+                    style: const TextStyle(fontSize: 11)),
               ),
             ]),
           ),
@@ -1156,7 +1323,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           controller: _drawerScrollController,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
           children: [
-            Text(_clientEntry!.displayName,
+            Text(_workspaceName,
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 19,
@@ -1176,9 +1343,17 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                       workspace: selection.workspace, section: section)),
                 ),
             const Divider(),
+            if (widget.memberWorkspace != null)
+              ListTile(
+                  leading: const Icon(Icons.logout_rounded),
+                  title: const Text('Sign out'),
+                  onTap: () => unawaited(widget.onMemberSignOut?.call() ??
+                      _activeDependencies.auth.signOut())),
             ListTile(
               leading: const Icon(Icons.arrow_back_rounded),
-              title: const Text('Return to Pandora'),
+              title: Text(widget.memberWorkspace == null
+                  ? 'Return to Pandora'
+                  : 'My workspaces'),
               onTap: () => unawaited(_returnToPandora()),
             ),
           ],
@@ -1241,7 +1416,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     );
   }
 
-  Widget _sidePanel() => _clientEntry != null
+  Widget _sidePanel() => _inClientWorkspace
       ? _clientSidePanel()
       : _PandoraSidePanel(
           scrollController: _drawerScrollController,
@@ -1270,6 +1445,21 @@ class _PandoraChatShellState extends State<PandoraChatShell>
         data: _theme(Theme.of(context)),
         child: LayoutBuilder(
           builder: (context, constraints) {
+            if (_scopeInitializationFailure != null) {
+              return Scaffold(
+                  body: SafeArea(
+                      child: Center(
+                          child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text(_scopeInitializationFailure!.message),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                      onPressed: widget.onLeaveMemberWorkspace,
+                      child: const Text('My workspaces')),
+                ]),
+              ))));
+            }
             final body = IndexedStack(
               index: _index,
               children: [
@@ -1301,18 +1491,34 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                 onHome: () => _select(9),
                 enterpriseContext: _conversationContextForCurrentSurface(),
                 shellOverlay: true,
+                initialHistoryExpanded: _chatVisible,
                 onCoreNavigate: _handleCoreNavigation,
               ),
             );
 
             final clientRuntime = _clientRuntime;
             if (clientRuntime != null) {
-              activeChat = clientRuntime.wrap(activeChat);
+              activeChat = clientRuntime.wrap(NavigatorPopHandler(
+                onPopWithResult: (_) => unawaited(
+                    _clientNavigatorKey.currentState?.maybePop() ??
+                        Future<bool>.value(false)),
+                child: Navigator(
+                  key: _clientNavigatorKey,
+                  pages: [
+                    MaterialPage<void>(
+                        key: ValueKey('client-surface-$_scopeEpoch'),
+                        child: activeChat)
+                  ],
+                  onDidRemovePage: (_) {},
+                ),
+              ));
             }
-            if (_clientEntry != null) {
+            if (_inClientWorkspace) {
               activeChat = Column(children: [
                 _clientBanner(),
-                Expanded(child: activeChat),
+                Expanded(
+                    child: AbsorbPointer(
+                        absorbing: _switchingScope, child: activeChat)),
               ]);
             }
 

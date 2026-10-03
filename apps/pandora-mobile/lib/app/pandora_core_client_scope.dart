@@ -27,6 +27,9 @@ class PandoraClientRuntime {
       Supabase.instance.client,
       localStore: store,
       organizationId: organizationId,
+      // The application's global handlers are installed once at launch. A
+      // tenant transition must not retain handlers closed over previous scopes.
+      installGlobalErrorHandling: false,
     );
     return PandoraClientRuntime(
       dependencies: PandoraDependencies(
@@ -75,6 +78,7 @@ class PandoraClientEntry {
     required this.workspaceType,
     required this.displayName,
     required this.expiresAt,
+    this.adapter = 'plp_v1',
   });
 
   final String entryId;
@@ -83,6 +87,7 @@ class PandoraClientEntry {
   final String workspaceType;
   final String displayName;
   final DateTime expiresAt;
+  final String adapter;
 
   factory PandoraClientEntry.verify(
     PandoraCoreRecord receipt, {
@@ -93,11 +98,14 @@ class PandoraClientEntry {
     final organization = coreText(receipt['organization_id'], '');
     final type = coreText(receipt['workspace_type'], '');
     final expiry = DateTime.tryParse(coreText(receipt['expires_at'], ''));
+    final adapter = coreText(receipt['adapter'] ?? receipt['adapter_key'],
+        type == 'plp' ? 'plp_v1' : '');
     if (entryId.isEmpty ||
         organization.isEmpty ||
         requestedOrganizationId.trim().isEmpty ||
         organization != requestedOrganizationId ||
         type.isEmpty ||
+        !const {'enterprise_core_v1', 'plp_v1'}.contains(adapter) ||
         expiry == null ||
         !expiry.isAfter(now ?? DateTime.now())) {
       throw const PandoraCoreFailure(
@@ -114,6 +122,7 @@ class PandoraClientEntry {
       workspaceType: type,
       displayName: coreText(receipt['display_name'], 'Client workspace'),
       expiresAt: expiry,
+      adapter: adapter,
     );
   }
 }

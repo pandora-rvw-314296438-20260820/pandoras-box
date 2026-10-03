@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../pandora_config.dart';
+import '../data/pandora_enterprise_api.dart';
 import 'pandora_session_storage.dart';
 
 class PandoraAuthFailure implements Exception {
@@ -103,7 +103,7 @@ abstract interface class PandoraAuth {
 
   Future<void> signInWithFacebook();
 
-  /// Checks active owner/admin membership under the database RLS policy.
+  /// Checks explicit global Pandora operator authority on the server.
   Future<bool> hasActiveOwnerAccess();
 
   Future<void> signOut();
@@ -122,14 +122,16 @@ String? _workspacePresentationProfile(User user) {
 }
 
 class SupabasePandoraAuth
-    implements PandoraAuth, ExtraIdentityVerificationSource {
+    implements
+        PandoraAuth,
+        ExtraIdentityVerificationSource,
+        PandoraWorkspaceAccessSource {
   SupabasePandoraAuth(
     this._client, {
     String? organizationId,
-  }) : _organizationId = organizationId ?? PandoraConfig.organizationId;
+  });
 
   final SupabaseClient _client;
-  final String _organizationId;
 
   @override
   PandoraSession? get currentSession {
@@ -203,18 +205,13 @@ class SupabasePandoraAuth
 
   @override
   Future<bool> hasActiveOwnerAccess() async {
-    final userId = _client.auth.currentSession?.user.id;
-    if (userId == null) return false;
-    final membership = await _client
-        .from('memberships')
-        .select('role')
-        .eq('organization_id', _organizationId)
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .maybeSingle();
-    final role = membership?['role'];
-    return role == 'owner' || role == 'admin';
+    if (_client.auth.currentSession == null) return false;
+    return (await loadWorkspaceAccess()).operatorMode;
   }
+
+  @override
+  Future<PandoraWorkspaceAccess> loadWorkspaceAccess() =>
+      SupabasePandoraEnterpriseGateway(client: _client).loadWorkspaceAccess();
 
   @override
   Future<void> requestPasswordReset(String email) async {

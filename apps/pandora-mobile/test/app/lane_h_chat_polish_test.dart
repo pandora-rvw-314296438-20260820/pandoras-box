@@ -4,64 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
-import 'package:pandora_mobile/core/data/pandora_repository.dart';
+import 'package:pandora_mobile/core/data/pandora_intelligence_api.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
-import 'package:pandora_mobile/core/models/pandora_models.dart';
-import 'package:pandora_mobile/core/network/pandora_api_error.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
 
+import '../helpers/fake_chat_intelligence.dart';
 import '../helpers/fake_owner_api.dart';
 import '../helpers/test_app.dart';
 
-class _PendingChatRepository extends FakeRepository {
-  final Completer<IntakeReceipt> pending = Completer<IntakeReceipt>();
-
-  @override
-  Future<IntakeReceipt> ask({
-    required String message,
-    String? projectId,
-    String? idempotencyKey,
-  }) =>
-      pending.future;
-
-  void complete() {
-    if (pending.isCompleted) return;
-    pending.complete(
-      const IntakeReceipt(
-        reply: 'Done.',
-        needsApproval: false,
-        actionId: 'lane-h-pending',
-        status: IntakeStatus(
-          whatChanged: 'Reply returned.',
-          whereWeAre: 'Conversation',
-          whatIsDone: 'Reply returned.',
-          whatIsHappeningNow: 'Idle.',
-          whatIWillDoNext: 'Wait.',
-        ),
-      ),
-    );
-  }
-}
-
-class _FailingChatRepository extends FakeRepository {
-  @override
-  Future<IntakeReceipt> ask({
-    required String message,
-    String? projectId,
-    String? idempotencyKey,
-  }) async {
-    throw const PandoraRepositoryException(
-      kind: PandoraApiErrorKind.unavailable,
-      message: 'Please sign in again.',
-      code: 'sign_in_required',
-    );
-  }
-}
-
 Future<void> _mount(
   WidgetTester tester, {
-  FakeRepository? repository,
+  PandoraIntelligenceApi? intelligence,
 }) async {
   PandoraLocalAiPreference.setCachedForTesting(false);
   addTearDown(PandoraLocalAiPreference.resetForTesting);
@@ -71,7 +25,8 @@ Future<void> _mount(
       themeMode: ThemeMode.dark,
       child: PandoraDependencies(
         auth: const FakeAuth(),
-        repository: repository ?? FakeRepository(),
+        repository: FakeRepository(),
+        intelligence: intelligence ?? FakeChatIntelligence(),
         diagnostics: DiagnosticsStore(),
         child: const PandoraChatShell(),
       ),
@@ -87,8 +42,7 @@ void main() {
     addTearDown(tester.view.resetViewInsets);
     final objective =
         find.byKey(const ValueKey<String>('ask-pandora-objective'));
-    final composer =
-        find.byKey(const ValueKey<String>('ask-pandora-composer'));
+    final composer = find.byKey(const ValueKey<String>('ask-pandora-composer'));
     await tester.tap(objective);
     tester.view.viewInsets = const FakeViewPadding(bottom: 320);
     await tester.pumpAndSettle();
@@ -113,7 +67,11 @@ void main() {
 
   testWidgets('A3 failed send survives keyboard dismissal with Retry',
       (tester) async {
-    await _mount(tester, repository: _FailingChatRepository());
+    await _mount(tester,
+        intelligence: FakeChatIntelligence(
+          startFailure:
+              const PandoraIntelligenceException('Please sign in again.'),
+        ));
     addTearDown(tester.view.resetViewInsets);
     final objective =
         find.byKey(const ValueKey<String>('ask-pandora-objective'));
@@ -122,7 +80,9 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey<String>('ask-pandora-submit')),
     );
-    for (var i = 0; i < 40 && find.text('Please sign in again.').evaluate().isEmpty; i++) {
+    for (var i = 0;
+        i < 40 && find.text('Please sign in again.').evaluate().isEmpty;
+        i++) {
       await tester.pump(const Duration(milliseconds: 25));
     }
 
@@ -146,35 +106,52 @@ void main() {
     );
   });
 
-  testWidgets('A4 send shows immediate thinking feedback', (tester) async {
-    final repository = _PendingChatRepository();
-    await _mount(tester, repository: repository);
+  testWidgets('A4 operational send shows immediate thinking feedback',
+      (tester) async {
+    final pending = Completer<PandoraIntelligenceTurn>();
+    final activity = StreamController<Map<String, dynamic>>();
+    final intelligence = FakeChatIntelligence(
+        onReply: (_) => pending.future, events: activity.stream);
+    await _mount(tester, intelligence: intelligence);
     final objective =
         find.byKey(const ValueKey<String>('ask-pandora-objective'));
     await tester.tap(objective);
-    await tester.enterText(objective, 'Hello');
+    await tester.enterText(objective, 'Inspect current customer connections');
     await tester.tap(
       find.byKey(const ValueKey<String>('ask-pandora-submit')),
     );
     await tester.pump();
 
-    expect(find.text('Hello'), findsOneWidget);
+    expect(find.text('Inspect current customer connections'), findsOneWidget);
     expect(find.text('Thinking through the request…'), findsOneWidget);
 
-    repository.complete();
+    expect(
+        (intelligence.lastEnterpriseContext?['selectedObject']
+            as Map?)?['coreMode'],
+        'owner');
+    pending.complete(const PandoraIntelligenceTurn(
+      threadId: 'fixture-pending-thread',
+      reply: 'Done.',
+      intent: 'conversation',
+      confidence: 1,
+      needsClarification: false,
+    ));
     for (var i = 0; i < 40 && find.text('Done.').evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 25));
     }
     expect(find.text('Done.'), findsOneWidget);
+    await activity.close();
   });
 
-  testWidgets('A5 landing sends no invalid enterprise page context banner',
-      (tester) async {
+  testWidgets('A5 owner landing carries explicit Core context', (tester) async {
     await _mount(tester);
     final screen = tester.widget<AskPandoraScreen>(
       find.byType(AskPandoraScreen),
     );
-    expect(screen.enterpriseContext, isNull);
+    expect(screen.enterpriseContext?['route'], '/enterprise/core/home');
+    expect(screen.enterpriseContext?['identityScope'], 'pandora_organization');
+    expect((screen.enterpriseContext?['selectedObject'] as Map?)?['coreMode'],
+        'owner');
     final state = tester.state<AskPandoraScreenState>(
       find.byType(AskPandoraScreen),
     );
