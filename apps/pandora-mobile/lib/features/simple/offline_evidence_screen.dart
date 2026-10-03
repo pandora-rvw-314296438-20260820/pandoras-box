@@ -71,9 +71,8 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
       _error = null;
     });
 
-    final cacheSource = repo is ReadOnlyEvidenceCacheSource
-        ? repo as ReadOnlyEvidenceCacheSource
-        : null;
+    final ReadOnlyEvidenceCacheSource? cacheSource =
+        repo is ReadOnlyEvidenceCacheSource ? repo : null;
     final reads = <_EvidenceRead?>[
       _EvidenceRead.fromSnapshotOrNull(cacheSource?.cachedProjects),
       _EvidenceRead.fromSnapshotOrNull(cacheSource?.cachedConnections),
