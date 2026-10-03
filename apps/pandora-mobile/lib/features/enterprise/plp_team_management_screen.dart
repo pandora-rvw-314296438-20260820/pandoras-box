@@ -372,15 +372,10 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+        padding: const EdgeInsets.fromLTRB(18, 8, 10, 8),
         child: Row(
           children: [
-            IconButton(
-              key: const ValueKey<String>('plp-team-management-back'),
-              onPressed: onBack,
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 56),
             const Expanded(
               child: Text(
                 'TEAM & ACCESS',
@@ -399,8 +394,16 @@ class _Header extends StatelessWidget {
             IconButton(
               key: const ValueKey<String>('plp-team-management-refresh'),
               onPressed: onRefresh,
+              tooltip: 'Refresh team',
               color: _PlpTeamManagementScreenState._ink,
               icon: const Icon(Icons.refresh_rounded),
+            ),
+            IconButton(
+              key: const ValueKey<String>('plp-team-management-back'),
+              onPressed: onBack,
+              tooltip: 'Back',
+              color: _PlpTeamManagementScreenState._ink,
+              icon: const Icon(Icons.arrow_back_rounded),
             ),
           ],
         ),
