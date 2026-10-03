@@ -372,26 +372,26 @@ class _PandoraModelPickerOverlayState extends State<PandoraModelPickerOverlay> {
           ),
           if (!widget.compactLeftAnchored)
             IgnorePointer(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                height: 400,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: <Color>[
-                      Color(0x00000000),
-                      Color(0x47000000),
-                      Color(0x9E000000),
-                      Color(0xC7000000),
-                    ],
-                    stops: <double>[0, .30, .62, 1],
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  height: 400,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: <Color>[
+                        Color(0x00000000),
+                        Color(0x47000000),
+                        Color(0x9E000000),
+                        Color(0xC7000000),
+                      ],
+                      stops: <double>[0, .30, .62, 1],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
           Positioned(
             left: widget.compactLeftAnchored ? 14 : null,
             right: widget.compactLeftAnchored ? null : 74.5,
