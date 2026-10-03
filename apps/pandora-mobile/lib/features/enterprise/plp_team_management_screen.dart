@@ -42,6 +42,7 @@ class _PlpTeamManagementScreenState extends State<PlpTeamManagementScreen> {
   List<PandoraTeamMember> _members = const <PandoraTeamMember>[];
   PandoraUserAdminFailure? _failure;
   bool _loading = true;
+  bool _membersResolved = false;
   bool _refreshing = false;
   bool _mutating = false;
   bool _initialInviteOpened = false;
@@ -83,6 +84,7 @@ class _PlpTeamManagementScreenState extends State<PlpTeamManagementScreen> {
       setState(() {
         _organization = selected;
         _members = members;
+        _membersResolved = true;
       });
     } on PandoraUserAdminFailure catch (failure) {
       if (!mounted) return;
@@ -237,7 +239,7 @@ class _PlpTeamManagementScreenState extends State<PlpTeamManagementScreen> {
   Widget build(BuildContext context) {
     final active = _members.where((member) => member.isActive).length;
     final invited = _members.where((member) => member.isInvited).length;
-    final resolved = !_loading && _failure == null && _organization != null;
+    final resolved = _membersResolved;
     final activeValue = resolved
         ? '$active'
         : (widget.initialActiveCount?.toString() ?? '—');

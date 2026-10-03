@@ -187,6 +187,18 @@ const _bootstrap = <String, Object?>{
       },
     ],
   },
+  'verifiedActivity': <String, Object?>{
+    'items': <Object?>[
+      <String, Object?>{
+        'id': 'production-transfer',
+        'title': 'Transfer confirmed',
+        'sourceLabel': 'Resort operations',
+        'audience': 'team',
+        'occurredAt': '2026-10-01T06:30:00Z',
+        'isMock': false,
+      },
+    ],
+  },
   'teamAccess': <String, Object?>{
     'activeMemberCount': 2,
     'staffIdentityCount': 2,
@@ -267,6 +279,26 @@ Future<void> _tapVisibleText(WidgetTester tester, String label) async {
 }
 
 void main() {
+  testWidgets('Activity feed shares production history and Android Back restores its parent',
+      (tester) async {
+    await _mountOwnerShell(tester);
+    await _openSection(tester, 'activity');
+    await tester.pumpAndSettle();
+    expect(find.text('Transfer confirmed'), findsOneWidget);
+    await _tapVisibleText(tester, 'Open verified activity feed');
+    expect(find.byKey(const ValueKey('plp-activity-light-page')), findsOneWidget);
+    expect(find.text('Transfer confirmed'), findsOneWidget);
+    final field = tester.widget<TextField>(
+        find.byKey(const ValueKey('plp-command-field')));
+    expect(field.decoration?.hintText, 'Ask about activity or audit…');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('plp-resort-activity')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-activity-light-page')), findsNothing);
+    expect(find.text('Transfer confirmed'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('owner can traverse every primary resort workspace from fixed navigation', (tester) async {
     await _mountOwnerShell(tester);
 

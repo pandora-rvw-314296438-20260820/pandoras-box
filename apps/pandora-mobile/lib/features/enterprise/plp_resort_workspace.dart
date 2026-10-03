@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'plp_activity_read_model.dart';
+
 class PlpResortSection {
   const PlpResortSection({
     required this.id,
@@ -177,10 +179,13 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   }
 
   bool get _cachedOperationalSnapshot =>
-      bootstrap['offlineBootstrap'] == true;
+      bootstrap['offlineBootstrap'] == true &&
+      bootstrap['cachedOperationalDataAvailable'] == true;
 
   bool get _operationalSnapshotAvailable =>
-      _liveOperationalDataAvailable || _cachedOperationalSnapshot;
+      bootstrap['offlineBootstrap'] == true
+          ? _cachedOperationalSnapshot
+          : _liveOperationalDataAvailable;
 
   List<Widget> _sourceContextPrelude() {
     if (!_cachedOperationalSnapshot) return const <Widget>[];
@@ -989,7 +994,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final rawActivity = bootstrap['verifiedActivity'];
     final loaded = rawActivity is Map;
     final verified = loaded
-        ? _clientRecords(_maps(_map(rawActivity)['items']))
+        ? plpProductionActivityRecords(_map(rawActivity)['items'])
         : const <Map<String, Object?>>[];
     final rows = verified
         .map(
@@ -1009,7 +1014,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         action: rows.isNotEmpty ? rows.length.toString() : null,
       ),
       const SizedBox(height: 8),
-      if (!loaded)
+      if (!loaded && bootstrap['verifiedActivityLoading'] == true)
+        const _EmptyState('Loading verified activity…')
+      else if (!loaded)
         const _EmptyState(
           'Verified resort activity is temporarily unavailable. Refresh or open the activity feed to try again.',
         )
@@ -2091,7 +2098,7 @@ class _SourceRecoveryPanel extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             Text(
-              affectedArea + ' · ' + source + ' · ' + _humanStatus(state),
+              source + ' · ' + _humanStatus(state),
               style: const TextStyle(
                 color: PlpResortWorkspaceScreen.accent,
                 fontSize: 10.5,
