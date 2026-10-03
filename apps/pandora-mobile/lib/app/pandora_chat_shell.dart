@@ -178,6 +178,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     final scaffold = _scaffoldKey.currentState;
     if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
     if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
+    if (value != 0) _chatKey.currentState?.minimizeHistory();
     if (value == _index) return;
     HapticFeedback.selectionClick();
     setState(() {
@@ -484,6 +485,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       _visited.add(0);
     });
     _select(0);
+    _chatKey.currentState?.minimizeHistory();
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.screenViewed,
@@ -538,43 +540,50 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     );
   }
 
-  Map<String, Object?> _conversationContextForCurrentSurface() {
-    if (_index == 0 && _activeEnterpriseContext != null) {
-      final context = Map<String, Object?>.from(_activeEnterpriseContext!);
-      final selected = context['selectedObject'];
-      context['selectedObject'] = <String, String>{
-        if (selected is Map)
-          for (final entry in selected.entries)
-            entry.key.toString(): entry.value.toString(),
-        ..._surfaceSelectedObject,
-      };
-      return context;
+  Map<String, Object?>? _conversationContextForCurrentSurface() {
+    if (_index != 0 || _activeEnterpriseContext == null) return null;
+    final context = Map<String, Object?>.from(_activeEnterpriseContext!);
+    final selected = context['selectedObject'];
+    context['selectedObject'] = <String, String>{
+      if (selected is Map)
+        for (final entry in selected.entries)
+          entry.key.toString(): entry.value.toString(),
+      ..._surfaceSelectedObject,
+    };
+    const allowedSurfaces = <String>{
+      'enterprise_overview',
+      'enterprise_app_users',
+      'enterprise_data',
+      'enterprise_analytics',
+      'enterprise_marketing',
+      'enterprise_domains',
+      'enterprise_integrations',
+      'enterprise_security',
+      'enterprise_code',
+      'enterprise_agents',
+      'enterprise_workflows',
+      'enterprise_logs',
+      'enterprise_api',
+      'enterprise_settings',
+      'enterprise_mcp',
+      'enterprise_operations_room',
+      'enterprise_tax',
+    };
+    const allowedScopes = <String>{
+      'enterprise_workspace',
+      'pandora_organization',
+      'plp_staff',
+    };
+    final surface = context['surface']?.toString().trim();
+    final route = context['route']?.toString().trim();
+    final scope = context['identityScope']?.toString().trim();
+    if (!allowedSurfaces.contains(surface) ||
+        route == null ||
+        !route.startsWith('/enterprise/') ||
+        !allowedScopes.contains(scope)) {
+      return null;
     }
-    final route = switch (_index) {
-      1 => '/projects',
-      2 => '/needs-you',
-      3 => '/settings-more',
-      4 => '/activity',
-      5 => '/connections',
-      6 => '/saved-evidence',
-      7 => '/verify-safety',
-      8 => '/operations-room',
-      9 => '/home',
-      10 => '/enterprise/vision-intelligence',
-      11 => '/capabilities-providers',
-      _ => '/home',
-    };
-    return <String, Object?>{
-      'surface': 'pandora_business_os',
-      'route': route,
-      'capabilities': const <String>[],
-      'identityScope': 'owner_workspace',
-      'selectedObject': <String, String>{
-        'screen': _destinations[_index].label,
-        'destinationIndex': _index.toString(),
-        ..._surfaceSelectedObject,
-      },
-    };
+    return context;
   }
 
   Widget _root(int index) => _roots.putIfAbsent(
