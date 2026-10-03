@@ -390,6 +390,10 @@ jobs:
             python3 apps/pandora-mobile/tool/capture_plp_android_ui.py \
               --adb "$adb" --serial "$serial" --phase "$1" --output "$2"
           }
+          wait_for_drawn_ui() {
+            python3 apps/pandora-mobile/tool/wait_for_plp_android_ready.py \
+              --adb "$adb" --serial "$serial" --output "$1"
+          }
 
           timeout 120s "$adb" -s "$serial" install -r "$apk"
           timeout 30s "$adb" -s "$serial" install -r \
@@ -401,14 +405,16 @@ jobs:
 
           pid="$(adb_call shell pidof "$pkg" | tr -d '\r')"
           test -n "$pid"
-          adb_call shell dumpsys activity activities > "$evidence/activity-launch.txt"
-          grep -Fq "$pkg" "$evidence/activity-launch.txt"
-
-          # Preserve the actual screen even when a semantic assertion fails.
+          # A resumed activity can still be covered by its launch splash.
+          # Preserve that observation, then require a stably drawn PLP window.
+          adb_call exec-out screencap -p > "$evidence/launch.png"
+          wait_for_drawn_ui "$evidence/launch-readiness.json"
           adb_call exec-out screencap -p > "$evidence/sign-in.png"
           capture_ui sign-in "$evidence/sign-in.xml" > "$evidence/sign-in-tap.txt"
+          # Recheck after the separate native capture session has ended.
+          wait_for_drawn_ui "$evidence/pre-submit-readiness.json"
 
-          # Empty-submit validation on the actual installed APK.
+          # One empty submit; exact native validation remains mandatory.
           read -r tap_x tap_y < "$evidence/sign-in-tap.txt"
           adb_call shell input tap "$tap_x" "$tap_y"
           sleep 1
@@ -433,7 +439,7 @@ jobs:
           # therefore remain on sign-in and must not invent a session.
           adb_call shell am force-stop "$pkg"
           adb_call shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null
-          sleep 3
+          wait_for_drawn_ui "$evidence/restart-readiness.json"
           adb_call exec-out screencap -p > "$evidence/restart.png"
           capture_ui restart "$evidence/restart.xml"
 
@@ -458,6 +464,7 @@ jobs:
             echo "launch_verified=true"
             echo "sign_in_semantics_verified=true"
             echo "native_hint_capture_verified=true"
+            echo "drawn_window_readiness_verified=true"
             echo "empty_submit_validation_verified=true"
             echo "background_foreground_verified=true"
             echo "rotation_verified=true"
