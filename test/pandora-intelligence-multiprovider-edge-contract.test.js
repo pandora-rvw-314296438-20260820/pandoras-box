@@ -5,6 +5,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
 const edge=fs.readFileSync(path.join(root,'supabase/functions/pandora-intelligence-chat/index.ts'),'utf8');
+const modelRouting=fs.readFileSync(path.join(root,'supabase/functions/pandora-intelligence-chat/model-routing.ts'),'utf8');
 const config=fs.readFileSync(path.join(root,'supabase/migrations/20260901202428_chat_c_kimi_runtime_provider_config_v1.sql'),'utf8');
 const routing=fs.readFileSync(path.join(root,'supabase/migrations/20260901202441_chat_c_edge_runtime_convergence_v1.sql'),'utf8');
 const failoverRollout=fs.readFileSync(path.join(root,'supabase/migrations/20260906145500_provider_auto_failover_v2.sql'),'utf8');
@@ -34,6 +35,11 @@ test('provider choice is server-owned and provider eligibility fails closed',()=
   must(edge,'nextGeminiModels(geminiModel).filter((m:string)=>gcfg.allowedModels.includes(m))');
   must(edge,'rp==="gemini"&&geminiOk&&gcfg.allowedModels.includes(rm)');
   must(edge,'planChatModelCandidates');
+  must(edge,'prioritizeProviderDiversity(routePlan.candidates,6)');
+  must(modelRouting,'export function prioritizeProviderDiversity');
+  must(modelRouting,'const seen=new Set<string>()');
+  must(modelRouting,'return[...first,...remainder].slice(0,limit)');
+  mustNot(edge,'routePlan.candidates.slice(0,6)');
   mustNot(edge,'const list=candidates(');
   must(edge,'cfg.enabled&&cfg.routingEligible');
   must(config,"('kimi','enabled','false',true,now())");
@@ -47,7 +53,7 @@ test('fallback and sticky recovery are bounded explicit and classified',()=>{
   must(edge,'pandora_recover_intelligence_thread_route_v1');
   must(edge,'recoveryEpoch');
   must(edge,'fallbackUsed');
-  must(edge,'.slice(0,6)');
+  must(edge,'prioritizeProviderDiversity(routePlan.candidates,6)');
   must(edge,'crossProviderEligible:true');
   must(edge,'authentication_failed",false,true');
   must(edge,'invalid_request",false,false');
