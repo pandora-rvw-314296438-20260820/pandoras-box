@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
@@ -12,6 +13,24 @@ void main() {
   testWidgets('PLP chat preserves exact e7c2dc08 visible baseline',
       (tester) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('pandora/local_ai'),
+      (call) async => call.method == 'status'
+          ? <String, Object?>{
+              'supported': false,
+              'configured': false,
+              'loaded': false,
+            }
+          : null,
+    );
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('pandora/local_ai'),
+        null,
+      ),
+    );
     await tester.pumpWidget(
       testApp(
         themeMode: ThemeMode.dark,
@@ -32,6 +51,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 801));
     await tester.pump();
 
     expect(

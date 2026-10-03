@@ -26,21 +26,40 @@ test('approved Obsidian palette is native Flutter dark UI', () => {
 });
 
 test('chat landing is logo-only with a bare borderless always-live composer', () => {
-  assert.match(chat, /pandora-logo-only-landing/);
-  assert.match(chat, /size:\s*28/);
+  const emptyStart = chat.indexOf('class _EmptyConversation extends StatelessWidget');
+  const conversationStart = chat.indexOf('class _Conversation extends StatefulWidget', emptyStart);
+  const composerStart = chat.indexOf('class _Composer extends StatelessWidget');
+  const compactMenuStart = chat.indexOf('class _CompactAttachmentMenu extends StatelessWidget', composerStart);
+  assert.ok(emptyStart >= 0 && conversationStart > emptyStart);
+  assert.ok(composerStart >= 0 && compactMenuStart > composerStart);
+  const genericLanding = chat.slice(emptyStart, conversationStart);
+  const genericComposer = chat.slice(composerStart, compactMenuStart);
+
+  assert.match(genericLanding, /pandora-logo-only-landing/);
+  assert.match(genericLanding, /size:\s*28/);
   assert.doesNotMatch(
-    chat,
+    genericLanding,
     /What can I help with|Ask a question, describe a change|_suggestions|_ObsidianSuggestion/,
   );
-  assert.match(chat, /Message Pandora…/);
-  assert.match(chat, /height:\s*54/);
-  assert.match(chat, /Color\(0xFF151515\)/);
-  assert.match(chat, /BorderRadius\.circular\(27\)/);
-  assert.match(chat, /ask-pandora-composer/);
-  assert.match(chat, /final voiceReady =\s*!submitting && empty/);
-  assert.match(chat, /tooltip: voiceReady[\s\S]*?'Voice input'[\s\S]*?'Send'/);
-  assert.doesNotMatch(chat, /backgroundColor:\s*Colors\.white/);
+  assert.match(genericComposer, /Message Pandora…/);
+  assert.match(genericComposer, /height:\s*54/);
+  assert.match(genericComposer, /Color\(0xFF151515\)/);
+  assert.match(genericComposer, /BorderRadius\.circular\(27\)/);
+  assert.match(genericComposer, /ask-pandora-composer/);
+  assert.match(genericComposer, /final voiceReady =\s*!submitting && empty/);
+  assert.match(genericComposer, /tooltip: voiceReady[\s\S]*?'Voice input'[\s\S]*?'Send'/);
+  assert.doesNotMatch(genericComposer, /backgroundColor:\s*Colors\.white/);
   assert.doesNotMatch(chat, /WebView|InAppWebView/);
+});
+
+test('PLP may retain its verified e7 chat presentation without changing generic Core chat', () => {
+  assert.match(chat, /plp-e7-chat-surface/);
+  assert.match(chat, /class _PlpE7Composer/);
+  assert.match(chat, /Icons\.view_in_ar_outlined/);
+  assert.match(chat, /Icons\.mic_none_rounded/);
+  assert.match(chat, /Icons\.arrow_upward_rounded/);
+  assert.match(chat, /ask-pandora-menu-model/);
+  assert.match(chat, /ask-pandora-menu-reasoning/);
 });
 
 test('projects use native Obsidian workspace cards backed by real ProjectSummary data', () => {
