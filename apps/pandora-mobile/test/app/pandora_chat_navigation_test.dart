@@ -366,7 +366,7 @@ void main() {
       expect(rect.left, closeTo(14, .1));
       expect(rect.right, closeTo(390 - 14, .1));
       expect(rect.height, closeTo(54, .1));
-      expect(rect.bottom, closeTo(844 - 24 - 4, .1));
+      expect(rect.bottom, closeTo(844 - 24 - 14, .1));
 
       final clearance = tester.widget<Padding>(
         find.byKey(
@@ -527,7 +527,9 @@ void main() {
       'Start this conversation',
       requestFocus: false,
     );
-    await tester.pumpAndSettle();
+    for (var i = 0; i < 40 && find.text('Conversation started.').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+    }
     expect(find.text('Start this conversation'), findsOneWidget);
     expect(repository.lastMessage, 'Start this conversation');
 

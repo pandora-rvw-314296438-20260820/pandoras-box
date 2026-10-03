@@ -2735,7 +2735,7 @@ class _Composer extends StatelessWidget {
         top: false,
         minimum: const EdgeInsets.only(bottom: 4),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

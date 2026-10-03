@@ -81,6 +81,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       const <PandoraIntelligenceThread>[];
   bool _historyLoading = false;
   bool _historyLoaded = false;
+  bool _chatVisible = true;
   int _index = 0;
   final _drawerScrollController = ScrollController();
   final _recentChatsScrollController = ScrollController();
@@ -178,7 +179,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     final scaffold = _scaffoldKey.currentState;
     if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
     if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
-    if (value != 0) _chatKey.currentState?.minimizeHistory();
+    if (value != 0) {
+      _chatKey.currentState?.minimizeHistory();
+      if (_chatVisible) setState(() => _chatVisible = false);
+    }
     if (value == _index) return;
     HapticFeedback.selectionClick();
     setState(() {
@@ -214,12 +218,14 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     final scaffold = _scaffoldKey.currentState;
     if (scaffold?.isDrawerOpen ?? false) scaffold?.closeDrawer();
     if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
+    if (!_chatVisible) setState(() => _chatVisible = true);
     _chatKey.currentState?.showHistory();
   }
 
   void _newChat() {
     final chat = _chatKey.currentState;
     if (chat == null) return;
+    if (!_chatVisible) setState(() => _chatVisible = true);
     chat.newChat();
     chat.showHistory();
     unawaited(_refreshHistory());
@@ -231,6 +237,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     if (scaffold?.isEndDrawerOpen ?? false) scaffold?.closeEndDrawer();
     final chat = _chatKey.currentState;
     if (chat == null) return;
+    if (!_chatVisible) setState(() => _chatVisible = true);
     chat.showHistory();
     await chat.loadThread(thread.id);
   }
@@ -478,6 +485,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       nextContext['selectedObject'] = selected;
     }
     setState(() {
+      _chatVisible = false;
       _activeEnterpriseContext = nextContext;
       _activeWorkspaceSelection = selection;
       _surfaceSelectedObject = const <String, String>{};
@@ -519,6 +527,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     await WidgetsBinding.instance.endOfFrame;
     final chat = _chatKey.currentState;
     if (chat == null) return null;
+    if (!_chatVisible) setState(() => _chatVisible = true);
     chat.showHistory();
     return chat.submitExternalPrompt(prompt, requestFocus: false);
   }
@@ -526,6 +535,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   Future<void> _openSharedThread(String threadId) async {
     final chat = _chatKey.currentState;
     if (chat == null) return;
+    if (!_chatVisible) setState(() => _chatVisible = true);
     chat.showHistory();
     await chat.loadThread(threadId);
   }
@@ -755,13 +765,16 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
             final activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
-              businessWorkspace: PandoraSharedConversationScope(
-                submitPrompt: _submitSharedPrompt,
-                openThread: _openSharedThread,
-                bindEnterpriseContext: _bindEnterpriseContext,
-                bindSelectedObject: _bindSelectedObject,
-                reportFailure: _reportSharedFailure,
-                child: body,
+              businessWorkspace: Offstage(
+                offstage: _chatVisible,
+                child: PandoraSharedConversationScope(
+                  submitPrompt: _submitSharedPrompt,
+                  openThread: _openSharedThread,
+                  bindEnterpriseContext: _bindEnterpriseContext,
+                  bindSelectedObject: _bindSelectedObject,
+                  reportFailure: _reportSharedFailure,
+                  child: body,
+                ),
               ),
               conversation: AskPandoraScreen(
                 key: _chatKey,

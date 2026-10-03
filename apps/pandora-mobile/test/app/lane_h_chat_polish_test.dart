@@ -119,7 +119,9 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey<String>('ask-pandora-submit')),
     );
-    await tester.pumpAndSettle();
+    for (var i = 0; i < 40 && find.text('Please sign in again.').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+    }
 
     expect(find.text('Hello'), findsOneWidget);
     expect(find.text('Please sign in again.'), findsOneWidget);
@@ -157,7 +159,9 @@ void main() {
     expect(find.text('Thinking through the request…'), findsOneWidget);
 
     repository.complete();
-    await tester.pumpAndSettle();
+    for (var i = 0; i < 40 && find.text('Done.').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+    }
     expect(find.text('Done.'), findsOneWidget);
   });
 
