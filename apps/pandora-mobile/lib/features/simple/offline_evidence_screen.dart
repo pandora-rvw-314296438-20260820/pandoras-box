@@ -74,6 +74,8 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
     final reads = <_EvidenceRead?>[null, null, null];
     var completed = 0;
     var failed = 0;
+    var terminal = false;
+    final done = Completer<void>();
 
     Future<_EvidenceOutcome> read(
       int index,
@@ -88,53 +90,27 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
       }
     }
 
-    final outcomes = Stream<_EvidenceOutcome>.fromFutures([
-      read(
-        0,
-        repo.projects(allowCached: true)
-            .then<RepositorySnapshot<List<Object?>>>((snapshot) =>
-                RepositorySnapshot<List<Object?>>(
-                  data: snapshot.data,
-                  source: snapshot.source,
-                  fetchedAt: snapshot.fetchedAt,
-                  degradedReason: snapshot.degradedReason,
-                )),
-      ),
-      read(
-        1,
-        repo.connections(allowCached: true)
-            .then<RepositorySnapshot<List<Object?>>>((snapshot) =>
-                RepositorySnapshot<List<Object?>>(
-                  data: snapshot.data,
-                  source: snapshot.source,
-                  fetchedAt: snapshot.fetchedAt,
-                  degradedReason: snapshot.degradedReason,
-                )),
-      ),
-      read(
-        2,
-        repo.activity(allowCached: true)
-            .then<RepositorySnapshot<List<Object?>>>((snapshot) =>
-                RepositorySnapshot<List<Object?>>(
-                  data: snapshot.data,
-                  source: snapshot.source,
-                  fetchedAt: snapshot.fetchedAt,
-                  degradedReason: snapshot.degradedReason,
-                )),
-      ),
-    ]);
+    void finish() {
+      if (!done.isCompleted) done.complete();
+    }
 
-    await for (final outcome in outcomes) {
-      if (!mounted || generation != _generation) return;
+    void handle(_EvidenceOutcome outcome) {
+      if (terminal) return;
+      if (!mounted || generation != _generation) {
+        finish();
+        return;
+      }
       completed++;
 
-      final terminal = _terminalEvidenceError(outcome.error);
-      if (terminal != null) {
+      final terminalError = _terminalEvidenceError(outcome.error);
+      if (terminalError != null) {
+        terminal = true;
         setState(() {
           _packet = null;
           _loading = false;
-          _error = terminal;
+          _error = terminalError;
         });
+        finish();
         return;
       }
 
@@ -170,9 +146,51 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
               'Evidence could not be refreshed. Check your connection and try again.';
         });
       }
+
+      if (completed == reads.length) finish();
     }
 
-    if (!mounted || generation != _generation) return;
+    final pending = <Future<_EvidenceOutcome>>[
+      read(
+        0,
+        repo.projects(allowCached: true)
+            .then<RepositorySnapshot<List<Object?>>>((snapshot) =>
+                RepositorySnapshot<List<Object?>>(
+                  data: snapshot.data,
+                  source: snapshot.source,
+                  fetchedAt: snapshot.fetchedAt,
+                  degradedReason: snapshot.degradedReason,
+                )),
+      ),
+      read(
+        1,
+        repo.connections(allowCached: true)
+            .then<RepositorySnapshot<List<Object?>>>((snapshot) =>
+                RepositorySnapshot<List<Object?>>(
+                  data: snapshot.data,
+                  source: snapshot.source,
+                  fetchedAt: snapshot.fetchedAt,
+                  degradedReason: snapshot.degradedReason,
+                )),
+      ),
+      read(
+        2,
+        repo.activity(allowCached: true)
+            .then<RepositorySnapshot<List<Object?>>>((snapshot) =>
+                RepositorySnapshot<List<Object?>>(
+                  data: snapshot.data,
+                  source: snapshot.source,
+                  fetchedAt: snapshot.fetchedAt,
+                  degradedReason: snapshot.degradedReason,
+                )),
+      ),
+    ];
+    for (final future in pending) {
+      unawaited(future.then(handle));
+    }
+
+    await done.future;
+    if (!mounted || generation != _generation || terminal) return;
     setState(() {
       _loading = false;
       if (_packet != null && failed > 0) {
@@ -182,7 +200,6 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
       }
     });
   }
-
   String? _terminalEvidenceError(Object? error) => switch (error) {
         PandoraApiError(kind: PandoraApiErrorKind.sessionExpired) =>
           'Sign in again to view evidence.',

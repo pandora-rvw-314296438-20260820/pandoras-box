@@ -1519,7 +1519,7 @@ void main() {
     await _tap(tester, find.text('Deployments'));
     expect(find.text('Canonical production'), findsOneWidget);
     expect(find.text('Latest candidate'), findsOneWidget);
-    expect(find.text('Deployment ready'), findsNWidgets(2));
+    expect(find.text('Deployed · verification pending'), findsNWidgets(2));
     expect(find.text('READY'), findsNothing);
     expect(find.textContaining('Stale provider evidence'), findsOneWidget);
     expect(find.textContaining('Runtime and user flows not verified'),
@@ -1647,8 +1647,8 @@ void main() {
       };
     await _mount(tester, gateway, section: 'platform');
     await _tap(tester, find.text('Deployments'));
-    expect(find.text('Deployment ready'), findsOneWidget);
-    expect(find.text('Deployment building'), findsOneWidget);
+    expect(find.text('Deployed · verification pending'), findsOneWidget);
+    expect(find.text('Deployment Building'), findsOneWidget);
     expect(find.text('Runtime verified · User flows not verified'),
         findsOneWidget);
     expect(

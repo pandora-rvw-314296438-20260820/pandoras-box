@@ -168,7 +168,7 @@ void main() {
     _expectSystems(2);
     final refresh = _refresh(tester);
     await tester.pump();
-    expect(find.text('Refreshing evidence…'), findsOneWidget);
+    expect(find.text('Refreshing remaining evidence…'), findsOneWidget);
     await tester.pumpWidget(_app(_Repository([nextScope])));
     expect(find.text('Systems'), findsNothing);
     expect(find.text('Loading evidence…'), findsOneWidget);
