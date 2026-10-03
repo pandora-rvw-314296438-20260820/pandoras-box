@@ -2311,7 +2311,10 @@ class _ConversationState extends State<_Conversation> {
       pandoraLatestPresentableActivity(widget.activityEvents);
   bool get _hasMeaningfulActivity =>
       pandoraHasMeaningfulActivity(widget.activityEvents);
-  bool get _hasActivitySlot => widget.thinking;
+  bool get _hasActivitySlot =>
+      widget.thinking &&
+      !widget.activitySuppressed &&
+      (widget.activityRequested || _hasMeaningfulActivity);
 
   int get _renderedItemCount =>
       widget.messages.length +

@@ -12,8 +12,12 @@ test("Lane H keeps non-trivial Activity Theatre available in the global chat she
 
 test("Lane H send path does not block on phone-AI preference IO",()=>{
   assert.match(chat,/unawaited\(PandoraLocalAiPreference\.load\(\)\)/);
-  assert.match(chat,/final localEnabled = PandoraLocalAiPreference\.cachedEnabled/);
-  assert.doesNotMatch(chat,/final localEnabled = await PandoraLocalAiPreference\.load\(\)/);
+  const start=chat.indexOf("Future<bool> _trySubmitLocalAi(");
+  const end=chat.indexOf("bool _looksLikeTeamAdministrationTurn",start);
+  assert.ok(start>=0&&end>start);
+  const local=chat.slice(start,end);
+  assert.match(local,/final localEnabled = PandoraLocalAiPreference\.cachedEnabled/);
+  assert.doesNotMatch(local,/await PandoraLocalAiPreference\.load\(\)/);
 });
 
 test("Characters remains available and selected context stays visible",()=>{
