@@ -10,7 +10,8 @@ sdk_dir="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
 [[ -n "$sdk_dir" ]] || { echo 'Android SDK path is required.' >&2; exit 2; }
 android_jar="$sdk_dir/platforms/android-36/android.jar"
 build_tools="$sdk_dir/build-tools/36.0.0"
-[[ -f "$android_jar" && -f "$2" ]] || { echo 'SDK 36 and a runner-owned debug keystore are required.' >&2; exit 2; }
+[[ -f "$android_jar" ]] || { echo 'Android SDK platform 36 android.jar is required.' >&2; exit 2; }
+[[ -f "$2" ]] || { echo 'A runner-owned inspector debug keystore is required.' >&2; exit 2; }
 for binary in aapt2 d8 zipalign apksigner; do
   [[ -x "$build_tools/$binary" ]] || { echo 'Android build-tools 36.0.0 are required.' >&2; exit 2; }
 done

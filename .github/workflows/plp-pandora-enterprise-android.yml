@@ -254,8 +254,27 @@ jobs:
             "$capture/src/com/banataosystems/pandora/uicapture/CaptureXml.java" \
             "$capture/test/CaptureXmlTest.java"
           java -cp "$RUNNER_TEMP/plp-capture-tests" CaptureXmlTest
+          # The inspector targets its own package and has its own disposable
+          # debug identity. Do not assume or reuse PLP's signing keystore.
+          capture_key_dir="$(mktemp -d "${RUNNER_TEMP:?}/pandora-ui-capture-key.XXXXXX")"
+          trap 'rm -rf -- "$capture_key_dir"' EXIT
+          umask 077
+          capture_keystore="$capture_key_dir/inspector-debug.jks"
+          export UI_CAPTURE_KEY_ALIAS=androiddebugkey
+          export UI_CAPTURE_STORE_PASSWORD=android
+          export UI_CAPTURE_KEY_PASSWORD=android
+          if ! keytool -genkeypair -noprompt -storetype JKS \
+            -keystore "$capture_keystore" -alias "$UI_CAPTURE_KEY_ALIAS" \
+            -storepass:env UI_CAPTURE_STORE_PASSWORD \
+            -keypass:env UI_CAPTURE_KEY_PASSWORD \
+            -keyalg RSA -keysize 2048 -validity 2 \
+            -dname 'CN=Pandora CI UI Capture,O=Pandora CI,C=PH' \
+            > "$capture_key_dir/keytool.log" 2>&1; then
+            echo 'Could not generate the temporary inspector debug key.' >&2
+            exit 1
+          fi
           bash "$capture/build.sh" "$RUNNER_TEMP/plp-ui-capture" \
-            "$HOME/.android/debug.keystore"
+            "$capture_keystore"
           sha256sum "$RUNNER_TEMP/plp-ui-capture/pandora-ui-capture.apk" \
             > "$evidence/ui-capture-sha256.txt"
 

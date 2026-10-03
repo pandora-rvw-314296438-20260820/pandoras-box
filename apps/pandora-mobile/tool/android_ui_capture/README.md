@@ -17,10 +17,16 @@ bash apps/pandora-mobile/tool/android_ui_capture/build.sh "$RUNNER_TEMP/ui-captu
 adb install -r "$RUNNER_TEMP/ui-capture/pandora-ui-capture.apk"
 ```
 
-The keystore is supplied by the runner; never commit it. The script defaults only
-to Android's public debug signing convention. A custom debug key can supply
+The keystore is supplied by the runner; never commit it. The PLP workflow creates
+a fresh RSA debug key in a private temporary directory under `RUNNER_TEMP`, passes
+that exact path, and removes the directory on step exit. This inspector identity
+is independent of PLP production and emulator-candidate signing; it does not rely
+on a global `$HOME/.android/debug.keystore`. Only Android's public debug password
+and alias convention are used for this disposable key. A custom debug key can supply
 `UI_CAPTURE_KEY_ALIAS`, `UI_CAPTURE_STORE_PASSWORD`, and `UI_CAPTURE_KEY_PASSWORD`
 through runner environment variables. Do not enable shell tracing around signing.
+The build script reports a missing SDK platform and a missing inspector key as
+separate prerequisite failures. APK signature verification remains mandatory.
 
 With the PLP sign-in or empty-validation screen already foreground:
 
