@@ -2705,8 +2705,7 @@ class _ChatBubble extends StatelessWidget {
             children: [
               Semantics(
                 container: true,
-                label:
-                    'Pandora: ${message.text.length <= 4000 ? message.text : '${message.text.substring(0, 4000)}…'}',
+                label: 'Pandora: ${message.text}',
                 child: ExcludeSemantics(
                   child: SelectableText(
                     message.text,

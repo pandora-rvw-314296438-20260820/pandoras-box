@@ -320,6 +320,77 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'long Pandora replies stay complete in accessibility semantics',
+    (tester) async {
+      await setTestSurface(tester, logicalSize: const Size(390, 844));
+      final intelligence = _FakeIntelligence();
+      addTearDown(intelligence.close);
+
+      await tester.pumpWidget(
+        testApp(
+          themeMode: ThemeMode.dark,
+          child: PandoraDependencies(
+            auth: const FakeAuth(),
+            repository: FakeRepository(),
+            intelligence: intelligence,
+            diagnostics: DiagnosticsStore(),
+            child: const AskPandoraScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final semantics = tester.ensureSemantics();
+      addTearDown(semantics.dispose);
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('ask' '-pandora-objective')),
+        'Hi',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('ask' '-pandora-submit')),
+      );
+      await tester.pump();
+      await _waitForRequestCount(tester, intelligence, 1);
+
+      final longReply =
+          '${List<String>.filled(4001, 'A').join()} accessible-tail';
+      intelligence.events.add(
+        _activityEvent(
+          sequence: 1,
+          state: 'result',
+          message: 'Greeting answered.',
+          evidence: const <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'verification_receipt',
+              'relation': 'verification',
+              'ref': 'verification:long-semantics-1',
+            },
+          ],
+          outcome: const <String, dynamic>{
+            'summary': 'Greeting answered.',
+            'physicalDevice': false,
+          },
+        ),
+      );
+      intelligence.turn.complete(
+        PandoraIntelligenceTurn(
+          threadId: 'thread-long-semantics',
+          reply: longReply,
+          intent: 'conversation',
+          confidence: 1,
+          needsClarification: false,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(longReply), findsOneWidget);
+      expect(find.bySemanticsLabel('Pandora: $longReply'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+
   testWidgets('trivial greeting never shows Activity Theatre', (tester) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
     final intelligence = _FakeIntelligence();
