@@ -3219,7 +3219,7 @@ async function main() {
   // Existing provider-owned table shape is required by the Core RLS migration.
   // This remains an explicit emulator supplement, never production DDL.
   const beforeFixtures = new Map([
-    ['20261003044349_pandora_core_owner_system_v1.sql', await readFile(join(repositoryRoot, 'test', 'fixtures', 'pandora-core-live-provider-baseline.sql'), 'utf8')],
+    ['20261003065936_pandora_core_owner_system_v1.sql', await readFile(join(repositoryRoot, 'test', 'fixtures', 'pandora-core-live-provider-baseline.sql'), 'utf8')],
   ]);
 
   const db = new PGlite({ extensions: { pgcrypto } });
