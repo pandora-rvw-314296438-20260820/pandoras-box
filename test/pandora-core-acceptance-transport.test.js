@@ -32,8 +32,9 @@ class Reply extends EventEmitter {
   end() { this.writableEnded = true; this.emit("close"); }
   response() { return new Response(this.jsonBody ? JSON.stringify(this.jsonBody) : this.writes.join(""), { status: this.statusCode, headers: this.headers }); }
 }
-async function edge(env, fetch) {
-  const shared = await helpers;
+async function edge(env, fetch, resolveProfile) {
+  const actual = await helpers;
+  const shared = resolveProfile ? { ...actual, resolveCoreRuntimeProfile: resolveProfile } : actual;
   function load(filename) {
     if (filename.endsWith("core-acceptance-profile.mjs")) return shared;
     const source = ts.transpileModule(readFileSync(filename, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
@@ -88,6 +89,57 @@ test("invalid Edge profile is rejected before ticket issuance or bridge fetch", 
     await assert.rejects(client.bedrockCall({ rpc: async () => { calls++; } }, "fixture-model", body), /CORE_RUNTIME_/);
     assert.equal(calls, 0);
   }
+});
+
+test("a missing or inconsistent resolved chat destination cannot issue a ticket or fetch", async () => {
+  const { resolveCoreRuntimeProfile } = await helpers;
+  for (const env of [
+    { SUPABASE_URL: "https://jcyqixttuebxqqfkjonq.supabase.co" },
+    { ...environment(), SUPABASE_URL: vector.canonical.supabaseUrl, PANDORA_ACCEPTANCE_BRIDGE_ORIGIN: bridgeOrigin },
+  ]) {
+    const profile = await resolveCoreRuntimeProfile(env, { role: "chat" });
+    for (const invalid of [
+      { bedrockChatUrl: null }, { bedrockChatUrl: undefined }, { bedrockChatUrl: "" },
+      { bedrockChatUrl: `${profile.bridgeOrigin}/api/operations-inference?operation=another-operation` },
+      { bedrockChatUrl: "https://wrong.example.invalid/private-value" },
+      { bridgeOrigin: null }, { bridgeOrigin: "", bedrockChatUrl: "/api/operations-inference?operation=bedrock-chat" },
+    ]) {
+      let tickets = 0, fetches = 0;
+      const client = await edge(env, async () => { fetches++; return Response.json({}); }, async (_env, options) => {
+        assert.equal(options.role, "chat");
+        return { ...profile, ...invalid };
+      });
+      await assert.rejects(client.bedrockCall({ rpc: async () => { tickets++; return { data: { ticket } }; } }, "fixture-model", body), error => {
+        assert.equal(error.message, "CORE_RUNTIME_TARGET_MISMATCH");
+        assert.equal(error.code, "CORE_RUNTIME_TARGET_MISMATCH");
+        assert.equal(error.status, 400);
+        assert.equal(error.retryable, false);
+        assert.equal(error.crossProviderEligible, false);
+        assert.doesNotMatch(String(error), /private-value/);
+        return true;
+      });
+      assert.deepEqual([tickets, fetches], [0, 0]);
+    }
+  }
+});
+
+test("the actual production profile retains the canonical route and legacy ticket issuer", async () => {
+  let tickets = 0, fetches = 0;
+  const client = await edge({ SUPABASE_URL: "https://jcyqixttuebxqqfkjonq.supabase.co" }, async (url, init) => {
+    fetches++;
+    assert.equal(url, "https://mcpmaster.vercel.app/api/operations-inference?operation=bedrock-chat");
+    assert.equal(Object.keys(init.headers).some(name => name.startsWith("x-pandora-")), false);
+    assert.deepEqual(JSON.parse(init.body), { ticket });
+    return Response.json({ ok: true, status: 200, body: { text: '{"reply":"Hello"}' } });
+  });
+  const result = await client.bedrockCall({ rpc: async (name, args) => {
+    tickets++;
+    assert.equal(name, "pandora_issue_bedrock_chat_ticket_v1");
+    assert.deepEqual(Object.keys(args).sort(), ["p_body", "p_model"]);
+    return { data: { ticket } };
+  } }, "fixture-model", body);
+  assert.equal(result.valueRaw.reply, "Hello");
+  assert.deepEqual([tickets, fetches], [1, 1]);
 });
 
 test("bridge rejects absent/mismatched incoming bindings before workload identity or network access", async () => {

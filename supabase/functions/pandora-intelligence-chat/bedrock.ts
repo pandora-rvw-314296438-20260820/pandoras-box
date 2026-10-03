@@ -60,6 +60,14 @@ export async function bedrockCall(c:any,model:string,body:R,options:{stream?:boo
   const started=Date.now();
   const profile=await resolveCoreRuntimeProfile((globalThis as any).Deno?.env?.toObject(),{role:"chat"});
   const BEDROCK_CHAT_URL=profile.bedrockChatUrl;
+  // Other runtime roles intentionally have no chat URL. Require this role's
+  // exact validated destination before a ticket or network request can exist.
+  if(typeof BEDROCK_CHAT_URL!=="string"||typeof profile.bridgeOrigin!=="string"||!profile.bridgeOrigin||
+    BEDROCK_CHAT_URL!==`${profile.bridgeOrigin}/api/operations-inference?operation=bedrock-chat`){
+    throw Object.assign(Error("CORE_RUNTIME_TARGET_MISMATCH"),{
+      code:"CORE_RUNTIME_TARGET_MISMATCH",status:400,retryable:false,crossProviderEligible:false,
+    });
+  }
   // Configuration is validated before the service-role RPC creates a ticket.
   if(options.signal?.aborted)throw Error("REQUEST_CANCELLED");
   const issued=await c.rpc(profile.acceptance?"pandora_issue_core_acceptance_bedrock_chat_ticket_v1":"pandora_issue_bedrock_chat_ticket_v1",{
