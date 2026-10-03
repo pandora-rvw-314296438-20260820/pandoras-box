@@ -34,6 +34,8 @@ test("PLP source outage state never masquerades as business Needs Attention", ()
   );
   assert.doesNotMatch(recovery, /Needs Attention/);
   assert.match(recovery, /Icons\.cloud_off_outlined/);
+  assert.match(resort, /if \(includeWorkspaceRail\)[\s\S]{0,120}_SourceRecoveryPanel/);
+  assert.match(resort, /else\s+_EmptyState\(detail\)/);
   assert.match(resort, /_SectionHeader\(\s*'NEEDS ATTENTION'/);
 });
 
