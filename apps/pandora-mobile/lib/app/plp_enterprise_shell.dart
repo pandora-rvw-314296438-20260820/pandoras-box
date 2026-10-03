@@ -1268,7 +1268,6 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                         },
                         onOpenChat: () => _open(1),
                       ),
-              ),
                 ),
               ),
             ),
