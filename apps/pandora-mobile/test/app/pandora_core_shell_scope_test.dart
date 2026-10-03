@@ -527,7 +527,8 @@ void main() {
     final history =
         find.byKey(const ValueKey('pandora-active-chat-history-offstage'));
     expect(tester.widget<Offstage>(history).offstage, isFalse);
-    expect(find.byType(SettingsScreen), findsNothing);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(tester.state(find.byType(SettingsScreen)), same(settingsState));
     _expectOwnerComposer(tester, chat, draft: 'Keep the Settings draft');
     // Actual system Back dismisses the shared overlay before touching Settings.
     await tester.binding.handlePopRoute();
@@ -712,6 +713,31 @@ void main() {
     await _settle(tester);
     expect(find.byType(PlpEnterpriseShell), findsOneWidget);
     expect(Theme.of(tester.element(chat)).brightness, Brightness.dark);
+
+    final chatState =
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    chatState.showHistory();
+    await _settle(tester);
+    final history = find.byKey(
+      const ValueKey<String>('pandora-active-chat-history'),
+    );
+    expect(
+        tester
+            .widget<Offstage>(find.byKey(
+              const ValueKey<String>('pandora-active-chat-history-offstage'),
+            ))
+            .offstage,
+        isFalse);
+    expect(find.byType(PlpEnterpriseShell), findsOneWidget);
+    expect(
+      tester.getRect(history).height,
+      lessThan(844 * .75),
+      reason: 'PLP chat must stay a bounded contextual command layer.',
+    );
+    chatState.minimizeHistory();
+    await _settle(tester);
+    expect(find.byType(PlpEnterpriseShell), findsOneWidget);
+
     await tester.tap(find.byKey(const ValueKey('core-return-pandora')));
     await _settle(tester);
     expect(

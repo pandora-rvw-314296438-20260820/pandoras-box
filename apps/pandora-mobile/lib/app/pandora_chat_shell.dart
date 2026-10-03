@@ -1514,7 +1514,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           )
         : root;
     return PandoraCoreRouteVisibility(
-      active: index == _index && !_chatVisible,
+      // Chat is contextual to the live business route. Expanding Pandora must
+      // never deactivate, hide, or reconstruct the workspace underneath it.
+      active: index == _index,
       child: presented,
     );
   }
@@ -1598,40 +1600,49 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               );
             }
             final chatScopeEpoch = _scopeEpoch;
+            final businessOwnsNavigation = _index != 0 ||
+                _activeEnterpriseContext != null ||
+                _inClientWorkspace;
             Widget activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
-              businessWorkspace: Offstage(
-                offstage: _chatVisible,
-                child: PandoraSharedConversationScope(
-                  submitPrompt: _submitSharedPrompt,
-                  openThread: _openSharedThread,
-                  showConversation: _showSharedConversation,
-                  bindEnterpriseContext: _bindEnterpriseContext,
-                  bindSelectedObject: _bindSelectedObject,
-                  reportFailure: _reportSharedFailure,
-                  child: businessBody,
-                ),
+              businessWorkspace: PandoraSharedConversationScope(
+                submitPrompt: _submitSharedPrompt,
+                openThread: _openSharedThread,
+                showConversation: _showSharedConversation,
+                bindEnterpriseContext: _bindEnterpriseContext,
+                bindSelectedObject: _bindSelectedObject,
+                reportFailure: _reportSharedFailure,
+                child: businessBody,
               ),
-              conversation: AskPandoraScreen(
-                key: _chatKey,
-                onSearchChats: _openRecentChats,
-                onMore: () => _select(3),
-                onHome: () => _select(9),
-                enterpriseContext: _conversationContextForCurrentSurface(),
-                shellOverlay: true,
-                initialHistoryExpanded: _chatVisible,
-                onCoreNavigate: (handoff) {
-                  if (mounted && chatScopeEpoch == _scopeEpoch) {
-                    _handleCoreNavigation(handoff);
-                  }
-                },
-                onHistoryVisibilityChanged: (visible) {
-                  if (mounted &&
-                      chatScopeEpoch == _scopeEpoch &&
-                      _chatVisible != visible) {
-                    setState(() => _chatVisible = visible);
-                  }
-                },
+              conversation: PandoraNavigationScope(
+                // Standalone Pandora chat owns the mobile drawer. Business
+                // pages keep their own single navigation control while chat
+                // behaves only as the contextual command layer above them.
+                openDrawer: constraints.maxWidth >= 900 || businessOwnsNavigation
+                    ? null
+                    : _openDrawer,
+                child: AskPandoraScreen(
+                  key: _chatKey,
+                  onSearchChats: _openRecentChats,
+                  onMore: () => _select(3),
+                  onHome: () => _select(9),
+                  enterpriseContext: _conversationContextForCurrentSurface(),
+                  shellOverlay: true,
+                  contextualOverlay: businessOwnsNavigation,
+                  initialHistoryExpanded: _chatVisible,
+                  onCoreNavigate: (handoff) {
+                    if (mounted && chatScopeEpoch == _scopeEpoch) {
+                      _handleCoreNavigation(handoff);
+                    }
+                  },
+                  onHistoryVisibilityChanged: (visible) {
+                    if (mounted &&
+                        chatScopeEpoch == _scopeEpoch &&
+                        _chatVisible != visible) {
+                      setState(() => _chatVisible = visible);
+                    }
+                  },
+                ),
               ),
             );
 
