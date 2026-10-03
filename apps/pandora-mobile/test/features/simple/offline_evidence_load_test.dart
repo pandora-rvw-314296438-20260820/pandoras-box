@@ -66,6 +66,25 @@ class _Repository extends FakeRepository {
   }
 }
 
+class _CachedRepository extends _Repository
+    implements ReadOnlyEvidenceCacheSource {
+  _CachedRepository(
+    super.batches, {
+    this.cachedProjects,
+    this.cachedConnections,
+    this.cachedActivity,
+  });
+
+  @override
+  final RepositorySnapshot<List<ProjectSummary>>? cachedProjects;
+
+  @override
+  final RepositorySnapshot<List<ConnectionSummary>>? cachedConnections;
+
+  @override
+  final RepositorySnapshot<List<AuditEvent>>? cachedActivity;
+}
+
 class _Auth extends FakeAuth {
   final controller = StreamController<PandoraSession?>.broadcast(sync: true);
   PandoraSession? session = const PandoraSession(userId: 'first-user');
@@ -102,6 +121,42 @@ void _expectSystems(int count) {
 }
 
 void main() {
+  testWidgets(
+      'identity-scoped cached evidence renders immediately while slow refresh is bounded',
+      (tester) async {
+    await setTestSurface(tester, logicalSize: const Size(390, 844));
+    final pending = _Batch();
+    final repository = _CachedRepository(
+      [pending],
+      cachedProjects:
+          _snapshot(List.filled(3, fixtureProject), day: 3, cached: true),
+      cachedConnections:
+          _snapshot(<ConnectionSummary>[], day: 1, cached: true),
+      cachedActivity: _snapshot(<AuditEvent>[], day: 2, cached: true),
+    );
+
+    await tester.pumpWidget(_app(repository));
+
+    _expectSystems(3);
+    expect(find.text('Loading evidence…'), findsNothing);
+    expect(find.text('Refreshing remaining evidence…'), findsOneWidget);
+    expect(
+        find.text(
+            'Showing earlier observations held in this session. They may be out of date.'),
+        findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump();
+
+    _expectSystems(3);
+    expect(find.text('Evidence unavailable'), findsNothing);
+    expect(
+        find.text(
+            'Some evidence could not be refreshed. Available observations are shown below.'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'all independent reads begin together and show actual oldest observation',
       (tester) async {
