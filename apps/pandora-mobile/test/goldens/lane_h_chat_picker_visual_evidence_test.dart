@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -201,54 +200,6 @@ Future<void> _mount(
   await _precacheMark(tester);
 }
 
-Future<({int width, int height, Uint8List pixels})> _decodePng(
-  Uint8List png,
-) async {
-  final codec = await ui.instantiateImageCodec(png);
-  try {
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
-    try {
-      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (data == null) throw StateError('PNG could not be decoded.');
-      return (
-        width: image.width,
-        height: image.height,
-        pixels: Uint8List.fromList(
-          data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-        ),
-      );
-    } finally {
-      image.dispose();
-    }
-  } finally {
-    codec.dispose();
-  }
-}
-
-Future<void> _expectBelowFloatingChromeMatchesBaseline(
-  Uint8List actualPng,
-  File baseline, {
-  int chromeRows = 72,
-}) async {
-  final actual = await _decodePng(actualPng);
-  final expected = await _decodePng(baseline.readAsBytesSync());
-  expect(actual.width, expected.width);
-  expect(actual.height, expected.height);
-  final firstComparedByte =
-      chromeRows.clamp(0, actual.height) * actual.width * 4;
-  var mismatchedBytes = 0;
-  for (var i = firstComparedByte; i < actual.pixels.length; i += 1) {
-    if (actual.pixels[i] != expected.pixels[i]) mismatchedBytes += 1;
-  }
-  expect(
-    mismatchedBytes,
-    0,
-    reason:
-        'The approved floating top chrome may differ, but content below it must remain pixel-identical.',
-  );
-}
-
 Future<void> _capture(WidgetTester tester, String name) async {
   await _pumpVisualFrames(tester);
   final boundary = tester.renderObject<RenderRepaintBoundary>(
@@ -274,7 +225,10 @@ Future<void> _capture(WidgetTester tester, String name) async {
 
   final baseline = File('test/goldens/owner_screens/' + name + '.png');
   if (baseline.existsSync() && !Platform.isWindows) {
-    await _expectBelowFloatingChromeMatchesBaseline(bytes, baseline);
+    await expectLater(
+      find.byKey(_surfaceKey),
+      matchesGoldenFile('owner_screens/' + name + '.png'),
+    );
   }
 }
 
