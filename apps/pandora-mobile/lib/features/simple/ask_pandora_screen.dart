@@ -2095,9 +2095,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
             child: KeyedSubtree(
               key: _headerKey,
               child: _PlpE7ChatHeader(
-                active: _threadId != null ||
-                    _messages.isNotEmpty ||
-                    _pendingMessage != null,
                 onNewChat: newChat,
                 onSearchChats: widget.onSearchChats,
                 onMore: widget.onMore,
@@ -2420,13 +2417,11 @@ enum _PlpE7ChatOverflowAction { newChat, searchChats, more }
 
 class _PlpE7ChatHeader extends StatelessWidget {
   const _PlpE7ChatHeader({
-    required this.active,
     required this.onNewChat,
     this.onSearchChats,
     this.onMore,
   });
 
-  final bool active;
   final VoidCallback onNewChat;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
