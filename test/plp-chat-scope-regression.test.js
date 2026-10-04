@@ -139,6 +139,10 @@ test("PLP assistant owns the IME without resizing the business page", () => {
     /onHistoryVisibilityChanged: \(visible\)[\s\S]*_assistantVisible = visible/,
   );
   assert.match(chat, /resizeToAvoidBottomInset: false/);
+  assert.equal(
+    (coreShell.match(/resizeToAvoidBottomInset: !plpAssistant \|\| !_chatVisible/g) ?? []).length,
+    2,
+  );
   assert.match(chat, /bottom: keyboardInset[\s\S]{0,220}_PlpE7Composer/);
   assert.match(
     chat,
