@@ -1691,6 +1691,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               return Scaffold(
                 key: _scaffoldKey,
                 backgroundColor: PandoraV2Colors.canvas,
+                resizeToAvoidBottomInset: !plpAssistant || !_chatVisible,
                 onEndDrawerChanged: (open) {
                   setState(() => _recentChatsVisible = open);
                 },
@@ -1727,6 +1728,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: PandoraV2Colors.canvas,
+              resizeToAvoidBottomInset: !plpAssistant || !_chatVisible,
               onDrawerChanged: (open) {
                 setState(() => _drawerVisible = open);
                 if (open) {
