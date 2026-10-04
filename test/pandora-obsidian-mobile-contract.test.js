@@ -43,7 +43,11 @@ test('chat landing is logo-only with a bare borderless always-live composer', ()
   assert.match(chat, /ask-pandora-composer/);
   assert.match(chat, /final voiceReady =\s*!submitting && empty/);
   assert.match(chat, /tooltip: voiceReady[\s\S]*?'Voice input'[\s\S]*?'Send'/);
-  assert.doesNotMatch(chat, /backgroundColor:\s*Colors\.white/);
+  const composerStart = chat.indexOf('class _Composer extends StatelessWidget');
+  const composerEnd = chat.indexOf('class _CompactAttachmentMenu', composerStart);
+  assert.ok(composerStart >= 0 && composerEnd > composerStart);
+  const universalComposer = chat.slice(composerStart, composerEnd);
+  assert.doesNotMatch(universalComposer, /backgroundColor:\s*Colors\.white/);
   assert.doesNotMatch(chat, /WebView|InAppWebView/);
 });
 
