@@ -128,3 +128,16 @@ test("PLP shell owns one floating hamburger on Chat and every business page", ()
   assert.match(shell, /PandoraNavigationScope\(\s*openDrawer: null/);
 });
 
+
+
+test("PLP shell leaves Chat full-height while only its composer follows the IME", () => {
+  const shell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
+  assert.match(shell, /resizeToAvoidBottomInset: _index != 1/);
+  assert.match(chat, /resizeToAvoidBottomInset: false/);
+  assert.match(chat, /bottom: keyboardInset[\s\S]{0,220}_PlpE7Composer/);
+  const landing = chat.slice(
+    chat.indexOf("class _PlpE7EmptyConversation extends StatelessWidget"),
+    chat.indexOf("class _PlpE7Suggestion extends StatelessWidget"),
+  );
+  assert.match(landing, /mainAxisAlignment: MainAxisAlignment\.center/);
+});
