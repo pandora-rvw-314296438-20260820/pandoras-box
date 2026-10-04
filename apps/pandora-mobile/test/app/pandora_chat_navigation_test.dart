@@ -82,9 +82,21 @@ void main() {
   final recentDrawer = find.byKey(
     const ValueKey<String>('pandora-recent-chats-drawer'),
   );
-  final recentChats = find.byKey(
-    const ValueKey<String>('pandora-recent-chats'),
+  final chatOverflow = find.byKey(
+    const ValueKey<String>('pandora-chat-overflow'),
   );
+
+  Future<void> openRecentChats(WidgetTester tester) async {
+    expect(chatOverflow, findsOneWidget);
+    await tester.tap(chatOverflow);
+    await tester.pumpAndSettle();
+    final searchChats = find.byKey(
+      const ValueKey<String>('pandora-chat-menu-search'),
+    );
+    expect(searchChats, findsOneWidget);
+    await tester.tap(searchChats);
+    await tester.pumpAndSettle();
+  }
 
   Future<Finder> drawerTile(WidgetTester tester, String title) async {
     final scrollable = find
@@ -406,10 +418,10 @@ void main() {
     },
   );
 
-  testWidgets('recent chats opens only as the right-side drawer',
+  testWidgets('recent chats opens only from overflow as the right-side drawer',
       (tester) async {
     await mount(tester, const Size(390, 800));
-    expect(recentChats, findsOneWidget);
+    expect(chatOverflow, findsOneWidget);
     expect(
       find.descendant(
         of: primaryDrawer,
@@ -419,8 +431,7 @@ void main() {
     );
 
     for (var attempt = 0; attempt < 3; attempt++) {
-      await tester.tap(recentChats);
-      await tester.pumpAndSettle();
+      await openRecentChats(tester);
       expect(recentDrawer, findsOneWidget);
       expect(primaryDrawer, findsNothing);
       expect(
@@ -445,7 +456,6 @@ void main() {
   testWidgets('primary and recent-chat drawers can never stack',
       (tester) async {
     await mount(tester, const Size(390, 800));
-    final openRecentChats = tester.widget<IconButton>(recentChats).onPressed!;
     final menuButton = find.ancestor(
       of: menu,
       matching: find.byType(PandoraMenuButton),
@@ -454,20 +464,20 @@ void main() {
     final openPrimaryNavigation =
         tester.widget<PandoraMenuButton>(menuButton).onPressed;
 
-    await tester.tap(menu);
-    await tester.pumpAndSettle();
-    expect(primaryDrawer, findsOneWidget);
-    expect(recentDrawer, findsNothing);
-
-    openRecentChats.call();
-    await tester.pumpAndSettle();
-    expect(primaryDrawer, findsNothing);
+    await openRecentChats(tester);
     expect(recentDrawer, findsOneWidget);
+    expect(primaryDrawer, findsNothing);
 
     openPrimaryNavigation();
     await tester.pumpAndSettle();
     expect(primaryDrawer, findsOneWidget);
     expect(recentDrawer, findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await openRecentChats(tester);
+    expect(primaryDrawer, findsNothing);
+    expect(recentDrawer, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
