@@ -9,6 +9,7 @@ class PandoraConversationLayer extends StatelessWidget {
     super.key,
     required this.businessWorkspace,
     required this.conversation,
+    this.reserveComposerLane = true,
   });
 
   /// Resting shell composer height before the device safe-area inset.
@@ -18,11 +19,13 @@ class PandoraConversationLayer extends StatelessWidget {
 
   final Widget businessWorkspace;
   final Widget conversation;
+  final bool reserveComposerLane;
 
   @override
   Widget build(BuildContext context) {
     final safeAreaBottom = MediaQuery.viewPaddingOf(context).bottom;
-    final businessBottomInset = compactComposerHeight + safeAreaBottom;
+    final businessBottomInset =
+        reserveComposerLane ? compactComposerHeight + safeAreaBottom : 0.0;
     return Stack(
       fit: StackFit.expand,
       clipBehavior: Clip.none,

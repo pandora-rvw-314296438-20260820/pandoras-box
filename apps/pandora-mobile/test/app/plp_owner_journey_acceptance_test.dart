@@ -279,38 +279,55 @@ Future<void> _tapVisibleText(WidgetTester tester, String label) async {
 }
 
 void main() {
-  testWidgets('PLP chat keeps one floating hamburger wired to the real drawer',
+  testWidgets('PLP assistant starts as the logo and only expands when the client chooses',
       (tester) async {
     await _mountOwnerShell(tester);
-    await _openDrawer(tester);
-    final newChat =
-        find.byKey(const ValueKey<String>('plp-drawer-new-chat'));
-    expect(newChat, findsOneWidget);
-    await tester.tap(newChat);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 420));
 
-    expect(find.byKey(const ValueKey<String>('plp-e7-chat-surface')),
-        findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('plp-floating-navigation')),
+    final launcher =
+        find.byKey(const ValueKey<String>('plp-ai-launcher'));
+    expect(launcher, findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('plp-ai-compact-panel')),
+        findsNothing);
+    expect(find.byKey(const ValueKey<String>('plp-command-dock')),
         findsNothing);
 
-    final chatMenu =
-        find.byKey(const ValueKey<String>('pandora-side-panel-open'));
-    expect(chatMenu, findsOneWidget);
-    await tester.tap(chatMenu);
+    await tester.tap(launcher);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final shellScaffold =
-        tester.state<ScaffoldState>(find.byType(Scaffold).first);
-    expect(shellScaffold.isDrawerOpen, isTrue);
-    expect(find.byKey(const ValueKey<String>('plp-navigation-drawer')),
+    expect(find.byKey(const ValueKey<String>('plp-ai-compact-panel')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('plp-floating-navigation')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('plp-e7-chat-surface')),
+        findsNothing);
+    expect(find.byKey(const ValueKey<String>('plp-ai-minimize')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('plp-ai-expand')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('plp-ai-close')),
         findsOneWidget);
 
-    // Entering PLP chat schedules the bounded local-AI prewarm delay.
-    // Let that production timer finish so this test proves the UI contract
-    // without leaking asynchronous work into the test harness teardown.
+    await tester.tap(find.byKey(const ValueKey<String>('plp-ai-expand')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey<String>('plp-e7-chat-surface')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('plp-ai-restore')),
+        findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey<String>('plp-ai-restore')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey<String>('plp-ai-compact-panel')),
+        findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey<String>('plp-ai-minimize')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey<String>('plp-ai-launcher')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('plp-ai-compact-panel')),
+        findsNothing);
+
     await tester.pump(const Duration(milliseconds: 900));
     expect(tester.takeException(), isNull);
   });
@@ -334,7 +351,7 @@ void main() {
     final firstContent = tester.getRect(find.text('NEEDS ATTENTION'));
     expect(firstContent.top, greaterThanOrEqualTo(menu.bottom));
     expect(firstContent.top - menu.bottom, lessThanOrEqualTo(24));
-    final dock = tester.getRect(find.byKey(const ValueKey('plp-command-dock')));
+    final dock = tester.getRect(find.byKey(const ValueKey('plp-ai-launcher')));
     for (final section in const ['stays', 'rooms', 'guests', 'revenue', 'team']) {
       await _openSection(tester, section);
       final contextual = tester.widget<Text>(find.descendant(
@@ -344,7 +361,7 @@ void main() {
       expect(contextual.style?.fontFamily, 'serif');
       expect(contextual.style?.fontSize, 16);
       expect(find.text('PLP Boracay'), findsNothing);
-      expect(tester.getRect(find.byKey(const ValueKey('plp-command-dock'))), dock);
+      expect(tester.getRect(find.byKey(const ValueKey('plp-ai-launcher'))), dock);
     }
     expect(tester.takeException(), isNull);
   });
@@ -379,9 +396,7 @@ void main() {
     await _tapVisibleText(tester, 'Open verified activity feed');
     expect(find.byKey(const ValueKey('plp-activity-light-page')), findsOneWidget);
     expect(find.text('Transfer confirmed'), findsOneWidget);
-    final field = tester.widget<TextField>(
-        find.byKey(const ValueKey('plp-command-field')));
-    expect(field.decoration?.hintText, 'Ask about activity or audit…');
+    expect(find.byKey(const ValueKey('plp-command-field')), findsNothing);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('plp-resort-activity')), findsOneWidget);
@@ -390,11 +405,11 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('owner can traverse every primary resort workspace from fixed navigation', (tester) async {
+  testWidgets('owner can traverse every primary resort workspace with the assistant launcher', (tester) async {
     await _mountOwnerShell(tester);
 
     expect(find.byKey(const ValueKey('plp-resort-today')), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
 
     final menu = find.byKey(const ValueKey('plp-floating-navigation'));
     final anchored = tester.getTopLeft(menu);
@@ -417,7 +432,7 @@ void main() {
       'activity',
     ]) {
       await _openSection(tester, id);
-      expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
+      expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
   });
@@ -434,7 +449,7 @@ void main() {
       find.byKey(const ValueKey('plp-module-housekeeping')),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('plp-module-back')));
     await tester.pumpAndSettle();
@@ -489,7 +504,7 @@ void main() {
     expect(find.byKey(const ValueKey('plp-new-reservation')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-reservation-name')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-reservation-room')), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('plp-transaction-back')));
     await tester.pumpAndSettle();
@@ -525,7 +540,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('plp-mutation-check_in')), findsOneWidget);
     expect(find.text('Confirm check-in'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('plp-transaction-back')));
     await tester.pumpAndSettle();
@@ -595,7 +610,7 @@ void main() {
           findsOneWidget,
           reason: module.key + ' must open a normal operational page.',
         );
-        expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
+        expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
 
         await tester.tap(find.byKey(const ValueKey('plp-module-back')));
         await tester.pumpAndSettle();
@@ -684,7 +699,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('drawer search reaches System without removing the persistent command layer', (tester) async {
+  testWidgets('drawer search reaches System while preserving the PLP assistant launcher', (tester) async {
     await _mountOwnerShell(tester);
     await _openDrawer(tester);
 
@@ -701,7 +716,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 420));
     expect(find.byKey(const ValueKey('plp-developer')), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-command-dock')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

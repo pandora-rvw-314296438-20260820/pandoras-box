@@ -16,6 +16,9 @@ const editorial = read("apps/pandora-mobile/lib/features/enterprise/plp_editoria
 const guests = read("apps/pandora-mobile/lib/features/enterprise/plp_guests_screen.dart");
 const infrastructure = read("apps/pandora-mobile/lib/features/enterprise/plp_connectivity_infrastructure_screen.dart");
 const tax = read("apps/pandora-mobile/lib/features/enterprise/tax_compliance_screen.dart");
+const coreShell = read("apps/pandora-mobile/lib/app/pandora_chat_shell.dart");
+const conversationLayer = read("apps/pandora-mobile/lib/app/pandora_conversation_layer.dart");
+const plpShell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
 
 test("PLP uses the restored e7 chat, with model choice compact and left anchored only there", () => {
   assert.match(chat, /Widget _buildPlpE7Chat\(BuildContext context\)/);
@@ -26,6 +29,23 @@ test("PLP uses the restored e7 chat, with model choice compact and left anchored
   assert.match(picker, /final bool compactLeftAnchored/);
   assert.match(picker, /left: widget\.compactLeftAnchored \? 14 : null/);
   assert.match(picker, /width: widget\.compactLeftAnchored \? 260 : 285/);
+});
+
+test("PLP assistant is logo-first, compact by default, and leaves the business page mounted", () => {
+  assert.match(chat, /enum _PlpAssistantView \{ launcher, compact, expanded \}/);
+  assert.match(chat, /'plp-ai-launcher'/);
+  assert.match(chat, /'plp-ai-compact-panel'/);
+  assert.match(chat, /'plp-ai-minimize'/);
+  assert.match(chat, /'plp-ai-expand'/);
+  assert.match(chat, /'plp-ai-close'/);
+  assert.match(chat, /'plp-ai-recent-chats'/);
+  assert.match(chat, /assets\/workspaces\/plp\.webp/);
+  assert.match(conversationLayer, /final bool reserveComposerLane/);
+  assert.match(coreShell, /reserveComposerLane: !plpAssistant/);
+  assert.match(coreShell, /offstage: _chatVisible && !plpAssistant/);
+  assert.match(plpShell, /shellOverlay: true/);
+  assert.match(plpShell, /initialHistoryExpanded: false/);
+  assert.match(plpShell, /bottomNavigationBar: null/);
 });
 
 test("PLP source outage state never masquerades as business Needs Attention", () => {

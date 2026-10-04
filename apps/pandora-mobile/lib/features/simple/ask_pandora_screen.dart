@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/pandora_conversation_layer.dart';
@@ -119,6 +120,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
   String? _submissionKey;
   String? _error;
   bool _shellHistoryExpanded = false;
+  _PlpAssistantView _plpAssistantView = _PlpAssistantView.launcher;
   PandoraChatModelSelection _modelSelection =
       const PandoraChatModelSelection.auto();
   PandoraIntelligenceMode _reasoningMode = PandoraIntelligenceMode.auto;
@@ -148,8 +150,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     WidgetsBinding.instance.addObserver(this);
     _activityController.addListener(_handleActivityTimelineChanged);
     unawaited(PandoraLocalAiPreference.load());
-    _shellHistoryExpanded =
-        widget.shellOverlay && widget.initialHistoryExpanded;
+    _shellHistoryExpanded = widget.shellOverlay &&
+        widget.initialHistoryExpanded &&
+        !_isPlpEnterpriseContext;
+    if (widget.shellOverlay &&
+        widget.initialHistoryExpanded &&
+        _isPlpEnterpriseContext) {
+      _plpAssistantView = _PlpAssistantView.compact;
+    }
     final initial = widget.initialPrompt?.trim();
     if (initial != null && initial.isNotEmpty) {
       _objective.text = initial;
@@ -261,9 +269,46 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     }
   }
 
-  void showHistory() => _setHistoryExpanded(true);
+  void _setPlpAssistantView(_PlpAssistantView view) {
+    if (_plpAssistantView == view) return;
+    setState(() {
+      _plpAssistantView = view;
+      if (view == _PlpAssistantView.launcher) {
+        _pickerOpen = false;
+        _pickerStartAtEnd = false;
+      }
+    });
+    if (view == _PlpAssistantView.launcher) {
+      _objectiveFocus.unfocus();
+    }
+    widget.onHistoryVisibilityChanged
+        ?.call(view != _PlpAssistantView.launcher);
+  }
 
-  void minimizeHistory() => _setHistoryExpanded(false);
+  void showHistory() {
+    if (_usesPlpAssistantOverlay) {
+      _setPlpAssistantView(_PlpAssistantView.compact);
+      return;
+    }
+    _setHistoryExpanded(true);
+  }
+
+  void minimizeHistory() {
+    if (_usesPlpAssistantOverlay) {
+      _setPlpAssistantView(_PlpAssistantView.launcher);
+      return;
+    }
+    _setHistoryExpanded(false);
+  }
+
+  void _expandPlpAssistant() =>
+      _setPlpAssistantView(_PlpAssistantView.expanded);
+
+  void _restorePlpAssistant() =>
+      _setPlpAssistantView(_PlpAssistantView.compact);
+
+  void _closePlpAssistant() =>
+      _setPlpAssistantView(_PlpAssistantView.launcher);
 
   void showExternalFailureMessage(String message) {
     final normalized = message.trim();
@@ -667,6 +712,27 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
       return organization['propertySlug']?.toString().trim() == 'plp-boracay';
     }
     return false;
+  }
+
+  bool get _usesPlpAssistantOverlay =>
+      widget.shellOverlay && _isPlpEnterpriseContext;
+
+  String get _plpAssistantContextLabel {
+    final selected = widget.enterpriseContext?['selectedObject'];
+    if (selected is Map) {
+      final section = selected['section']?.toString().trim();
+      if (section != null && section.isNotEmpty) {
+        return section.replaceAll('-', ' ');
+      }
+    }
+    final uiContext = widget.enterpriseContext?['uiContext'];
+    if (uiContext is Map) {
+      final surface = uiContext['surface']?.toString().trim();
+      if (surface != null && surface.isNotEmpty) {
+        return surface.replaceAll('-', ' ');
+      }
+    }
+    return 'Pueblo La Perla';
   }
 
   Map<String, Object?>? _cloudEnterpriseContext() {
@@ -2168,8 +2234,211 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     );
   }
 
+  Widget _buildPlpAssistantOverlay(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final safeBottom = media.padding.bottom;
+
+    if (_plpAssistantView == _PlpAssistantView.launcher) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            right: 16,
+            bottom: safeBottom + 14,
+            child: _PlpAssistantLauncher(onPressed: showHistory),
+          ),
+        ],
+      );
+    }
+
+    if (_plpAssistantView == _PlpAssistantView.expanded) {
+      return PopScope<void>(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _restorePlpAssistant();
+        },
+        child: AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light.copyWith(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: PandoraSimpleColors.canvas,
+            systemNavigationBarDividerColor: Colors.transparent,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned.fill(child: _buildPlpE7Chat(context)),
+              Positioned(
+                top: media.padding.top + 64,
+                right: 12,
+                child: _PlpAssistantExpandedControls(
+                  onMinimize: minimizeHistory,
+                  onRestore: _restorePlpAssistant,
+                  onClose: _closePlpAssistant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final keyboardInset = media.viewInsets.bottom;
+    final bottom = keyboardInset > 0 ? keyboardInset + 8 : safeBottom + 14;
+    final panelWidth =
+        (media.size.width - 28).clamp(280.0, 380.0).toDouble();
+    final availableHeight =
+        media.size.height - media.padding.top - bottom - 16;
+    final maxPanelHeight = availableHeight.clamp(220.0, 500.0).toDouble();
+    final panelHeight =
+        (media.size.height * .52).clamp(220.0, maxPanelHeight).toDouble();
+
+    final conversation = _loadingThread
+        ? const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: PandoraSimpleColors.muted,
+            ),
+          )
+        : _messages.isEmpty && _pendingMessage == null && _error == null
+            ? _PlpE7EmptyConversation(
+                suggestions: _plpE7Suggestions,
+                onSuggestion: _usePlpE7Suggestion,
+                disabled: _outcomeUnknown || _submitting,
+              )
+            : _Conversation(
+                threadIdentity: _threadId ?? 'local-chat',
+                messages: _messages,
+                pendingMessage: _pendingMessage,
+                thinking: _submitting,
+                activityRequested: _activityTheatreRequested,
+                activitySuppressed: _activityTheatreSuppressed,
+                activityEvents: _activityController.events,
+                activityError: _activityController.publicError,
+                inlineError: _error,
+                onRetry: (message) => unawaited(_retryFailedTurn(message)),
+                onCoreNavigate: widget.onCoreNavigate,
+                contentPadding: EdgeInsets.zero,
+                viewportSize: Size(panelWidth, panelHeight),
+              );
+
+    final snapshot = _pickerSnapshot;
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) minimizeHistory();
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            right: 14,
+            bottom: bottom,
+            width: panelWidth,
+            height: panelHeight,
+            child: Material(
+              key: const ValueKey<String>('plp-ai-compact-panel'),
+              color: PandoraSimpleColors.canvas,
+              elevation: 18,
+              shadowColor: const Color(0x99000000),
+              borderRadius: BorderRadius.circular(22),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Column(
+                    children: [
+                      _PlpAssistantPanelHeader(
+                        contextLabel: _plpAssistantContextLabel,
+                        onNewChat: newChat,
+                        onRecentChats: widget.onSearchChats,
+                        onMinimize: minimizeHistory,
+                        onExpand: _expandPlpAssistant,
+                        onClose: _closePlpAssistant,
+                      ),
+                      const Divider(
+                        height: 1,
+                        color: PandoraSimpleColors.line,
+                      ),
+                      Expanded(child: conversation),
+                      MediaQuery.removePadding(
+                        context: context,
+                        removeBottom: true,
+                        child: KeyedSubtree(
+                          key: _composerKey,
+                          child: _PlpE7Composer(
+                            controller: _objective,
+                            focusNode: _objectiveFocus,
+                            attachment: _attachment,
+                            imageAttachment: _imageAttachment,
+                            projectContext: _projectContext,
+                            serviceContext: _serviceContext,
+                            characterContext: _characterContext,
+                            error: _error,
+                            submitting: _submitting,
+                            disabled: _outcomeUnknown,
+                            modelLabel: _modelLabel,
+                            reasoningLabel: _reasoningLabel,
+                            onModel: _pickModel,
+                            onReasoning: () => _pickModel(startAtEnd: true),
+                            onChanged: () {
+                              if (_error != null) {
+                                setState(() => _error = null);
+                              }
+                            },
+                            onCamera: () => _pickImage(camera: true),
+                            onPhotos: () => _pickImage(camera: false),
+                            onAttach: _attach,
+                            onCharacters: widget.allowCharacterContext
+                                ? _pickCharacterContext
+                                : null,
+                            onServices: _pickServiceContext,
+                            onProjectContext: widget.allowProjectContext
+                                ? _pickProjectContext
+                                : null,
+                            onDictate: _dictate,
+                            onSubmit: _submit,
+                            onRemoveAttachment: () =>
+                                setState(() => _attachment = null),
+                            onRemoveImage: () =>
+                                setState(() => _imageAttachment = null),
+                            onRemoveCharacterContext: _removeCharacterContext,
+                            onRemoveServiceContext: _removeServiceContext,
+                            onRemoveProjectContext: _removeProjectContext,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_pickerOpen && snapshot != null)
+                    Positioned.fill(
+                      child: PandoraModelPickerOverlay(
+                        models: snapshot.models,
+                        selection: _modelSelection,
+                        reasoningMode: _reasoningMode,
+                        localAiEnabled: _pickerLocalAiEnabled,
+                        localAiAvailable: _pickerLocalAiAvailable,
+                        localAiModelName: _pickerLocalAiModelName,
+                        startAtEnd: _pickerStartAtEnd,
+                        compactLeftAnchored: true,
+                        onDismiss: _dismissPicker,
+                        onModelSelected: _applyPickerModel,
+                        onReasoningSelected: _applyPickerReasoning,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_usesPlpAssistantOverlay) {
+      return _buildPlpAssistantOverlay(context);
+    }
     if (_isPlpEnterpriseContext && !widget.shellOverlay) {
       return _buildPlpE7Chat(context);
     }
@@ -2439,6 +2708,228 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
 enum _ChatOverflowAction { searchChats, more }
 
 enum _PlpE7ChatOverflowAction { searchChats, more }
+
+enum _PlpAssistantView { launcher, compact, expanded }
+
+class _PlpAssistantLauncher extends StatelessWidget {
+  const _PlpAssistantLauncher({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: 'Open PLP assistant',
+        child: Material(
+          key: const ValueKey<String>('plp-ai-launcher'),
+          color: const Color(0xFF151515),
+          elevation: 10,
+          shadowColor: const Color(0x66000000),
+          shape: const CircleBorder(
+            side: BorderSide(color: Color(0x9982764F), width: 1.2),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPressed,
+            customBorder: const CircleBorder(),
+            child: SizedBox.square(
+              dimension: 58,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Image.asset(
+                  'assets/workspaces/plp.webp',
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (_, __, ___) => const Center(
+                    child: Text(
+                      'PLP',
+                      style: TextStyle(
+                        color: Color(0xFFD9C99A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: .7,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _PlpAssistantPanelHeader extends StatelessWidget {
+  const _PlpAssistantPanelHeader({
+    required this.contextLabel,
+    required this.onNewChat,
+    required this.onMinimize,
+    required this.onExpand,
+    required this.onClose,
+    this.onRecentChats,
+  });
+
+  final String contextLabel;
+  final VoidCallback onNewChat;
+  final VoidCallback? onRecentChats;
+  final VoidCallback onMinimize;
+  final VoidCallback onExpand;
+  final VoidCallback onClose;
+
+  Widget _action({
+    required Key key,
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback? onPressed,
+  }) =>
+      IconButton(
+        key: key,
+        tooltip: tooltip,
+        onPressed: onPressed,
+        constraints: const BoxConstraints.tightFor(width: 32, height: 42),
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        iconSize: 17,
+        color: PandoraSimpleColors.ink,
+        icon: Icon(icon),
+      );
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 58,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
+          child: Row(
+            children: [
+              SizedBox.square(
+                dimension: 32,
+                child: Image.asset(
+                  'assets/workspaces/plp.webp',
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (_, __, ___) => const Center(
+                    child: Text(
+                      'PLP',
+                      style: TextStyle(
+                        color: Color(0xFFD9C99A),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Pandora',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: PandoraSimpleColors.ink,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      contextLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PandoraSimpleColors.muted,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _action(
+                key: const ValueKey<String>('plp-ai-new-chat'),
+                tooltip: 'New chat',
+                icon: Icons.edit_square,
+                onPressed: onNewChat,
+              ),
+              _action(
+                key: const ValueKey<String>('plp-ai-recent-chats'),
+                tooltip: 'Recent chats',
+                icon: Icons.history_rounded,
+                onPressed: onRecentChats,
+              ),
+              _action(
+                key: const ValueKey<String>('plp-ai-minimize'),
+                tooltip: 'Minimize',
+                icon: Icons.remove_rounded,
+                onPressed: onMinimize,
+              ),
+              _action(
+                key: const ValueKey<String>('plp-ai-expand'),
+                tooltip: 'Expand',
+                icon: Icons.open_in_full_rounded,
+                onPressed: onExpand,
+              ),
+              _action(
+                key: const ValueKey<String>('plp-ai-close'),
+                tooltip: 'Close',
+                icon: Icons.close_rounded,
+                onPressed: onClose,
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _PlpAssistantExpandedControls extends StatelessWidget {
+  const _PlpAssistantExpandedControls({
+    required this.onMinimize,
+    required this.onRestore,
+    required this.onClose,
+  });
+
+  final VoidCallback onMinimize;
+  final VoidCallback onRestore;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        key: const ValueKey<String>('plp-ai-expanded-controls'),
+        color: const Color(0xE6121212),
+        borderRadius: BorderRadius.circular(18),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              key: const ValueKey<String>('plp-ai-expanded-minimize'),
+              tooltip: 'Minimize',
+              onPressed: onMinimize,
+              icon: const Icon(Icons.remove_rounded),
+              iconSize: 18,
+              color: PandoraSimpleColors.ink,
+            ),
+            IconButton(
+              key: const ValueKey<String>('plp-ai-restore'),
+              tooltip: 'Restore compact chat',
+              onPressed: onRestore,
+              icon: const Icon(Icons.close_fullscreen_rounded),
+              iconSize: 18,
+              color: PandoraSimpleColors.ink,
+            ),
+            IconButton(
+              key: const ValueKey<String>('plp-ai-expanded-close'),
+              tooltip: 'Close',
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded),
+              iconSize: 18,
+              color: PandoraSimpleColors.ink,
+            ),
+          ],
+        ),
+      );
+}
 
 class _PlpE7ChatHeader extends StatelessWidget {
   const _PlpE7ChatHeader({
