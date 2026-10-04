@@ -22,7 +22,7 @@ import uuid
 import xml.etree.ElementTree as ET
 
 from core_artifact_provenance import ANDROID_PACKAGE
-from core_android_device import (AndroidDevice, DeviceFailure, require, require_unoccluded,
+from core_android_device import (AndroidDevice, DeviceFailure, adb_failure_receipt, require, require_unoccluded,
     ime_geometry_observation, parse_launch_result, parse_process_observation,
     parse_window_observation, parse_keyguard_observation, parse_historical_exit_observation)
 
@@ -217,7 +217,8 @@ class Journey:
                 if evidence["first_incomplete"] is None:
                     evidence["first_incomplete"] = {"input_shown": shown, "geometry_observed": False}
                 if isinstance(error, subprocess.TimeoutExpired):
-                    raise DeviceFailure("VISIBLE_IME_GEOMETRY_UNAVAILABLE") from None
+                    raise DeviceFailure("VISIBLE_IME_GEOMETRY_UNAVAILABLE",
+                                        adb_failure=getattr(error, "adb_failure", None)) from None
                 raise
             observed = ime_geometry_observation(shown, insets)
             observed["within_deadline"] = time.monotonic() < deadline
@@ -858,6 +859,7 @@ class Journey:
             "runtime_verified": passed and self.mode == "authenticated",
             "production_verified": False,
             "failure_code": self.failure,
+            "original_adb_failure": getattr(self, "original_adb_failure", None),
             "safe_failure_path": "device network interruption; provider outage not asserted"
                 if any(step["step"] == 23 for step in self.steps) else "not exercised",
             "physical_device_verified": False,
@@ -893,6 +895,9 @@ class Journey:
             self.write_receipt(True)
             return 0
         except Exception as error:
+            # Bind the original exception before best-effort ADB diagnostics.
+            # Later failures and expected check=False exits cannot replace it.
+            self.original_adb_failure = adb_failure_receipt(error)
             # Driver exception details can contain UI text. Only reviewed
             # failure codes/type names belong in the public receipt/log.
             self.failure = re.sub(UUID, "<turn-id>", str(error)) if isinstance(error, DeviceFailure) else type(error).__name__

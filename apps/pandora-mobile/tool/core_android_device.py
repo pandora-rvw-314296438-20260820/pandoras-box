@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict, dataclass
 import hashlib
 import json
 import os
@@ -15,8 +16,45 @@ import time
 from core_artifact_provenance import ANDROID_PACKAGE, digest_file
 
 
+@dataclass(frozen=True)
+class AdbFailure:
+    command_class: str
+    failure_kind: str
+    exit_code: int | None
+    stderr_category: str
+
+
 class DeviceFailure(RuntimeError):
-    pass
+    def __init__(self, code: str, *, adb_failure: AdbFailure | None = None):
+        super().__init__(code)
+        self.adb_failure = adb_failure
+
+
+def adb_failure_receipt(error: Exception) -> dict | None:
+    failure = getattr(error, "adb_failure", None)
+    return asdict(failure) if isinstance(failure, AdbFailure) else None
+
+
+def classify_adb_failure(arguments: tuple[str, ...], kind: str,
+                         exit_code: int | None, stderr: str = "") -> AdbFailure:
+    command_class = {
+        ("shell", "dumpsys", "input_method"): "read_ime_state",
+        ("shell", "dumpsys", "window", "displays"): "read_window_state",
+        ("shell", "ps", "-A", "-o", "NAME"): "read_process_state",
+        ("shell", "dumpsys", "activity", "activities"): "read_activity_state",
+    }.get(arguments, "other")
+    # These are observed ADB error signatures, not a causal diagnosis. Do not
+    # classify generic child output such as "closed", "error" or "timeout".
+    signatures = {
+        "device_offline": r"(?:adb: )?error: device offline",
+        "device_unauthorized": r"(?:adb: )?error: device unauthorized\.",
+        "no_devices": r"(?:adb: )?error: no devices/emulators found",
+        "device_not_found": r"(?:adb: )?error: device '[^'\r\n]+' not found",
+    }
+    categories = {category for category, signature in signatures.items()
+                  if any(re.fullmatch(signature, line) for line in stderr.splitlines())}
+    category = next(iter(categories)) if len(categories) == 1 else "ambiguous" if categories else "unknown"
+    return AdbFailure(command_class, kind, exit_code, category)
 
 
 def require(condition: bool, code: str) -> None:
@@ -31,11 +69,18 @@ class AndroidDevice:
         self.adb = adb
 
     def run(self, *arguments: str, timeout: int = 30, check: bool = True) -> str:
-        result = subprocess.run([self.adb, "-s", self.serial, *arguments],
-                                capture_output=True, text=True, timeout=timeout)
+        try:
+            result = subprocess.run([self.adb, "-s", self.serial, *arguments],
+                                    capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            # Keep the existing exception type/control flow, without copying
+            # its command, partial output or exception text into evidence.
+            error.adb_failure = classify_adb_failure(arguments, "timeout", None)
+            raise
         if check and result.returncode:
             # Do not copy device output or command arguments into public logs.
-            raise DeviceFailure("ADB_COMMAND_FAILED")
+            raise DeviceFailure("ADB_COMMAND_FAILED", adb_failure=classify_adb_failure(
+                arguments, "nonzero_exit", result.returncode, result.stderr))
         return result.stdout
 
     def shell(self, *arguments: str, **kwargs) -> str:

@@ -2,7 +2,10 @@
 import unittest
 import json
 import hashlib
+import subprocess
+from unittest.mock import patch
 from core_android_device import (AndroidDevice, DeviceFailure, parse_ime_visibility,
+                                adb_failure_receipt,
                                 parse_metrics, parse_package_evidence,
                                 parse_window_insets, require_unoccluded,
                                 parse_ime_state,
@@ -32,6 +35,63 @@ Display: mDisplayId=1
         InsetsSource id=20 type=navigationBars frame=[0,380][400,400] visible=true
     Control map:
 """
+
+
+class AdbFailureEvidenceTest(unittest.TestCase):
+    def test_checked_failure_is_sanitized_and_never_retried(self):
+        android = AndroidDevice("private-serial")
+        failed = subprocess.CompletedProcess([], -9, "Bearer private-token", "error: device offline\npassword=private-secret")
+        with patch("core_android_device.subprocess.run", return_value=failed) as run:
+            with self.assertRaisesRegex(DeviceFailure, "^ADB_COMMAND_FAILED$") as caught:
+                android.ime_state(timeout=7)
+        self.assertEqual(adb_failure_receipt(caught.exception), {
+            "command_class": "read_ime_state", "failure_kind": "nonzero_exit",
+            "exit_code": -9, "stderr_category": "device_offline"})
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.kwargs["timeout"], 7)
+        self.assertNotIn("private", json.dumps(adb_failure_receipt(caught.exception)))
+        self.assertNotIn("private", str(caught.exception))
+
+    def test_only_strong_adb_signatures_are_classified_and_conflicts_are_ambiguous(self):
+        cases = [
+            ("", "unknown"), ("closed timeout error private-secret", "unknown"),
+            ("private-user said error: device offline", "unknown"),
+            ("error: device offline plus private-secret", "unknown"),
+            ("adb: error: device unauthorized.\nprivate-token", "device_unauthorized"),
+            ("error: no devices/emulators found", "no_devices"),
+            ("error: device 'private-serial' not found", "device_not_found"),
+            ("error: device offline\nerror: device unauthorized.", "ambiguous"),
+        ]
+        for stderr, expected in cases:
+            with self.subTest(expected=expected, stderr=stderr):
+                with patch("core_android_device.subprocess.run", return_value=subprocess.CompletedProcess([], 1, "private-token", stderr)):
+                    with self.assertRaises(DeviceFailure) as caught:
+                        AndroidDevice("private-serial").run("private-argument")
+                receipt = adb_failure_receipt(caught.exception)
+                self.assertEqual(receipt["command_class"], "other")
+                self.assertEqual(receipt["stderr_category"], expected)
+                self.assertNotIn("private", json.dumps(receipt))
+
+    def test_timeout_keeps_original_type_and_has_no_invented_exit_or_transport_cause(self):
+        error = subprocess.TimeoutExpired(["private-argument"], 3,
+                                          output=b"Bearer private-token", stderr=b"error: device offline")
+        with patch("core_android_device.subprocess.run", side_effect=error) as run:
+            with self.assertRaises(subprocess.TimeoutExpired) as caught:
+                AndroidDevice("private-serial").ime_state(timeout=3)
+        self.assertIs(caught.exception, error)
+        self.assertEqual(adb_failure_receipt(error), {
+            "command_class": "read_ime_state", "failure_kind": "timeout",
+            "exit_code": None, "stderr_category": "unknown"})
+        self.assertEqual(run.call_count, 1)
+        self.assertNotIn("private", json.dumps(adb_failure_receipt(error)))
+
+    def test_success_and_unchecked_nonzero_keep_existing_return_behavior(self):
+        android = AndroidDevice("private-serial")
+        for code, check in [(0, True), (1, False)]:
+            with patch("core_android_device.subprocess.run", return_value=subprocess.CompletedProcess([], code, "unchanged", "error: device offline")) as run:
+                self.assertEqual(android.run("private-argument", check=check), "unchanged")
+                self.assertEqual(run.call_count, 1)
+        self.assertIsNone(adb_failure_receipt(DeviceFailure("UNRELATED_ASSERTION")))
 
 
 class DeviceReceiptTest(unittest.TestCase):

@@ -164,6 +164,11 @@ def run(sdk: Path, avd_home: Path, evidence: Path, command_file: Path,
             result["commands_completed"] = len(commands)
             return 0
         finally:
+            exit_code = process.poll()
+            result["emulator_process_before_cleanup"] = {
+                "state": "running" if exit_code is None else "exited",
+                "exit_code": exit_code,
+            }
             (evidence / "android-boot-receipt.json").write_text(json.dumps(result, indent=2) + "\n")
             process.terminate()
             try:

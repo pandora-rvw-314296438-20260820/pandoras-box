@@ -2,6 +2,7 @@
 import hashlib
 import io
 import json
+import subprocess
 from contextlib import redirect_stdout
 from pathlib import Path
 import tempfile
@@ -11,7 +12,7 @@ import unittest
 from unittest.mock import patch
 import xml.etree.ElementTree as ET
 
-from core_android_device import DeviceFailure
+from core_android_device import AndroidDevice, DeviceFailure, adb_failure_receipt
 from core_android_journey import Journey, bounds, semantic_snapshot, text_of, hierarchy_diagnostics
 
 TURN = "12345678-1234-1234-1234-123456789012"
@@ -190,6 +191,57 @@ class NativeEvidenceParsingTest(unittest.TestCase):
         self.assertEqual(written, [(False, "APP_ENTRY_NOT_VISIBLE", {"observed": False, "acquisition": "unavailable"})])
         self.assertNotIn("secret_canary", output.getvalue())
         self.assertIn("APP_ENTRY_NOT_VISIBLE", output.getvalue())
+        self.assertIsNone(journey.original_adb_failure)
+
+    def test_original_checked_adb_failure_survives_unchecked_exit_and_six_failed_diagnostics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            journey = Journey.__new__(Journey)
+            journey.output = Path(directory) / "receipt.json"
+            journey.installed = {"source_sha": "a" * 40, "apk_sha256": "b" * 64,
+                                 "installed_apk_sha256": "b" * 64}
+            journey.android = AndroidDevice("private-serial")
+            journey.android.installed_digest = lambda: "b" * 64
+            journey.device = SimpleNamespace(dump_hierarchy=lambda **kwargs: (_ for _ in ()).throw(RuntimeError("private-token")))
+            journey.mode, journey.authenticated, journey.thread = "platform", False, None
+            journey.steps, journey.timings = [{"step": n} for n in range(4)], []
+            journey.started, journey.private_evidence = time.monotonic(), None
+            def fail():
+                journey.android.run("private-unchecked", check=False)
+                journey.android.ime_state()
+            journey.platform = fail
+            results = [subprocess.CompletedProcess([], 2, "private-token", "error: device unauthorized."),
+                       subprocess.CompletedProcess([], 7, "private-token", "error: device offline")]
+            def command(*args, **kwargs):
+                return results.pop(0) if results else subprocess.CompletedProcess([], 9, "private-token", "error: device unauthorized.")
+            output = io.StringIO()
+            with patch("core_android_device.subprocess.run", side_effect=command) as run, redirect_stdout(output):
+                self.assertEqual(journey.run(), 1)
+            receipt = json.loads(journey.output.read_text())
+            self.assertEqual(receipt["failure_code"], "ADB_COMMAND_FAILED")
+            self.assertEqual(receipt["original_adb_failure"], {
+                "command_class": "read_ime_state", "failure_kind": "nonzero_exit",
+                "exit_code": 7, "stderr_category": "device_offline"})
+            for field in ("process", "window", "keyguard", "historical_exits", "hierarchy", "ime"):
+                self.assertEqual(receipt["failure_diagnostics"][field], {"observed": False, "acquisition": "unavailable"})
+            self.assertEqual(len(receipt["steps"]), 4)
+            self.assertFalse(receipt["runtime_verified"])
+            self.assertEqual(run.call_count, 10)  # 2 original, 5 diagnostic, 3 unchanged cleanup calls.
+            for canary in ("private-token", "private-serial", "private-unchecked"):
+                self.assertNotIn(canary, journey.output.read_text() + output.getvalue())
+
+    def test_ime_timeout_retains_metadata_without_changing_failure_code_or_budget(self):
+        journey, _ = self.ime_fixture([])
+        journey.android = AndroidDevice("private-serial")
+        error = subprocess.TimeoutExpired(["private-argument"], 20, output=b"private-token")
+        with patch("core_android_device.subprocess.run", side_effect=error) as run:
+            with self.assertRaisesRegex(DeviceFailure, "^VISIBLE_IME_GEOMETRY_UNAVAILABLE$") as caught:
+                journey.wait_for_ime_geometry()
+        self.assertEqual(adb_failure_receipt(caught.exception), {
+            "command_class": "read_ime_state", "failure_kind": "timeout",
+            "exit_code": None, "stderr_category": "unknown"})
+        self.assertEqual(run.call_count, 1)
+        self.assertGreater(run.call_args.kwargs["timeout"], 0)
+        self.assertLessEqual(run.call_args.kwargs["timeout"], 20)
 
     def cancellation_fixture(self, states):
         journey = Journey.__new__(Journey)
