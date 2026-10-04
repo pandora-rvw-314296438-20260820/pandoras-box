@@ -1242,6 +1242,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                           _closeTool();
                         },
                       ),
+                      if (widget.embeddedRouteSlug == null)
+                        Positioned.fill(
+                          child: AskPandoraScreen(
+                            key: _alfredKey,
+                            onHome: _openHome,
+                            onSearchChats: _openDrawer,
+                            onMore: () => _open(4),
+                            enterpriseContext: alfredContext,
+                            allowCharacterContext: false,
+                            allowProjectContext: false,
+                            shellOverlay: true,
+                            initialHistoryExpanded: false,
+                          ),
+                        ),
                       if (_index != 1 || _routedTool != null)
                         const Positioned(
                           top: 0,
@@ -1253,38 +1267,22 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                             midOpacity: .035,
                           ),
                         ),
-                      if (_index != 1 || _routedTool != null)
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          child: SafeArea(
-                            bottom: false,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
-                              child: PandoraMenuButton(
-                                key: const ValueKey<String>(
-                                  'plp-floating-navigation',
-                                ),
-                                onPressed: _openDrawer,
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
+                            child: PandoraMenuButton(
+                              key: const ValueKey<String>(
+                                'plp-floating-navigation',
                               ),
+                              onPressed: _openDrawer,
                             ),
                           ),
                         ),
-                      if (widget.embeddedRouteSlug == null)
-                        Positioned.fill(
-                          child: AskPandoraScreen(
-                            key: _alfredKey,
-                            onHome: _openHome,
-                            onOpenNavigation: _openDrawer,
-                            onSearchChats: _openDrawer,
-                            onMore: () => _open(4),
-                            enterpriseContext: alfredContext,
-                            allowCharacterContext: false,
-                            allowProjectContext: false,
-                            shellOverlay: true,
-                            initialHistoryExpanded: false,
-                          ),
-                        ),
+                      ),
                     ],
                   ),
                 ),

@@ -106,17 +106,25 @@ test("PLP top chrome floats over content with a soft darkening scrim on every su
 });
 
 
-test("PLP chat hamburger is explicitly owned by the PLP shell drawer", () => {
+test("PLP shell owns one floating hamburger on Chat and every business page", () => {
   const shell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
-  const navigation = read("apps/pandora-mobile/lib/core/widgets/pandora_navigation.dart");
-  assert.match(shell, /AskPandoraScreen\([\s\S]{0,240}onOpenNavigation: _openDrawer/);
-  assert.match(chat, /final VoidCallback\? onOpenNavigation/);
-  assert.match(chat, /_PlpE7ChatHeader\([\s\S]{0,180}onOpenNavigation: widget\.onOpenNavigation/);
+  const chatConstruction = shell.slice(
+    shell.indexOf("AskPandoraScreen("),
+    shell.indexOf("PlpOperationsScreen(", shell.indexOf("AskPandoraScreen(")),
+  );
+  assert.doesNotMatch(chatConstruction, /onOpenNavigation:/);
+
+  const menuKey = "'plp-floating-navigation'";
+  const menuIndex = shell.indexOf(menuKey);
+  assert.ok(menuIndex >= 0);
+  const menuWindow = shell.slice(Math.max(0, menuIndex - 220), menuIndex + 280);
+  assert.doesNotMatch(menuWindow, /_index != 1/);
+
   const plpHeader = chat.slice(
     chat.indexOf("class _PlpE7ChatHeader"),
     chat.indexOf("class _PlpE7EmptyConversation"),
   );
-  assert.match(plpHeader, /PandoraPageHeader\([\s\S]{0,140}onOpenNavigation: onOpenNavigation/);
-  assert.match(navigation, /onOpenNavigation \?\? PandoraNavigationScope\.maybeOf\(context\)\?\.openDrawer/);
+  assert.match(plpHeader, /PandoraPageHeader/);
   assert.match(shell, /PandoraNavigationScope\(\s*openDrawer: null/);
 });
+
