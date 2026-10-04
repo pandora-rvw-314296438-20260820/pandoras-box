@@ -49,7 +49,11 @@ test("PLP shell loads one additive resort projection and preserves contextual Pa
   assert.match(shell, /'resort:' \+ destination/);
   assert.match(shell, /onOpenSection: _openResortSection/);
   assert.match(shell, /'name': 'Alfred'/);
-  assert.match(shell, /hintText: _commandHint/);
+  assert.match(
+    shell,
+    /AskPandoraScreen\([\s\S]*enterpriseContext: alfredContext[\s\S]*shellOverlay: true[\s\S]*initialHistoryExpanded: false/,
+  );
+  assert.match(shell, /bottomNavigationBar: null/);
 });
 
 test("PLP disconnected customer source truth cannot claim connection or manufacture current metrics", () => {
@@ -164,11 +168,14 @@ test("PLP uses one compact contextual page header instead of repeating resort an
 test("PLP deep surfaces preserve parent navigation and contextual Pandora", () => {
   assert.match(shell, /'activity-feed'/);
   assert.match(shell, /onOpenActivity: _openActivityFeed/);
-  assert.match(shell, /toolKey == 'team-management'/);
-  assert.match(shell, /toolKey == 'activity-feed'/);
-  assert.match(shell, /Ask about infrastructure…/);
-  assert.match(shell, /hintMaxLines: 1/);
-  assert.doesNotMatch(shell, /hintText\.length > 28/);
+  assert.match(shell, /void _bindCurrentConversationContext\(\)/);
+  assert.match(shell, /bindEnterpriseContext\(_alfredContext\(bootstrap\)\)/);
+  assert.match(
+    shell,
+    /'uiContext': <String, Object\?>\{[\s\S]*'surface': _drawerSelection \?\? 'home'/,
+  );
+  assert.match(shell, /enterpriseContext: alfredContext/);
+  assert.match(shell, /shellOverlay: true/);
   assert.match(shell, /AnnotatedRegion<SystemUiOverlayStyle>/);
 });
 

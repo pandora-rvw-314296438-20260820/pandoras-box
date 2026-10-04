@@ -684,6 +684,11 @@ void main() {
     expect(contentTheme.brightness, Brightness.light);
     final chat = find.byType(AskPandoraScreen);
     expect(Theme.of(tester.element(chat)).brightness, Brightness.dark);
+    final launcher = find.byKey(const ValueKey('plp-ai-launcher'));
+    expect(launcher.hitTestable(), findsOneWidget);
+    await tester.tap(launcher);
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('plp-ai-compact-panel')), findsOneWidget);
     final composer = find.byKey(const ValueKey('ask-pandora-objective'));
     expect(composer.hitTestable(), findsOneWidget);
     // No production bootstrap is invented. Its real unavailable state uses a
@@ -963,6 +968,12 @@ void main() {
     expect(find.text('Owner private conversation'), findsNothing);
     await tester.binding.handlePopRoute();
     await _settle(tester);
+    final clientLauncher =
+        find.byKey(const ValueKey('plp-ai-launcher'));
+    expect(clientLauncher.hitTestable(), findsOneWidget);
+    await tester.tap(clientLauncher);
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('plp-ai-compact-panel')), findsOneWidget);
     await tester.enterText(find.byKey(const ValueKey('ask-pandora-objective')),
         'Client private draft');
     await tester.tap(find.byKey(const ValueKey('core-return-pandora')));
