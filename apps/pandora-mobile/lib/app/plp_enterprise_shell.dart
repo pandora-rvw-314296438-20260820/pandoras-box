@@ -1057,7 +1057,6 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               AskPandoraScreen(
                 key: _alfredKey,
                 onHome: _openHome,
-                onOpenNavigation: _openDrawer,
                 onMore: () => _open(4),
                 enterpriseContext: alfredContext,
                 allowCharacterContext: false,
@@ -1297,23 +1296,22 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                             midOpacity: .035,
                           ),
                         ),
-                      if (_index != 1 || _routedTool != null)
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          child: SafeArea(
-                            bottom: false,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
-                              child: PandoraMenuButton(
-                                key: const ValueKey<String>(
-                                  'plp-floating-navigation',
-                                ),
-                                onPressed: _openDrawer,
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
+                            child: PandoraMenuButton(
+                              key: const ValueKey<String>(
+                                'plp-floating-navigation',
                               ),
+                              onPressed: _openDrawer,
                             ),
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),

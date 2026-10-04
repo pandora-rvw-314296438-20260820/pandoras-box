@@ -279,7 +279,7 @@ Future<void> _tapVisibleText(WidgetTester tester, String label) async {
 }
 
 void main() {
-  testWidgets('PLP chat keeps one floating hamburger wired to the real drawer',
+  testWidgets('PLP chat keeps one shell-owned floating hamburger wired to the real drawer',
       (tester) async {
     await _mountOwnerShell(tester);
     await _openDrawer(tester);
@@ -292,13 +292,14 @@ void main() {
 
     expect(find.byKey(const ValueKey<String>('plp-e7-chat-surface')),
         findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('plp-floating-navigation')),
+
+    final shellMenu =
+        find.byKey(const ValueKey<String>('plp-floating-navigation'));
+    expect(shellMenu, findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('pandora-side-panel-open')),
         findsNothing);
 
-    final chatMenu =
-        find.byKey(const ValueKey<String>('pandora-side-panel-open'));
-    expect(chatMenu, findsOneWidget);
-    await tester.tap(chatMenu);
+    await tester.tap(shellMenu);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -308,9 +309,6 @@ void main() {
     expect(find.byKey(const ValueKey<String>('plp-navigation-drawer')),
         findsOneWidget);
 
-    // Entering PLP chat schedules the bounded local-AI prewarm delay.
-    // Let that production timer finish so this test proves the UI contract
-    // without leaking asynchronous work into the test harness teardown.
     await tester.pump(const Duration(milliseconds: 900));
     expect(tester.takeException(), isNull);
   });
