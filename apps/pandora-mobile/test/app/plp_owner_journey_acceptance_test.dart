@@ -345,29 +345,28 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('PLP chat shell does not recenter the landing when the keyboard opens',
+  testWidgets('PLP compact assistant keeps the business page stable above the keyboard',
       (tester) async {
     await _mountOwnerShell(tester);
-    await _openDrawer(tester);
-    await tester.tap(
-      find.byKey(const ValueKey<String>('plp-drawer-new-chat')),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 900));
 
-    final title = find.text('What can I help with?');
-    final firstSuggestion = find.text('What can you do for me now?');
-    final composer =
-        find.byKey(const ValueKey<String>('ask-pandora-composer'));
+    final pageTitle =
+        find.byKey(const ValueKey<String>('plp-contextual-page-title'));
+    final restingPageTop = tester.getTopLeft(pageTitle).dy;
+    final launcher =
+        find.byKey(const ValueKey<String>('plp-ai-launcher'));
+
+    await tester.tap(launcher);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final panel =
+        find.byKey(const ValueKey<String>('plp-ai-compact-panel'));
     final objective =
         find.byKey(const ValueKey<String>('ask-pandora-objective'));
+    expect(panel, findsOneWidget);
+    expect(objective.hitTestable(), findsOneWidget);
 
-    expect(title, findsOneWidget);
-    expect(firstSuggestion, findsOneWidget);
-    expect(composer, findsOneWidget);
-
-    final restingTitleTop = tester.getTopLeft(title).dy;
-    final restingSuggestionTop = tester.getTopLeft(firstSuggestion).dy;
+    final restingPanel = tester.getRect(panel);
 
     addTearDown(tester.view.resetViewInsets);
     await tester.tap(objective);
@@ -375,12 +374,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 220));
 
-    expect(tester.getTopLeft(title).dy, closeTo(restingTitleTop, .5));
-    expect(
-      tester.getTopLeft(firstSuggestion).dy,
-      closeTo(restingSuggestionTop, .5),
-    );
-    expect(tester.getRect(composer).bottom, lessThanOrEqualTo(844 - 320));
+    expect(tester.getTopLeft(pageTitle).dy, closeTo(restingPageTop, .5));
+    final raisedPanel = tester.getRect(panel);
+    expect(raisedPanel.top, lessThan(restingPanel.top));
+    expect(raisedPanel.bottom, lessThanOrEqualTo(844 - 320));
     expect(tester.takeException(), isNull);
   });
 
