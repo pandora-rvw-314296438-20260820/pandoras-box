@@ -76,5 +76,11 @@ test("PLP top chrome floats over content with a soft darkening scrim on every su
   const chromeGate = shell.indexOf('if (_index != 1 || _routedTool != null)');
   const floatingMenu = shell.indexOf("'plp-floating-navigation'", chromeGate);
   assert.ok(chromeGate >= 0 && floatingMenu > chromeGate);
-  assert.doesNotMatch(chat, /required this\.active/);
+  const plpHeader = chat.slice(
+    chat.indexOf('class _PlpE7ChatHeader'),
+    chat.indexOf('class _PlpE7EmptyConversation'),
+  );
+  assert.doesNotMatch(plpHeader, /required this\.active/);
+  assert.match(plpHeader, /'pandora-chat-new'/);
+  assert.match(plpHeader, /'pandora-chat-overflow'/);
 });
