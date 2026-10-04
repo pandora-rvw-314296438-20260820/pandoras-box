@@ -40,6 +40,7 @@ class AskPandoraScreen extends StatefulWidget {
     this.initialPrompt,
     this.onHome,
     this.onProjects,
+    this.onOpenNavigation,
     this.onSearchChats,
     this.onMore,
     this.enterpriseContext,
@@ -54,6 +55,7 @@ class AskPandoraScreen extends StatefulWidget {
   final String? initialPrompt;
   final VoidCallback? onHome;
   final VoidCallback? onProjects;
+  final VoidCallback? onOpenNavigation;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
   final Map<String, Object?>? enterpriseContext;
@@ -2095,6 +2097,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
             child: KeyedSubtree(
               key: _headerKey,
               child: _PlpE7ChatHeader(
+                onOpenNavigation: widget.onOpenNavigation,
                 onNewChat: newChat,
                 onSearchChats: widget.onSearchChats,
                 onMore: widget.onMore,
@@ -2440,17 +2443,20 @@ enum _PlpE7ChatOverflowAction { searchChats, more }
 class _PlpE7ChatHeader extends StatelessWidget {
   const _PlpE7ChatHeader({
     required this.onNewChat,
+    this.onOpenNavigation,
     this.onSearchChats,
     this.onMore,
   });
 
   final VoidCallback onNewChat;
+  final VoidCallback? onOpenNavigation;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) => PandoraPageHeader(
         title: '',
+        onOpenNavigation: onOpenNavigation,
         actions: [
           IconButton(
             key: const ValueKey<String>('pandora-chat-new'),

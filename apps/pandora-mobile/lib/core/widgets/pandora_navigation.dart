@@ -89,14 +89,17 @@ class PandoraPageHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.actions = const <Widget>[],
+    this.onOpenNavigation,
   });
 
   final String title;
   final List<Widget> actions;
+  final VoidCallback? onOpenNavigation;
 
   @override
   Widget build(BuildContext context) {
-    final openDrawer = PandoraNavigationScope.maybeOf(context)?.openDrawer;
+    final openDrawer =
+        onOpenNavigation ?? PandoraNavigationScope.maybeOf(context)?.openDrawer;
     final isSecondaryRoute = ModalRoute.of(context)?.isFirst == false;
     final showPandoraChevron = title == 'Pandora';
     return SizedBox(
