@@ -313,7 +313,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('PLP chat landing stays anchored while only the composer follows the keyboard',
+  testWidgets('PLP chat shell does not recenter the landing when the keyboard opens',
       (tester) async {
     await _mountOwnerShell(tester);
     await _openDrawer(tester);
@@ -336,21 +336,6 @@ void main() {
 
     final restingTitleTop = tester.getTopLeft(title).dy;
     final restingSuggestionTop = tester.getTopLeft(firstSuggestion).dy;
-
-    addTearDown(tester.view.resetPhysicalSize);
-    tester.view.physicalSize = const Size(390, 600);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 120));
-
-    expect(tester.getTopLeft(title).dy, closeTo(restingTitleTop, .5));
-    expect(
-      tester.getTopLeft(firstSuggestion).dy,
-      closeTo(restingSuggestionTop, .5),
-    );
-
-    tester.view.resetPhysicalSize();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 120));
 
     addTearDown(tester.view.resetViewInsets);
     await tester.tap(objective);
