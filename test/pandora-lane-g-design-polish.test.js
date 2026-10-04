@@ -22,8 +22,9 @@ test("shared top chrome floats over content with a soft scrim and no slab",()=>{
  assert.doesNotMatch(header,/ColoredBox|Divider/);
  assert.doesNotMatch(header,/scaffoldBackgroundColor/);
 });
-test("business content reserves the real compact composer lane",()=>{
+test("shared composer clearance remains default but can be removed for logo-first workspaces",()=>{
  assert.match(layer,/compactComposerHeight = 80/);
- assert.match(layer,/businessBottomInset = compactComposerHeight \+ safeAreaBottom/);
+ assert.match(layer,/final bool reserveComposerLane/);
+ assert.match(layer,/reserveComposerLane \? compactComposerHeight \+ safeAreaBottom : 0\.0/);
  assert.doesNotMatch(layer,/compactComposerHeight = 68/);
 });

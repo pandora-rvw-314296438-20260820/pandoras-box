@@ -99,6 +99,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final _commandFocus = FocusNode();
   final _drawerScrollController = ScrollController();
   bool _drawerOpen = false;
+  bool _assistantVisible = false;
 
   Future<Map<String, Object?>>? _bootstrapFuture;
   Map<String, Object?>? _lastBootstrap;
@@ -465,8 +466,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     bool remember = true,
     bool clearHistory = false,
   }) {
-    if (index == 1 && widget.embeddedRouteSlug != null) {
-      PandoraSharedConversationScope.maybeOf(context)?.showConversation?.call();
+    if (index == 1) {
+      if (widget.embeddedRouteSlug != null) {
+        PandoraSharedConversationScope.maybeOf(context)
+            ?.showConversation
+            ?.call();
+      } else {
+        _alfredKey.currentState?.showHistory();
+      }
       return;
     }
     if (_index == index && _routedTool == null) return;
@@ -611,6 +618,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       _commandBusy = true;
       _commandReply = null;
     });
+    _alfredKey.currentState?.showHistory();
     await WidgetsBinding.instance.endOfFrame;
     String? reply;
     try {
@@ -627,46 +635,6 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         _refresh();
       }
     }
-  }
-
-  Future<void> _submitPersistentCommand() => _submitCommand();
-
-  String get _commandHint {
-    final toolKey = _routedToolKey;
-    if (toolKey == 'team-management') return 'Ask about team or access…';
-    if (toolKey == 'activity-feed') return 'Ask about activity or audit…';
-    if (toolKey == 'source-infrastructure') {
-      return 'Ask about infrastructure…';
-    }
-    if (toolKey == 'operations-room') return 'Ask about resort operations…';
-    if (toolKey != null && toolKey.startsWith('resort:')) {
-      final section = plpResortSectionById(toolKey.substring('resort:'.length));
-      if (section != null) return section.commandHint;
-    }
-    if (toolKey != null && toolKey.startsWith('resort-module:')) {
-      final module = toolKey.substring('resort-module:'.length);
-      return 'Ask about ' + module.replaceAll('-', ' ') + '…';
-    }
-    if (toolKey != null && toolKey.startsWith('resort-record:')) {
-      return 'Ask about this resort record…';
-    }
-    return switch (_index) {
-      0 => 'Ask what matters today…',
-      2 => 'Ask about operations…',
-      3 => 'Ask about what you see…',
-      4 => 'Ask about local AI…',
-      5 => 'Ask about today’s overview…',
-      6 => 'Ask about a guest or stay…',
-      7 => 'Ask about team or access…',
-      8 => 'Ask about revenue…',
-      9 => 'Ask what needs your attention…',
-      10 => 'Ask about recent activity…',
-      11 => 'Ask about settings…',
-      12 => 'Ask about diagnostics…',
-      13 => 'Ask about tax readiness…',
-      14 => 'Ask about infrastructure…',
-      _ => 'Message Pandora',
-    };
   }
 
   Map<String, Object?> _alfredContext(Map<String, Object?> bootstrap) => {
@@ -984,9 +952,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           final bootstrap = snapshot.data ?? _lastBootstrap;
           if (bootstrap == null &&
               snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(
+            return Scaffold(
               backgroundColor: _canvas,
-              body: Center(
+              resizeToAvoidBottomInset: widget.embeddedRouteSlug == null,
+              body: const Center(
                 child: CircularProgressIndicator(
                   key: ValueKey('plp-bootstrap-loading'),
                 ),
@@ -997,6 +966,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           if (bootstrap == null) {
             return Scaffold(
               backgroundColor: _canvas,
+              resizeToAvoidBottomInset: widget.embeddedRouteSlug == null,
               body: SafeArea(
                 child: Center(
                   child: Padding(
@@ -1051,17 +1021,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenRecord: (kind, record) => _openResortRecord(kind, record),
               onOpenSourceSettings: _openSourceInfrastructure,
             ),
-            if (widget.embeddedRouteSlug != null)
-              const SizedBox.shrink()
-            else
-              AskPandoraScreen(
-                key: _alfredKey,
-                onHome: _openHome,
-                onMore: () => _open(4),
-                enterpriseContext: alfredContext,
-                allowCharacterContext: false,
-                allowProjectContext: false,
-              ),
+            const SizedBox.shrink(),
             PlpOperationsScreen(
               key: const ValueKey('plp-operations-room'),
               bootstrap: bootstrap,
@@ -1216,7 +1176,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 child: Scaffold(
                 key: _scaffoldKey,
                 backgroundColor: _canvas,
-                resizeToAvoidBottomInset: _index != 1,
+                resizeToAvoidBottomInset: widget.embeddedRouteSlug == null && !_assistantVisible,
                 drawerEnableOpenDragGesture: true,
                 drawerEdgeDragWidth: 32,
                 drawerScrimColor: const Color(0x99000000),
@@ -1286,6 +1246,25 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                           _closeTool();
                         },
                       ),
+                      if (widget.embeddedRouteSlug == null)
+                        Positioned.fill(
+                          child: AskPandoraScreen(
+                            key: _alfredKey,
+                            onHome: _openHome,
+                            onSearchChats: _openDrawer,
+                            onMore: () => _open(4),
+                            enterpriseContext: alfredContext,
+                            allowCharacterContext: false,
+                            allowProjectContext: false,
+                            shellOverlay: true,
+                            initialHistoryExpanded: false,
+                            onHistoryVisibilityChanged: (visible) {
+                              if (mounted && _assistantVisible != visible) {
+                                setState(() => _assistantVisible = visible);
+                              }
+                            },
+                          ),
+                        ),
                       if (_index != 1 || _routedTool != null)
                         const Positioned(
                           top: 0,
@@ -1316,22 +1295,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                     ],
                   ),
                 ),
-                bottomNavigationBar: _index == 1
-                    ? null
-                    : PlpCommandDock(
-                        controller: _commandController,
-                        focusNode: _commandFocus,
-                        onSubmit: _submitPersistentCommand,
-                        hintText: _commandHint,
-                        busy: _commandBusy,
-                        reply: _commandReply,
-                        onDismissReply: () {
-                          if (_commandReply != null) {
-                            setState(() => _commandReply = null);
-                          }
-                        },
-                        onOpenChat: () => _open(1),
-                      ),
+                bottomNavigationBar: null,
                 ),
               ),
             ),

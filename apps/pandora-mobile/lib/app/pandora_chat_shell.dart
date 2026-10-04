@@ -1514,7 +1514,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           )
         : root;
     return PandoraCoreRouteVisibility(
-      active: index == _index && !_chatVisible,
+      active: index == _index &&
+          (!_chatVisible ||
+              _activeWorkspaceSelection?.workspace.key == 'plp-boracay'),
       child: presented,
     );
   }
@@ -1598,10 +1600,13 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               );
             }
             final chatScopeEpoch = _scopeEpoch;
+            final plpAssistant =
+                _activeWorkspaceSelection?.workspace.key == 'plp-boracay';
             Widget activeChat = PandoraConversationLayer(
               key: const ValueKey<String>('pandora-global-active-chat-shell'),
+              reserveComposerLane: !plpAssistant,
               businessWorkspace: Offstage(
-                offstage: _chatVisible,
+                offstage: _chatVisible && !plpAssistant,
                 child: PandoraSharedConversationScope(
                   submitPrompt: _submitSharedPrompt,
                   openThread: _openSharedThread,
@@ -1635,15 +1640,21 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               ),
             );
 
+            final canMinimizePlpAssistant = plpAssistant &&
+                _chatVisible &&
+                !_drawerVisible &&
+                !_recentChatsVisible;
             final canReturnFromOwnerChat = !_inClientWorkspace &&
                 _index != 0 &&
                 _chatVisible &&
                 !_drawerVisible &&
                 !_recentChatsVisible;
+            final interceptChatBack =
+                canMinimizePlpAssistant || canReturnFromOwnerChat;
             activeChat = PopScope<void>(
-              canPop: !canReturnFromOwnerChat,
+              canPop: !interceptChatBack,
               onPopInvokedWithResult: (didPop, _) {
-                if (didPop || !canReturnFromOwnerChat) return;
+                if (didPop || !interceptChatBack) return;
                 FocusManager.instance.primaryFocus?.unfocus();
                 _chatKey.currentState?.minimizeHistory();
               },
@@ -1680,6 +1691,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               return Scaffold(
                 key: _scaffoldKey,
                 backgroundColor: PandoraV2Colors.canvas,
+                resizeToAvoidBottomInset: !plpAssistant || !_chatVisible,
                 onEndDrawerChanged: (open) {
                   setState(() => _recentChatsVisible = open);
                 },
@@ -1716,6 +1728,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: PandoraV2Colors.canvas,
+              resizeToAvoidBottomInset: !plpAssistant || !_chatVisible,
               onDrawerChanged: (open) {
                 setState(() => _drawerVisible = open);
                 if (open) {

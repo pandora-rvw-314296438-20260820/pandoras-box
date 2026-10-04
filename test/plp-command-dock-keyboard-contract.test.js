@@ -23,12 +23,13 @@ const operationsRoom = readFileSync(
   'utf8',
 );
 
-test('shared PLP command dock follows the keyboard only while its field owns focus', () => {
-  assert.match(shell, /AnimatedBuilder\([\s\S]*animation: focusNode/);
-  assert.match(shell, /focusNode\.hasFocus[\s\S]*MediaQuery\.viewInsetsOf\(context\)\.bottom/);
-  assert.match(shell, /plp-command-keyboard-offset/);
-  assert.match(shell, /AnimatedPadding\(/);
-  assert.match(shell, /padding: EdgeInsets\.only\(bottom: keyboardInset\)/);
+test('PLP no longer renders a page-level command dock', () => {
+  assert.match(shell, /bottomNavigationBar: null/);
+  assert.doesNotMatch(shell, /bottomNavigationBar: _index == 1[\s\S]*PlpCommandDock\(/);
+  assert.match(shell, /shellOverlay: true/);
+  assert.match(shell, /initialHistoryExpanded: false/);
+  assert.match(chat, /'plp-ai-launcher'/);
+  assert.match(chat, /'plp-ai-compact-panel'/);
 });
 
 test('Ask Pandora full chat composer follows the keyboard inset', () => {
@@ -39,8 +40,11 @@ test('Ask Pandora full chat composer follows the keyboard inset', () => {
   );
 });
 
-test('shared command dock remains shell-level across every non-chat PLP destination', () => {
-  assert.match(shell, /bottomNavigationBar: _index == 1[\s\S]*PlpCommandDock\(/);
+test('logo-first assistant remains shell-level across every PLP destination', () => {
+  assert.match(shell, /bottomNavigationBar: null/);
+  assert.match(shell, /Positioned\.fill\([\s\S]*AskPandoraScreen\(/);
+  assert.match(shell, /shellOverlay: true/);
+  assert.match(shell, /initialHistoryExpanded: false/);
   for (const destination of [
     "'home': 0",
     "'operations': 2",

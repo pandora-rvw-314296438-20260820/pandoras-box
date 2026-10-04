@@ -684,8 +684,6 @@ void main() {
     expect(contentTheme.brightness, Brightness.light);
     final chat = find.byType(AskPandoraScreen);
     expect(Theme.of(tester.element(chat)).brightness, Brightness.dark);
-    final composer = find.byKey(const ValueKey('ask-pandora-objective'));
-    expect(composer.hitTestable(), findsOneWidget);
     // No production bootstrap is invented. Its real unavailable state uses a
     // default Material button, which must inherit the light content boundary.
     final retry = find.byKey(const ValueKey('plp-bootstrap-retry'));
@@ -697,12 +695,35 @@ void main() {
         find.descendant(of: retry, matching: find.byType(Material)).first);
     expect(_contrastRatio(retryText.text.style!.color!, retryMaterial.color!),
         greaterThanOrEqualTo(4.5));
+
+    final launcher = find.byKey(const ValueKey('plp-ai-launcher'));
+    expect(launcher.hitTestable(), findsOneWidget);
+    await tester.tap(launcher);
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('plp-ai-compact-panel')), findsOneWidget);
+    final composer = find.byKey(const ValueKey('ask-pandora-objective'));
+    expect(composer.hitTestable(), findsOneWidget);
     final editor = tester.widget<EditableText>(
         find.descendant(of: composer, matching: find.byType(EditableText)));
     expect(
         _contrastRatio(editor.style.color!,
             Theme.of(tester.element(chat)).colorScheme.surface),
         greaterThanOrEqualTo(4.5));
+
+    final restingRetryTop = tester.getTopLeft(retry).dy;
+    addTearDown(tester.view.resetViewInsets);
+    await tester.tap(composer);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 220));
+    expect(tester.getTopLeft(retry).dy, closeTo(restingRetryTop, .5));
+    tester.view.resetViewInsets();
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('plp-ai-minimize')));
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
+    expect(retry.hitTestable(), findsOneWidget);
     await tester.tap(retry);
     await _settle(tester);
     expect(bootstrapReads, hasLength(2));
@@ -963,6 +984,12 @@ void main() {
     expect(find.text('Owner private conversation'), findsNothing);
     await tester.binding.handlePopRoute();
     await _settle(tester);
+    final clientLauncher =
+        find.byKey(const ValueKey('plp-ai-launcher'));
+    expect(clientLauncher.hitTestable(), findsOneWidget);
+    await tester.tap(clientLauncher);
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('plp-ai-compact-panel')), findsOneWidget);
     await tester.enterText(find.byKey(const ValueKey('ask-pandora-objective')),
         'Client private draft');
     await tester.tap(find.byKey(const ValueKey('core-return-pandora')));
