@@ -62,7 +62,7 @@ void main() {
       find.byKey(const ValueKey<String>('plp-guests-light-page')),
       findsOneWidget,
     );
-    expect(find.text('PUEBLO LA PERLA'), findsOneWidget);
+    expect(find.text('PUEBLO LA PERLA'), findsNothing);
     expect(find.text('Guests'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('plp-guests-editorial-hero')),

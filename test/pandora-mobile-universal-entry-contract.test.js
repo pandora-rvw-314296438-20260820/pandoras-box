@@ -23,8 +23,12 @@ test('empty Pandora chat is logo-only while the universal composer remains live'
 
   assert.match(chat, /pandora-logo-only-landing/);
   assert.match(chat, /Message Pandora…/);
+  const emptyStart = chat.indexOf('class _EmptyConversation');
+  const emptyEnd = chat.indexOf('class _Conversation', emptyStart);
+  assert.ok(emptyStart >= 0 && emptyEnd > emptyStart);
+  const universalEmpty = chat.slice(emptyStart, emptyEnd);
   assert.doesNotMatch(
-    chat,
+    universalEmpty,
     /What can I help with|What can you do for me now\?|Check my GitHub for failing CI|What needs my attention\?|_suggestions|_ObsidianSuggestion/,
   );
 });

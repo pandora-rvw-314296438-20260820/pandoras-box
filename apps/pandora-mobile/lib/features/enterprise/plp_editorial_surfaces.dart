@@ -100,30 +100,17 @@ class PlpEditorialHeader extends StatelessWidget {
           ] else
             const SizedBox.square(dimension: 44),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'PUEBLO LA PERLA',
-                  style: TextStyle(
-                    color: plpInk,
-                    fontFamily: 'serif',
-                    fontSize: 16,
-                    letterSpacing: 2.6,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  title.toUpperCase(),
-                  style: const TextStyle(
-                    color: plpAccent,
-                    fontSize: 8.5,
-                    letterSpacing: 2.2,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            child: Text(
+              title.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: plpInk,
+                fontFamily: 'serif',
+                fontSize: 16,
+                letterSpacing: 2.6,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ),
           if (trailing != null) trailing!,

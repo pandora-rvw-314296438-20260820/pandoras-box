@@ -150,30 +150,17 @@ class _TaxComplianceScreenState extends State<TaxComplianceScreen> {
                       SizedBox(width: _isPlp ? 12 : 8),
                       if (_isPlp)
                         const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'PUEBLO LA PERLA',
-                                style: TextStyle(
-                                  color: Color(0xFF171512),
-                                  fontFamily: 'serif',
-                                  fontSize: 16,
-                                  letterSpacing: 2.6,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'TAX & COMPLIANCE',
-                                style: TextStyle(
-                                  color: Color(0xFF70643F),
-                                  fontSize: 8.5,
-                                  letterSpacing: 2.2,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            'TAX & COMPLIANCE',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Color(0xFF171512),
+                              fontFamily: 'serif',
+                              fontSize: 16,
+                              letterSpacing: 2.6,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
                         )
                       else ...[

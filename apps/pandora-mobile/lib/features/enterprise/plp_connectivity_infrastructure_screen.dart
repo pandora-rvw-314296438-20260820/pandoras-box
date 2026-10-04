@@ -220,31 +220,17 @@ class _Header extends StatelessWidget {
             const SizedBox.square(dimension: 44),
           const SizedBox(width: 12),
           const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pueblo La Perla',
-                  style: TextStyle(
-                    color: PlpConnectivityInfrastructureScreen._ink,
-                    fontFamily: 'serif',
-                    fontSize: 21,
-                    height: 1,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -.35,
-                  ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  'INFRASTRUCTURE',
-                  style: TextStyle(
-                    color: PlpConnectivityInfrastructureScreen._accent,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.7,
-                  ),
-                ),
-              ],
+            child: Text(
+              'INFRASTRUCTURE',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: PlpConnectivityInfrastructureScreen._ink,
+                fontFamily: 'serif',
+                fontSize: 16,
+                letterSpacing: 2.6,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ),
         ],

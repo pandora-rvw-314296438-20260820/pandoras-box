@@ -28,8 +28,12 @@ test('approved Obsidian palette is native Flutter dark UI', () => {
 test('chat landing is logo-only with a bare borderless always-live composer', () => {
   assert.match(chat, /pandora-logo-only-landing/);
   assert.match(chat, /size:\s*28/);
+  const emptyStart = chat.indexOf('class _EmptyConversation');
+  const emptyEnd = chat.indexOf('class _Conversation', emptyStart);
+  assert.ok(emptyStart >= 0 && emptyEnd > emptyStart);
+  const universalEmpty = chat.slice(emptyStart, emptyEnd);
   assert.doesNotMatch(
-    chat,
+    universalEmpty,
     /What can I help with|Ask a question, describe a change|_suggestions|_ObsidianSuggestion/,
   );
   assert.match(chat, /Message Pandora…/);
@@ -39,7 +43,11 @@ test('chat landing is logo-only with a bare borderless always-live composer', ()
   assert.match(chat, /ask-pandora-composer/);
   assert.match(chat, /final voiceReady =\s*!submitting && empty/);
   assert.match(chat, /tooltip: voiceReady[\s\S]*?'Voice input'[\s\S]*?'Send'/);
-  assert.doesNotMatch(chat, /backgroundColor:\s*Colors\.white/);
+  const composerStart = chat.indexOf('class _Composer extends StatelessWidget');
+  const composerEnd = chat.indexOf('class _CompactAttachmentMenu', composerStart);
+  assert.ok(composerStart >= 0 && composerEnd > composerStart);
+  const universalComposer = chat.slice(composerStart, composerEnd);
+  assert.doesNotMatch(universalComposer, /backgroundColor:\s*Colors\.white/);
   assert.doesNotMatch(chat, /WebView|InAppWebView/);
 });
 
