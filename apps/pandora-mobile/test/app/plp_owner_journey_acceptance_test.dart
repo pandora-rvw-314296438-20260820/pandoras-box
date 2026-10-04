@@ -307,6 +307,11 @@ void main() {
     expect(shellScaffold.isDrawerOpen, isTrue);
     expect(find.byKey(const ValueKey<String>('plp-navigation-drawer')),
         findsOneWidget);
+
+    // Entering PLP chat schedules the bounded local-AI prewarm delay.
+    // Let that production timer finish so this test proves the UI contract
+    // without leaking asynchronous work into the test harness teardown.
+    await tester.pump(const Duration(milliseconds: 900));
     expect(tester.takeException(), isNull);
   });
 
