@@ -2511,7 +2511,7 @@ class _PlpE7ChatHeader extends StatelessWidget {
       );
 }
 
-class _PlpE7EmptyConversation extends StatefulWidget {
+class _PlpE7EmptyConversation extends StatelessWidget {
   const _PlpE7EmptyConversation({
     required this.suggestions,
     required this.onSuggestion,
@@ -2523,100 +2523,62 @@ class _PlpE7EmptyConversation extends StatefulWidget {
   final bool disabled;
 
   @override
-  State<_PlpE7EmptyConversation> createState() =>
-      _PlpE7EmptyConversationState();
-}
-
-class _PlpE7EmptyConversationState extends State<_PlpE7EmptyConversation> {
-  double? _stableWidth;
-  double _stableViewportHeight = 0;
-
-  @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final widthChanged =
-              _stableWidth == null || (_stableWidth! - width).abs() > .5;
-
-          // Android can reduce the Flutter viewport while the IME animates.
-          // Never recenter the PLP landing against that temporary height.
-          // Preserve the largest resting height for this orientation so only
-          // the composer follows the keyboard. Reset when width/orientation
-          // changes so rotation still receives a natural layout.
-          if (widthChanged) {
-            _stableWidth = width;
-            _stableViewportHeight = constraints.maxHeight;
-          } else if (constraints.maxHeight > _stableViewportHeight) {
-            _stableViewportHeight = constraints.maxHeight;
-          }
-
-          final stableHeight =
-              _stableViewportHeight > constraints.maxHeight
-                  ? _stableViewportHeight
-                  : constraints.maxHeight;
-          final stableInnerHeight =
-              stableHeight > 42 ? stableHeight - 42 : 0.0;
-
-          return SingleChildScrollView(
-            key: const ValueKey<String>('plp-e7-landing-scroll'),
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-            child: ConstrainedBox(
-              key: const ValueKey<String>('plp-e7-landing-stable-frame'),
-              constraints: BoxConstraints(minHeight: stableInnerHeight),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const PandoraMark(size: 54, color: Colors.white),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'What can I help with?',
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 42),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const PandoraMark(size: 54, color: Colors.white),
+                const SizedBox(height: 18),
+                const Text(
+                  'What can I help with?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -.35,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: const Text(
+                    'Ask a question, describe a change, or tell Pandora what you want to build.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -.35,
+                      color: PandoraSimpleColors.muted,
+                      fontSize: 14,
+                      height: 1.45,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 380),
-                    child: const Text(
-                      'Ask a question, describe a change, or tell Pandora what you want to build.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: PandoraSimpleColors.muted,
-                        fontSize: 14,
-                        height: 1.45,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    child: Column(
-                      children: [
-                        for (var index = 0;
-                            index < widget.suggestions.length;
-                            index++) ...[
-                          _PlpE7Suggestion(
-                            label: widget.suggestions[index],
-                            enabled: !widget.disabled,
-                            onPressed: () => widget.onSuggestion(
-                              widget.suggestions[index],
-                            ),
-                          ),
-                          if (index != widget.suggestions.length - 1)
-                            const SizedBox(height: 12),
-                        ],
+                ),
+                const SizedBox(height: 30),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Column(
+                    children: [
+                      for (var index = 0;
+                          index < suggestions.length;
+                          index++) ...[
+                        _PlpE7Suggestion(
+                          label: suggestions[index],
+                          enabled: !disabled,
+                          onPressed: () => onSuggestion(suggestions[index]),
+                        ),
+                        if (index != suggestions.length - 1)
+                          const SizedBox(height: 12),
                       ],
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       );
 }
 
