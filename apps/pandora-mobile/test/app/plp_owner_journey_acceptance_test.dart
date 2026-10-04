@@ -313,6 +313,60 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('PLP chat landing stays anchored while only the composer follows the keyboard',
+      (tester) async {
+    await _mountOwnerShell(tester);
+    await _openDrawer(tester);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('plp-drawer-new-chat')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 900));
+
+    final title = find.text('What can I help with?');
+    final firstSuggestion = find.text('What can you do for me now?');
+    final composer =
+        find.byKey(const ValueKey<String>('ask-pandora-composer'));
+    final objective =
+        find.byKey(const ValueKey<String>('ask-pandora-objective'));
+
+    expect(title, findsOneWidget);
+    expect(firstSuggestion, findsOneWidget);
+    expect(composer, findsOneWidget);
+
+    final restingTitleTop = tester.getTopLeft(title).dy;
+    final restingSuggestionTop = tester.getTopLeft(firstSuggestion).dy;
+
+    addTearDown(tester.view.resetPhysicalSize);
+    tester.view.physicalSize = const Size(390, 600);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+
+    expect(tester.getTopLeft(title).dy, closeTo(restingTitleTop, .5));
+    expect(
+      tester.getTopLeft(firstSuggestion).dy,
+      closeTo(restingSuggestionTop, .5),
+    );
+
+    tester.view.resetPhysicalSize();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+
+    addTearDown(tester.view.resetViewInsets);
+    await tester.tap(objective);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 220));
+
+    expect(tester.getTopLeft(title).dy, closeTo(restingTitleTop, .5));
+    expect(
+      tester.getTopLeft(firstSuggestion).dy,
+      closeTo(restingSuggestionTop, .5),
+    );
+    expect(tester.getRect(composer).bottom, lessThanOrEqualTo(844 - 320));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('contextual title keeps PLP typography and content clears the hamburger',
       (tester) async {
     await _mountOwnerShell(tester);
