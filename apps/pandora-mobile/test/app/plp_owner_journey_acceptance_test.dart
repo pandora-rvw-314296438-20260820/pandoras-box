@@ -302,8 +302,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).last);
-    expect(scaffold.isDrawerOpen, isTrue);
+    final shellScaffold =
+        tester.state<ScaffoldState>(find.byType(Scaffold).first);
+    expect(shellScaffold.isDrawerOpen, isTrue);
     expect(find.byKey(const ValueKey<String>('plp-navigation-drawer')),
         findsOneWidget);
     expect(tester.takeException(), isNull);
