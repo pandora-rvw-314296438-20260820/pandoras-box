@@ -1296,22 +1296,23 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                             midOpacity: .035,
                           ),
                         ),
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        child: SafeArea(
-                          bottom: false,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
-                            child: PandoraMenuButton(
-                              key: const ValueKey<String>(
-                                'plp-floating-navigation',
+                      if (_index != 1 || _routedTool != null)
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          child: SafeArea(
+                            bottom: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
+                              child: PandoraMenuButton(
+                                key: const ValueKey<String>(
+                                  'plp-floating-navigation',
+                                ),
+                                onPressed: _openDrawer,
                               ),
-                              onPressed: _openDrawer,
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
