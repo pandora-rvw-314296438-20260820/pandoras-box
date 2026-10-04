@@ -1057,6 +1057,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               AskPandoraScreen(
                 key: _alfredKey,
                 onHome: _openHome,
+                onOpenNavigation: _openDrawer,
                 onMore: () => _open(4),
                 enterpriseContext: alfredContext,
                 allowCharacterContext: false,

@@ -279,6 +279,36 @@ Future<void> _tapVisibleText(WidgetTester tester, String label) async {
 }
 
 void main() {
+  testWidgets('PLP chat keeps one floating hamburger wired to the real drawer',
+      (tester) async {
+    await _mountOwnerShell(tester);
+    await _openDrawer(tester);
+    final newChat =
+        find.byKey(const ValueKey<String>('plp-drawer-new-chat'));
+    expect(newChat, findsOneWidget);
+    await tester.tap(newChat);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 420));
+
+    expect(find.byKey(const ValueKey<String>('plp-e7-chat-surface')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('plp-floating-navigation')),
+        findsNothing);
+
+    final chatMenu =
+        find.byKey(const ValueKey<String>('pandora-side-panel-open'));
+    expect(chatMenu, findsOneWidget);
+    await tester.tap(chatMenu);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).last);
+    expect(scaffold.isDrawerOpen, isTrue);
+    expect(find.byKey(const ValueKey<String>('plp-navigation-drawer')),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('contextual title keeps PLP typography and content clears the hamburger',
       (tester) async {
     await _mountOwnerShell(tester);
