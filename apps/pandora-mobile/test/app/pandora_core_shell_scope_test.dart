@@ -684,13 +684,6 @@ void main() {
     expect(contentTheme.brightness, Brightness.light);
     final chat = find.byType(AskPandoraScreen);
     expect(Theme.of(tester.element(chat)).brightness, Brightness.dark);
-    final launcher = find.byKey(const ValueKey('plp-ai-launcher'));
-    expect(launcher.hitTestable(), findsOneWidget);
-    await tester.tap(launcher);
-    await _settle(tester);
-    expect(find.byKey(const ValueKey('plp-ai-compact-panel')), findsOneWidget);
-    final composer = find.byKey(const ValueKey('ask-pandora-objective'));
-    expect(composer.hitTestable(), findsOneWidget);
     // No production bootstrap is invented. Its real unavailable state uses a
     // default Material button, which must inherit the light content boundary.
     final retry = find.byKey(const ValueKey('plp-bootstrap-retry'));
@@ -702,12 +695,25 @@ void main() {
         find.descendant(of: retry, matching: find.byType(Material)).first);
     expect(_contrastRatio(retryText.text.style!.color!, retryMaterial.color!),
         greaterThanOrEqualTo(4.5));
+
+    final launcher = find.byKey(const ValueKey('plp-ai-launcher'));
+    expect(launcher.hitTestable(), findsOneWidget);
+    await tester.tap(launcher);
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('plp-ai-compact-panel')), findsOneWidget);
+    final composer = find.byKey(const ValueKey('ask-pandora-objective'));
+    expect(composer.hitTestable(), findsOneWidget);
     final editor = tester.widget<EditableText>(
         find.descendant(of: composer, matching: find.byType(EditableText)));
     expect(
         _contrastRatio(editor.style.color!,
             Theme.of(tester.element(chat)).colorScheme.surface),
         greaterThanOrEqualTo(4.5));
+
+    await tester.tap(find.byKey(const ValueKey('plp-ai-minimize')));
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
+    expect(retry.hitTestable(), findsOneWidget);
     await tester.tap(retry);
     await _settle(tester);
     expect(bootstrapReads, hasLength(2));
