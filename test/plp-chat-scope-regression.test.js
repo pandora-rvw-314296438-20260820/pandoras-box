@@ -59,3 +59,28 @@ test("PLP contextual headers use the accepted editorial title typography", () =>
   assert.match(taxTitle, /letterSpacing: 2\.6/);
   assert.match(taxTitle, /fontWeight: FontWeight\.w400/);
 });
+
+
+test("PLP top chrome floats over content with a soft darkening scrim on every surface", () => {
+  const navigation = read("apps/pandora-mobile/lib/core/widgets/pandora_navigation.dart");
+  const shell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
+  assert.match(navigation, /class PandoraTopScrim/);
+  assert.match(navigation, /CircleBorder/);
+  assert.match(navigation, /pandora-header-action-capsule/);
+  assert.doesNotMatch(navigation, /child: ColoredBox\(\s*color: background/);
+  assert.match(chat, /height: 126,[\s\S]{0,160}PandoraTopScrim/);
+  assert.match(chat, /top: topInset \+ 8/);
+  assert.match(chat, /'pandora-chat-new'/);
+  assert.match(chat, /Icons\.edit_square/);
+  assert.match(shell, /if \(_index != 1 \|\| _routedTool != null\)[\s\S]{0,260}PandoraTopScrim/);
+  const chromeGate = shell.indexOf('if (_index != 1 || _routedTool != null)');
+  const floatingMenu = shell.indexOf("'plp-floating-navigation'", chromeGate);
+  assert.ok(chromeGate >= 0 && floatingMenu > chromeGate);
+  const plpHeader = chat.slice(
+    chat.indexOf('class _PlpE7ChatHeader'),
+    chat.indexOf('class _PlpE7EmptyConversation'),
+  );
+  assert.doesNotMatch(plpHeader, /required this\.active/);
+  assert.match(plpHeader, /'pandora-chat-new'/);
+  assert.match(plpHeader, /'pandora-chat-overflow'/);
+});

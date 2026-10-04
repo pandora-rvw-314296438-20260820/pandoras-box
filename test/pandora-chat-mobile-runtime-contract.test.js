@@ -26,12 +26,18 @@ test('Pandora chat is an explicit ProjectOS intake source', () => {
   }
 });
 
-test('mobile chat keeps temporary-chat plus approved compact composer controls', () => {
-  assert.match(mobile, /tooltip: 'Temporary chat'/);
-  assert.match(mobile, /Icons\.history_toggle_off_rounded/);
+test('mobile chat uses floating compose plus overflow with approved compact composer controls', () => {
+  const headerStart = mobile.indexOf('class _ChatHeader extends StatelessWidget');
+  const headerEnd = mobile.indexOf('class _EmptyConversation', headerStart);
+  assert.ok(headerStart >= 0 && headerEnd > headerStart);
+  const universalHeader = mobile.slice(headerStart, headerEnd);
+  assert.match(universalHeader, /'pandora-chat-new'/);
+  assert.match(universalHeader, /Icons\.edit_square/);
+  assert.match(universalHeader, /'pandora-chat-overflow'/);
+  assert.match(universalHeader, /'pandora-chat-menu-search'/);
+  assert.doesNotMatch(universalHeader, /Temporary chat|history_toggle_off_rounded/);
   assert.match(mobile, /ask-pandora-plus/);
   assert.match(mobile, /ask-pandora-model-control/);
   assert.match(mobile, /Icons\.tune_rounded/);
   assert.match(mobile, /Icons\.mic_none_rounded/);
-  assert.doesNotMatch(mobile, /Icons\.edit_square/);
 });

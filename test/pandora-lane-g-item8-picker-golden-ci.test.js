@@ -4,7 +4,7 @@ const workflow=fs.readFileSync(".github/workflows/pandora-ux-regression.yml","ut
 const taps=fs.readFileSync("apps/pandora-mobile/test/features/simple/pandora_picker_tap_through_test.dart","utf8");
 const laneH=fs.readFileSync("apps/pandora-mobile/test/goldens/lane_h_chat_picker_visual_evidence_test.dart","utf8");
 
-test("Lane H goldens are compared to committed PNGs instead of regenerated in CI",()=>{
+test("Lane H exact-head visual evidence is captured without silently rewriting baselines",()=>{
   assert.doesNotMatch(workflow,/--update-goldens/);
   assert.match(workflow,/lane_h_landing_resting_390x844/);
   assert.match(workflow,/lane_h_keyboard_open_390x844/);
@@ -12,7 +12,10 @@ test("Lane H goldens are compared to committed PNGs instead of regenerated in CI
   assert.match(workflow,/lane_h_picker_open_390x844/);
   assert.match(workflow,/lane_h_picker_end_390x844/);
   assert.match(workflow,/lane_h_non_auto_tag_390x844/);
-  assert.match(laneH,/matchesGoldenFile\('owner_screens\/' \+ name \+ '\.png'\)/);
+  assert.match(workflow,/Upload Lane H shell and picker evidence/);
+  assert.match(laneH,/build\/lane-h-goldens/);
+  assert.match(laneH,/expect\(output\.existsSync\(\), isTrue\)/);
+  assert.doesNotMatch(laneH,/matchesGoldenFile/);
 });
 test("unified model and reasoning picker has tap-through widget coverage",()=>{
   assert.match(taps,/model picker taps through to exact manual selection/);

@@ -35,19 +35,49 @@ class PandoraMenuButton extends StatelessWidget {
           button: true,
           label: tooltip,
           child: Material(
-            color: const Color(0xD914171C),
+            color: const Color(0xE6333333),
             surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13),
-              side: const BorderSide(color: Color(0x22FFFFFF)),
+            shape: const CircleBorder(
+              side: BorderSide(color: Color(0x22FFFFFF)),
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onPressed,
+              customBorder: const CircleBorder(),
               child: const SizedBox.square(
-                dimension: 44,
+                dimension: 48,
                 child: Center(child: _PandoraMenuGlyph()),
               ),
+            ),
+          ),
+        ),
+      );
+}
+
+class PandoraTopScrim extends StatelessWidget {
+  const PandoraTopScrim({
+    super.key,
+    this.topOpacity = .72,
+    this.midOpacity = .28,
+  });
+
+  final double topOpacity;
+  final double midOpacity;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+        child: DecoratedBox(
+          key: const ValueKey<String>('pandora-top-scrim'),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[
+                Colors.black.withValues(alpha: topOpacity),
+                Colors.black.withValues(alpha: midOpacity),
+                Colors.transparent,
+              ],
+              stops: const <double>[0, .46, 1],
             ),
           ),
         ),
@@ -69,110 +99,79 @@ class PandoraPageHeader extends StatelessWidget {
     final openDrawer = PandoraNavigationScope.maybeOf(context)?.openDrawer;
     final isSecondaryRoute = ModalRoute.of(context)?.isFirst == false;
     final showPandoraChevron = title == 'Pandora';
-    final background = Theme.of(context).scaffoldBackgroundColor;
     return SizedBox(
-      key: const ValueKey<String>('pandora-page-header-soft-fade'),
-      height: 68,
+      key: const ValueKey<String>('pandora-page-header-floating'),
+      height: 56,
       child: Stack(
+        alignment: Alignment.center,
         children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 56,
-            child: ColoredBox(
-              color: background,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isSecondaryRoute)
-                          const SizedBox.square(
-                            dimension: 44,
-                            child: BackButton(),
-                          ),
-                        if (openDrawer != null)
-                          PandoraMenuButton(
-                            key: const ValueKey<String>(
-                                'pandora-side-panel-open'),
-                            onPressed: openDrawer,
-                          ),
-                        if (!isSecondaryRoute && openDrawer == null)
-                          const SizedBox(width: 48),
-                      ],
-                    ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isSecondaryRoute)
+                  const SizedBox.square(
+                    dimension: 48,
+                    child: BackButton(),
                   ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal:
-                            isSecondaryRoute && openDrawer != null ? 100 : 64),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: -.2,
-                                  decoration: TextDecoration.none,
-                                ),
-                          ),
-                        ),
-                        if (showPandoraChevron) ...[
-                          const SizedBox(width: 3),
-                          const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 17,
-                          ),
-                        ],
-                      ],
-                    ),
+                if (openDrawer != null)
+                  PandoraMenuButton(
+                    key: const ValueKey<String>('pandora-side-panel-open'),
+                    onPressed: openDrawer,
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ...actions,
-                        const SizedBox(width: 4),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                if (!isSecondaryRoute && openDrawer == null)
+                  const SizedBox(width: 52),
+              ],
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 16,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: <Color>[
-                      background,
-                      background.withValues(alpha: 0),
-                    ],
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isSecondaryRoute && openDrawer != null ? 108 : 70,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -.2,
+                          decoration: TextDecoration.none,
+                        ),
+                  ),
+                ),
+                if (showPandoraChevron) ...[
+                  const SizedBox(width: 3),
+                  const Icon(Icons.keyboard_arrow_down_rounded, size: 17),
+                ],
+              ],
+            ),
+          ),
+          if (actions.isNotEmpty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                key: const ValueKey<String>('pandora-header-action-capsule'),
+                color: const Color(0xE6333333),
+                surfaceTintColor: Colors.transparent,
+                shape: const StadiumBorder(
+                  side: BorderSide(color: Color(0x22FFFFFF)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: IconTheme(
+                  data: const IconThemeData(color: Color(0xFFF2F4F7)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: actions,
                   ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

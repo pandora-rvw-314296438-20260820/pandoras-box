@@ -445,7 +445,11 @@ void main() {
         matching: find.widgetWithText(ListTile, 'Pandora'),
       ),
     );
-    await _tap(tester, find.byKey(const ValueKey('pandora-recent-chats')));
+    await _tap(tester, find.byKey(const ValueKey('pandora-chat-overflow')));
+    await _tap(
+      tester,
+      find.byKey(const ValueKey('pandora-chat-menu-search')),
+    );
     await _tap(
         tester, find.byKey(const ValueKey('pandora-thread-restored-thread')));
 
