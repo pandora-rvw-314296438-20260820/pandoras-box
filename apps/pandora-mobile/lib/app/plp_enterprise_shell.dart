@@ -99,6 +99,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final _commandFocus = FocusNode();
   final _drawerScrollController = ScrollController();
   bool _drawerOpen = false;
+  bool _assistantVisible = false;
 
   Future<Map<String, Object?>>? _bootstrapFuture;
   Map<String, Object?>? _lastBootstrap;
@@ -1173,7 +1174,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 child: Scaffold(
                 key: _scaffoldKey,
                 backgroundColor: _canvas,
-                resizeToAvoidBottomInset: _index != 1,
+                resizeToAvoidBottomInset: !_assistantVisible,
                 drawerEnableOpenDragGesture: true,
                 drawerEdgeDragWidth: 32,
                 drawerScrimColor: const Color(0x99000000),
@@ -1255,6 +1256,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                             allowProjectContext: false,
                             shellOverlay: true,
                             initialHistoryExpanded: false,
+                            onHistoryVisibilityChanged: (visible) {
+                              if (mounted && _assistantVisible != visible) {
+                                setState(() => _assistantVisible = visible);
+                              }
+                            },
                           ),
                         ),
                       if (_index != 1 || _routedTool != null)
