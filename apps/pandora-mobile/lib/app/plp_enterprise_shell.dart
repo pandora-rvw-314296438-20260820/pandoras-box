@@ -1285,6 +1285,17 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                           _closeTool();
                         },
                       ),
+                      if (_index != 1 || _routedTool != null)
+                        const Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 112,
+                          child: PandoraTopScrim(
+                            topOpacity: .10,
+                            midOpacity: .035,
+                          ),
+                        ),
                       Positioned(
                         top: 0,
                         left: 0,

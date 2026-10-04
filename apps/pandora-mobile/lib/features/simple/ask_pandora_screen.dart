@@ -2078,10 +2078,20 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
                         viewportSize: viewportSize,
                       ),
           ),
-          Positioned(
-            top: topInset,
+          const Positioned(
+            top: 0,
             left: 0,
             right: 0,
+            height: 126,
+            child: PandoraTopScrim(
+              topOpacity: .82,
+              midOpacity: .38,
+            ),
+          ),
+          Positioned(
+            top: topInset + 8,
+            left: 12,
+            right: 12,
             child: KeyedSubtree(
               key: _headerKey,
               child: _PlpE7ChatHeader(
@@ -2425,16 +2435,14 @@ class _PlpE7ChatHeader extends StatelessWidget {
   Widget build(BuildContext context) => PandoraPageHeader(
         title: '',
         actions: [
-          if (!active)
-            IconButton(
-              key: const ValueKey<String>('pandora-temporary-chat'),
-              tooltip: 'Temporary chat',
-              onPressed: onNewChat,
-              icon: const Icon(Icons.history_toggle_off_rounded),
-              color: PandoraSimpleColors.ink,
-            )
-          else
-            PopupMenuButton<_PlpE7ChatOverflowAction>(
+          IconButton(
+            key: const ValueKey<String>('pandora-chat-new'),
+            tooltip: 'New chat',
+            onPressed: onNewChat,
+            icon: const Icon(Icons.edit_square),
+            color: PandoraSimpleColors.ink,
+          ),
+          PopupMenuButton<_PlpE7ChatOverflowAction>(
               key: const ValueKey<String>('pandora-chat-overflow'),
               tooltip: 'More',
               icon: const Icon(Icons.more_vert_rounded),

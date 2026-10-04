@@ -59,3 +59,18 @@ test("PLP contextual headers use the accepted editorial title typography", () =>
   assert.match(taxTitle, /letterSpacing: 2\.6/);
   assert.match(taxTitle, /fontWeight: FontWeight\.w400/);
 });
+
+
+test("PLP top chrome floats over content with a soft darkening scrim on every surface", () => {
+  const navigation = read("apps/pandora-mobile/lib/core/widgets/pandora_navigation.dart");
+  const shell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
+  assert.match(navigation, /class PandoraTopScrim/);
+  assert.match(navigation, /CircleBorder/);
+  assert.match(navigation, /pandora-header-action-capsule/);
+  assert.doesNotMatch(navigation, /child: ColoredBox\(\s*color: background/);
+  assert.match(chat, /height: 126,[\s\S]{0,160}PandoraTopScrim/);
+  assert.match(chat, /top: topInset \+ 8/);
+  assert.match(chat, /'pandora-chat-new'/);
+  assert.match(chat, /Icons\.edit_square/);
+  assert.match(shell, /if \(_index != 1 \|\| _routedTool != null\)[\s\S]{0,220}PandoraTopScrim/);
+});
