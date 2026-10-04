@@ -11,12 +11,16 @@ test("Pandora app theme contains no legacy indigo action colours",()=>{
  assert.match(theme,/dialogTheme: DialogThemeData/);
  assert.match(theme,/textButtonTheme: TextButtonThemeData/);
 });
-test("shared top bar uses a soft fade with no divider edge",()=>{
- assert.match(nav,/pandora-page-header-soft-fade/);
+test("shared top chrome floats over content with a soft scrim and no slab",()=>{
+ assert.match(nav,/pandora-page-header-floating/);
+ assert.match(nav,/class PandoraTopScrim/);
  assert.match(nav,/LinearGradient/);
- assert.match(nav,/background\.withValues\(alpha: 0\)/);
+ assert.match(nav,/Colors\.transparent/);
+ assert.match(nav,/CircleBorder/);
+ assert.match(nav,/StadiumBorder/);
  const header=nav.slice(nav.indexOf("class PandoraPageHeader"),nav.indexOf("class _PandoraMenuGlyph"));
- assert.doesNotMatch(header,/BorderSide|Divider/);
+ assert.doesNotMatch(header,/ColoredBox|Divider/);
+ assert.doesNotMatch(header,/scaffoldBackgroundColor/);
 });
 test("business content reserves the real compact composer lane",()=>{
  assert.match(layer,/compactComposerHeight = 80/);

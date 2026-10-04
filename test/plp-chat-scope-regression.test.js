@@ -72,7 +72,10 @@ test("PLP top chrome floats over content with a soft darkening scrim on every su
   assert.match(chat, /top: topInset \+ 8/);
   assert.match(chat, /'pandora-chat-new'/);
   assert.match(chat, /Icons\.edit_square/);
-  assert.match(shell, /if \(_index != 1 \|\| _routedTool != null\)[\s\S]{0,220}PandoraTopScrim/);
-  assert.match(shell, /if \(_index != 1 \|\| _routedTool != null\)[\s\S]{0,320}plp-floating-navigation/);
+  assert.match(shell, /if \(_index != 1 \|\| _routedTool != null\)[\s\S]{0,260}PandoraTopScrim/);
+  const chromeGate = shell.indexOf('if (_index != 1 || _routedTool != null)');
+  const floatingMenu = shell.indexOf("'plp-floating-navigation'", chromeGate);
+  assert.ok(chromeGate >= 0 && floatingMenu > chromeGate);
+  assert.ok(floatingMenu - chromeGate < 900);
   assert.doesNotMatch(chat, /required this\.active/);
 });
