@@ -952,9 +952,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           final bootstrap = snapshot.data ?? _lastBootstrap;
           if (bootstrap == null &&
               snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(
+            return Scaffold(
               backgroundColor: _canvas,
-              body: Center(
+              resizeToAvoidBottomInset: widget.embeddedRouteSlug == null,
+              body: const Center(
                 child: CircularProgressIndicator(
                   key: ValueKey('plp-bootstrap-loading'),
                 ),
@@ -965,6 +966,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           if (bootstrap == null) {
             return Scaffold(
               backgroundColor: _canvas,
+              resizeToAvoidBottomInset: widget.embeddedRouteSlug == null,
               body: SafeArea(
                 child: Center(
                   child: Padding(
