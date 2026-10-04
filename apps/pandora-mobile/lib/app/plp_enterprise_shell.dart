@@ -1174,7 +1174,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 child: Scaffold(
                 key: _scaffoldKey,
                 backgroundColor: _canvas,
-                resizeToAvoidBottomInset: !_assistantVisible,
+                resizeToAvoidBottomInset: widget.embeddedRouteSlug == null && !_assistantVisible,
                 drawerEnableOpenDragGesture: true,
                 drawerEdgeDragWidth: 32,
                 drawerScrimColor: const Color(0x99000000),
