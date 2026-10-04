@@ -133,7 +133,7 @@ test("PLP shell owns one floating hamburger on Chat and every business page", ()
 test("PLP assistant owns the IME without resizing the business page", () => {
   const shell = read("apps/pandora-mobile/lib/app/plp_enterprise_shell.dart");
   assert.match(shell, /bool _assistantVisible = false/);
-  assert.match(shell, /resizeToAvoidBottomInset: !_assistantVisible/);
+  assert.match(shell, /resizeToAvoidBottomInset: widget\.embeddedRouteSlug == null && !_assistantVisible/);
   assert.match(
     shell,
     /onHistoryVisibilityChanged: \(visible\)[\s\S]*_assistantVisible = visible/,
