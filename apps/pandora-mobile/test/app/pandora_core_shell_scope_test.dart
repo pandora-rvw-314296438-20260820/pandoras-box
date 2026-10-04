@@ -710,6 +710,16 @@ void main() {
             Theme.of(tester.element(chat)).colorScheme.surface),
         greaterThanOrEqualTo(4.5));
 
+    final restingRetryTop = tester.getTopLeft(retry).dy;
+    addTearDown(tester.view.resetViewInsets);
+    await tester.tap(composer);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 220));
+    expect(tester.getTopLeft(retry).dy, closeTo(restingRetryTop, .5));
+    tester.view.resetViewInsets();
+    await tester.pump();
+
     await tester.tap(find.byKey(const ValueKey('plp-ai-minimize')));
     await _settle(tester);
     expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
