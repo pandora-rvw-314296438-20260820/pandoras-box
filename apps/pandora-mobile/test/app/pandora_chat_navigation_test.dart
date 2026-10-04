@@ -10,6 +10,7 @@ import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
 import 'package:pandora_mobile/core/widgets/pandora_navigation.dart';
 import 'package:pandora_mobile/features/operations/operations_room_screen.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
+import 'package:pandora_mobile/features/simple/chat/pandora_chat_composer.dart';
 
 import '../helpers/fake_chat_intelligence.dart';
 import '../helpers/fake_owner_api.dart';
@@ -100,6 +101,25 @@ void main() {
       of: primaryDrawer,
       matching: find.widgetWithText(ListTile, title),
     );
+    if (tile.evaluate().isEmpty &&
+        const {
+          'Vision Intelligence',
+          'Operations Room',
+          'Capabilities & Providers',
+          'Connections',
+          'Platform',
+          'Administration',
+        }.contains(title)) {
+      final advanced = find.byKey(
+        const ValueKey<String>('pandora-advanced-navigation'),
+      );
+      await tester.ensureVisible(advanced);
+      await tester.tap(find.descendant(
+        of: advanced,
+        matching: find.text('Advanced'),
+      ));
+      await tester.pumpAndSettle();
+    }
     if (tile.evaluate().isEmpty) {
       await tester.scrollUntilVisible(
         tile,
@@ -129,6 +149,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(primaryDrawer, findsOneWidget);
       expect(recentDrawer, findsNothing);
+      expect(find.widgetWithText(ListTile, 'Capabilities & Providers'),
+          findsNothing);
       for (final title in <String>[
         'Pandora',
         'Projects',
@@ -212,6 +234,17 @@ void main() {
     await mount(tester, const Size(1024, 800));
     expect(menu, findsNothing);
     expect(primaryDrawer, findsNothing);
+    expect(find.widgetWithText(ListTile, 'Capabilities & Providers'),
+        findsNothing);
+    final advanced = find.byKey(
+      const ValueKey<String>('pandora-advanced-navigation'),
+    );
+    await tester.ensureVisible(advanced);
+    await tester.tap(find.descendant(
+      of: advanced,
+      matching: find.text('Advanced'),
+    ));
+    await tester.pumpAndSettle();
     expect(find.widgetWithText(ListTile, 'Capabilities & Providers'),
         findsOneWidget);
     expect(tester.getSize(find.byType(AskPandoraScreen)).width, 759);
@@ -310,6 +343,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Back gives focused chat input priority over minimizing history',
+      (tester) async {
+    await mount(tester, const Size(390, 844));
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(await drawerTile(tester, 'Projects'));
+    await tester.pumpAndSettle();
+    final chat =
+        tester.state<AskPandoraScreenState>(find.byType(AskPandoraScreen));
+    chat.showHistory();
+    await tester.pumpAndSettle();
+    final objective =
+        find.byKey(const ValueKey<String>('ask-pandora-objective'));
+    await tester.enterText(objective, 'Keep this draft while going back');
+    await tester.pump();
+    // Focus precedes Android's first nonzero IME metric. One Back must still
+    // affect only that input, even though both retained PopScopes observe it.
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    final history = find.byKey(
+      const ValueKey<String>('pandora-active-chat-history-offstage'),
+    );
+    expect(tester.widget<Offstage>(history).offstage, isFalse);
+    expect(tester.widget<TextField>(objective).focusNode!.hasFocus, isFalse);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(tester.widget<Offstage>(history).offstage, isTrue);
+    expect(tester.widget<TextField>(objective).controller!.text,
+        'Keep this draft while going back');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('keyboard inset keeps composer mounted', (tester) async {
     await mount(tester, const Size(390, 844));
     addTearDown(tester.view.resetViewInsets);
@@ -390,7 +455,11 @@ void main() {
       expect(rect.left, closeTo(14, .1));
       expect(rect.right, closeTo(390 - 14, .1));
       expect(rect.height, closeTo(54, .1));
-      expect(rect.bottom, closeTo(844 - 24 - 14, .1));
+      final composerExtent = tester.getRect(find.byType(PandoraChatComposer));
+      expect(composerExtent.bottom, closeTo(844 - 24, .1));
+      expect(composerExtent.height,
+          closeTo(PandoraChatComposer.minimumExtent, .1));
+      expect(rect.bottom, lessThan(composerExtent.bottom));
 
       final clearance = tester.widget<Padding>(
         find.byKey(

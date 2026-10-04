@@ -39,7 +39,7 @@ test('fallback intelligence is universal and capability-neutral', () => {
   assert.match(doctrine, /unless the actual user request is a software-building task/i);
 });
 
-test('mobile chat dispatches universal capabilities before model fallback without a Project gate', () => {
+test('legacy mobile chat preserves capability-first fallback and v2 admits on the server', () => {
   assert.match(mobile, /pandora_chat_universal_dispatch_v9/);
   assert.match(
     mobile,
@@ -47,9 +47,15 @@ test('mobile chat dispatches universal capabilities before model fallback withou
   );
   assert.match(mobile, /if \(projectId != null\) 'p_project_id': projectId/);
   const dispatchIndex = mobile.indexOf('final capabilityTurn = await _dispatchCapability(');
-  const fallbackIndex = mobile.indexOf('final response = await _client.functions.invoke(');
+  const fallbackIndex = mobile.indexOf('final response = await _client.functions.invoke(', dispatchIndex);
   assert.ok(dispatchIndex >= 0, 'universal capability dispatch must exist');
   assert.ok(fallbackIndex > dispatchIndex, 'universal capability dispatch must run before model fallback');
+  const v2 = mobile.slice(mobile.indexOf('Stream<PandoraChatWireEvent> executeChatTurn('), mobile.indexOf('Stream<Map<String, dynamic>> watchChatActivity('));
+  assert.match(v2, /'protocolVersion': 2/);
+  assert.match(v2, /'clientTurnId': dispatch\.token\.turnId/);
+  assert.match(v2, /_client\.functions\s*\.invoke\(/);
+  assert.doesNotMatch(v2, /_dispatchCapability\(|startChatExecution\(|beginJob\(/,
+    'v2 admission owns the Activity job and capability execution atomically');
 });
 
 test('native capability routing classifies only the owner message, never the Enterprise context envelope', () => {
@@ -83,23 +89,22 @@ test('the APK calls Pandora intelligence and carries no provider secret contract
 });
 
 
-test('mobile chat uses a full-height floating overlay with keyboard-aware bottom anchoring', () => {
-  assert.match(askPandoraScreen, /resizeToAvoidBottomInset:\s*false/);
-  assert.match(askPandoraScreen, /bottom:\s*composerHeight/);
-  assert.doesNotMatch(askPandoraScreen, /bottom:\s*keyboardInset\s*\+\s*composerHeight/);
-  assert.match(askPandoraScreen, /viewportSize:\s*viewportSize/);
-  assert.match(askPandoraScreen, /oldWidget\.viewportSize\s*!=\s*widget\.viewportSize/);
-  assert.match(askPandoraScreen, /bool force = false/);
-  assert.match(askPandoraScreen, /jump:\s*threadChanged\s*\|\|\s*viewportChanged/);
-  assert.match(askPandoraScreen, /force:\s*threadChanged\s*\|\|\s*userSubmitted/);
-  assert.match(askPandoraScreen, /notification\.dragDetails\s*!=\s*null/);
-  assert.match(askPandoraScreen, /bottom:\s*keyboardInset,[\s\S]*?key:\s*_composerKey/);
+test('mobile chat delegates anchoring to a stateful viewport and consumes Android insets once', () => {
+  assert.match(askPandoraScreen, /resizeToAvoidBottomInset:\s*true/);
+  assert.match(askPandoraScreen, /LayoutBuilder/);
+  assert.match(askPandoraScreen, /viewportSize:\s*constraints\.biggest/);
+  assert.match(askPandoraScreen, /PandoraChatViewport\(/);
+  assert.match(askPandoraScreen, /top:\s*safeTop/);
+  assert.match(askPandoraScreen, /bottom:\s*0/);
+  assert.doesNotMatch(askPandoraScreen, /bottom:\s*keyboardInset/);
+  assert.doesNotMatch(askPandoraScreen, /_scrollToBottom|_pendingMessage|_submitting/);
 });
 
 test('internal Enterprise context is sanitized before persistence, API response, and mobile rendering', () => {
-  assert.match(edge, /const cleanReply=visibleReply\(v\.reply\)/);
+  assert.match(edge, /const cleanReply=visibleModelReply\(v\.reply,handoff\)/);
   assert.match(edge, /author_role:"assistant",content:cleanReply/);
-  assert.match(edge, /responsePayload=\{threadId:tid,reply:cleanReply/);
+  assert.match(edge, /completionResult=\{threadId:tid,reply:cleanReply/);
+  assert.match(edge, /responsePayload=\{\.\.\.completionResult,assistantMessageId\}/);
   assert.match(askPandoraScreen, /_sanitizeVisiblePandoraText/);
   assert.match(askPandoraScreen, /bounded enterprise page context:/i);
 });
@@ -107,7 +112,7 @@ test('internal Enterprise context is sanitized before persistence, API response,
 
 test('owner-facing Pandora injects canonical M5 Memory through the server workload boundary', () => {
   assert.match(edge, /https:\/\/mcpmaster\.vercel\.app\/api\/operations-memory/);
-  assert.match(edge, /combinedTrustedContext\(req,c\.admin,c\.organizationId,i\.projectId,effectiveInitial\)/);
+  assert.match(edge, /combinedTrustedContext\(req,c\.admin,c\.organizationId,i\.projectId,effectiveInitial,turn\?\.timings\?\?null,profile\)/);
   assert.match(edge, /Use relevant prior failure lessons, procedures, outcomes, and provider evidence to avoid repeating known mistakes/);
   assert.match(edge, /canonicalMemoryItemIds/);
   assert.match(edge, /retrievalDoesNotGrantExecutionAuthority===true/);

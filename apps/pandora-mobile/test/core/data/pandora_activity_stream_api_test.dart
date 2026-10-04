@@ -1,7 +1,76 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:pandora_mobile/core/data/pandora_activity_stream_api.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  test(
+      'device cancellation uses bounded RPC identity while unknown stages stay local',
+      () async {
+    const organization = '11111111-1111-4111-8111-111111111111';
+    const job = '22222222-2222-4222-8222-222222222222';
+    final requests = <http.Request>[];
+    final client = SupabaseClient(
+      'https://activity-fixture.invalid',
+      'test-placeholder',
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+      httpClient: MockClient((request) async {
+        requests.add(request);
+        return http.Response('{"ok":true}', 200,
+            request: request, headers: {'content-type': 'application/json'});
+      }),
+    );
+    addTearDown(client.dispose);
+    // Simulated local session only; every HTTP request is intercepted above.
+    await client.auth.setInitialSession(jsonEncode({
+      'access_token': 'not-a-real-access-token',
+      'token_type': 'bearer',
+      'user': {
+        'id': '33333333-3333-4333-8333-333333333333',
+        'aud': 'authenticated',
+        'role': 'authenticated',
+        'created_at': '2026-10-03T00:00:00Z',
+        'app_metadata': <String, Object?>{},
+        'user_metadata': <String, Object?>{},
+      },
+    }));
+    final api =
+        PandoraActivityStreamApi(client: client, organizationId: organization);
+    final observedAt = DateTime.utc(2026, 10, 3, 18);
+    await api.recordDeviceFact(
+      jobId: job,
+      operationId: 'device.cancel.fixture',
+      capability: 'communication.sms',
+      stage: 'cancelled',
+      observedAt: observedAt,
+    );
+    expect(requests, hasLength(1));
+    expect(requests.single.url.path,
+        '/rest/v1/rpc/pandora_activity_device_fact_v1');
+    expect(jsonDecode(requests.single.body), {
+      'p_organization_id': organization,
+      'p_job_id': job,
+      'p_operation_id': 'device.cancel.fixture',
+      'p_capability': 'communication.sms',
+      'p_stage': 'cancelled',
+      'p_observed_at': observedAt.toIso8601String(),
+    });
+    await expectLater(
+      api.recordDeviceFact(
+        jobId: job,
+        operationId: 'device.cancel.fixture',
+        capability: 'communication.sms',
+        stage: 'invented',
+        observedAt: observedAt,
+      ),
+      throwsA(isA<PandoraActivityStreamException>()),
+    );
+    expect(requests, hasLength(1));
+  });
+
   test('canonical activity event becomes strict public projection', () {
     final event = <String, dynamic>{
       'schemaVersion': 1,

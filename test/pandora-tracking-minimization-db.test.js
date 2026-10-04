@@ -24,6 +24,7 @@ const CAMPAIGN = "44444444-4444-4444-8444-444444444444";
 async function database() {
   const db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(`
+    set time zone 'UTC';
     create schema extensions;
     create extension pgcrypto with schema extensions;
     create schema auth;

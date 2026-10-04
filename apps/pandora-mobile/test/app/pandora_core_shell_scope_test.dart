@@ -10,12 +10,12 @@ import 'package:pandora_mobile/app/pandora_core_client_scope.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/app/pandora_member_workspace_gate.dart';
 import 'package:pandora_mobile/app/plp_enterprise_shell.dart';
+import 'package:pandora_mobile/core/chat/pandora_chat_state.dart';
 import 'package:pandora_mobile/core/data/pandora_core_api.dart';
 import 'package:pandora_mobile/core/data/pandora_enterprise_api.dart';
 import 'package:pandora_mobile/core/data/pandora_intelligence_api.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
-import 'package:pandora_mobile/core/platform/pandora_native_io.dart';
 import 'package:pandora_mobile/core/security/pandora_auth.dart';
 import 'package:pandora_mobile/features/auth/auth_gate.dart';
 import 'package:pandora_mobile/features/core/pandora_core_screen.dart';
@@ -251,23 +251,36 @@ class _PendingIntelligence extends _History {
   final pending = Completer<PandoraIntelligenceTurn>();
 
   @override
-  Future<PandoraIntelligenceExecution> startChatExecution({
-    required String message,
-    required String requestId,
-    String? threadId,
-    String? projectId,
-    Map<String, Object?>? enterpriseContext,
-    PandoraTextAttachment? textAttachment,
-    PandoraImageAttachment? imageAttachment,
-    PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
-    PandoraChatModelSelection modelSelection =
-        const PandoraChatModelSelection.auto(),
-  }) async =>
-      PandoraIntelligenceExecution(
-        jobId: 'scope-pending-operation',
-        events: const Stream<Map<String, dynamic>>.empty(),
-        turn: pending.future,
-      );
+  Stream<PandoraChatWireEvent> executeChatTurn(
+    PandoraChatDispatch dispatch,
+  ) async* {
+    final identity = <String, dynamic>{
+      'protocolVersion': 2,
+      'organizationId': organizationId,
+      'threadId': 'scope-pending-thread',
+      'turnId': dispatch.token.turnId,
+      'attemptId': dispatch.token.attemptId,
+      'generation': dispatch.token.generation,
+      'activityJobId': 'scope-pending-operation',
+    };
+    yield PandoraChatWireEvent.fromJson({
+      ...identity,
+      'status': 'accepted',
+      'sequence': 1,
+    });
+    final turn = await pending.future;
+    yield PandoraChatWireEvent.fromJson({
+      ...identity,
+      'status': 'completed',
+      'sequence': 2,
+      'reply': turn.reply,
+      'intent': turn.intent,
+    });
+  }
+
+  @override
+  Stream<Map<String, dynamic>> watchChatActivity(String activityJobId) =>
+      const Stream<Map<String, dynamic>>.empty();
 
   void complete() {
     if (pending.isCompleted) return;
@@ -529,7 +542,19 @@ void main() {
     expect(tester.widget<Offstage>(history).offstage, isFalse);
     expect(find.byType(SettingsScreen), findsNothing);
     _expectOwnerComposer(tester, chat, draft: 'Keep the Settings draft');
-    // Actual system Back dismisses the shared overlay before touching Settings.
+    // Back first dismisses the focused input, preserving the current exchange.
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(tester.widget<Offstage>(history).offstage, isFalse);
+    expect(
+        tester
+            .widget<TextField>(
+                find.byKey(const ValueKey('ask-pandora-objective')))
+            .focusNode!
+            .hasFocus,
+        isFalse);
+    _expectOwnerComposer(tester, chat, draft: 'Keep the Settings draft');
+    // The next Back dismisses the shared overlay before touching Settings.
     await tester.binding.handlePopRoute();
     await _settle(tester);
     expect(tester.widget<Offstage>(history).offstage, isTrue);

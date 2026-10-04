@@ -106,10 +106,13 @@ void main() {
     );
   });
 
-  testWidgets('A4 operational send shows immediate thinking feedback',
+  testWidgets(
+      'A4 operational send shows one immediate turn-owned working state',
       (tester) async {
     final pending = Completer<PandoraIntelligenceTurn>();
-    final activity = StreamController<Map<String, dynamic>>();
+    var activitySubscriptions = 0;
+    final activity = StreamController<Map<String, dynamic>>.broadcast(
+        onListen: () => activitySubscriptions++);
     final intelligence = FakeChatIntelligence(
         onReply: (_) => pending.future, events: activity.stream);
     await _mount(tester, intelligence: intelligence);
@@ -123,14 +126,20 @@ void main() {
     await tester.pump();
 
     expect(find.text('Inspect current customer connections'), findsOneWidget);
-    expect(find.text('Thinking through the request…'), findsOneWidget);
+    expect(find.text('Pandora is working…'), findsOneWidget);
+    final active = tester
+        .state<AskPandoraScreenState>(find.byType(AskPandoraScreen))
+        .debugChatState
+        .activeTurn;
+    expect(active?.text, 'Inspect current customer connections');
+    expect(active?.phase.isGenerating, isTrue);
 
     expect(
         (intelligence.lastEnterpriseContext?['selectedObject']
             as Map?)?['coreMode'],
         'owner');
     pending.complete(const PandoraIntelligenceTurn(
-      threadId: 'fixture-pending-thread',
+      threadId: 'fixture-chat-thread',
       reply: 'Done.',
       intent: 'conversation',
       confidence: 1,
@@ -140,6 +149,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 25));
     }
     expect(find.text('Done.'), findsOneWidget);
+    expect(find.text('Pandora is working…'), findsNothing);
+    expect(activitySubscriptions, 0,
+        reason: 'Activity replay is subscribed only when Details is opened.');
     await activity.close();
   });
 

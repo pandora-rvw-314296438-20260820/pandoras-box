@@ -25,7 +25,8 @@ void main() {
     },
   );
 
-  test('authorized synchronized PLP context can route today questions locally', () {
+  test('authorized synchronized PLP context can route today questions locally',
+      () {
     final decision = PandoraLocalAiRouter.decide(
       message: "What is today's occupancy?",
       hasAttachment: false,
@@ -151,28 +152,77 @@ void main() {
     expect(decision.useLocal, isFalse);
     expect(decision.reason, 'connected_capability');
   });
-  test('PLP Alfred source does not bypass local AI and recovers verified cloud result', () {
+  test(
+      'PLP Alfred source does not bypass local AI and recovers verified cloud result',
+      () {
     final screenSource =
         File('lib/features/simple/ask_pandora_screen.dart').readAsStringSync();
-    final localStart = screenSource.indexOf(
-      'Future<bool> _trySubmitLocalAi(',
+    final adapters = File(
+      'lib/features/simple/chat/pandora_chat_action_adapters.dart',
+    ).readAsStringSync();
+    final localStart = adapters.indexOf(
+      'Future<bool> _executePhoneAi(',
     );
-    final localStatus = screenSource.indexOf(
-      'final status = await (() async {',
+    final localStatus = adapters.indexOf(
+      'status = await PandoraLocalAi.instance',
       localStart,
     );
     expect(localStart, greaterThanOrEqualTo(0));
     expect(localStatus, greaterThan(localStart));
 
-    final admissionPrelude = screenSource.substring(localStart, localStatus);
+    final admissionPrelude = adapters.substring(localStart, localStatus);
     expect(admissionPrelude, isNot(contains('_isPlpEnterpriseContext')));
+    expect(admissionPrelude, isNot(contains('input.isPlp')));
+    final localRoute = screenSource.indexOf(
+      'await _executeLocalRoute(dispatch, input, dependencies)',
+    );
+    final cloudRoute = screenSource.indexOf(
+      'intelligence.executeChatTurn(dispatch)',
+      localRoute,
+    );
+    expect(localRoute, greaterThanOrEqualTo(0));
+    expect(cloudRoute, greaterThan(localRoute));
+    expect(
+      screenSource.substring(localRoute, cloudRoute),
+      contains('if (handled || !_current(token)) return;'),
+    );
     expect(
       screenSource,
-      contains('recoverCompletedChatTurn(execution.jobId)'),
+      contains('readChatTurn(turnId: token.turnId)'),
     );
+    expect(
+      screenSource,
+      contains('_applyWireEvent(_dispatchFor(token), event, reconciled: true)'),
+    );
+    expect(
+      screenSource,
+      contains('event.requireIdentity('),
+    );
+    for (final identity in [
+      'turnId: token.turnId',
+      'attemptId: token.attemptId',
+      'generation: token.generation',
+      'threadId: _chat.state.threadId ?? dispatch.threadId',
+    ]) {
+      expect(screenSource, contains(identity));
+    }
 
     final apiSource =
         File('lib/core/data/pandora_intelligence_api.dart').readAsStringSync();
+    final readbackStart = apiSource.indexOf('readChatTurn({');
+    final readbackEnd = apiSource.indexOf('cancelChatTurn({', readbackStart);
+    expect(readbackStart, greaterThanOrEqualTo(0));
+    expect(readbackEnd, greaterThan(readbackStart));
+    final readback = apiSource.substring(readbackStart, readbackEnd);
+    expect(readback, contains("'protocolVersion': 2"));
+    expect(readback, contains("'operation': 'readback'"));
+    expect(readback, contains("if (response['found'] == false) return null"));
+    expect(
+      readback,
+      contains(
+          'event.requireIdentity(organizationId: _organizationId, turnId: turnId)'),
+    );
+    // Legacy callers retain verified terminal-state recovery during rollout.
     expect(apiSource, contains('recoverCompletedChatTurn('));
     expect(
       apiSource,
@@ -182,7 +232,8 @@ void main() {
     expect(apiSource, contains("terminalState != 'result'"));
   });
 
-  test('Qwen warm recovery clears poisoned Error state and serializes cleanup', () {
+  test('Qwen warm recovery clears poisoned Error state and serializes cleanup',
+      () {
     final kotlinSource = File(
       'platform/android/app/src/main/kotlin/com/banataosystems/pandora_mobile/'
       'PandoraLocalAiChannel.kt',
@@ -197,19 +248,27 @@ void main() {
       kotlinSource,
       contains('activeGeneration?.cancelAndJoin()'),
     );
-    expect(kotlinSource, contains('private const val WARM_DEADLINE_MS = 180_000L'));
+    expect(kotlinSource,
+        contains('private const val WARM_DEADLINE_MS = 180_000L'));
     expect(kotlinSource, contains('engine.requestCancel()'));
     expect(kotlinSource, contains('engine.clearCancelRequest()'));
     expect(kotlinSource, contains('activeWarm?.cancel()'));
     expect(kotlinSource, contains('withTimeoutOrNull(5_000L)'));
     expect(kotlinSource, isNot(contains('activeWarm?.cancelAndJoin()')));
-    final cppSource = File('platform/android/app/src/main/cpp/ai_chat.cpp').readAsStringSync();
+    final cppSource = File('platform/android/app/src/main/cpp/ai_chat.cpp')
+        .readAsStringSync();
     expect(cppSource, contains('PREFERRED_GPU_LAYERS    = 0'));
-    expect(cppSource, contains('model_params.progress_callback = model_load_progress;'));
-    expect(cppSource, contains('g_cancel_requested.load(std::memory_order_relaxed)'));
-    expect(cppSource, contains('if (!model && !g_cancel_requested.load(std::memory_order_relaxed))'));
+    expect(cppSource,
+        contains('model_params.progress_callback = model_load_progress;'));
+    expect(cppSource,
+        contains('g_cancel_requested.load(std::memory_order_relaxed)'));
+    expect(
+        cppSource,
+        contains(
+            'if (!model && !g_cancel_requested.load(std::memory_order_relaxed))'));
     expect(cppSource, contains('cpu_safe_vulkan_compiled'));
-    final localAiSource = File('lib/core/local_ai/pandora_local_ai.dart').readAsStringSync();
+    final localAiSource =
+        File('lib/core/local_ai/pandora_local_ai.dart').readAsStringSync();
     expect(localAiSource, contains('const Duration(seconds: 128)'));
     expect(kotlinSource, contains('private suspend fun warmWithDeadline()'));
     expect(
@@ -233,48 +292,56 @@ void main() {
     expect(systemPrompt, greaterThan(modelResident));
   });
 
-  test('PLP local prompt keeps verified resort snapshot and prewarms Qwen', () {
+  test('PLP local prompt keeps bounded resort context and safe Qwen prewarm',
+      () {
     final screenSource =
         File('lib/features/simple/ask_pandora_screen.dart').readAsStringSync();
+    final adapters = File(
+      'lib/features/simple/chat/pandora_chat_action_adapters.dart',
+    ).readAsStringSync();
 
     expect(screenSource, contains('_prewarmPlpLocalAiIfSafe()'));
     expect(
-      screenSource,
-      contains('Verified PLP resort snapshot already synchronized to this phone.'),
-    );
-    expect(
-      screenSource,
-      contains('NOT request cloud merely because the user says today'),
-    );
-    expect(
-      screenSource,
+      adapters,
       contains(
-        'static const _localInferenceIdleTimeout = Duration(seconds: 120)',
-      ),
+          'Previously synchronized resort snapshot; answer only from included fields and do not claim a fresh read.'),
     );
+    expect(adapters, contains("if (!input.isPlp) return ''"));
+    expect(adapters,
+        contains("local['payload'] ?? input.enterpriseContext['today']"));
     expect(
-      screenSource,
-      contains('.timeout(_localInferenceIdleTimeout)'),
-    );
+        adapters, contains("'authoritativeAsOf': local['authoritativeAsOf']"));
+    expect(adapters,
+        contains("'sourceHealth': input.enterpriseContext['sourceHealth']"));
+    expect(adapters, contains("if (encoded.length > 3600) return ''"));
+    expect(adapters, contains('.timeout(const Duration(seconds: 120))'));
 
-    final localStart = screenSource.indexOf(
-      'Future<bool> _trySubmitLocalAi(',
+    final localStart = adapters.indexOf(
+      'Future<bool> _executePhoneAi(',
     );
-    final coldGuard = screenSource.indexOf('if (!status.loaded && !forceLocal)', localStart);
-    final coldFallback =
-        screenSource.indexOf('local_cold_background_prewarm', coldGuard);
-    final warm = screenSource.indexOf(
-      'if (!await PandoraLocalAi.instance.warm())',
+    final coldGuard =
+        adapters.indexOf('if (!status.loaded && !forceLocal)', localStart);
+    final coldFallback = adapters.indexOf(
+        'unawaited(PandoraLocalAiRuntime.instance.prewarm(', coldGuard);
+    final coldReturn = adapters.indexOf('return false;', coldFallback);
+    final warm = adapters.indexOf(
+      'if (!await runtime.ensureWarm())',
       coldFallback,
     );
-    final reset = screenSource.indexOf(
+    final reset = adapters.indexOf(
       'await PandoraLocalAi.instance.resetConversation()',
       warm,
     );
     expect(coldGuard, greaterThan(localStart));
     expect(coldFallback, greaterThan(coldGuard));
-    expect(warm, greaterThan(coldFallback));
+    expect(coldReturn, greaterThan(coldFallback));
+    expect(warm, greaterThan(coldReturn));
     expect(reset, greaterThan(warm));
+    expect(adapters, contains('runtime.canContinueConversation('));
+    expect(adapters, contains('loaded: status.loaded'));
+    expect(adapters, contains('previousTurnId: previous.last.id'));
+    expect(adapters, contains('_boundedConversationPrompt(dispatch.message)'));
+    expect(adapters, contains('runtime.recordConversation('));
+    expect(adapters, contains('residencyEpoch: residencyEpoch'));
   });
-
 }

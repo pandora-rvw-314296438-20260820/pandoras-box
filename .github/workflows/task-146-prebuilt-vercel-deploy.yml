@@ -7,12 +7,19 @@ on:
         description: Exact canonical source SHA to deploy
         required: true
         type: string
+      runtime_profile:
+        description: Production web release or restricted Core acceptance bridge
+        required: true
+        default: production
+        type: choice
+        options: [production, core_acceptance_v1]
 
 permissions:
   contents: read
 
 jobs:
   deploy:
+    if: ${{ inputs.runtime_profile != 'core_acceptance_v1' }}
     name: prebuilt-mcpmaster-production
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -68,7 +75,7 @@ jobs:
             --token="$VERCEL_TOKEN"
           test -f .vercel/output/config.json
 
-      - name: Deploy prebuilt output to production
+      - name: Stage prebuilt production output without domain assignment
         id: deploy
         shell: bash
         run: |
@@ -77,29 +84,53 @@ jobs:
             npx --yes vercel@59.10.0 deploy \
               --prebuilt \
               --prod \
+              --skip-domain \
               --yes \
               --token="$VERCEL_TOKEN"
           )"
-          printf '%s\n' "$output"
-          url="$(printf '%s\n' "$output" | grep -Eo 'https://[^[:space:]]+\.vercel\.app' | tail -n 1)"
-          test -n "$url"
+          url="$(node scripts/verify-pandora-web-release.mjs --validate-candidate-url "$output")"
           echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
 
-      - name: Verify deployment and production alias
+      - name: Verify candidate source and served artifact bytes
         shell: bash
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location \
-            --max-time 30 "$DEPLOYMENT_URL/health" > /tmp/deployment-health.json
-          curl --fail --silent --show-error --location \
-            --max-time 30 "https://mcpmaster.vercel.app/health" > /tmp/production-health.json
-          printf 'deployment=%s\nsource_sha=%s\n' "$DEPLOYMENT_URL" "$SOURCE_SHA"
-          cat /tmp/deployment-health.json
-          printf '\n'
-          cat /tmp/production-health.json
-          printf '\n'
+          node scripts/verify-pandora-web-release.mjs \
+            --url "$DEPLOYMENT_URL" \
+            --source-sha "$SOURCE_SHA" \
+            --target candidate | tee "$RUNNER_TEMP/pandora-candidate-release.json"
+
+      - name: Promote verified candidate to production
+        shell: bash
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          npx --yes vercel@59.10.0 promote "$DEPLOYMENT_URL" \
+            --scope "$VERCEL_ORG_ID" \
+            --timeout=3m \
+            --token="$VERCEL_TOKEN"
+
+      - name: Bind verified deployment to canonical production alias
+        shell: bash
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          npx --yes vercel@59.10.0 alias set "$DEPLOYMENT_URL" mcpmaster.vercel.app \
+            --scope "$VERCEL_ORG_ID" \
+            --token="$VERCEL_TOKEN"
+
+      - name: Verify canonical source and served artifact bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-pandora-web-release.mjs \
+            --url https://mcpmaster.vercel.app \
+            --source-sha "$SOURCE_SHA" \
+            --target canonical | tee "$RUNNER_TEMP/pandora-canonical-release.json"
 
       - name: Record exact deployment evidence
         shell: bash
@@ -112,4 +143,121 @@ jobs:
             echo "- Source SHA: \`$SOURCE_SHA\`"
             echo "- Deployment: \`$DEPLOYMENT_URL\`"
             echo "- Production alias: \`https://mcpmaster.vercel.app\`"
+            echo
+            echo 'Exact manifest, index.html and main.dart.js digest receipts:'
+            echo '```json'
+            cat "$RUNNER_TEMP/pandora-candidate-release.json"
+            cat "$RUNNER_TEMP/pandora-canonical-release.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  core-acceptance:
+    if: ${{ inputs.runtime_profile == 'core_acceptance_v1' }}
+    name: restricted-core-acceptance-bridge
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    environment: pandora-core-mobile-qa
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      PANDORA_CORE_QA_RUNTIME_PROFILE: ${{ vars.PANDORA_CORE_QA_RUNTIME_PROFILE }}
+      PANDORA_CORE_QA_TARGET_JSON: ${{ vars.PANDORA_CORE_QA_TARGET_JSON }}
+      PANDORA_CORE_QA_CONFIG_SHA256: ${{ vars.PANDORA_CORE_QA_CONFIG_SHA256 }}
+      PANDORA_CORE_QA_REVIEWED_SOURCE_SHA: ${{ vars.PANDORA_CORE_QA_REVIEWED_SOURCE_SHA }}
+      VERCEL_ORG_ID: team_3yw1CN59ce4pj5SwyQGCAqN3
+      VERCEL_PROJECT_ID: prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Validate canonical reviewed workflow and source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = pandora-rvw-314296438-20260820/pandoras-box
+          test "$PANDORA_CORE_QA_RUNTIME_PROFILE" = core_acceptance_v1
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          test "$SOURCE_SHA" = "$PANDORA_CORE_QA_REVIEWED_SOURCE_SHA"
+
+      - name: Check out exact acceptance source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify protected target source binding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          gh api "repos/$GITHUB_REPOSITORY/environments/pandora-core-mobile-qa" > "$RUNNER_TEMP/core-bridge-environment.json"
+          python3 - "$RUNNER_TEMP/core-bridge-environment.json" <<'PY'
+          import json, os, sys
+          sys.path.insert(0, 'apps/pandora-mobile/tool')
+          from core_acceptance_config import protected_source_gate
+          with open(sys.argv[1], encoding='utf-8') as stream:
+              protected_source_gate(json.load(stream), os.environ['SOURCE_SHA'],
+                                    os.environ['PANDORA_CORE_QA_REVIEWED_SOURCE_SHA'])
+          PY
+
+      - name: Use repository Node runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Install locked tracing dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Build the restricted source and config bound output
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/build-core-acceptance-output.mjs --output "$RUNNER_TEMP/core-acceptance-deploy"
+          printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > "$RUNNER_TEMP/core-acceptance-deploy/.vercel/project.json"
+
+      - name: Capture current production aliases and scheduler
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-core-acceptance-deployment.mjs snapshot "$RUNNER_TEMP/core-production-before.json"
+
+      - name: Stage restricted acceptance output without domain assignment
+        id: acceptance_deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(npx --yes vercel@59.10.0 deploy \
+            --cwd "$RUNNER_TEMP/core-acceptance-deploy" \
+            --prebuilt --prod --skip-domain --yes \
+            --meta "pandoraSourceSha=$SOURCE_SHA" \
+            --meta "pandoraConfigSha256=$PANDORA_CORE_QA_CONFIG_SHA256" \
+            --meta pandoraRuntimeProfile=core_acceptance_v1 \
+            --token="$VERCEL_TOKEN")"
+          url="$(node scripts/verify-pandora-web-release.mjs --validate-candidate-url "$output")"
+          echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify immutable binding and unchanged production state
+        env:
+          DEPLOYMENT_URL: ${{ steps.acceptance_deploy.outputs.deployment_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-core-acceptance-deployment.mjs verify \
+            "$DEPLOYMENT_URL" "$RUNNER_TEMP/core-acceptance-deploy" \
+            "$RUNNER_TEMP/core-production-before.json" | tee "$RUNNER_TEMP/core-acceptance-deployment.json"
+
+      - name: Record acceptance bridge evidence
+        shell: bash
+        run: |
+          {
+            echo '### Core acceptance bridge — not a production release'
+            echo 'The following receipt does not prove Auth, provider inference, or mobile journey acceptance.'
+            echo '```json'
+            cat "$RUNNER_TEMP/core-acceptance-deployment.json"
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

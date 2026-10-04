@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/pandora_app.dart';
 import 'app/pandora_runtime_bootstrap.dart';
+import 'core/config/pandora_acceptance_client.dart';
 import 'core/local/pandora_local_store.dart';
 import 'core/security/mobile_auth_storage.dart';
 import 'core/security/pandora_session_storage.dart';
@@ -51,8 +52,11 @@ Future<void> _captureLandingAttribution() async {
 }
 
 Future<void> main() async {
+  final binding = PandoraConfig.runtimeBinding;
   WidgetsFlutterBinding.ensureInitialized();
-  unawaited(_captureLandingAttribution());
+  if (binding.allowLandingAttribution) {
+    unawaited(_captureLandingAttribution());
+  }
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   // Android sessions remain memory-only; web OAuth survives same-tab redirects.
@@ -64,11 +68,19 @@ Future<void> main() async {
   final localStore = await openPandoraLocalStore();
   await localStore.purgeExpired(DateTime.now().toUtc());
 
-  await Supabase.initialize(
-    url: PandoraConfig.supabaseUrl,
-    publishableKey: PandoraConfig.supabasePublishableKey,
-    authOptions: pandoraAuthClientOptions(),
-  );
+  if (binding.isAcceptance) {
+    await PandoraAcceptanceClient.initializeFlutter(
+      binding: binding,
+      publishableKey: PandoraConfig.supabasePublishableKey,
+      authOptions: pandoraAuthClientOptions(),
+    );
+  } else {
+    await Supabase.initialize(
+      url: PandoraConfig.supabaseUrl,
+      publishableKey: PandoraConfig.supabasePublishableKey,
+      authOptions: pandoraAuthClientOptions(),
+    );
+  }
 
   final runtime = PandoraRuntimeBootstrap.create(
     Supabase.instance.client,

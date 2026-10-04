@@ -13,7 +13,7 @@ const plp = readFileSync(
 );
 
 test('Pandora chat side panel uses the same pure-black canvas as chat', () => {
-  assert.match(chat, /drawer:\s*Drawer\([\s\S]*?backgroundColor:\s*const Color\(0xFA000000\)/);
+  assert.match(chat, /drawer:\s*_observedDrawer\(\s*PandoraChatDrawerKind\.primary,\s*Drawer\([\s\S]*?backgroundColor:\s*const Color\(0xFA000000\)/);
   assert.match(chat, /class _PandoraSidePanel[\s\S]*?Material\([\s\S]*?color:\s*const Color\(0xFA000000\)/);
   assert.match(chat, /drawerScrimColor:\s*const Color\(0xD9000000\)/);
 });

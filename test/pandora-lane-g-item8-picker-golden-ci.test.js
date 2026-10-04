@@ -12,7 +12,7 @@ test("Lane H goldens are compared to committed PNGs instead of regenerated in CI
   assert.match(workflow,/lane_h_picker_open_390x844/);
   assert.match(workflow,/lane_h_picker_end_390x844/);
   assert.match(workflow,/lane_h_non_auto_tag_390x844/);
-  assert.match(laneH,/matchesGoldenFile\('owner_screens\/' \+ name \+ '\.png'\)/);
+  assert.match(laneH,/matchesGoldenFile\('owner_screens\/\$name\.png'\)/);
 });
 test("unified model and reasoning picker has tap-through widget coverage",()=>{
   assert.match(taps,/model picker taps through to exact manual selection/);

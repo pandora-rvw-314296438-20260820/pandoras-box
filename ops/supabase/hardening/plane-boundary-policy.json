@@ -11,7 +11,7 @@
     "secondaryAccess": "server-side controlled context/governance broker only"
   },
   "assertions": [
-    "apps/pandora-mobile must not contain secondary project ref",
+    "The secondary project must never be a direct mobile target; its literal is permitted only in narrowly validated executable denial constructs and their actual rejection tests, and every other occurrence fails the scanner",
     "apps/pandora-mobile must not contain secondary Supabase host",
     "secondary functions are never a Simple Mode lifecycle authority"
   ]

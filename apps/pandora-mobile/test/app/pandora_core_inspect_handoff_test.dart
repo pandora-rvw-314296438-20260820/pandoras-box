@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
+import 'package:pandora_mobile/core/chat/pandora_chat.dart';
 import 'package:pandora_mobile/core/data/pandora_core_api.dart';
 import 'package:pandora_mobile/core/data/pandora_intelligence_api.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
-import 'package:pandora_mobile/core/platform/pandora_native_io.dart';
 import 'package:pandora_mobile/features/core/pandora_core_screen.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -123,25 +123,47 @@ class _ReplyIntelligence extends PandoraIntelligenceApi {
       null;
 
   @override
-  Future<PandoraIntelligenceExecution> startChatExecution({
-    required String message,
-    required String requestId,
-    String? threadId,
-    String? projectId,
-    Map<String, Object?>? enterpriseContext,
-    PandoraTextAttachment? textAttachment,
-    PandoraImageAttachment? imageAttachment,
-    PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
-    PandoraChatModelSelection modelSelection =
-        const PandoraChatModelSelection.auto(),
-  }) async {
-    submittedMessages.add(message);
-    contexts.add(enterpriseContext);
-    return PandoraIntelligenceExecution(
-      jobId: 'fixture-inspect-${submittedMessages.length}',
-      events: const Stream<Map<String, dynamic>>.empty(),
-      turn: Future<PandoraIntelligenceTurn>.value(answer(message)),
-    );
+  Stream<PandoraChatWireEvent> executeChatTurn(
+      PandoraChatDispatch dispatch) async* {
+    submittedMessages.add(dispatch.message);
+    contexts.add(dispatch.request['enterpriseContext'] is Map
+        ? Map<String, Object?>.from(
+            dispatch.request['enterpriseContext'] as Map)
+        : null);
+    final turn = answer(dispatch.message);
+    final identity = <String, Object?>{
+      'protocolVersion': 2,
+      'organizationId': organizationId,
+      'threadId': dispatch.threadId ?? turn.threadId,
+      'turnId': dispatch.token.turnId,
+      'attemptId': dispatch.token.attemptId,
+      'generation': dispatch.token.generation,
+      'activityJobId': 'fixture-inspect-${dispatch.token.turnId}',
+      'userMessageId': 'fixture-user-${dispatch.token.turnId}',
+    };
+    yield PandoraChatWireEvent.fromJson(
+        {...identity, 'status': 'accepted', 'type': 'accepted', 'sequence': 1});
+    final handoff = turn.handoff;
+    yield PandoraChatWireEvent.fromJson({
+      ...identity,
+      'status': 'completed',
+      'type': 'completed',
+      'sequence': 2,
+      'reply': turn.reply,
+      'intent': turn.intent,
+      'confidence': turn.confidence,
+      'needsClarification': turn.needsClarification,
+      'assistantMessageId': 'fixture-assistant-${dispatch.token.turnId}',
+      if (handoff != null)
+        'handoff': {
+          'required': true,
+          'kind': handoff.kind,
+          'action': handoff.action,
+          'section': handoff.section,
+          'organizationId': handoff.organizationId,
+          'request': handoff.request,
+        },
+    });
   }
 }
 
@@ -312,8 +334,7 @@ void main() {
     expect(_selected(tester)['coreSection'], 'home');
 
     final assistantSemantics = find.byWidgetPredicate((widget) =>
-        widget is Semantics &&
-        widget.properties.label == 'Pandora: $reply');
+        widget is Semantics && widget.properties.label == 'Pandora: $reply');
     expect(assistantSemantics, findsOneWidget);
     final inspect = find.byKey(const ValueKey('pandora-core-inspect-action'));
     expect(inspect, findsOneWidget);

@@ -12,6 +12,8 @@ const activity = read('supabase','functions','pandora-intelligence-chat','activi
 const edge = read('supabase','functions','pandora-intelligence-chat','index.ts');
 const mobileApi = read('apps','pandora-mobile','lib','core','data','pandora_activity_stream_api.dart');
 const intelligence = read('apps','pandora-mobile','lib','core','data','pandora_intelligence_api.dart');
+const details = read('apps','pandora-mobile','lib','features','simple','chat','pandora_chat_activity_details.dart');
+const composer = read('apps','pandora-mobile','lib','features','simple','chat','pandora_chat_composer.dart');
 const chat = read('apps','pandora-mobile','lib','features','simple','ask_pandora_screen.dart');
 
 test('durable controls are owner-scoped, idempotent and service-applied', () => {
@@ -52,18 +54,20 @@ test('runtime rechecks live controls and supersedes stale provider output', () =
   assert.match(edge, /cred\(instruction\)/);
 });
 
-test('mobile can submit redirect constraint and cancel while the active turn remains visible', () => {
+test('per-turn Details supports pre-response controls and composer Stop retains generation identity', () => {
   assert.match(mobileApi, /enum PandoraActivityControlType \{ cancel, redirect, constraint \}/);
   assert.match(mobileApi, /pandora_activity_control_request_v1/);
   assert.match(intelligence, /Future<void> controlActivityJob/);
-  assert.match(chat, /Future<void> _submitActiveControl/);
-  assert.match(chat, /_submitting && _activeActivityJobId != null/);
-  assert.match(chat, /PandoraActivityControlType\.redirect/);
-  assert.match(chat, /PandoraActivityControlType\.constraint/);
-  assert.match(chat, /PandoraActivityControlType\.cancel/);
-  assert.match(chat, /Icons\.stop_rounded/);
-  assert.match(chat, /final voiceReady =\s*!submitting && empty/);
-  assert.match(chat, /final cancelReady = submitting && empty/);
-  assert.match(chat, /onPressed:\s*disabled \? null : action/);
-  assert.doesNotMatch(chat, /onPressed: disabled \|\| submitting \? null : onSubmit/);
+  assert.match(details, /_current\(token\)/);
+  assert.match(details, /_routes\[token\.attemptId\] != _ChatExecutionRoute\.cloud/);
+  assert.match(details, /turn\.reply\.isEmpty/);
+  assert.match(details, /PandoraActivityControlType\.redirect/);
+  assert.match(details, /PandoraActivityControlType\.constraint/);
+  assert.match(details, /controlActivityJob\([\s\S]*jobId: jobId,[\s\S]*requestId: requestId/);
+  assert.match(details, /presentContextRoute\(route\)/);
+  assert.match(chat, /cancelChatTurn\(/);
+  assert.match(composer, /current\.generationIdentity == expectedGeneration/);
+  assert.match(composer, /widget\.state\.value\.canSend/);
+  assert.match(composer, /widget\.state\.value\.canDictate/);
+  assert.doesNotMatch(chat, /_submitting && _activeActivityJobId/, 'overlapping global lifecycle flags cannot return');
 });

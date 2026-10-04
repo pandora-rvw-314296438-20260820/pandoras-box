@@ -32,6 +32,7 @@ class PandoraMenuButton extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
         message: tooltip,
         child: Semantics(
+          identifier: 'pandora.chat.navigation',
           button: true,
           label: tooltip,
           child: Material(

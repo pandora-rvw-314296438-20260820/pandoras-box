@@ -9,6 +9,8 @@ import 'package:pandora_mobile/core/data/pandora_core_api.dart';
 import 'package:pandora_mobile/core/data/pandora_core_memory_api.dart';
 import 'package:pandora_mobile/features/core/pandora_core_memory_panel.dart';
 
+import '../../helpers/acceptance_profile_fixture.dart';
+
 Map<String, dynamic> envelope() => {
       'ok': true,
       'operation': 'context',
@@ -57,6 +59,38 @@ class FakeMemory implements PandoraCoreMemoryGateway {
 }
 
 void main() {
+  test(
+      'acceptance Memory stops before token access or HTTP client construction',
+      () async {
+    var tokenReads = 0;
+    var clientConstructions = 0;
+    var requests = 0;
+    final gateway = HttpPandoraCoreMemoryGateway(
+      runtimeBinding: acceptanceProfileBinding(),
+      accessToken: () {
+        tokenReads++;
+        return 'must-stay-private';
+      },
+    );
+    await http.runWithClient(() async {
+      await expectLater(
+          gateway.load(),
+          throwsA(isA<PandoraCoreFailure>()
+              .having((error) => error.code, 'code', 'MEMORY_UNAVAILABLE')
+              .having((error) => error.message, 'ordinary unavailable state',
+                  'Memory is unavailable in this environment.')));
+    }, () {
+      clientConstructions++;
+      return MockClient((_) async {
+        requests++;
+        return http.Response('{}', 200);
+      });
+    });
+    expect(tokenReads, 0);
+    expect(clientConstructions, 0);
+    expect(requests, 0);
+  });
+
   test(
       'existing owner endpoint sends only a fixed read with the actual session',
       () async {

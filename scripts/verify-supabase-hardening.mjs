@@ -1,4 +1,5 @@
 import { readFile, readdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 const root = 'ops/supabase/hardening';
@@ -195,6 +196,178 @@ if (!boundary.simpleMode.forbiddenDirectProjectRefs.includes(secondary)) {
   throw new Error('secondary plane not forbidden');
 }
 
+// A forbidden target must be named by its executable rejection and its negative
+// test. Recognize only those reviewed constructs; a path never exempts its other
+// references. Comments, strings, nested/unreachable copies and changed behavior
+// cannot supply the code tokens needed by this narrow classifier.
+function dartTokens(source) {
+  function commentEnd(start) {
+    if (source.startsWith('//', start)) {
+      const end = source.indexOf('\n', start + 2);
+      return end < 0 ? source.length : end;
+    }
+    let depth = 1;
+    for (let i = start + 2; i < source.length;) {
+      if (source.startsWith('/*', i)) { depth++; i += 2; }
+      else if (source.startsWith('*/', i)) {
+        i += 2;
+        if (--depth === 0) return i;
+      } else i++;
+    }
+    return -1;
+  }
+  const stringStart = i => /['"]/.test(source[i] || '') ||
+    (/[rR]/.test(source[i] || '') && /['"]/.test(source[i + 1] || ''));
+  function stringEnd(start, nesting = 0) {
+    if (nesting > 64) return -1;
+    const raw = /[rR]/.test(source[start]);
+    const quoteAt = start + Number(raw), quote = source[quoteAt];
+    const delimiter = source.startsWith(quote.repeat(3), quoteAt) ? quote.repeat(3) : quote;
+    for (let i = quoteAt + delimiter.length; i < source.length;) {
+      if (source.startsWith(delimiter, i)) return i + delimiter.length;
+      if (!raw && source[i] === '\\') { i += 2; continue; }
+      if (!raw && source.startsWith('${', i)) {
+        let depth = 1;
+        i += 2;
+        while (i < source.length && depth) {
+          if (source.startsWith('//', i) || source.startsWith('/*', i)) i = commentEnd(i);
+          else if (stringStart(i)) i = stringEnd(i, nesting + 1);
+          else if (source[i] === '{') { depth++; i++; }
+          else if (source[i] === '}') { depth--; i++; }
+          else i++;
+          if (i < 0) return -1;
+        }
+        if (depth) return -1;
+      } else i++;
+    }
+    return -1;
+  }
+  const tokens = [], brackets = [], braces = [], pairs = new Map();
+  for (let i = 0; i < source.length;) {
+    if (/\s/.test(source[i])) { i++; continue; }
+    if (source.startsWith('//', i) || source.startsWith('/*', i)) {
+      i = commentEnd(i);
+      if (i < 0) return null;
+      continue;
+    }
+    const start = i;
+    let kind = 'code';
+    if (stringStart(i)) { i = stringEnd(i); kind = 'string'; }
+    else if (/[A-Za-z_$]/.test(source[i])) {
+      i++;
+      while (i < source.length && /[A-Za-z0-9_$]/.test(source[i])) i++;
+    } else i++;
+    if (i < 0) return null;
+    const text = source.slice(start, i), index = tokens.length;
+    tokens.push({ text, kind, start, end: i, parent: braces.at(-1) ?? null });
+    if (kind === 'string') continue;
+    if ('([{'.includes(text)) {
+      brackets.push({ text, index });
+      if (text === '{') braces.push(index);
+    } else if (')]}'.includes(text)) {
+      const opening = brackets.pop();
+      if (!opening || '([{'.indexOf(opening.text) !== ')]}'.indexOf(text)) return null;
+      pairs.set(opening.index, index);
+      if (text === '}') braces.pop();
+    }
+  }
+  return brackets.length ? null : { tokens, pairs };
+}
+
+function reviewedDenialReferences(file, source, primary, forbidden) {
+  const runtimePath = 'apps/pandora-mobile/lib/core/config/pandora_runtime_binding.dart';
+  const testPath = 'apps/pandora-mobile/test/core/config/pandora_runtime_binding_test.dart';
+  const normalizedPath = file.split(path.sep).join('/');
+  if (![runtimePath, testPath].includes(normalizedPath)) return [];
+  if (![primary, forbidden].every(ref => /^[a-z0-9]{20}$/.test(ref))) return [];
+  const parsed = dartTokens(source);
+  if (!parsed) return [];
+  const { tokens, pairs } = parsed;
+  const sequence = text => dartTokens(text)?.tokens.map(token => token.text) ?? [];
+  const at = (index, expected) => expected.length > 0 &&
+    expected.every((text, offset) => tokens[index + offset]?.text === text);
+  const find = (expected, parent) => tokens.flatMap((token, index) =>
+    token.parent === parent && at(index, expected) ? [index] : []);
+  const exactRef = token => token.kind === 'string' && token.text === `'${forbidden}'`;
+  if (normalizedPath === runtimePath) {
+    const classes = find(['class', 'PandoraRuntimeBinding', '{'], null);
+    if (classes.length !== 1) return [];
+    const factories = find(['factory', 'PandoraRuntimeBinding', '.', 'fromConfiguration', '('], classes[0] + 2);
+    if (factories.length !== 1) return [];
+    const body = (pairs.get(factories[0] + 4) ?? -2) + 1;
+    if (tokens[body]?.text !== '{') return [];
+    // The guard must be in the factory's leading validation sequence, before
+    // target construction. A copied guard under `if (false)` is not sufficient.
+    const validation = sequence(`
+      final acceptanceFields = [acceptanceProjectRef, acceptanceOrganizationId,
+        acceptanceSourceSha, acceptancePublishableKeySha256, acceptanceConfigSha256,];
+      if (runtimeProfile == 'production') {
+        if (acceptanceFields.any((field) => field != null)) {
+          throw const PandoraRuntimeBindingException('ACCEPTANCE_ORPHAN_CONFIG');
+        }
+        return production;
+      }
+      if (runtimeProfile != acceptanceProfile) {
+        throw const PandoraRuntimeBindingException('ACCEPTANCE_PROFILE_INVALID');
+      }
+      if (acceptanceFields.any((field) => field == null || field.isEmpty)) {
+        throw const PandoraRuntimeBindingException('ACCEPTANCE_CONFIG_INCOMPLETE');
+      }
+      final ref = acceptanceProjectRef!;
+      if (!_matches(_ref, ref) || const {'${primary}', '${forbidden}'}.contains(ref)) {
+        throw const PandoraRuntimeBindingException('ACCEPTANCE_PROJECT_INVALID');
+      }
+    `);
+    if (!at(body + 1, validation)) return [];
+    return tokens.slice(body + 1, body + 1 + validation.length).filter(exactRef);
+  }
+  const mains = find(['void', 'main', '(', ')', '{'], null);
+  if (mains.length !== 1) return [];
+  const mainBody = mains[0] + 4;
+  if (pairs.get(mainBody) !== tokens.length - 1) return [];
+  const matcher = sequence(`Matcher code(String value) => throwsA(isA<PandoraRuntimeBindingException>()
+    .having((error) => error.code, 'fixed code', value)
+    .having((error) => error.toString(), 'private error text', value));`);
+  if (find(matcher, mainBody).length !== 1) return [];
+  // The tail closes the loop's condition, so tokenize it with its opening
+  // condition and retain only the tokens after that synthetic list.
+  const completeTail = sequence(`for (final ref in []) {
+    test('rejects forbidden or malformed project $ref', () {
+      expect(() => acceptanceProfileBinding(overrides: {'acceptanceProjectRef': ref}),
+        code('ACCEPTANCE_PROJECT_INVALID'));
+    });
+  }`).slice(7);
+  const reviewedValues = sequence(`['${primary}', '${forbidden}', 'not-a-project',
+    'ABCDEFGHIJKLMNOPQRST', '${primary}\\n', 'abcdefghijklmnopqrst\\n',]`).slice(1, -1);
+  const permitted = [];
+  for (const loop of find(['for', '(', 'final', 'ref', 'in', '['], mainBody)) {
+    // Bind the reviewed imports and registration prefix, not merely a copied
+    // loop. This is the token prefix in the independently reviewed ed4b7236
+    // test, before the forbidden-reference list. It contains no secondary ref.
+    // An earlier return/exit, library @Skip or shadowed assertion invalidates
+    // the exception. Whitespace/comments may change; their raw refs still fail.
+    const prefix = JSON.stringify(tokens.slice(0, loop).map(token => token.text));
+    if (createHash('sha256').update(prefix).digest('hex') !== 'd5daa3a6fabc6a4c8108b1cf0eb89d725e01f028f606f7b4262be095f4bbf3c8') continue;
+    const end = pairs.get(loop + 5);
+    if (end === undefined || !at(end + 1, completeTail)) continue;
+    const values = tokens.slice(loop + 6, end);
+    // An interpolated string can execute while the iterable is constructed and
+    // abort registration. Only the actual reviewed constant cases are eligible.
+    if (values.length !== reviewedValues.length || !at(loop + 6, reviewedValues)) continue;
+    permitted.push(...values.filter(exactRef));
+  }
+  return permitted.length === 1 ? permitted : [];
+}
+
+function hasUnexpectedSecondaryReference(file, source) {
+  if (!source.includes(secondary)) return false;
+  const allowed = reviewedDenialReferences(file, source, registry.projects.primary, secondary);
+  for (let offset = source.indexOf(secondary); offset >= 0; offset = source.indexOf(secondary, offset + secondary.length)) {
+    if (!allowed.some(token => offset === token.start + 1 && token.end === offset + secondary.length + 1)) return true;
+  }
+  return false;
+}
+
 async function files(directory) {
   const output = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -213,10 +386,7 @@ async function files(directory) {
 
 for (const file of await files('apps/pandora-mobile')) {
   const source = await readFile(file, 'utf8');
-  if (
-    source.includes(secondary) ||
-    source.includes('https://' + secondary + '.supabase.co')
-  ) {
+  if (hasUnexpectedSecondaryReference(file, source)) {
     throw new Error('Simple Mode secondary reference: ' + file);
   }
 }

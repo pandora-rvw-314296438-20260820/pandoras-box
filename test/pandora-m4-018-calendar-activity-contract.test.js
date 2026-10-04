@@ -22,6 +22,9 @@ const intelligence = read(
   'apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart',
 );
 const ask = read('apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart');
+const adapters = read(
+  'apps/pandora-mobile/lib/features/simple/chat/pandora_chat_action_adapters.dart',
+);
 const executor = read(
   'apps/pandora-mobile/lib/core/device/pandora_calendar_action_executor.dart',
 );
@@ -59,14 +62,34 @@ test('Android surfaces device timezone and connected-calendar truth', () => {
 });
 
 test('Ask Pandora executes calendar commands before model chat', () => {
-  const parse = ask.indexOf('PandoraCalendarCommand.tryParse(');
-  const model = ask.indexOf('intelligence.startChatExecution(');
-  assert.ok(parse >= 0, 'calendar parser missing');
-  assert.ok(model >= 0, 'model chat dispatch missing');
-  assert.ok(parse < model, 'calendar execution must happen before model chat');
-  assert.match(ask, /PandoraCalendarActionExecutor/);
-  assert.match(ask, /startDeviceActivity/);
-  assert.match(ask, /recordDeviceActivity/);
+  const route = ask.indexOf('await _executeLocalRoute(dispatch, input, dependencies)');
+  const cloud = ask.indexOf('intelligence.executeChatTurn(dispatch)', route);
+  assert.ok(route >= 0, 'native action adapter is not called');
+  assert.ok(cloud > route, 'native routing must finish before cloud dispatch');
+  assert.match(ask.slice(route, cloud), /if \(handled \|\| !_current\(token\)\) return;/);
+  assert.match(ask, /part 'chat\/pandora_chat_action_adapters\.dart'/);
+  assert.match(adapters, /PandoraCalendarCommand\.tryParse\(dispatch\.message/);
+  assert.match(adapters, /await _executeCalendar\(dispatch, calendar\.command!, dependencies\)/);
+
+  const start = adapters.indexOf('Future<String> _executeCalendar(');
+  const end = adapters.indexOf('Future<String> _executeCommunication(', start);
+  assert.ok(start >= 0 && end > start, 'calendar execution adapter missing');
+  const calendar = adapters.slice(start, end);
+  assert.match(calendar, /final operationId = dispatch\.token\.attemptId;/);
+  assert.match(calendar, /PandoraCalendarActionExecutor\(/);
+  assert.match(calendar, /startDeviceActivity\([\s\S]*?requestId: operationId/);
+  assert.match(calendar, /recordDeviceActivity\([\s\S]*?operationId: operationId/);
+  assert.match(calendar, /beforeEffect: \(\) => _beginEffect\(dispatch, 'device'\)/);
+  assert.match(calendar, /final result = await executor\.execute\(command, operationId: operationId\);/);
+  assert.doesNotMatch(calendar, /if \(!_beginEffect\(dispatch, 'device'\)\)/);
+  for (const method of ['createEvent', 'updateEvent', 'deleteEvent', 'scheduleLocalReminder']) {
+    const nativeCall = executor.indexOf(`await _runtime.${method}(`);
+    assert.ok(nativeCall >= 0, `${method} native dispatch missing`);
+    assert.match(executor.slice(Math.max(0, nativeCall - 150), nativeCall), /if \(_beforeEffect\?\.call\(\) == false\) return _cancelled\('[^']+'\);\s*final (?:result|scheduled) = $/);
+  }
+  assert.match(calendar, /return result\.reply;/);
+  assert.match(executor, /if \(_text\(result\['state'\]\) != successState\)/);
+  assert.match(executor, /final event = _map\(result\['event'\]\);\s*if \(event\.isEmpty\)/);
   assert.match(intelligence, /class PandoraDeviceActivityExecution/);
 });
 

@@ -10,10 +10,8 @@ const intelligence = fs.readFileSync(
   'apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart',
   'utf8',
 );
-const ask = fs.readFileSync(
-  'apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
-  'utf8',
-);
+const ask = ['ask_pandora_screen.dart', 'chat/pandora_chat_action_adapters.dart']
+  .map(file => fs.readFileSync(`apps/pandora-mobile/lib/features/simple/${file}`, 'utf8')).join('\n');
 const release = fs.readFileSync(
   '.github/workflows/pandora-mobile-release.yml',
   'utf8',
@@ -41,7 +39,7 @@ test('Build it / Fix it / Improve it executes from Universal Chat without automa
   assert.match(ask, /experience\.submitChange\(/);
   assert.match(ask, /experience\.understanding\(/);
   assert.match(ask, /experience\.requestBuild\(/);
-  assert.match(ask, /keep this chat open while Pandora works/);
+  assert.match(ask, /You can follow it in Activity\./);
   assert.doesNotMatch(ask, /ProjectWorkspaceV2Screen\(/);
   assert.doesNotMatch(ask, /message: handoff\.request/);
 });

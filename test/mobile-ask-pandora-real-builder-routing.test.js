@@ -3,22 +3,21 @@ const assert = require("node:assert/strict");
 const fs = require('node:fs');
 const path = require('node:path');
 
-const source = fs.readFileSync(
-  path.join(process.cwd(), 'apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart'),
-  'utf8',
-);
+const source = ['ask_pandora_screen.dart', 'chat/pandora_chat_action_adapters.dart']
+  .map(file => fs.readFileSync(path.join(process.cwd(), 'apps/pandora-mobile/lib/features/simple', file), 'utf8')).join('\n');
 
 test('Ask Pandora fallback stays universal when intelligence is unavailable', () => {
   assert.equal(source.includes("import 'project_create_experience.dart';"), false);
-  assert.equal(source.includes("_keys.create('simple-intake')"), true);
+  assert.equal(source.includes('idempotencyKey: token.attemptId'), true);
   assert.equal(source.includes('final receipt = await dependencies.repository.ask('), true);
   assert.equal(source.includes('initialIntent: objective'), false);
 });
 
-test('ProjectOS handoffs are admission receipts and are never submitted twice', () => {
+test('capability handoffs remain receipts and are never submitted as a second chat request', () => {
   assert.equal(source.includes('message: handoff.request'), false);
   assert.equal(source.includes("_keys.create('intelligence-handoff')"), false);
-  assert.equal(source.includes('owns exactly one dispatch'), true);
+  assert.equal(source.includes('intelligence.executeChatTurn(dispatch)'), true);
+  assert.equal(source.includes('intelligence.startChatExecution('), false);
   assert.equal(source.includes('initialIntent: handoff.request'), false);
 });
 
@@ -30,10 +29,10 @@ test('Ask Pandora never presents the static prototype as a real build result', (
 test('explicit selected-project changes execute through the real builder without leaving chat', () => {
   assert.equal(source.includes('message: handoff.request'), false);
   assert.equal(source.includes("handoff?.source == 'project_workspace_change'"), true);
-  assert.equal(source.includes('experience.loadExperience(handoffProjectId)'), true);
+  assert.equal(source.includes('experience.loadExperience(projectId)'), true);
   assert.equal(source.includes("projection.state.name == 'build'"), true);
-  assert.equal(source.includes("idempotencyKey: '$executionKey:initial-build'"), true);
-  assert.equal(source.includes('Build started with Gemini.'), true);
+  assert.equal(source.includes("idempotencyKey: '${token.attemptId}:initial-build'"), true);
+  assert.equal(source.includes('The build request was accepted.'), true);
   assert.equal(source.includes('projection.activeBuildJobId != null'), true);
   assert.equal(source.includes('experience.submitChange('), true);
   assert.equal(source.includes('experience.understanding('), true);
@@ -41,20 +40,18 @@ test('explicit selected-project changes execute through the real builder without
   assert.equal(source.includes('ProjectWorkspaceV2Screen('), false);
   assert.equal(source.includes('initialChange: handoff!.request'), false);
   assert.equal(source.includes("handoff?.source == 'projectos_intake'"), false);
-  assert.equal(source.includes('keep this chat open while Pandora works'), true);
+  assert.equal(source.includes('You can follow it in Activity.'), true);
 });
 
 test('in-chat execution keeps one stable admission identity after mutation acceptance', () => {
-  assert.match(
-    source,
-    /_keys\.create\(\s*['"]pandora-chat-project-change['"]\s*,?\s*\)/,
-  );
-  assert.equal(source.includes("idempotencyKey: '$executionKey:intent'"), true);
-  assert.equal(source.includes("idempotencyKey: '$executionKey:build:$intentId'"), true);
+  assert.match(source, /final token = dispatch\.token/);
+  assert.equal(source.includes("idempotencyKey: '${token.attemptId}:intent'"), true);
+  assert.equal(source.includes("idempotencyKey: '${token.attemptId}:build:$intentId'"), true);
   assert.equal(source.includes('var mutationAccepted = false;'), true);
   assert.equal(source.includes('mutationAccepted = true;'), true);
-  assert.equal(source.includes('_outcomeUnknown = true;'), true);
-  assert.equal(source.includes('will not retry it automatically'), true);
+  assert.equal(source.includes('outcomeUnknown: mutationAccepted'), true);
+  assert.equal(source.includes('recoverable: !mutationAccepted'), true);
+  assert.match(source, /if \(!_current\(token\)\)/);
 });
 
 const workspace = fs.readFileSync(

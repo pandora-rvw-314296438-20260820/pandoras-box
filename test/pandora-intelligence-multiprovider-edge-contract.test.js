@@ -77,17 +77,18 @@ test('routing state wrappers remain service-role only',()=>{
   }
 });
 
-test('Gemini Kimi and OpenAI share owner trust gates and customer response stays provider-blind',()=>{
+test('Gemini Kimi and OpenAI share owner trust gates and provider metadata stays outside the reply',()=>{
   must(edge,'auth.getUser()');
   must(edge,'memberships');
   must(edge,'["owner","admin"]');
   must(edge,'consume_runtime_rate_limit');
   must(edge,'provider:result.provider,model:result.model');
-  const payloadStart=edge.indexOf('const responsePayload={threadId:tid');
-  const start=edge.indexOf('return res({ok:true,activityJobId:i.activityJobId,...responsePayload})',payloadStart);
-  const end=edge.indexOf('}catch(e)',start);
-  assert.ok(payloadStart>=0&&start>payloadStart&&end>start);
+  const payloadStart=edge.indexOf('const completionResult={threadId:tid');
+  const end=edge.indexOf(';const assistantWrite=',payloadStart);
+  assert.ok(payloadStart>=0&&end>payloadStart);
   const publicSuccess=edge.slice(payloadStart,end);
+  must(publicSuccess,'reply:cleanReply');
+  must(publicSuccess,'routing:routeAudit');
   mustNot(publicSuccess,'provider:result');
   mustNot(publicSuccess,'model:result');
 });

@@ -14,6 +14,10 @@ const chat = readFileSync(
   'apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
   'utf8',
 );
+const composer = readFileSync(
+  'apps/pandora-mobile/lib/features/simple/chat/pandora_chat_composer.dart',
+  'utf8',
+);
 const team = readFileSync(
   'apps/pandora-mobile/lib/features/team/team_screen.dart',
   'utf8',
@@ -31,12 +35,18 @@ test('shared PLP command dock follows the keyboard only while its field owns foc
   assert.match(shell, /padding: EdgeInsets\.only\(bottom: keyboardInset\)/);
 });
 
-test('Ask Pandora full chat composer follows the keyboard inset', () => {
-  assert.match(chat, /final keyboardInset = media\.viewInsets\.bottom/);
+test('shared Core chat uses one Scaffold IME resize and a measured composer', () => {
+  assert.match(chat, /resizeToAvoidBottomInset: true/);
+  assert.match(chat, /LayoutBuilder\(builder: \(context, constraints\)/);
+  assert.match(chat, /viewportSize: constraints\.biggest/);
+  assert.match(chat, /composerExtent: _composerHeight \+ safeBottom/);
   assert.match(
     chat,
-    /Positioned\([\s\S]*left: 0,[\s\S]*right: 0,[\s\S]*bottom: keyboardInset,[\s\S]*key: _composerKey/,
+    /Positioned\(\s*left: 0,\s*right: 0,\s*bottom: 0,[\s\S]*?padding: EdgeInsets\.only\(bottom: safeBottom\),[\s\S]*?PandoraChatComposer\(/,
   );
+  assert.match(chat, /onHeightChanged:/);
+  assert.doesNotMatch(chat, /bottom: keyboardInset/);
+  assert.doesNotMatch(composer, /MediaQuery\.viewInsetsOf|viewInsets\.bottom/);
 });
 
 test('shared command dock remains shell-level across every non-chat PLP destination', () => {

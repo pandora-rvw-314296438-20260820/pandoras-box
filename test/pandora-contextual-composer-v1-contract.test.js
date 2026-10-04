@@ -2,10 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const screen = await readFile(
-  'apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
-  'utf8',
-);
+const screen = (await Promise.all(['ask_pandora_screen.dart', 'chat/pandora_chat_context_actions.dart']
+  .map(file => readFile(`apps/pandora-mobile/lib/features/simple/${file}`, 'utf8')))).join('\n');
 const api = await readFile(
   'apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart',
   'utf8',
@@ -13,11 +11,20 @@ const api = await readFile(
 
 // Exact-source mobile gates remain authoritative for format, analysis, tests, and builds.
 test('composer keeps files and images while adding services and project context', () => {
-  assert.match(screen, /ask-pandora-menu-camera/);
-  assert.match(screen, /ask-pandora-menu-photos/);
-  assert.match(screen, /ask-pandora-menu-files/);
-  assert.match(screen, /ask-pandora-menu-services/);
-  assert.match(screen, /ask-pandora-menu-project-context/);
+  assert.match(screen, /ValueKey<String>\('ask-pandora-menu-\$suffix'\)/);
+  for (const [action, suffix, label] of [
+    ['camera', 'camera', 'Camera'],
+    ['photos', 'photos', 'Photos'],
+    ['files', 'files', 'Files'],
+    ['services', 'services', 'Services'],
+    ['project', 'project-context', 'Project context'],
+  ]) {
+    assert.match(screen, new RegExp(`item\\(_AttachmentAction\\.${action}, '${suffix}',\\s*'${label}'`));
+  }
+  for (const action of ['_pickImage(camera: true)', '_pickImage(camera: false)',
+    '_attach()', '_pickServiceContext()', '_pickProjectContext()']) {
+    assert.ok(screen.includes(`await ${action}`), `${action} remains wired to its menu choice`);
+  }
 });
 
 test('services come from live capability registry truth instead of hardcoded connected state', () => {
@@ -38,9 +45,14 @@ test('project context comes from existing non-archived Pandora projects and is p
 });
 
 test('selected contexts stay visible and removable without dashboard chrome', () => {
-  assert.match(screen, /serviceContext: _serviceContext/);
-  assert.match(screen, /projectContext: _projectContext/);
+  assert.match(screen, /context: _contextChips\(\)/);
+  assert.match(screen, /_serviceContext!\.label/);
+  assert.match(screen, /_projectContext!\.name/);
   assert.match(screen, /_removeServiceContext/);
   assert.match(screen, /_removeProjectContext/);
-  assert.match(screen, /MenuAnchor/);
+  assert.match(screen, /presentContextRoute<_AttachmentAction>\(\s*ModalBottomSheetRoute<_AttachmentAction>/);
+  assert.match(screen, /backgroundColor: PandoraSimpleColors\.surface/);
+  assert.match(screen, /useSafeArea: true/);
+  assert.match(screen, /_presentation\.value\.intentRevision == intent/);
+  assert.match(screen, /_presentation\.value\.surface == PandoraChatSurface\.context/);
 });

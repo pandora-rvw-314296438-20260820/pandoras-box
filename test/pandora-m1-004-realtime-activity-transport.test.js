@@ -31,6 +31,10 @@ const timelineControllerPath = new URL(
   import.meta.url,
 );
 
+const details = await readFile(new URL('../apps/pandora-mobile/lib/features/simple/chat/pandora_chat_activity_details.dart', import.meta.url), 'utf8');
+const lifecycle = await readFile(new URL('../supabase/functions/pandora-intelligence-chat/turn-lifecycle.ts', import.meta.url), 'utf8');
+const turnMigration = await readFile(new URL('../supabase/migrations/20261003170000_pandora_chat_turn_lifecycle_v2.sql', import.meta.url), 'utf8');
+
 const [migration, edge, edgeActivity, mobileApi, intelligence, chat, timelineController] =
   await Promise.all([
     readFile(migrationPath, 'utf8'),
@@ -80,11 +84,14 @@ test('intelligence runtime emits real business-action, checking, and verified re
   assert.match(edge, /verification_receipt/);
   assert.match(edgeActivity, /pandora_activity_admit_event_v1/);
 });
-test('mobile starts the activity job before the model turn and consumes replay plus live rows', () => {
+test('v2 atomically admits the Activity job and mobile consumes scoped replay plus live rows', () => {
   assert.match(intelligence, /startChatExecution/);
   assert.match(intelligence, /activityJobId: jobId/);
   assert.match(intelligence, /activity\.watchJob\(jobId\)/);
-  assert.match(chat, /startChatExecution\(/);
+  assert.match(chat, /executeChatTurn\(dispatch\)/);
+  assert.doesNotMatch(chat, /startChatExecution\(/);
+  assert.match(lifecycle, /pandora_chat_turn_admit_v2/);
+  assert.match(turnMigration, /pandora_core_activity_begin_v1\(p_organization_id,'chat-v2:'/);
   assert.match(mobileApi, /pandora_activity_job_begin_v1/);
   assert.match(mobileApi, /pandora_activity_replay_v1/);
   assert.match(mobileApi, /historyGapDueToRetention/);
@@ -135,13 +142,12 @@ test('runtime terminalizes failures, handoffs, and clarification turns', () => {
   assert.match(edgeActivity, /relation: 'failure'/);
 });
 
-test('Chat subscribes before awaiting the final intelligence turn', () => {
-  const subscribeAt = chat.indexOf('await _watchActivity(execution)');
-  const awaitTurnAt = chat.indexOf('await execution.turn');
-  assert.ok(subscribeAt >= 0);
-  assert.ok(awaitTurnAt > subscribeAt);
-  assert.match(chat, /await _activityController\.bind\(/);
-  assert.match(chat, /stream: execution\.events/);
+test('Details subscribes to captured job replay while the chat stream retains turn ownership', () => {
+  assert.match(details, /events: intelligence\.watchChatActivity\(jobId\)/);
+  assert.match(details, /_timeline\.bind\(jobId: widget\.jobId, stream: widget\.events\)/);
+  assert.match(details, /_timeline\.dispose\(\)/);
+  assert.match(chat, /_showActivityDetails\(turn\)/);
+  assert.match(chat, /executeChatTurn\(dispatch\)/);
   assert.match(timelineController, /stream\.listen\(/);
   assert.match(timelineController, /if \(_reducer\.isTerminal\)/);
   assert.doesNotMatch(chat, /execution\.events\.listen\(/);

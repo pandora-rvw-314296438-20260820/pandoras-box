@@ -10,10 +10,8 @@ const transport = await readFile(
   'supabase/migrations/20260912100500_pandora_github_memory_repository_binding_v2.sql',
   'utf8',
 );
-const mobile = await readFile(
-  'apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
-  'utf8',
-);
+const mobile = (await Promise.all(['ask_pandora_screen.dart', 'chat/pandora_chat_action_adapters.dart']
+  .map(file => readFile(`apps/pandora-mobile/lib/features/simple/${file}`, 'utf8')))).join('\n');
 const api = await readFile(
   'apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart',
   'utf8',
@@ -28,8 +26,8 @@ test('video regression: selected-project execution remains single-shot and stays
   assert.match(mobile, /experience\.submitChange\(/);
   assert.match(mobile, /experience\.understanding\(/);
   assert.match(mobile, /experience\.requestBuild\(/);
-  assert.match(mobile, /keep this chat open while Pandora works/);
-  assert.match(mobile, /owns exactly one dispatch/);
+  assert.match(mobile, /You can follow it in Activity\./);
+  assert.match(mobile, /intelligence\.executeChatTurn\(dispatch\)/);
 });
 
 test('repository router preserves verified Pandora repos and fails closed on degraded PLP', () => {
@@ -70,4 +68,3 @@ test('canonical GitHub transport supports all three exact repository ids and rem
   assert.match(transport, /revoke all on function private\.pandora_integration_github_api_20260825\(text,text,jsonb\) from public,anon,authenticated/);
   assert.match(transport, /grant execute on function private\.pandora_integration_github_api_20260825\(text,text,jsonb\) to service_role/);
 });
-

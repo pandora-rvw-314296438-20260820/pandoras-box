@@ -139,8 +139,11 @@ test('advisory turns remain analysis-only while execution lead retains capabilit
   );
   assert.match(
     intelligence,
-    /dispatched=operationsAdvisory\?null:await universalDispatch/,
+    /dispatched=operationsAdvisory\|\|repositoryContext\?null:await universalDispatch\(c\.user,c\.organizationId,dispatchMessage,i\.threadId,i\.projectId,turn\)/,
   );
+  assert.match(intelligence,
+    /await revalidateCoreExecutionScope\(c\.user,c\.organizationId,coreScope\);dispatched=/,
+    'execution lead must revalidate the current scope before dispatch');
   assert.match(room, /allowExecution = _mode == OperationsRoomMode\.execution/);
 });
 

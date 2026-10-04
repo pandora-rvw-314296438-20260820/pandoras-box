@@ -108,6 +108,7 @@ class PandoraActivityStreamApi {
           'needs_permission',
           'needs_special_access',
           'needs_choice',
+          'cancelled',
         }.contains(safeStage)) {
       throw const PandoraActivityStreamException(
         'Pandora could not record that device activity.',

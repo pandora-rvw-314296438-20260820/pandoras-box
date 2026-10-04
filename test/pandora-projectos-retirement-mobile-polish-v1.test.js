@@ -29,16 +29,17 @@ test('production execution ledger no longer auto-enrolls work into ProjectOS', (
 
 test('mobile composer consumes sent text immediately and preserves a typed follow-up', () => {
   const chat = read('apps', 'pandora-mobile', 'lib', 'features', 'simple', 'ask_pandora_screen.dart');
-  const start = chat.indexOf('Future<void> _submit() async');
-  const end = chat.indexOf('Future<void> _handleCalendarCommand', start);
-  assert.ok(start >= 0 && end > start);
-  const submit = chat.slice(start, end);
-  assert.equal((submit.match(/_objective\.clear\(\);/g) ?? []).length, 1);
-  assert.ok(submit.indexOf('_objective.clear();') < submit.indexOf('intelligence.startChatExecution('));
-  assert.match(
-    chat,
-    /hintText:\s*submitting\s*\?\s*'Follow up'\s*:\s*'Message Pandora…'/s,
-  );
+  const controller = read('apps', 'pandora-mobile', 'lib', 'core', 'chat', 'pandora_chat_controller.dart');
+  const composer = read('apps', 'pandora-mobile', 'lib', 'features', 'simple', 'chat', 'pandora_chat_composer.dart');
+  assert.match(chat, /_chat\.submit\(/);
+  assert.match(controller, /draftRevision != _state\.draft\.revision/);
+  assert.match(controller, /PandoraChatAdmission\.queued/);
+  assert.doesNotMatch(chat, /_objective\.clear\(\)/);
+  assert.match(composer, /hintText: 'Message Pandora…'/);
+  assert.doesNotMatch(composer, /hintText:[^\n]*Follow up/);
+  // Runtime controller/composer tests cover the pre-frame clear, send, and
+  // immediate-follow-up races; this guard prevents a second mutation owner.
+  assert.doesNotMatch(chat, /bool _submitting|String\? _threadId|_pendingFollowUp/);
 });
 
 test('mobile navigation uses the Pandora menu glyph instead of the stock hamburger', () => {

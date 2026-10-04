@@ -12,10 +12,8 @@ const repairMigration = readFileSync(
   join(root, 'supabase', 'migrations', '20260912182000_pandora_chat_source_contract_v1.sql'),
   'utf8',
 );
-const mobile = readFileSync(
-  join(root, 'apps', 'pandora-mobile', 'lib', 'features', 'simple', 'ask_pandora_screen.dart'),
-  'utf8',
-);
+const mobile = ['ask_pandora_screen.dart', 'chat/pandora_chat_composer.dart']
+  .map(file => readFileSync(join(root, 'apps/pandora-mobile/lib/features/simple', file), 'utf8')).join('\n');
 
 test('Pandora chat is an explicit ProjectOS intake source', () => {
   assert.match(sourceMigration, /'pandora_chat'/);
