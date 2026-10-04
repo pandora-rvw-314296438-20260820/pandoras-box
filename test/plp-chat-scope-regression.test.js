@@ -50,5 +50,12 @@ test("PLP contextual headers use the accepted editorial title typography", () =>
   assert.doesNotMatch(infrastructure.slice(infrastructure.indexOf("class _Header")), /Pueblo La Perla/);
   assert.doesNotMatch(teamAccess, /PUEBLO LA PERLA/);
   assert.match(teamAccess, /'TEAM & ACCESS'[\s\S]{0,220}fontSize: 16[\s\S]{0,120}letterSpacing: 2\.6/);
-  assert.match(tax, /'TAX & COMPLIANCE'[\s\S]{0,220}fontSize: 16[\s\S]{0,120}letterSpacing: 2\.6/);
+  const taxTitle = tax.slice(
+    tax.indexOf("'TAX & COMPLIANCE'"),
+    tax.indexOf("else ...[", tax.indexOf("'TAX & COMPLIANCE'")),
+  );
+  assert.match(taxTitle, /fontFamily: 'serif'/);
+  assert.match(taxTitle, /fontSize: 16/);
+  assert.match(taxTitle, /letterSpacing: 2\.6/);
+  assert.match(taxTitle, /fontWeight: FontWeight\.w400/);
 });

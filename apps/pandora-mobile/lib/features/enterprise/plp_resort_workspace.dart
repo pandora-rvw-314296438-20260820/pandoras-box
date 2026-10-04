@@ -2149,7 +2149,7 @@ class _SourceRecoveryPanel extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.refresh_rounded, size: 17),
-                  label: const Text('Refresh'),
+                  label: const Text('Refresh status'),
                 ),
                 if (onOpenSettings != null)
                   TextButton.icon(
