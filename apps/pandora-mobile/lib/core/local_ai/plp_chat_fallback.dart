@@ -121,7 +121,7 @@ class PlpChatFallback {
     return !imperative.hasMatch(value) && !delegated.hasMatch(value);
   }
 
-  static String continuityNotice({
+  static String? continuityNotice({
     required bool actionLike,
   }) {
     if (actionLike) {
