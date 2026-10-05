@@ -1202,10 +1202,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
             message: objective,
             enterpriseContext: widget.enterpriseContext,
           );
-    final reply = deterministic ??
-        PlpChatFallback.continuityNotice(
-          actionLike: actionLike,
-        );
+    if (deterministic == null) return false;
+    final reply = deterministic;
     setState(() {
       _messages.add(_ChatMessage.user(objective));
       _messages.add(_ChatMessage.pandora(reply));
