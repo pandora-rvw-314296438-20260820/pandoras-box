@@ -13,6 +13,10 @@ class PlpChatFallback {
     final today = _map(context['today']);
     final source = _map(context['sourceHealth'] ?? context['source']);
 
+    if (const {'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening'}.contains(normalized)) {
+      return 'Hello. How can I help with PLP today?';
+    }
+
     final occupancy = _percentage(today['occupancy_percent']);
     final occupied = _integer(today['occupied_rooms']);
     final rooms = _integer(today['rooms_total']);
@@ -117,13 +121,13 @@ class PlpChatFallback {
     return !imperative.hasMatch(value) && !delegated.hasMatch(value);
   }
 
-  static String continuityNotice({
+  static String? continuityNotice({
     required bool actionLike,
   }) {
     if (actionLike) {
       return 'Pandora is preserving this request without repeating the action or claiming completion. Check Activity for any verified provider result before you send the same action again.';
     }
-    return 'I kept this turn in the conversation and will use the next available intelligence route without claiming work that did not run. You can keep chatting.';
+    return null;
   }
 
   static bool _isPlpContext(Map<String, Object?>? context) {
