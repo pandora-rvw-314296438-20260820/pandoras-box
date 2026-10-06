@@ -31,7 +31,7 @@ const batalla = fs.readFileSync(
 test("Kabukicho Vision Intelligence is wired into the current shell", () => {
   assert.match(shell, /'Vision Intelligence'/);
   assert.match(shell, /10 => 'vision_intelligence'/);
-  assert.match(shell, /10 => EnterpriseVisionScreen\(/);
+  assert.match(shell, /10 => const EnterpriseVisionScreen\(/);
   assert.match(shell, /label: 'Platform'/);
   assert.match(shell, /indices: const <int>\[14, 5, 1, 10\]/);
   assert.match(shell, /label: 'Capabilities'/);
