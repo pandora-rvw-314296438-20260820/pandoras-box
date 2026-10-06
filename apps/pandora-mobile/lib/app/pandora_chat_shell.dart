@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -53,7 +54,8 @@ class PandoraChatShell extends StatefulWidget {
       this.memberWorkspace,
       this.initialEntry,
       this.onLeaveMemberWorkspace,
-      this.onMemberSignOut});
+      this.onMemberSignOut,
+      this.mirrorPlpNavigation = false});
 
   final PandoraStartPage startPage;
   final PandoraCoreGateway? coreGateway;
@@ -63,6 +65,10 @@ class PandoraChatShell extends StatefulWidget {
   final PandoraClientEntry? initialEntry;
   final VoidCallback? onLeaveMemberWorkspace;
   final Future<void> Function()? onMemberSignOut;
+
+  /// Owner navigation uses the PLP Enterprise drawer chrome. Entering
+  /// Pueblo La Perla mounts the locked customer shell instead of embedding it.
+  final bool mirrorPlpNavigation;
 
   @override
   State<PandoraChatShell> createState() => _PandoraChatShellState();
@@ -1552,6 +1558,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           scrollController: _drawerScrollController,
           destinations: _destinations,
           selectedIndex: _chatVisible ? 0 : _index,
+          plpMirror: widget.mirrorPlpNavigation,
           onSelected: (value) {
             if (value == 0) {
               _openConversationHistory();
@@ -1570,8 +1577,38 @@ class _PandoraChatShellState extends State<PandoraChatShell>
         onManageThread: _manageThread,
       );
 
+  double _ownerDrawerWidth(BuildContext context) {
+    if (!widget.mirrorPlpNavigation) return 304;
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    if (viewportWidth < 600) return viewportWidth;
+    return math.min(420, viewportWidth * .82);
+  }
+
+  bool get _lockedPlpWorkspace =>
+      widget.mirrorPlpNavigation &&
+      _inClientWorkspace &&
+      _activeWorkspaceSelection?.workspace.key == 'plp-boracay';
+
   @override
-  Widget build(BuildContext context) => Theme(
+  Widget build(BuildContext context) {
+    if (_lockedPlpWorkspace) {
+      final workspace = Theme(
+        data: PandoraTheme.porcelain,
+        child: PlpEnterpriseShell(
+          organizationId: _workspaceOrganizationId,
+          propertyId: _workspacePropertyId,
+        ),
+      );
+      final runtime = _clientRuntime;
+      return Column(
+        children: [
+          _clientBanner(),
+          Expanded(
+              child: runtime == null ? workspace : runtime.wrap(workspace)),
+        ],
+      );
+    }
+    return Theme(
         data: _theme(Theme.of(context)),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -1778,15 +1815,19 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               drawer: Drawer(
                 key:
                     const ValueKey<String>('pandora-primary-navigation-drawer'),
-                width: 304,
+                width: _ownerDrawerWidth(context),
                 backgroundColor: const Color(0xFA000000),
                 surfaceTintColor: Colors.transparent,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                ),
+                shape: widget.mirrorPlpNavigation
+                    ? const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      )
+                    : const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(24),
+                          bottomRight: Radius.circular(24),
+                        ),
+                      ),
                 child: SafeArea(child: _sidePanel()),
               ),
               endDrawer: Drawer(
@@ -1810,6 +1851,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           },
         ),
       );
+  }
 }
 
 class _PandoraSidePanel extends StatelessWidget {
@@ -1818,35 +1860,41 @@ class _PandoraSidePanel extends StatelessWidget {
     required this.scrollController,
     required this.selectedIndex,
     required this.onSelected,
+    this.plpMirror = false,
   });
 
   final ScrollController scrollController;
   final List<_ChatDestination> destinations;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+  final bool plpMirror;
 
   @override
-  Widget build(BuildContext context) => Material(
+  Widget build(BuildContext context) {
+    final panel = Material(
         color: const Color(0xFA000000),
         child: PandoraNavigationLayout(
           controller: scrollController,
           scrollKey: const ValueKey<String>('pandora-side-panel-scroll'),
           bodyPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          header: const Padding(
-            key: ValueKey<String>('pandora-side-panel-top-overlay'),
-            padding: EdgeInsets.fromLTRB(20, 18, 12, 12),
+          header: Padding(
+            key: const ValueKey<String>('pandora-side-panel-top-overlay'),
+            padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
             child: Row(
               children: [
-                PandoraMark(size: 28),
-                SizedBox(width: 11),
+                const PandoraMark(size: 28),
+                const SizedBox(width: 11),
                 Expanded(
                   child: Text(
-                    'Pandora\'s Box',
+                    plpMirror ? 'Pandora' : 'Pandora\'s Box',
                     style: TextStyle(
-                      color: PandoraV2Colors.ink,
-                      fontSize: 19,
+                      color: plpMirror
+                          ? const Color(0xFFF2EEE7)
+                          : PandoraV2Colors.ink,
+                      fontSize: plpMirror ? 24 : 19,
+                      height: 1,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: -.35,
+                      letterSpacing: plpMirror ? -.5 : -.35,
                     ),
                   ),
                 ),
@@ -1862,6 +1910,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
               ),
               _DrawerSection(
                 label: 'Needs You',
@@ -1869,6 +1918,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
               ),
               _DrawerSection(
                 label: 'Clients',
@@ -1876,6 +1926,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
               ),
               _DrawerSection(
                 label: 'Operations Room',
@@ -1883,6 +1934,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
               ),
               _DrawerSection(
                 label: 'Activity',
@@ -1890,6 +1942,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
               ),
               _DrawerSection(
                 label: 'Platform',
@@ -1897,6 +1950,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
               ),
               _DrawerSection(
                 label: 'Capabilities',
@@ -1904,6 +1958,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
               ),
               _DrawerSection(
                 label: 'Business',
@@ -1911,6 +1966,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
               ),
               _DrawerSection(
                 label: 'Administration',
@@ -1918,6 +1974,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
               ),
               _DrawerSection(
                 label: 'Safety & Evidence',
@@ -1925,6 +1982,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
+                plpMirror: plpMirror,
                 showDivider: false,
               ),
             ],
@@ -1932,6 +1990,19 @@ class _PandoraSidePanel extends StatelessWidget {
           footer: const SizedBox.shrink(),
         ),
       );
+    if (!plpMirror) return panel;
+    return Theme(
+      data: Theme.of(context).copyWith(
+        listTileTheme: const ListTileThemeData(
+          iconColor: Color(0xFFAAA39A),
+          textColor: Color(0xFFD1CBC2),
+          selectedColor: Color(0xFFF2EEE7),
+          selectedTileColor: Color(0xCC1B1711),
+        ),
+      ),
+      child: panel,
+    );
+  }
 }
 
 class _DrawerSection extends StatelessWidget {
@@ -1942,6 +2013,7 @@ class _DrawerSection extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelected,
     this.showDivider = true,
+    this.plpMirror = false,
   });
 
   final String label;
@@ -1950,6 +2022,7 @@ class _DrawerSection extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
   final bool showDivider;
+  final bool plpMirror;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -2034,7 +2107,7 @@ class _DrawerSection extends StatelessWidget {
                 onTap: () => onSelected(indices.first),
               ),
             ),
-          if (showDivider)
+          if (showDivider && !plpMirror)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Divider(height: 1, color: PandoraV2Colors.line),

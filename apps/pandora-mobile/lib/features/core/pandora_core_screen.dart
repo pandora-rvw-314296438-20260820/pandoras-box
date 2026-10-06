@@ -555,7 +555,23 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             detail: coreText(row['state'], 'State not recorded'),
             onTap: () => _showRecord(row),
           ),
+      if (_snapshot?['business'] is Map) ...[
+        const PlpSectionTitle('Business'),
+        PlpEditorialRow(
+          title: 'Commercial state',
+          detail: _commercialCoverage(coreRecord(_snapshot?['business'])),
+          onTap: () => widget.onNavigate?.call('business'),
+        ),
+      ],
     ];
+  }
+
+  String _commercialCoverage(PandoraCoreRecord business) {
+    final coverage = coreText(business['coverage'], '');
+    if (coverage.isEmpty) {
+      return 'Authoritative commercial state is not in this snapshot.';
+    }
+    return coverage;
   }
 
   List<Widget> _clients() {
@@ -1217,7 +1233,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   }
 
   List<Widget> _administration() {
-    const tabs = ['Team', 'Security', 'Incidents', 'Audit', 'Policies'];
+    const tabs = ['Team', 'Access', 'Security', 'Incidents', 'Audit', 'Policies'];
     final tab = tabs.contains(_tab) ? _tab : tabs.first;
     return [
       _tabs(tabs, tab),
@@ -1236,6 +1252,15 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             }),
         const SizedBox(height: 12),
         ..._recordList('team', 'No internal team records available.'),
+      ],
+      if (tab == 'Access') ...[
+        const _Heading('Access grants'),
+        if (coreRecord(_snapshot?['operator'])['role'] == 'owner')
+          _Action(
+              label: 'Manage operator access',
+              icon: Icons.admin_panel_settings_outlined,
+              onPressed: _operatorForm),
+        ..._recordList('operators', 'No access grants are visible.'),
       ],
       if (tab == 'Security') ...[
         _Action(
