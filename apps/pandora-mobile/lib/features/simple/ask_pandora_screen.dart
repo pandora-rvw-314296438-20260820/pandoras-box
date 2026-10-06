@@ -229,7 +229,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
     if (localStore == null) return;
     try {
       final cached = await PandoraLocalStateCache(localStore)
-          .loadRecentConversation(threadIdentity: 'local-chat');
+          .loadRecentConversation(
+            threadIdentity: _isPlpEnterpriseContext ? 'local-chat:plp-boracay' : 'local-chat',
+          );
       if (!mounted ||
           cached.isEmpty ||
           _messages.isNotEmpty ||
@@ -250,15 +252,28 @@ class AskPandoraScreenState extends State<AskPandoraScreen>
         }
       }
       if (restored.isEmpty) return;
-      final teamPending = !restored.last.isUser &&
-          _isTeamAdministrationClarification(restored.last.text);
+      final normalizedRestored = _collapseExactRepeatedHistory(restored);
+      if (normalizedRestored.isEmpty) return;
+      final teamPending = !normalizedRestored.last.isUser &&
+          _isTeamAdministrationClarification(normalizedRestored.last.text);
       setState(() {
-        _messages.addAll(restored);
+        _messages.addAll(normalizedRestored);
         _teamAdministrationPending = teamPending;
       });
     } catch (_) {
       // Local conversation recovery must never prevent a fresh chat.
     }
+  }
+
+  List<_ChatMessage> _collapseExactRepeatedHistory(List<_ChatMessage> messages) {
+    if (messages.length < 4 || messages.length.isOdd) return messages;
+    final half = messages.length ~/ 2;
+    for (var index = 0; index < half; index += 1) {
+      final first = messages[index];
+      final second = messages[index + half];
+      if (first.isUser != second.isUser || first.text != second.text) return messages;
+    }
+    return messages.sublist(0, half);
   }
 
   void _setHistoryExpanded(bool expanded) {
