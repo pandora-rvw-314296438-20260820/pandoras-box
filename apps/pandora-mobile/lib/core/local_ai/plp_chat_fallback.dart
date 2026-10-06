@@ -27,6 +27,20 @@ class PlpChatFallback {
     final tasks = _integer(today['open_staff_tasks']);
     final conflicts = _integer(today['open_ota_conflicts']);
 
+    if (const {
+      'how are things', 'how are things?', 'how is everything', 'how is everything?',
+      'how is the resort', 'how is the resort?', 'how are things at plp', 'how are things at plp?',
+      'what is happening', 'what is happening?', 'whats happening', 'whats happening?',
+      'how is plp', 'how is plp?', 'resort status', 'status',
+    }.contains(normalized)) {
+      final state = _text(source['state'], fallback: 'unknown');
+      final detail = _text(source['message'], fallback: 'No current provider status message is recorded.');
+      if (state == 'stale' || state == 'unknown' || state == 'unavailable') {
+        return 'PLP status: source state is $state. $detail The figures available here are from the last synchronized snapshot, not a live provider refresh.';
+      }
+      return 'PLP status: source state is $state. $detail';
+    }
+
     final suffix =
         ' This is from the last synchronized PLP snapshot; Pandora did not refresh a provider during this turn.';
 
