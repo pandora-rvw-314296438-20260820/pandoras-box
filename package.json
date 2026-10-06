@@ -79,7 +79,8 @@
         "fast-uri": "4.2.1",
         "qs": "6.16.0",
         "path-to-regexp": "6.3.0",
-        "ip-address": "10.7.2"
+        "ip-address": "10.7.2",
+        "proxy-addr": "2.0.8"
     },
     "repository": {
         "url": "git+https://github.com/pandora-rvw-314296438-20260820/pandoras-box.git",
