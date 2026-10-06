@@ -7,6 +7,7 @@ import '../../core/security/pandora_auth.dart';
 import '../../core/security/pandora_identity_verification.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../approvals/approvals_screen.dart';
+import '../enterprise/plp_editorial_surfaces.dart';
 import '../team/team_screen.dart';
 import 'pandora_core_memory_panel.dart';
 
@@ -373,6 +374,15 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     final navigationActive = PandoraCoreRouteVisibility.isActive(context);
     final canGoBack =
         _tool != null || (_clientId != null && widget.organizationId == null);
+    if (_section == 'home' && _tool == null && !_decisionQueue) {
+      return PopScope<void>(
+        canPop: !navigationActive || !canGoBack,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && navigationActive && canGoBack) _back();
+        },
+        child: _homeEditorial(context),
+      );
+    }
     final content = _tool ??
         RefreshIndicator(
           onRefresh: _load,
@@ -473,6 +483,125 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
         'administration' => _administration(),
         _ => const [SizedBox.shrink()],
       };
+
+  Widget _homeEditorial(BuildContext context) {
+    final health = coreRecord(_snapshot?['health']);
+    final clients = _rows('clients');
+    final needsYou = _rows('needs_you');
+    final handling = _rows('handling');
+    final outcomes = _rows('outcomes');
+    final openNavigation =
+        PandoraNavigationScope.maybeOf(context)?.openDrawer ?? () {};
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: PlpEditorialPage(
+        pageKey: const ValueKey('pandora-box-home'),
+        eyebrow: "Pandora's Box",
+        title: 'Home',
+        intro: _snapshot == null
+            ? 'No verified owner snapshot yet.'
+            : 'System status from the current owner snapshot. Missing values stay missing.',
+        onOpenNavigation: openNavigation,
+        children: [
+          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_failure != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(
+                _failure!.message,
+                style: const TextStyle(color: plpMuted, height: 1.4),
+              ),
+            ),
+          const PlpSectionTitle('System status'),
+          PlpMetricStrip(items: [
+            ('Clients', coreText(health['clients']), 'Registered'),
+            ('Active', coreText(health['active_clients']), 'Current'),
+            ('Attention', coreText(health['attention_clients']), 'Need you'),
+          ]),
+          const SizedBox(height: 18),
+          PlpEditorialRow(
+            title: 'Platform',
+            detail: 'Current platform state',
+            value: coreText(health['state'], 'Not recorded'),
+            onTap: () => widget.onNavigate?.call('platform'),
+          ),
+          const PlpSectionTitle('Needs You'),
+          if (needsYou.isEmpty)
+            const _PlpMissing('No owner decisions in this snapshot.')
+          else
+            for (final row in needsYou.take(5))
+              PlpEditorialRow(
+                title: coreText(row['title'], 'Decision'),
+                detail: coreText(row['reason'], 'Needs an owner decision'),
+                onTap: () => _showDecision(row),
+              ),
+          PlpEditorialRow(
+            title: 'Open queue',
+            detail: 'Review the full decision list',
+            onTap: () => widget.onNavigate?.call('needs_you'),
+          ),
+          const PlpSectionTitle('Clients'),
+          if (clients.isEmpty)
+            const _PlpMissing('No enterprise clients registered yet.')
+          else
+            for (final client in clients.take(6))
+              PlpEditorialRow(
+                title: coreText(client['display_name'], 'Enterprise client'),
+                detail: coreText(client['industry'], 'Industry not recorded'),
+                value: coreText(client['lifecycle_state'], 'Not recorded'),
+                onTap: () => _showRecord(client),
+              ),
+          TextButton.icon(
+            key: const ValueKey('core-add-client'),
+            onPressed: _registerClient,
+            icon: const Icon(Icons.add_rounded, color: plpInk),
+            label: const Text(
+              'Add Enterprise Client',
+              style: TextStyle(color: plpInk),
+            ),
+          ),
+          const PlpSectionTitle('Pandora is handling'),
+          if (handling.isEmpty)
+            const _PlpMissing('No active work in this snapshot.')
+          else
+            for (final row in handling.take(4))
+              PlpEditorialRow(
+                title: coreText(row['title'], 'Operation'),
+                detail: coreText(row['state'], 'State not recorded'),
+                onTap: () => _showRecord(row),
+              ),
+          PlpEditorialRow(
+            title: 'Operations Room',
+            detail: 'Open the existing operations runtime',
+            onTap: () => widget.onNavigate?.call('operations'),
+          ),
+          const PlpSectionTitle('Platform'),
+          PlpMetricStrip(items: [
+            ('Connections', coreText(health['connections']), 'Known'),
+            ('Healthy', coreText(health['connections_healthy']), 'Healthy'),
+            ('Devices', coreText(health['devices']), 'Known'),
+            ('Incidents', coreText(health['incidents']), 'Open'),
+          ]),
+          const PlpSectionTitle('Recent outcomes'),
+          if (outcomes.isEmpty)
+            const _PlpMissing('No verified outcomes in this snapshot.')
+          else
+            for (final row in outcomes.take(5))
+              PlpEditorialRow(
+                title: coreText(row['title'], 'Outcome'),
+                detail: coreText(row['state'], 'State not recorded'),
+                onTap: () => _showRecord(row),
+              ),
+          IconButton(
+            key: const ValueKey('core-refresh'),
+            tooltip: 'Refresh',
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh_rounded, color: plpInk),
+          ),
+        ],
+      ),
+    );
+  }
 
   List<Widget> _home() {
     final health = coreRecord(_snapshot?['health']);
@@ -2883,5 +3012,19 @@ class _Notice extends StatelessWidget {
           if (action != null)
             TextButton(onPressed: onAction, child: Text(action!)),
         ]),
+      );
+}
+
+class _PlpMissing extends StatelessWidget {
+  const _PlpMissing(this.message);
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 8),
+        child: Text(
+          message,
+          style: const TextStyle(color: plpMuted, fontSize: 13, height: 1.4),
+        ),
       );
 }
