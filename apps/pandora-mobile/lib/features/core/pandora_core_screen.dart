@@ -374,18 +374,6 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     final navigationActive = PandoraCoreRouteVisibility.isActive(context);
     final canGoBack =
         _tool != null || (_clientId != null && widget.organizationId == null);
-    if (_tool == null &&
-        _clientId == null &&
-        const {'home', 'clients', 'business', 'platform', 'administration'}
-            .contains(_section)) {
-      return PopScope<void>(
-        canPop: !navigationActive || !canGoBack,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && navigationActive && canGoBack) _back();
-        },
-        child: _sectionEditorial(context),
-      );
-    }
     final content = _tool ??
         RefreshIndicator(
           onRefresh: _load,

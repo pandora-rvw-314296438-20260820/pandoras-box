@@ -15,7 +15,6 @@ import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../core/widgets/pandora_navigation_layout.dart';
 import '../features/activity/activity_screen.dart';
-import '../features/core/pandora_box_frame.dart';
 import '../features/core/pandora_core_screen.dart';
 import '../features/enterprise/batalla_workspace_screen.dart';
 import '../features/enterprise/bok_workspace_screen.dart';
@@ -944,52 +943,25 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                                                       .section,
                                             )
                                           : const SizedBox.expand(),
-          1 => const PandoraBoxFrame(
-              title: 'Platform',
-              child: ProjectsScreen(),
-            ),
+          1 => const ProjectsScreen(),
           2 => _coreScreen('home', initialAction: 'needs_you'),
-          3 => const PandoraBoxFrame(
-              title: 'Administration',
-              child: MoreScreen(),
-            ),
-          4 => const PandoraBoxFrame(
-              title: 'Activity',
-              child: ActivityScreen(),
-            ),
-          5 => PandoraBoxFrame(
-              title: 'Platform',
-              child: PluginsScreen(onOpenProviderCatalog: () => _select(11)),
-            ),
-          6 => const PandoraBoxFrame(
-              title: 'Safety & Evidence',
-              child: OfflineEvidenceScreen(),
-            ),
-          7 => const PandoraBoxFrame(
-              title: 'Safety & Evidence',
-              child: SimpleSafetyScreen(),
-            ),
-          8 => PandoraBoxFrame(
-              title: 'Operations Room',
-              child: PandoraOperationsRoomScreen(
-                onHome: () => _select(9),
-                globalConversation: true,
-              ),
+          3 => const MoreScreen(),
+          4 => const ActivityScreen(),
+          5 => PluginsScreen(onOpenProviderCatalog: () => _select(11)),
+          6 => const OfflineEvidenceScreen(),
+          7 => const SimpleSafetyScreen(),
+          8 => PandoraOperationsRoomScreen(
+              onHome: () => _select(9),
+              globalConversation: true,
             ),
           9 => _coreScreen('home'),
           12 => _coreScreen('clients'),
           13 => _coreScreen('business'),
           14 => _coreScreen('platform'),
           15 => _coreScreen('administration'),
-          10 => const PandoraBoxFrame(
-              title: 'Capabilities',
-              child: EnterpriseVisionScreen(),
-            ),
-          11 => PandoraBoxFrame(
-              title: 'Capabilities',
-              child: ProviderEcosystemScreen(
-                onOpenConnections: () => _select(5),
-              ),
+          10 => const EnterpriseVisionScreen(),
+          11 => ProviderEcosystemScreen(
+              onOpenConnections: () => _select(5),
             ),
           _ => const SizedBox.expand(),
         },
