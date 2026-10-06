@@ -406,9 +406,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
         if (!didPop && navigationActive && canGoBack) _back();
       },
       child: Material(
-        color: _section == 'home' && _tool == null
-            ? plpCanvas
-            : const Color(0xFF090B0E),
+        color: _editorialSurface ? plpCanvas : const Color(0xFF090B0E),
         child: SafeArea(
           bottom: false,
           child: Column(
@@ -444,9 +442,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            color: _section == 'home' && _tool == null
-                                ? plpInk
-                                : _ink,
+                            color: _editorialSurface ? plpInk : _ink,
                             fontSize: 20,
                             fontWeight: FontWeight.w700),
                       ),
@@ -458,9 +454,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                         onPressed: _loading ? null : _load,
                         icon: Icon(Icons.refresh_rounded,
                             size: 21,
-                            color: _section == 'home' && _tool == null
-                                ? plpInk
-                                : null),
+                            color: _editorialSurface ? plpInk : null),
                       ),
                   ],
                 ),
@@ -472,6 +466,11 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       ),
     );
   }
+
+  bool get _editorialSurface =>
+      _tool == null &&
+      const {'home', 'clients', 'business', 'platform', 'administration'}
+          .contains(_section);
 
   List<Widget> _body() => switch (_section) {
         'home' => _decisionQueue ? _decisionList() : _home(),
@@ -566,6 +565,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             .toLowerCase()
             .contains(_query));
     return [
+      const PlpSectionTitle('Clients'),
       _Action(
         key: const ValueKey('core-add-client'),
         label: 'Add Enterprise Client',
@@ -842,6 +842,13 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   }
 
   List<Widget> _business() {
+    return [
+      const PlpSectionTitle('Business'),
+      ..._businessBody(),
+    ];
+  }
+
+  List<Widget> _businessBody() {
     const tabs = [
       'Pipeline',
       'Contracts',
@@ -1112,6 +1119,13 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       ]);
 
   List<Widget> _platform() {
+    return [
+      const PlpSectionTitle('Platform'),
+      ..._platformBody(),
+    ];
+  }
+
+  List<Widget> _platformBody() {
     const tabs = [
       'Connections',
       'Providers',
@@ -1217,6 +1231,13 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   }
 
   List<Widget> _administration() {
+    return [
+      const PlpSectionTitle('Administration'),
+      ..._administrationBody(),
+    ];
+  }
+
+  List<Widget> _administrationBody() {
     const tabs = ['Team', 'Security', 'Incidents', 'Audit', 'Policies'];
     final tab = tabs.contains(_tab) ? _tab : tabs.first;
     return [
@@ -1266,6 +1287,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   }
 
   List<Widget> _decisionList() => [
+        const PlpSectionTitle('Needs You'),
         _Action(
             label: 'Pending authorizations',
             icon: Icons.verified_user_outlined,
@@ -2861,7 +2883,7 @@ class _Action extends StatelessWidget {
         icon: Icon(icon, size: 17),
         label: Text(label, style: const TextStyle(fontSize: 12)),
         style: OutlinedButton.styleFrom(
-          foregroundColor: _ink,
+          foregroundColor: plpInk,
           side: const BorderSide(color: _line),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           shape:
