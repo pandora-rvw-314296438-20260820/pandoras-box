@@ -1971,10 +1971,47 @@ class _DrawerSection extends StatelessWidget {
             ),
           ),
           for (final index in indices)
+            if (indices.length == 1 &&
+                destinations[index].label == label)
+              const SizedBox.shrink()
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: ListTile(
+                  key: ValueKey<String>('pandora-nav-$index'),
+                  selected: index == selectedIndex,
+                  selectedColor: PandoraV2Colors.ink,
+                  iconColor: PandoraV2Colors.muted,
+                  textColor: PandoraV2Colors.ink,
+                  selectedTileColor: PandoraV2Colors.soft,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  leading: Icon(
+                    index == selectedIndex
+                        ? destinations[index].selectedIcon
+                        : destinations[index].icon,
+                    size: 22,
+                  ),
+                  title: Text(
+                    destinations[index].label,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: index == selectedIndex
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () => onSelected(index),
+                ),
+              ),
+          if (indices.length == 1 &&
+              destinations[indices.first].label == label)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: ListTile(
-                selected: index == selectedIndex,
+                key: ValueKey<String>('pandora-nav-${indices.first}'),
+                selected: indices.first == selectedIndex,
                 selectedColor: PandoraV2Colors.ink,
                 iconColor: PandoraV2Colors.muted,
                 textColor: PandoraV2Colors.ink,
@@ -1983,21 +2020,21 @@ class _DrawerSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 leading: Icon(
-                  index == selectedIndex
-                      ? destinations[index].selectedIcon
-                      : destinations[index].icon,
+                  indices.first == selectedIndex
+                      ? destinations[indices.first].selectedIcon
+                      : destinations[indices.first].icon,
                   size: 22,
                 ),
                 title: Text(
-                  destinations[index].label,
+                  label,
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: index == selectedIndex
+                    fontWeight: indices.first == selectedIndex
                         ? FontWeight.w700
                         : FontWeight.w500,
                   ),
                 ),
-                onTap: () => onSelected(index),
+                onTap: () => onSelected(indices.first),
               ),
             ),
           if (showDivider)
