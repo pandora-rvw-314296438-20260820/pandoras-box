@@ -443,7 +443,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                             : _title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: _section == 'home' && _tool == null
                                 ? plpInk
                                 : _ink,
