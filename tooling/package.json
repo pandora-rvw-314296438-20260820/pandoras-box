@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
-    "@modelcontextprotocol/inspector": "2.5.0",
+    "@modelcontextprotocol/inspector": "2.9.0",
     "@playwright/test": "1.63.0",
     "@posthog/cli": "0.18.0",
     "knip": "6.34.0",
