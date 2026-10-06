@@ -26,6 +26,10 @@
     "vercel": "59.11.7"
   },
   "overrides": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@modelcontextprotocol/client": "2.2.0",
+    "@modelcontextprotocol/core": "2.2.0",
+    "ip-address": "10.7.2",
     "tar": "7.5.22",
     "@vercel/backends": {
       "path-to-regexp": "8.4.2"
@@ -48,16 +52,16 @@
     "@vercel/python-analysis": {
       "js-yaml": "4.3.2",
       "minimatch": "10.2.6",
-      "smol-toml": "1.8.0"
+      "smol-toml": "1.9.0"
     },
     "@vercel/remix-builder": {
       "path-to-regexp": "6.3.0"
     },
     "@vercel/rust": {
-      "smol-toml": "1.8.0"
+      "smol-toml": "1.9.0"
     },
     "vercel": {
-      "smol-toml": "1.8.0",
+      "smol-toml": "1.9.0",
       "undici": "6.28.1"
     },
     "@vercel/static-config": {
