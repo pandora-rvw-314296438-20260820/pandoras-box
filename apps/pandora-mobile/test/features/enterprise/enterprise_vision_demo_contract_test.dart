@@ -33,11 +33,11 @@ void main() {
   test('current shell exposes Vision Intelligence without changing Batalla IA', () {
     expect(shell, contains("'Vision Intelligence'"));
     expect(shell, contains("10 => 'vision_intelligence'"));
-    expect(shell, contains('10 => EnterpriseVisionScreen('));
-    expect(shell, contains("label: 'Core systems'"));
-    expect(shell, contains('indices: const <int>[9, 10, 0, 8]'));
+    expect(shell, contains('10 => const EnterpriseVisionScreen('));
+    expect(shell, contains("label: 'Platform'"));
+    expect(shell, contains('indices: const <int>[14, 5, 1, 10]'));
     expect(shell, contains("label: 'Capabilities'"));
-    expect(shell, contains('indices: const <int>[11, 5, 6]'));
+    expect(shell, contains('indices: const <int>[11]'));
   });
 
   test('web uses provider-controlled CamStreamer Kabukicho embed', () {

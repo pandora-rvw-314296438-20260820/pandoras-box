@@ -15,6 +15,7 @@ import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../core/widgets/pandora_navigation_layout.dart';
 import '../features/activity/activity_screen.dart';
+import '../features/core/pandora_box_frame.dart';
 import '../features/core/pandora_core_screen.dart';
 import '../features/enterprise/batalla_workspace_screen.dart';
 import '../features/enterprise/bok_workspace_screen.dart';
@@ -943,25 +944,49 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                                                       .section,
                                             )
                                           : const SizedBox.expand(),
-          1 => const ProjectsScreen(),
+          1 => const PandoraBoxFrame(
+              title: 'Platform',
+              child: ProjectsScreen(),
+            ),
           2 => _coreScreen('home', initialAction: 'needs_you'),
-          3 => const MoreScreen(),
-          4 => const ActivityScreen(),
-          5 => PluginsScreen(onOpenProviderCatalog: () => _select(11)),
-          6 => const OfflineEvidenceScreen(),
-          7 => const SimpleSafetyScreen(),
-          8 => PandoraOperationsRoomScreen(
-              onHome: () => _select(9),
-              globalConversation: true,
+          3 => const PandoraBoxFrame(
+              title: 'Administration',
+              child: MoreScreen(),
+            ),
+          4 => const PandoraBoxFrame(
+              title: 'Activity',
+              child: ActivityScreen(),
+            ),
+          5 => PandoraBoxFrame(
+              title: 'Platform',
+              child: PluginsScreen(onOpenProviderCatalog: () => _select(11)),
+            ),
+          6 => const PandoraBoxFrame(
+              title: 'Safety & Evidence',
+              child: OfflineEvidenceScreen(),
+            ),
+          7 => const PandoraBoxFrame(
+              title: 'Safety & Evidence',
+              child: SimpleSafetyScreen(),
+            ),
+          8 => PandoraBoxFrame(
+              title: 'Operations Room',
+              child: PandoraOperationsRoomScreen(
+                onHome: () => _select(9),
+                globalConversation: true,
+              ),
             ),
           9 => _coreScreen('home'),
           12 => _coreScreen('clients'),
           13 => _coreScreen('business'),
           14 => _coreScreen('platform'),
           15 => _coreScreen('administration'),
-          10 => EnterpriseVisionScreen(),
-          11 => ProviderEcosystemScreen(
-              onOpenConnections: () => _select(5),
+          10 => const EnterpriseVisionScreen(),
+          11 => PandoraBoxFrame(
+              title: 'Capabilities',
+              child: ProviderEcosystemScreen(
+                onOpenConnections: () => _select(5),
+              ),
             ),
           _ => const SizedBox.expand(),
         },
@@ -1816,7 +1841,7 @@ class _PandoraSidePanel extends StatelessWidget {
                 SizedBox(width: 11),
                 Expanded(
                   child: Text(
-                    'Pandora',
+                    'Pandora\'s Box',
                     style: TextStyle(
                       color: PandoraV2Colors.ink,
                       fontSize: 19,
@@ -1832,50 +1857,71 @@ class _PandoraSidePanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _DrawerSection(
-                label: 'Core systems',
-                indices: const <int>[9, 10, 0, 8],
+                label: 'Home',
+                indices: const <int>[9, 0],
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
               ),
               _DrawerSection(
-                label: 'Work',
-                indices: const <int>[2, 4, 1],
+                label: 'Needs You',
+                indices: const <int>[2],
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
               ),
               _DrawerSection(
-                label: 'Enterprise & business',
-                indices: const <int>[12, 13],
+                label: 'Clients',
+                indices: const <int>[12],
+                destinations: destinations,
+                selectedIndex: selectedIndex,
+                onSelected: onSelected,
+              ),
+              _DrawerSection(
+                label: 'Operations Room',
+                indices: const <int>[8],
+                destinations: destinations,
+                selectedIndex: selectedIndex,
+                onSelected: onSelected,
+              ),
+              _DrawerSection(
+                label: 'Activity',
+                indices: const <int>[4],
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
               ),
               _DrawerSection(
                 label: 'Platform',
-                indices: const <int>[14, 15],
+                indices: const <int>[14, 5, 1, 10],
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
               ),
               _DrawerSection(
                 label: 'Capabilities',
-                indices: const <int>[11, 5, 6],
+                indices: const <int>[11],
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
               ),
               _DrawerSection(
-                label: 'Security',
-                indices: const <int>[7],
+                label: 'Business',
+                indices: const <int>[13],
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
               ),
               _DrawerSection(
-                label: 'Account',
-                indices: const <int>[3],
+                label: 'Administration',
+                indices: const <int>[15, 3],
+                destinations: destinations,
+                selectedIndex: selectedIndex,
+                onSelected: onSelected,
+              ),
+              _DrawerSection(
+                label: 'Safety & Evidence',
+                indices: const <int>[7, 6],
                 destinations: destinations,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
@@ -1922,10 +1968,47 @@ class _DrawerSection extends StatelessWidget {
             ),
           ),
           for (final index in indices)
+            if (indices.length == 1 &&
+                destinations[index].label == label)
+              const SizedBox.shrink()
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: ListTile(
+                  key: ValueKey<String>('pandora-nav-$index'),
+                  selected: index == selectedIndex,
+                  selectedColor: PandoraV2Colors.ink,
+                  iconColor: PandoraV2Colors.muted,
+                  textColor: PandoraV2Colors.ink,
+                  selectedTileColor: PandoraV2Colors.soft,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  leading: Icon(
+                    index == selectedIndex
+                        ? destinations[index].selectedIcon
+                        : destinations[index].icon,
+                    size: 22,
+                  ),
+                  title: Text(
+                    destinations[index].label,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: index == selectedIndex
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () => onSelected(index),
+                ),
+              ),
+          if (indices.length == 1 &&
+              destinations[indices.first].label == label)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: ListTile(
-                selected: index == selectedIndex,
+                key: ValueKey<String>('pandora-nav-${indices.first}'),
+                selected: indices.first == selectedIndex,
                 selectedColor: PandoraV2Colors.ink,
                 iconColor: PandoraV2Colors.muted,
                 textColor: PandoraV2Colors.ink,
@@ -1934,21 +2017,21 @@ class _DrawerSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 leading: Icon(
-                  index == selectedIndex
-                      ? destinations[index].selectedIcon
-                      : destinations[index].icon,
+                  indices.first == selectedIndex
+                      ? destinations[indices.first].selectedIcon
+                      : destinations[indices.first].icon,
                   size: 22,
                 ),
                 title: Text(
-                  destinations[index].label,
+                  label,
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: index == selectedIndex
+                    fontWeight: indices.first == selectedIndex
                         ? FontWeight.w700
                         : FontWeight.w500,
                   ),
                 ),
-                onTap: () => onSelected(index),
+                onTap: () => onSelected(indices.first),
               ),
             ),
           if (showDivider)

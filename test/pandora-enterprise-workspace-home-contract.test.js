@@ -107,7 +107,7 @@ test("shell boots to the logo-only Pandora landing and preserves Home plus Opera
   assert.ok(/_coreScreen[\s\S]*PandoraCoreScreen\(/.test(shell), 'Core stays inside the existing shell');
   assert.match(
     shell,
-    /8 => PandoraOperationsRoomScreen\([\s\S]*?onHome: \(\) => _select\(9\),[\s\S]*?globalConversation:\s*true/,
+    /PandoraOperationsRoomScreen\([\s\S]*?onHome: \(\) => _select\(9\),[\s\S]*?globalConversation:\s*true/,
   );
 });
 
