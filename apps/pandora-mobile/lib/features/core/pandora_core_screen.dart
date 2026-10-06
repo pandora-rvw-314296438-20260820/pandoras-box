@@ -7,7 +7,6 @@ import '../../core/security/pandora_auth.dart';
 import '../../core/security/pandora_identity_verification.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../approvals/approvals_screen.dart';
-import '../enterprise/plp_editorial_surfaces.dart';
 import '../team/team_screen.dart';
 import 'pandora_core_memory_panel.dart';
 
@@ -2884,19 +2883,5 @@ class _Notice extends StatelessWidget {
           if (action != null)
             TextButton(onPressed: onAction, child: Text(action!)),
         ]),
-      );
-}
-
-class _PlpMissing extends StatelessWidget {
-  const _PlpMissing(this.message);
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 4, bottom: 8),
-        child: Text(
-          message,
-          style: const TextStyle(color: plpMuted, fontSize: 13, height: 1.4),
-        ),
       );
 }
