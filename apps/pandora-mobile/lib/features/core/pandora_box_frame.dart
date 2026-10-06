@@ -17,8 +17,6 @@ class PandoraBoxFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final openNavigation =
-        PandoraNavigationScope.maybeOf(context)?.openDrawer ?? () {};
     return Material(
       color: plpCanvas,
       child: SafeArea(
@@ -28,9 +26,12 @@ class PandoraBoxFrame extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-              child: PlpEditorialHeader(
-                title: title,
-                onOpenNavigation: openNavigation,
+              child: PandoraNavigationScope(
+                openDrawer: null,
+                child: PlpEditorialHeader(
+                  title: title,
+                  onOpenNavigation: () {},
+                ),
               ),
             ),
             const Divider(height: 1, color: plpLine),
