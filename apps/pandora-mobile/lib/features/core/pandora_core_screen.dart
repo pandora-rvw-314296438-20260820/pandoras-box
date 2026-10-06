@@ -488,8 +488,6 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       };
 
   Widget _sectionEditorial(BuildContext context) {
-    final openNavigation =
-        PandoraNavigationScope.maybeOf(context)?.openDrawer ?? () {};
     final title = _decisionQueue ? 'Needs You' : _title;
     final intro = switch (title) {
       'Needs You' => 'Existing approval and human-gate decisions.',
@@ -510,12 +508,14 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           };
     return RefreshIndicator(
       onRefresh: _load,
-      child: PlpEditorialPage(
+      child: PandoraNavigationScope(
+        openDrawer: null,
+        child: PlpEditorialPage(
         pageKey: ValueKey('pandora-box-${title.toLowerCase()}'),
         eyebrow: "Pandora's Box",
         title: title,
         intro: _snapshot == null ? 'No verified owner snapshot yet.' : intro,
-        onOpenNavigation: openNavigation,
+        onOpenNavigation: () {},
         children: [
           if (_loading) const LinearProgressIndicator(minHeight: 2),
           if (_failure != null)
@@ -534,6 +534,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             icon: const Icon(Icons.refresh_rounded, color: plpInk),
           ),
         ],
+        ),
       ),
     );
   }
@@ -612,6 +613,9 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       PlpMetricStrip(items: [
         ('Connections', coreText(health['connections']), 'Known'),
         ('Healthy', coreText(health['connections_healthy']), 'Healthy'),
+      ]),
+      const SizedBox(height: 12),
+      PlpMetricStrip(items: [
         ('Devices', coreText(health['devices']), 'Known'),
         ('Incidents', coreText(health['incidents']), 'Open'),
       ]),
