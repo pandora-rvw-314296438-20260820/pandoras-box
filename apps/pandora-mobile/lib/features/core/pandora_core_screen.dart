@@ -488,6 +488,8 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       };
 
   Widget _sectionEditorial(BuildContext context) {
+    final openNavigation =
+        PandoraNavigationScope.maybeOf(context)?.openDrawer ?? () {};
     final title = _decisionQueue ? 'Needs You' : _title;
     final intro = switch (title) {
       'Needs You' => 'Existing approval and human-gate decisions.',
@@ -508,14 +510,12 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           };
     return RefreshIndicator(
       onRefresh: _load,
-      child: PandoraNavigationScope(
-        openDrawer: null,
-        child: PlpEditorialPage(
+      child: PlpEditorialPage(
         pageKey: ValueKey('pandora-box-${title.toLowerCase()}'),
         eyebrow: "Pandora's Box",
         title: title,
         intro: _snapshot == null ? 'No verified owner snapshot yet.' : intro,
-        onOpenNavigation: () {},
+        onOpenNavigation: openNavigation,
         children: [
           if (_loading) const LinearProgressIndicator(minHeight: 2),
           if (_failure != null)
@@ -534,7 +534,6 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             icon: const Icon(Icons.refresh_rounded, color: plpInk),
           ),
         ],
-        ),
       ),
     );
   }
