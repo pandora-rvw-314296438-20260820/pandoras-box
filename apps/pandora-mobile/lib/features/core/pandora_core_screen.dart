@@ -490,6 +490,15 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     final handling = _rows('handling');
     final outcomes = _rows('outcomes');
     return [
+      TextButton.icon(
+        key: const ValueKey('core-add-client'),
+        onPressed: _registerClient,
+        icon: const Icon(Icons.add_rounded, color: plpInk),
+        label: const Text(
+          'Add Enterprise Client',
+          style: TextStyle(color: plpInk),
+        ),
+      ),
       const PlpSectionTitle('System status'),
       PlpMetricStrip(items: [
         ('Clients', coreText(health['clients']), 'Registered'),
@@ -526,15 +535,6 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             value: coreText(client['lifecycle_state'], 'Not recorded'),
             onTap: () => _showRecord(client),
           ),
-      TextButton.icon(
-        key: const ValueKey('core-add-client'),
-        onPressed: _registerClient,
-        icon: const Icon(Icons.add_rounded, color: plpInk),
-        label: const Text(
-          'Add Enterprise Client',
-          style: TextStyle(color: plpInk),
-        ),
-      ),
       const PlpSectionTitle('Pandora is handling'),
       if (handling.isEmpty)
         const _PlpMissing('No active work in this snapshot.')
