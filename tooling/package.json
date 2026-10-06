@@ -64,6 +64,6 @@
       "ajv": "8.20.0"
     },
     "proxy-addr": "2.0.8",
-    "source-map-js": "1.2.1"
+    "source-map-js": "1.2.2"
   }
 }
