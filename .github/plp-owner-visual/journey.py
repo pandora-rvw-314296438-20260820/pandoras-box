@@ -246,6 +246,21 @@ def submit_credentials(bang):
         log("after keyboard submit: " + note)
         if "auth-rejected" in note or "email-empty" in note or "password-empty" in note:
             return None
+        time.sleep(1.6)
+        try:
+            nodes = capture()
+        except Exception as error:
+            log("after submit: " + str(error))
+            nodes = None
+        if nodes is not None and owner_visible(nodes):
+            log("left the sign-in screen")
+            return nodes
+        if nodes is None:
+            return wait_for_owner()
+        note = sign_in_note(nodes)
+        log("before sign-in tap: " + note)
+        if "auth-rejected" in note or "email-empty" in note or "password-empty" in note:
+            return None
         button = find(nodes, "Sign in", clickable=True)
         if button is not None:
             log("sign in tap " + (button.attrib.get("bounds") or "missing"))
@@ -255,11 +270,11 @@ def submit_credentials(bang):
 
 
 def sign_in():
-    nodes = submit_credentials("text")
+    nodes = submit_credentials("key")
     if nodes is not None:
         return nodes
-    log("retrying sign-in with the shifted punctuation keys")
-    nodes = submit_credentials("key")
+    log("retrying sign-in after the password punctuation")
+    nodes = submit_credentials("text")
     if nodes is None:
         raise RuntimeError("authenticated owner screen did not appear")
     return nodes
@@ -386,29 +401,107 @@ def shot(name, nodes):
     return True
 
 
+def raw_box(node):
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+    if match is None:
+        return None
+    x1, y1, x2, y2 = map(int, match.groups())
+    if x2 <= x1 or y2 <= y1:
+        return None
+    return x1, y1, x2, y2
+
+
+def drawer_open(nodes):
+    return find(nodes, "New chat") is not None or find(nodes, "Recent chats") is not None
+
+
+def dismiss_sheet(nodes):
+    if find(nodes, "Scrim") is None and find(nodes, "Dismiss", clickable=True) is None:
+        return nodes
+    adb("shell", "input", "keyevent", "4")
+    time.sleep(0.7)
+    return capture_retry(3, 1)
+
+
+def close_drawer(nodes):
+    if not drawer_open(nodes):
+        return nodes
+    adb("shell", "input", "tap", "800", "900")
+    time.sleep(0.7)
+    return capture_retry(3, 1)
+
+
 def open_drawer(nodes):
-    button = find(nodes, "Open navigation", clickable=True)
-    if button is None:
-        adb("shell", "input", "tap", "90", "180")
+    nodes = dismiss_sheet(nodes)
+    if drawer_open(nodes):
+        closer = find(nodes, "Close navigation search", clickable=True)
+        if closer is not None:
+            tap(closer)
+            time.sleep(0.4)
+            nodes = capture_retry(3, 1)
+        return nodes
+    point = None
+    for node in nodes:
+        values = [node.attrib.get(key) or "" for key in ("text", "content-desc", "hint")]
+        if not any(value == "Open navigation" or value.startswith("Open navigation") for value in values):
+            continue
+        box = raw_box(node)
+        if box is None:
+            continue
+        x1, y1, x2, y2 = box
+        if (x2 - x1) <= 180 and (y2 - y1) <= 180:
+            point = ((x1 + x2) // 2, (y1 + y2) // 2)
+            break
+        if point is None:
+            point = (x1 + 36, (y1 + y2) // 2)
+    if point is None:
+        point = (72, 156)
+    adb("shell", "input", "tap", str(point[0]), str(point[1]))
+    time.sleep(1)
+    nodes = capture_retry(3, 1)
+    if not drawer_open(nodes):
+        adb("shell", "input", "tap", "72", "156")
         time.sleep(1)
         nodes = capture_retry(3, 1)
-        button = find(nodes, "Open navigation", clickable=True)
-    if button is not None:
-        tap(button)
-        time.sleep(1)
-    return capture_retry(4, 1)
+    return nodes
+
+
+def locate(nodes, label):
+    found = find(nodes, label, clickable=True)
+    if found is None:
+        found = find(nodes, label)
+    return found
 
 
 def reveal(nodes, label):
-    for _ in range(5):
-        found = find(nodes, label, clickable=True)
-        if found is None:
-            found = find(nodes, label)
+    found = locate(nodes, label)
+    if found is not None:
+        return nodes, found
+    if drawer_open(nodes):
+        search = find(nodes, "Search navigation and chats", clickable=True)
+        if search is None:
+            search = find(nodes, "Search navigation and chats")
+        if search is not None:
+            tap(search)
+            time.sleep(0.5)
+            nodes = capture_retry(3, 1)
+            field = find(nodes, "Search navigation and chats")
+            if field is not None:
+                tap(field)
+                time.sleep(0.3)
+            paste(label)
+            time.sleep(0.8)
+            nodes = capture_retry(3, 1)
+            found = locate(nodes, label)
+            if found is not None and found is not field:
+                return nodes, found
+    for _ in range(6):
+        adb("shell", "input", "swipe", "200", "1500", "200", "520", "280")
+        time.sleep(0.45)
+        nodes = capture_retry(2, 1)
+        found = locate(nodes, label)
         if found is not None:
             return nodes, found
-        adb("shell", "input", "swipe", "280", "1700", "280", "700", "250")
-        time.sleep(0.6)
-        nodes = capture_retry(3, 1)
     return nodes, None
 
 
@@ -420,8 +513,8 @@ def go(screen_id, label):
         log("missing drawer label " + label)
         return record
     tap(target)
-    time.sleep(1.5)
-    nodes = capture_retry()
+    time.sleep(1.2)
+    nodes = close_drawer(capture_retry())
     record["visible"] = labels(nodes)[:30]
     record["captured"] = shot(screen_id, nodes)
     log(("captured " if record["captured"] else "withheld ") + screen_id)
@@ -443,17 +536,44 @@ def type_email(value):
 
 
 def enter_customer(report):
-    nodes = capture_retry()
-    if find(nodes, "Clients") is None and find(nodes, "Enter client workspace") is None:
+    nodes = close_drawer(dismiss_sheet(capture_retry()))
+    if find(nodes, "Pueblo La Perla") is None:
         nodes = open_drawer(nodes)
         nodes, target = reveal(nodes, "Clients")
         if target is not None:
             tap(target)
-            time.sleep(1.5)
-            nodes = capture_retry()
-    nodes, button = reveal(nodes, "Enter client workspace")
-    entry = {"captured": False, "detail": "enter control not found", "visible": labels(nodes)[:30]}
+            time.sleep(1.2)
+            nodes = close_drawer(capture_retry())
+    pueblo = None
+    for _ in range(6):
+        pueblo = find(nodes, "Pueblo La Perla")
+        if pueblo is not None:
+            break
+        adb("shell", "input", "swipe", "540", "1600", "540", "900", "250")
+        time.sleep(0.6)
+        nodes = capture_retry(3, 1)
+    entry = {"captured": False, "detail": "Pueblo La Perla was not visible", "visible": labels(nodes)[:30]}
+    if pueblo is None:
+        report["customer_shell"] = entry
+        return
+    _, pueblo_y = center(pueblo)
+    button = None
+    best = None
+    for node in nodes:
+        values = [node.attrib.get(key) or "" for key in ("text", "content-desc", "hint")]
+        if not any(value == "Enter client workspace" or value.startswith("Enter client workspace") for value in values):
+            continue
+        box = raw_box(node)
+        if box is None:
+            continue
+        y = (box[1] + box[3]) // 2
+        if y + 30 < pueblo_y:
+            continue
+        if best is None or y < best:
+            best = y
+            button = node
     if button is None:
+        entry["detail"] = "enter control not found"
         report["customer_shell"] = entry
         return
     tap(button)
