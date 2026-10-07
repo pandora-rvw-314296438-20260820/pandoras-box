@@ -200,7 +200,9 @@ def sign_in():
         except Exception as error:
             log("waiting for sign-in: " + str(error))
             continue
-        if find(nodes, "Email") and find(nodes, "Sign in", clickable=True):
+        email_field = find(nodes, "Email")
+        sign_in = find(nodes, "Sign in", clickable=True)
+        if email_field is not None and sign_in is not None:
             break
     else:
         raise RuntimeError("sign-in screen did not become ready")
@@ -221,6 +223,7 @@ def sign_in():
     time.sleep(2)
     deadline = time.time() + 50
     last = []
+    tapped_button = False
     while time.time() < deadline:
         try:
             nodes = capture()
@@ -230,10 +233,16 @@ def sign_in():
             continue
         last = labels(nodes)
         blob = " | ".join(last)
-        if "Open navigation" in blob or "Home" in blob or "Needs You" in blob or "Checking workspace" not in blob and "Sign in" not in blob:
-            if "Sign in" not in blob:
-                log("left the sign-in screen")
-                return nodes
+        if "Sign in" not in blob and (
+            "Open navigation" in blob or "Home" in blob or "Needs You" in blob
+        ):
+            log("left the sign-in screen")
+            return nodes
+        if not tapped_button and "Sign in" in blob:
+            retry = find(nodes, "Sign in", clickable=True)
+            if retry is not None:
+                tap(retry)
+                tapped_button = True
         time.sleep(3)
     log("still on an unresolved screen: " + " | ".join(last[:12]))
     raise RuntimeError("authenticated owner screen did not appear")
