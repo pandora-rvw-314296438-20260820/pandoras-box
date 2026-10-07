@@ -132,8 +132,9 @@ def tap(node):
 
 
 def paste(value):
-    adb("shell", "cmd", "clipboard", "set", value)
-    adb("shell", "input", "keyevent", "279")
+    # `input text` reaches Flutter fields on the emulator. Clipboard paste did not.
+    encoded = value.replace("%", "%%").replace(" ", "%s")
+    adb("shell", "input", "text", encoded)
 
 
 def shot(name, nodes):
@@ -216,12 +217,16 @@ def sign_in():
     paste(EMAIL)
     time.sleep(0.3)
     tap(password)
-    time.sleep(0.3)
+    time.sleep(0.4)
     paste(PASSWORD)
-    time.sleep(0.3)
-    adb("shell", "input", "keyevent", "66")
+    time.sleep(0.4)
+    adb("shell", "input", "keyevent", "111")
+    time.sleep(0.4)
+    nodes = capture_retry(3, 1)
+    button = find(nodes, "Sign in", clickable=True) or button
+    tap(button)
     time.sleep(2)
-    deadline = time.time() + 50
+    deadline = time.time() + 70
     last = []
     tapped_button = False
     while time.time() < deadline:
