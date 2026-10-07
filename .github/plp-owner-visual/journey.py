@@ -16,6 +16,7 @@ COMPONENT = "com.banataosystems.pandora.uicapture/.CaptureInstrumentation"
 OUT = Path(".plp-android-build/plp-owner-visual-evidence")
 EMAIL = os.environ.get("PLP_OWNER_EMAIL", "")
 PASSWORD = os.environ.get("PLP_OWNER_PASSWORD", "")
+EXTRA_REDACTIONS = []
 REASON = "Review the Pueblo La Perla customer shell"
 
 SCREENS = (
@@ -37,7 +38,7 @@ SCREENS = (
 
 def redact(text):
     redacted = text
-    for secret in (EMAIL, PASSWORD):
+    for secret in (EMAIL, PASSWORD, *EXTRA_REDACTIONS):
         if secret:
             redacted = redacted.replace(secret, "[redacted]")
     return redacted
@@ -55,11 +56,12 @@ def adb(*args, timeout=40):
     return result
 
 
-def capture():
+def instrument(extra):
     result = adb(
         "shell", "am", "instrument", "-w", "-r",
         "-e", "target_package", PKG,
         "-e", "capture_mode", "labels",
+        *extra,
         COMPONENT,
         timeout=25,
     )
@@ -72,6 +74,19 @@ def capture():
                 fields[key] = value
     if fields.get("status") != "ok":
         raise RuntimeError("capture status=" + fields.get("status", "missing") + " code=" + fields.get("error_code", ""))
+    return fields
+
+
+def fill_field(hint, value):
+    encoded = base64.b64encode(value.encode()).decode()
+    EXTRA_REDACTIONS.append(encoded)
+    fields = instrument(("-e", "set_text_hint", hint, "-e", "set_text_b64", encoded))
+    if fields.get("text_applied") != "true":
+        raise RuntimeError("could not set the " + hint.lower() + " field")
+
+
+def capture():
+    fields = instrument(())
     xml = base64.b64decode(fields["capture_base64"], validate=True)
     return list(ET.fromstring(xml))
 
@@ -236,18 +251,9 @@ def sign_in():
     button = find(nodes, "Sign in", clickable=True)
     if email is None or password is None or button is None:
         raise RuntimeError("sign-in controls were not tappable")
-    adb("shell", "settings", "put", "secure", "show_ime_with_hard_keyboard", "0")
-    tap(email)
-    time.sleep(0.8)
-    type_email(EMAIL)
+    fill_field("Email", EMAIL)
     time.sleep(0.4)
-    nodes = capture_retry(3, 1)
-    password = find(nodes, "Password")
-    if password is None:
-        raise RuntimeError("password field was not visible after the email")
-    tap(password)
-    time.sleep(0.8)
-    type_secret(PASSWORD)
+    fill_field("Password", PASSWORD)
     time.sleep(0.4)
     nodes = capture_retry(3, 1)
     retry = find(nodes, "Sign in", clickable=True)
