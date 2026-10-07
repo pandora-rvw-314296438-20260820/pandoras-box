@@ -132,9 +132,16 @@ def tap(node):
 
 
 def paste(value):
-    # `input text` reaches Flutter fields on the emulator. Clipboard paste did not.
-    encoded = value.replace("%", "%%").replace(" ", "%s")
-    adb("shell", "input", "text", encoded)
+    encoded = value.replace("%", "%%").replace(" ", "%s").replace("'", "")
+    adb("shell", f"input text '{encoded}'")
+
+
+def type_email(value):
+    local, separator, domain = value.partition("@")
+    paste(local)
+    if separator:
+        adb("shell", "input", "keyevent", "77")
+        paste(domain)
 
 
 def shot(name, nodes):
@@ -212,18 +219,19 @@ def sign_in():
     button = find(nodes, "Sign in", clickable=True)
     if email is None or password is None or button is None:
         raise RuntimeError("sign-in controls were not tappable")
+    adb("shell", "settings", "put", "secure", "show_ime_with_hard_keyboard", "0")
     tap(email)
-    time.sleep(0.3)
-    paste(EMAIL)
-    time.sleep(0.3)
-    tap(password)
+    time.sleep(0.8)
+    type_email(EMAIL)
     time.sleep(0.4)
+    tap(password)
+    time.sleep(0.8)
     paste(PASSWORD)
     time.sleep(0.4)
-    adb("shell", "input", "keyevent", "111")
-    time.sleep(0.4)
     nodes = capture_retry(3, 1)
-    button = find(nodes, "Sign in", clickable=True) or button
+    retry = find(nodes, "Sign in", clickable=True)
+    if retry is not None:
+        button = retry
     tap(button)
     time.sleep(2)
     deadline = time.time() + 70
