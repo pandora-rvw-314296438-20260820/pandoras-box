@@ -622,7 +622,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'This version is available to preview. Pandora may still be checking it before publication is allowed.',
               style: pandoraSimpleMutedText.owner(context),
             ),
@@ -959,7 +959,7 @@ class _ProjectJourneyWorkspaceScreenState
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Pandora will publish the exact preview version you reviewed. A custom domain is optional.',
               style: pandoraSimpleMutedText.owner(context),
             ),

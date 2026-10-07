@@ -188,7 +188,7 @@ class _ProjectIterationExperienceScreenState
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Describe the result you want. Pandora will prepare a new understanding and a new preview version. Nothing live is replaced yet.',
               style: pandoraSimpleMutedText.owner(context),
             ),

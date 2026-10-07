@@ -132,7 +132,7 @@ class _SimpleBusinessScreenState extends State<SimpleBusinessScreen> {
                       ),
                     ),
                     const SizedBox(height: 7),
-                    const Text(
+                    Text(
                       'A simple view of what is live, what Pandora is working on, and what needs you.',
                       style: pandoraSimpleMutedText.owner(context),
                     ),
@@ -187,7 +187,7 @@ class _SimpleBusinessScreenState extends State<SimpleBusinessScreen> {
                     const SizedBox(height: 26),
                     const PandoraSectionTitle(title: 'Current outcomes'),
                     if (_projects.isEmpty)
-                      const PandoraSimpleCard(
+                      PandoraSimpleCard(
                         shadow: false,
                         child: Text(
                           'No customer projects are visible yet. Create a Project and Pandora will track its result here.',

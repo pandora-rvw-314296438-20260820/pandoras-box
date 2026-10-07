@@ -328,8 +328,8 @@ class _SafetyGroupCard extends StatelessWidget {
             children: [
               PandoraIconBadge(
                 icon: group.icon,
-                foreground: _truthForeground(summary),
-                background: _truthBackground(summary),
+                foreground: _truthForeground(context, summary),
+                background: _truthBackground(context, summary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -383,7 +383,7 @@ class _SafetyItemRow extends StatelessWidget {
             child: Icon(
               _truthIcon(truth),
               size: 19,
-              color: _truthForeground(truth),
+              color: _truthForeground(context, truth),
             ),
           ),
           const SizedBox(width: 10),
@@ -427,8 +427,8 @@ class _TruthPill extends StatelessWidget {
   Widget build(BuildContext context) => PandoraStatusPill(
         label: truth.label,
         icon: _truthIcon(truth),
-        foreground: _truthForeground(truth),
-        background: _truthBackground(truth),
+        foreground: _truthForeground(context, truth),
+        background: _truthBackground(context, truth),
       );
 }
 
@@ -739,7 +739,7 @@ _SimpleTruth _groupTruth(List<SafetyItem> items) {
   return _SimpleTruth.healthy;
 }
 
-Color _truthForeground(_SimpleTruth truth) => switch (truth) {
+Color _truthForeground(BuildContext context, _SimpleTruth truth) => switch (truth) {
       _SimpleTruth.healthy => pandoraOwnerColor(context, PandoraSimpleColors.green),
       _SimpleTruth.attention => pandoraOwnerColor(context, PandoraSimpleColors.amber),
       _SimpleTruth.blocked => pandoraOwnerColor(context, PandoraSimpleColors.deepRed),
@@ -747,7 +747,7 @@ Color _truthForeground(_SimpleTruth truth) => switch (truth) {
       _SimpleTruth.notApplicable => pandoraOwnerColor(context, PandoraSimpleColors.blue),
     };
 
-Color _truthBackground(_SimpleTruth truth) => switch (truth) {
+Color _truthBackground(BuildContext context, _SimpleTruth truth) => switch (truth) {
       _SimpleTruth.healthy => pandoraOwnerColor(context, PandoraSimpleColors.greenWash),
       _SimpleTruth.attention => pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
       _SimpleTruth.blocked => pandoraOwnerColor(context, PandoraSimpleColors.blush),

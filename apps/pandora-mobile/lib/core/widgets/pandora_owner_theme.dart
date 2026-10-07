@@ -19,7 +19,7 @@ class PandoraOwnerTheme extends StatelessWidget {
   Widget build(BuildContext context) => Theme(
         data: pandoraOwnerTheme(Theme.of(context)),
         child: PandoraChrome(
-          palette: PandoraChromePalette.editorial,
+          palette: PandoraChromePalette.plp,
           child: PandoraEditorialScope(
             editorial: true,
             child: ColoredBox(

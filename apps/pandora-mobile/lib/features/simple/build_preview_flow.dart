@@ -508,7 +508,7 @@ class _PrototypePreviewCard extends StatelessWidget {
                   style: pandoraSimpleMutedText.owner(context),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'This is a prototype. It is not live or production verified.',
                   style: pandoraSimpleMutedText.owner(context),
                 ),
@@ -653,7 +653,7 @@ class _FirstPreviewScreenState extends State<FirstPreviewScreen> {
               ),
             ),
             const SizedBox(height: 7),
-            const Text(
+            Text(
               'Pandora created a reviewable prototype. It is not live and nothing will be released until the governed result is approved and verified.',
               style: pandoraSimpleMutedText.owner(context),
             ),
@@ -836,7 +836,7 @@ class _PreviewSideRail extends StatelessWidget {
             shadow: false,
             backgroundColor: const Color(0xFFFFF8F8),
             borderColor: const Color(0xFFF0D1D6),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 PandoraIconBadge(icon: Icons.tune_rounded, size: 46),
@@ -1161,7 +1161,7 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
               ),
             ),
             const SizedBox(height: 7),
-            const Text(
+            Text(
               'This is an interactive preview. Test it like a real customer before approving a release.',
               style: pandoraSimpleMutedText.owner(context),
             ),

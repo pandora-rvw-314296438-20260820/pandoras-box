@@ -139,7 +139,7 @@ class _DomainAcquisitionCard extends StatelessWidget {
           children: [
             const PandoraIconBadge(icon: Icons.language_rounded, size: 52),
             const SizedBox(width: 15),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -603,7 +603,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Search for the name customers should use to reach your business.',
             style: pandoraSimpleMutedText.owner(context),
           ),
@@ -710,7 +710,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                   ),
                 )
               else if (_projects.isEmpty)
-                const PandoraSimpleCard(
+                PandoraSimpleCard(
                   shadow: false,
                   child: Text(
                     'Create a project before buying a domain.',
@@ -742,7 +742,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                 ),
               const SizedBox(height: 22),
               const PandoraSectionTitle(title: 'Registration details'),
-              const Text(
+              Text(
                 'These details are encrypted temporarily for checkout and deleted after registration or refund.',
                 style: pandoraSimpleMutedText.owner(context),
               ),
@@ -797,7 +797,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                     : (selection) => setState(() => _gateway = selection.first),
               ),
               const SizedBox(height: 12),
-              const PandoraSimpleCard(
+              PandoraSimpleCard(
                 shadow: false,
                 child: Text(
                   'Auto-renew is off for now. Pandora’s Box will ask you before renewal so there are no surprise charges.',
@@ -866,7 +866,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
             ],
           ],
           const SizedBox(height: 18),
-          const PandoraSimpleCard(
+          PandoraSimpleCard(
             shadow: false,
             child: Text(
               'Already own a domain? Add it when you publish a project. Pandora verifies ownership, DNS, routing and security before showing it as Live.',

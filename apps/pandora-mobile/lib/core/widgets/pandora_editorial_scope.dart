@@ -76,7 +76,7 @@ class PandoraChromePalette {
     warm: Color(0xFF18140E),
   );
 
-  static const editorial = PandoraChromePalette(
+  static const plp = PandoraChromePalette(
     editorial: true,
     canvas: PandoraEditorialPalette.canvas,
     paper: PandoraEditorialPalette.paper,
@@ -155,7 +155,7 @@ Color pandoraOwnerColor(BuildContext context, Color color) {
       context.dependOnInheritedWidgetOfExactType<PandoraChrome>()?.palette;
   final palette = installed != null && installed.editorial
       ? installed
-      : PandoraChromePalette.editorial;
+      : PandoraChromePalette.plp;
   return switch (color.toARGB32()) {
     0xFF000000 || 0xFF090B0E => palette.canvas,
     0xFF0A0A0A ||
