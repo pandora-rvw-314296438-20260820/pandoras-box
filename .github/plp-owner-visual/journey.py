@@ -473,31 +473,55 @@ def locate(nodes, label):
     return found
 
 
+def reset_search(nodes):
+    closer = find(nodes, "Close navigation search", clickable=True)
+    if closer is None:
+        return nodes
+    tap(closer)
+    time.sleep(0.5)
+    return capture_retry(3, 1)
+
+
 def reveal(nodes, label):
     found = locate(nodes, label)
     if found is not None:
         return nodes, found
     if drawer_open(nodes):
+        nodes = reset_search(nodes)
+        for _ in range(8):
+            found = locate(nodes, label)
+            if found is not None:
+                return nodes, found
+            adb("shell", "input", "swipe", "180", "1650", "180", "620", "280")
+            time.sleep(0.4)
+            nodes = capture_retry(2, 1)
+        query = label.split("&", 1)[0].strip() or label
         search = find(nodes, "Search navigation and chats", clickable=True)
         if search is None:
             search = find(nodes, "Search navigation and chats")
         if search is not None:
             tap(search)
-            time.sleep(0.5)
+            time.sleep(0.4)
             nodes = capture_retry(3, 1)
             field = find(nodes, "Search navigation and chats")
             if field is not None:
                 tap(field)
-                time.sleep(0.3)
-            paste(label)
-            time.sleep(0.8)
+                time.sleep(0.2)
+            paste(query)
+            time.sleep(0.7)
             nodes = capture_retry(3, 1)
-            found = locate(nodes, label)
-            if found is not None and found is not field:
-                return nodes, found
-    for _ in range(6):
+            if contains_account(nodes):
+                log("drawer search echoed an account identifier; closing it")
+                nodes = reset_search(nodes)
+            else:
+                found = locate(nodes, label)
+                if found is None:
+                    found = locate(nodes, query)
+                if found is not None:
+                    return nodes, found
+    for _ in range(4):
         adb("shell", "input", "swipe", "200", "1500", "200", "520", "280")
-        time.sleep(0.45)
+        time.sleep(0.4)
         nodes = capture_retry(2, 1)
         found = locate(nodes, label)
         if found is not None:
@@ -547,6 +571,8 @@ def enter_customer(report):
     pueblo = None
     for _ in range(6):
         pueblo = find(nodes, "Pueblo La Perla")
+        if pueblo is None:
+            pueblo = find(nodes, "PLP Boracay")
         if pueblo is not None:
             break
         adb("shell", "input", "swipe", "540", "1600", "540", "900", "250")
@@ -556,7 +582,8 @@ def enter_customer(report):
     if pueblo is None:
         report["customer_shell"] = entry
         return
-    _, pueblo_y = center(pueblo)
+    pueblo_box = raw_box(pueblo)
+    pueblo_top = pueblo_box[1] if pueblo_box is not None else center(pueblo)[1]
     button = None
     best = None
     for node in nodes:
@@ -567,7 +594,7 @@ def enter_customer(report):
         if box is None:
             continue
         y = (box[1] + box[3]) // 2
-        if y + 30 < pueblo_y:
+        if y + 40 < pueblo_top:
             continue
         if best is None or y < best:
             best = y
