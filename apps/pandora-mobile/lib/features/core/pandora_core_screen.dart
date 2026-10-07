@@ -737,8 +737,8 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           ),
       ]),
       if (client['can_enter'] != true)
-        const Padding(
-          padding: EdgeInsets.only(top: 10),
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
           child: Text(
               'Workspace entry needs verified access and a configured workspace.',
               style: TextStyle(color: _toneMuted(context), fontSize: 12)),
@@ -1241,7 +1241,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     return _Panel(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Expanded(
+          Expanded(
               child: Text('Auto routing',
                   style: TextStyle(color: _toneInk(context), fontWeight: FontWeight.w700))),
           _StatePill(routing['enabled'] == true
@@ -1743,7 +1743,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           for (final currency in currencies)
             _RecordTile(row: currency, onTap: () => _showRecord(currency))
         else
-          const Text('Revenue and margin need authoritative billing data.',
+          Text('Revenue and margin need authoritative billing data.',
               style: TextStyle(color: _toneMuted(context), height: 1.4)),
         if (coverage is String && coverage.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -2180,7 +2180,7 @@ class _PandoraCoreOperationFormState extends State<PandoraCoreOperationForm> {
                         fontWeight: FontWeight.w700)),
                 if (widget.financial) ...[
                   const SizedBox(height: 8),
-                  const Text('Manual record · identity verification required',
+                  Text('Manual record · identity verification required',
                       style: TextStyle(color: _toneMuted(context), fontSize: 12)),
                 ],
                 if (widget.notice != null) ...[
