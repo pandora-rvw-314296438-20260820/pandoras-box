@@ -114,6 +114,60 @@ def owner_visible(nodes):
     return "Open navigation" in blob or "Needs You" in blob or "Home" in blob
 
 
+def node_box(node):
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+    if match is None:
+        return None
+    x1, y1, x2, y2 = map(int, match.groups())
+    width, height = x2 - x1, y2 - y1
+    if width < 400 or height < 80 or height > 500:
+        return None
+    return x1, y1, x2, y2
+
+
+def pick_field(nodes, kind):
+    fallback = None
+    for node in nodes:
+        if node_box(node) is None:
+            continue
+        hint = (node.attrib.get("hint") or "").lower()
+        text = (node.attrib.get("text") or "").lower()
+        desc = (node.attrib.get("content-desc") or "").lower()
+        blob = hint or text or desc
+        if kind == "password":
+            matched = node.attrib.get("password") == "true" or blob.startswith("password")
+        else:
+            matched = blob.startswith("email")
+        if not matched:
+            continue
+        fallback = node
+        if node.attrib.get("editable") == "true" or node.attrib.get("password") == "true":
+            return node
+    return fallback
+
+
+def field_focused(nodes, kind):
+    node = pick_field(nodes, kind)
+    return node is not None and node.attrib.get("focused") == "true"
+
+
+def focus_hint(hint):
+    try:
+        fields = instrument(("-e", "focus_hint", hint))
+    except Exception as error:
+        log(hint.lower() + " accessibility focus failed: " + str(error))
+        return False
+    applied = fields.get("focus_applied") == "true"
+    log(hint.lower() + " accessibility focus=" + ("true" if applied else "false"))
+    return applied
+
+
+def tap_field(node, kind):
+    log(kind + " tap " + (node.attrib.get("bounds") or "missing"))
+    tap(node)
+    time.sleep(0.8)
+
+
 def launch_sign_in():
     adb("shell", "settings", "put", "secure", "show_ime_with_hard_keyboard", "0")
     adb("shell", "am", "force-stop", PKG)
@@ -125,7 +179,7 @@ def launch_sign_in():
         except Exception as error:
             log("waiting for sign-in: " + str(error))
             continue
-        if find_field(nodes, "Email") is not None and find(nodes, "Sign in", clickable=True) is not None:
+        if pick_field(nodes, "email") is not None and find(nodes, "Sign in", clickable=True) is not None:
             return nodes
     raise RuntimeError("sign-in screen did not become ready")
 
@@ -150,29 +204,35 @@ def wait_for_owner(seconds=36):
     return None
 
 
-def submit_credentials(move):
+def submit_credentials(bang):
     nodes = launch_sign_in()
-    email = find_field(nodes, "Email")
-    if email is None:
-        raise RuntimeError("email field was not editable")
-    tap(email)
-    time.sleep(0.8)
+    email = pick_field(nodes, "email")
+    password = pick_field(nodes, "password")
+    if email is None or password is None:
+        raise RuntimeError("sign-in fields were not editable")
+    focus_hint("Email")
+    tap_field(email, "email")
+    try:
+        probed = capture()
+    except Exception as error:
+        log("email focus probe failed: " + str(error))
+        probed = None
+    if probed is not None:
+        log("email focused after tap=" + ("true" if field_focused(probed, "email") else "false"))
+        refreshed = pick_field(probed, "email")
+        if refreshed is not None:
+            email = refreshed
+        refreshed_password = pick_field(probed, "password")
+        if refreshed_password is not None:
+            password = refreshed_password
+    tap_field(email, "email")
     type_email(EMAIL)
-    time.sleep(0.35)
-    if move == "next":
-        adb("shell", "input", "keyevent", "66")
-        time.sleep(0.55)
-    else:
-        nodes = capture_retry(3, 1)
-        password = find_password_field(nodes)
-        if password is None:
-            raise RuntimeError("password field was not editable")
-        tap(password)
-        time.sleep(0.7)
-    type_secret(PASSWORD, bang="key" if move == "next" else "text")
-    time.sleep(0.35)
+    time.sleep(0.8)
+    tap_field(password, "password")
+    type_secret(PASSWORD, bang=bang)
+    time.sleep(0.6)
     adb("shell", "input", "keyevent", "66")
-    time.sleep(1.6)
+    time.sleep(2.2)
     try:
         nodes = capture()
     except Exception as error:
@@ -184,22 +244,22 @@ def submit_credentials(move):
     if nodes is not None:
         note = sign_in_note(nodes)
         log("after keyboard submit: " + note)
-        if "auth-rejected" in note:
+        if "auth-rejected" in note or "email-empty" in note or "password-empty" in note:
             return None
-        if "Sign in" in screen_blob(nodes) and "email-empty" not in note and "password-empty" not in note:
-            button = find(nodes, "Sign in", clickable=True)
-            if button is not None:
-                tap(button)
-                time.sleep(1.5)
+        button = find(nodes, "Sign in", clickable=True)
+        if button is not None:
+            log("sign in tap " + (button.attrib.get("bounds") or "missing"))
+            tap(button)
+            time.sleep(1.5)
     return wait_for_owner()
 
 
 def sign_in():
-    nodes = submit_credentials("next")
+    nodes = submit_credentials("text")
     if nodes is not None:
         return nodes
-    log("retrying sign-in by tapping the password field")
-    nodes = submit_credentials("tap")
+    log("retrying sign-in with the shifted punctuation keys")
+    nodes = submit_credentials("key")
     if nodes is None:
         raise RuntimeError("authenticated owner screen did not appear")
     return nodes
@@ -370,9 +430,15 @@ def go(screen_id, label):
 
 def type_email(value):
     local, separator, domain = value.partition("@")
-    paste(local)
+    index = 0
+    while index < len(local):
+        paste(local[index:index + 8])
+        index += 8
+        time.sleep(0.12)
     if separator:
         adb("shell", "input", "keyevent", "77")
+        time.sleep(0.12)
+    if domain:
         paste(domain)
 
 

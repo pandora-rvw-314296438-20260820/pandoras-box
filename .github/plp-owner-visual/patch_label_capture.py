@@ -61,11 +61,33 @@ if "applyRequestedText" not in inst_text:
         raise SystemExit("collect insertion point missing")
     inst_text = inst_text.replace(
         call,
-        "          applyRequestedText(root);\n" + call,
+        "          focusRequested(root);\n          applyRequestedText(root);\n" + call,
         1,
     )
     method = '''
   private boolean textApplied;
+  private boolean focusApplied;
+
+  private void focusRequested(AccessibilityNodeInfo node) {
+    if (focusApplied || node == null) return;
+    String hintWanted = arguments.getString("focus_hint");
+    if (hintWanted == null || hintWanted.isEmpty()) return;
+    if ((node.isEditable() || node.isPassword())) {
+      String hint = string(node.getHintText());
+      if (hint.startsWith(hintWanted)) {
+        boolean clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+        boolean focused = node.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+        focusApplied = clicked || focused;
+        SystemClock.sleep(250);
+        return;
+      }
+    }
+    for (int i = 0; i < node.getChildCount() && !focusApplied; i++) {
+      AccessibilityNodeInfo child = node.getChild(i);
+      if (child == null) continue;
+      try { focusRequested(child); } finally { child.recycle(); }
+    }
+  }
 
   private void applyRequestedText(AccessibilityNodeInfo node) {
     if (textApplied || node == null) return;
@@ -78,8 +100,7 @@ if "applyRequestedText" not in inst_text:
         String value = new String(Base64.decode(encoded, Base64.DEFAULT), StandardCharsets.UTF_8);
         Bundle args = new Bundle();
         args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value);
-        node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
-        textApplied = true;
+        textApplied = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
         SystemClock.sleep(300);
         return;
       }
@@ -100,7 +121,8 @@ if 'result.putString("text_applied"' not in inst_text:
     inst_text = inst_text.replace(
         'result.putString("status", "ok");',
         'result.putString("status", "ok");\n'
-        '            result.putString("text_applied", textApplied ? "true" : "false");',
+        '            result.putString("text_applied", textApplied ? "true" : "false");\n'
+        '            result.putString("focus_applied", focusApplied ? "true" : "false");',
         1,
     )
 if "item.focused" not in inst_text:
