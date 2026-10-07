@@ -41,6 +41,7 @@ import 'pandora_core_client_scope.dart';
 import 'pandora_dependencies.dart';
 import 'pandora_shared_conversation_scope.dart';
 import 'plp_enterprise_shell.dart';
+import 'plp_navigation_drawer.dart';
 
 enum PandoraStartPage { chat, home }
 
@@ -66,13 +67,51 @@ class PandoraChatShell extends StatefulWidget {
   final VoidCallback? onLeaveMemberWorkspace;
   final Future<void> Function()? onMemberSignOut;
 
-  /// Owner navigation uses the PLP Enterprise drawer chrome. Entering
-  /// Pueblo La Perla mounts the locked customer shell instead of embedding it.
+  /// Owner mode uses the real PLP drawer and ivory pages.
+  /// Entering Pueblo La Perla mounts the locked customer shell.
   final bool mirrorPlpNavigation;
 
   @override
   State<PandoraChatShell> createState() => _PandoraChatShellState();
 }
+
+const _ownerDrawerDestinations = <PlpDrawerDestination>[
+  PlpDrawerDestination('home', 'Home', Icons.wb_sunny_outlined),
+  PlpDrawerDestination(
+      'needs-you', 'Needs You', Icons.check_circle_outline_rounded),
+  PlpDrawerDestination('clients', 'Clients', Icons.business_outlined),
+  PlpDrawerDestination('operations', 'Operations Room', Icons.hub_outlined),
+  PlpDrawerDestination('activity', 'Activity', Icons.history_rounded),
+  PlpDrawerDestination('platform', 'Platform', Icons.layers_outlined),
+  PlpDrawerDestination(
+      'connections', 'Live Connections', Icons.extension_outlined),
+  PlpDrawerDestination(
+      'vision', 'Vision Intelligence', Icons.visibility_outlined),
+  PlpDrawerDestination(
+      'capabilities', 'Capabilities & Providers', Icons.account_tree_outlined),
+  PlpDrawerDestination('business', 'Business', Icons.receipt_long_outlined),
+  PlpDrawerDestination('administration', 'Administration',
+      Icons.admin_panel_settings_outlined),
+  PlpDrawerDestination(
+      'evidence', 'Saved Evidence', Icons.offline_pin_outlined),
+  PlpDrawerDestination('safety', 'Verify & Safety', Icons.shield_outlined),
+];
+
+const _ownerDrawerIndex = <String, int>{
+  'home': 9,
+  'needs-you': 2,
+  'clients': 12,
+  'operations': 8,
+  'activity': 4,
+  'platform': 14,
+  'connections': 5,
+  'vision': 10,
+  'capabilities': 11,
+  'business': 13,
+  'administration': 15,
+  'evidence': 6,
+  'safety': 7,
+};
 
 class _PandoraChatShellState extends State<PandoraChatShell>
     with WidgetsBindingObserver {
@@ -1015,7 +1054,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       'coreSection': organizationId == null ? section : 'client',
       if (organizationId != null) 'organizationId': organizationId,
     };
-    return PandoraCoreScreen(
+    return PandoraCoreTone(
+      editorial: widget.mirrorPlpNavigation,
+      child: PandoraCoreScreen(
       gateway: _coreGateway,
       section: section,
       organizationId: organizationId,
@@ -1034,6 +1075,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
         if (_index == routeIndex)
           setState(() => _surfaceSelectedObject = scoped);
       },
+    ),
     );
   }
 
@@ -1552,6 +1594,43 @@ class _PandoraChatShellState extends State<PandoraChatShell>
     );
   }
 
+  Widget _plpOwnerDrawer() {
+    final selected = _ownerDrawerIndex.entries
+        .where((entry) => entry.value == (_chatVisible ? -1 : _index))
+        .map((entry) => entry.key)
+        .firstOrNull;
+    return PlpNavigationDrawer(
+      selectedDestination: selected,
+      scrollController: _drawerScrollController,
+      recentChats: [
+        for (final thread in _threads)
+          PlpRecentChatItem(id: thread.id, title: thread.title),
+      ],
+      recentChatsLoading: _historyLoading,
+      recentChatsError: null,
+      onRetryRecentChats: () {
+        unawaited(_refreshHistory());
+      },
+      onSelectDestination: (id) {
+        final index = _ownerDrawerIndex[id];
+        if (index != null) _select(index);
+      },
+      onSelectThread: (item) {
+        for (final thread in _threads) {
+          if (thread.id == item.id) {
+            unawaited(_openThread(thread));
+            return;
+          }
+        }
+      },
+      onNewChat: _newChat,
+      primaryDestinations: _ownerDrawerDestinations,
+      workspaceTitle: 'Pandora',
+      workspaceSubtitle: 'Owner',
+      includeSystem: false,
+    );
+  }
+
   Widget _sidePanel() => _inClientWorkspace
       ? _clientSidePanel()
       : _PandoraSidePanel(
@@ -1752,7 +1831,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
             if (constraints.maxWidth >= 900) {
               return Scaffold(
                 key: _scaffoldKey,
-                backgroundColor: PandoraV2Colors.canvas,
+                backgroundColor: widget.mirrorPlpNavigation
+                    ? const Color(0xFFFAF8F3)
+                    : PandoraV2Colors.canvas,
                 resizeToAvoidBottomInset: !plpAssistant || !_chatVisible,
                 onEndDrawerChanged: (open) {
                   setState(() => _recentChatsVisible = open);
@@ -1773,7 +1854,14 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                 ),
                 body: Row(
                   children: [
-                    SizedBox(width: 264, child: SafeArea(child: _sidePanel())),
+                    SizedBox(
+                      width: widget.mirrorPlpNavigation && !_inClientWorkspace
+                          ? 420
+                          : 264,
+                      child: widget.mirrorPlpNavigation && !_inClientWorkspace
+                          ? _plpOwnerDrawer()
+                          : SafeArea(child: _sidePanel()),
+                    ),
                     const VerticalDivider(
                         width: 1, color: PandoraV2Colors.line),
                     Expanded(
@@ -1789,13 +1877,18 @@ class _PandoraChatShellState extends State<PandoraChatShell>
 
             return Scaffold(
               key: _scaffoldKey,
-              backgroundColor: PandoraV2Colors.canvas,
+              backgroundColor: widget.mirrorPlpNavigation
+                  ? const Color(0xFFFAF8F3)
+                  : PandoraV2Colors.canvas,
               resizeToAvoidBottomInset: !plpAssistant || !_chatVisible,
               onDrawerChanged: (open) {
                 setState(() => _drawerVisible = open);
                 if (open) {
                   FocusManager.instance.primaryFocus?.unfocus();
                   _resetDrawerScroll();
+                  if (widget.mirrorPlpNavigation) {
+                    unawaited(_refreshHistory());
+                  }
                 }
               },
               onEndDrawerChanged: (open) {
@@ -1811,8 +1904,12 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               drawerEnableOpenDragGesture: true,
               endDrawerEnableOpenDragGesture: false,
               drawerEdgeDragWidth: 32,
-              drawerScrimColor: const Color(0xD9000000),
-              drawer: Drawer(
+              drawerScrimColor: widget.mirrorPlpNavigation
+                  ? const Color(0x99000000)
+                  : const Color(0xD9000000),
+              drawer: widget.mirrorPlpNavigation && !_inClientWorkspace
+                  ? _plpOwnerDrawer()
+                  : Drawer(
                 key:
                     const ValueKey<String>('pandora-primary-navigation-drawer'),
                 width: _ownerDrawerWidth(context),

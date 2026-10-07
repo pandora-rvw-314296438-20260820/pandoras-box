@@ -15,6 +15,14 @@ class PlpRecentChatItem {
   final String title;
 }
 
+class PlpDrawerDestination {
+  const PlpDrawerDestination(this.id, this.label, this.icon);
+
+  final String id;
+  final String label;
+  final IconData icon;
+}
+
 class PlpNavigationDrawer extends StatefulWidget {
   const PlpNavigationDrawer({
     super.key,
@@ -27,6 +35,10 @@ class PlpNavigationDrawer extends StatefulWidget {
     required this.onSelectDestination,
     required this.onSelectThread,
     required this.onNewChat,
+    this.primaryDestinations,
+    this.workspaceTitle = 'Pueblo La Perla Boracay',
+    this.workspaceSubtitle = 'Luxury Resort',
+    this.includeSystem = true,
   });
 
   final String? selectedDestination;
@@ -38,6 +50,10 @@ class PlpNavigationDrawer extends StatefulWidget {
   final ValueChanged<String> onSelectDestination;
   final ValueChanged<PlpRecentChatItem> onSelectThread;
   final VoidCallback onNewChat;
+  final List<PlpDrawerDestination>? primaryDestinations;
+  final String workspaceTitle;
+  final String workspaceSubtitle;
+  final bool includeSystem;
 
   @override
   State<PlpNavigationDrawer> createState() => _PlpNavigationDrawerState();
@@ -114,7 +130,14 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     final drawerWidth = viewportWidth < 600
         ? viewportWidth
         : math.min(420.0, viewportWidth * .82);
-    final visibleBusiness = _businessItems.where((item) => _matches(item.label)).toList();
+    final source = widget.primaryDestinations == null
+        ? _businessItems
+        : <_PlpDrawerDestination>[
+            for (final item in widget.primaryDestinations!)
+              _PlpDrawerDestination(item.id, item.label, item.icon),
+          ];
+    final visibleBusiness =
+        source.where((item) => _matches(item.label)).toList();
     final visibleSystem = _systemItems.where((item) => _matches(item.label)).toList();
     final visibleChats = widget.recentChats.where((item) => _matches(item.title)).toList();
     final searching = _query.isNotEmpty;
@@ -193,6 +216,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                   !widget.recentChatsLoading && widget.recentChatsError == null)
                 const Padding(padding: EdgeInsets.all(10), child: Text('No matching navigation or chats', style: TextStyle(color: Color(0xFFAAA39A)))),
               if (!searching || visibleSystem.isNotEmpty) ...[
+                if (widget.includeSystem) ...[
                 _divider(),
                 _expandableRow(semanticTitle: 'System / Developer', title: 'System / Developer', subtitle: 'Privileged technical surfaces',
                     expanded: _systemExpanded || searching,
@@ -200,6 +224,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                     onTap: () => setState(() => _systemExpanded = !_systemExpanded)),
                 if (_systemExpanded || searching)
                   for (final item in visibleSystem) _navigationRow(item),
+                ],
               ],
             ]),
             footer: Padding(
@@ -250,7 +275,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
       button: true,
       excludeSemantics: true,
       label:
-          'Pueblo La Perla Boracay, Luxury Resort, ${expanded ? 'expanded' : 'collapsed'}',
+          '${widget.workspaceTitle}, ${widget.workspaceSubtitle}, ${expanded ? 'expanded' : 'collapsed'}',
       child: InkWell(
         key: const ValueKey<String>('plp-workspace-identity'),
         onTap: () =>
@@ -266,15 +291,15 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
               Flexible(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 236),
-                  child: const Column(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Pueblo La Perla Boracay',
+                        widget.workspaceTitle,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Color(0xFFF2EEE7),
                           fontSize: 17,
                           height: 1.14,
@@ -282,10 +307,10 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                           letterSpacing: -.2,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Luxury Resort',
-                        style: TextStyle(
+                        widget.workspaceSubtitle,
+                        style: const TextStyle(
                           color: Color(0xFFAAA39A),
                           fontSize: 13,
                           height: 1.15,
