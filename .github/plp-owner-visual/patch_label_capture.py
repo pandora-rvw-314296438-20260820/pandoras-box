@@ -27,6 +27,23 @@ if "hasLabelSemantics" not in xml_text:
     )
     xml_path.write_text(xml_text)
 
+xml_text = xml_path.read_text()
+if "node.focused" not in xml_text:
+    needle = "public boolean enabled, clickable, password, editable;"
+    insert = "public boolean enabled, clickable, password, editable, focused;"
+    if needle not in xml_text:
+        raise SystemExit("focused field insertion point missing")
+    xml_text = xml_text.replace(needle, insert, 1)
+    attr = 'attr(xml, "editable", Boolean.toString(node.editable));'
+    focused_attr = (
+        attr
+        + '\n      attr(xml, "focused", Boolean.toString(node.focused));'
+    )
+    if attr not in xml_text:
+        raise SystemExit("focused attribute insertion point missing")
+    xml_text = xml_text.replace(attr, focused_attr, 1)
+    xml_path.write_text(xml_text)
+
 inst_text = inst_path.read_text()
 old = "if (CaptureXml.hasFieldSemantics(nodes)) {"
 new = (
@@ -84,6 +101,13 @@ if 'result.putString("text_applied"' not in inst_text:
         'result.putString("status", "ok");',
         'result.putString("status", "ok");\n'
         '            result.putString("text_applied", textApplied ? "true" : "false");',
+        1,
+    )
+if "item.focused" not in inst_text:
+    inst_text = inst_text.replace(
+        "item.editable = node.isEditable();",
+        "item.editable = node.isEditable();\n"
+        "      item.focused = node.isFocused() || node.isAccessibilityFocused();",
         1,
     )
 inst_path.write_text(inst_text)

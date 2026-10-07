@@ -77,12 +77,132 @@ def instrument(extra):
     return fields
 
 
-def fill_field(hint, value):
-    encoded = base64.b64encode(value.encode()).decode()
-    EXTRA_REDACTIONS.append(encoded)
-    fields = instrument(("-e", "set_text_hint", hint, "-e", "set_text_b64", encoded))
-    if fields.get("text_applied") != "true":
-        raise RuntimeError("could not set the " + hint.lower() + " field")
+def screen_blob(nodes):
+    return " | ".join(labels(nodes))
+
+
+def sign_in_note(nodes):
+    blob = screen_blob(nodes)
+    notes = []
+    if "Enter your email." in blob:
+        notes.append("email-empty")
+    if "Enter your password." in blob:
+        notes.append("password-empty")
+    if "Email or password is incorrect." in blob:
+        notes.append("auth-rejected")
+    if "Sign in" in blob:
+        notes.append("sign-in-visible")
+    email = find_field(nodes, "Email")
+    password = find_password_field(nodes)
+    if email is None:
+        notes.append("email-field-missing")
+    elif email.attrib.get("focused") == "true":
+        notes.append("email-focused")
+    if password is None:
+        notes.append("password-field-missing")
+    elif password.attrib.get("focused") == "true":
+        notes.append("password-focused")
+    return ",".join(notes) or "unrecognized"
+
+
+def owner_visible(nodes):
+    blob = screen_blob(nodes)
+    if "invitation is needed" in blob or "Your account is ready" in blob:
+        raise RuntimeError("signed in but operator workspace was not granted")
+    if "Sign in" in blob:
+        return False
+    return "Open navigation" in blob or "Needs You" in blob or "Home" in blob
+
+
+def launch_sign_in():
+    adb("shell", "settings", "put", "secure", "show_ime_with_hard_keyboard", "0")
+    adb("shell", "am", "force-stop", PKG)
+    adb("shell", "am", "start", "-n", f"{PKG}/.MainActivity")
+    for _ in range(8):
+        time.sleep(2)
+        try:
+            nodes = capture()
+        except Exception as error:
+            log("waiting for sign-in: " + str(error))
+            continue
+        if find_field(nodes, "Email") is not None and find(nodes, "Sign in", clickable=True) is not None:
+            return nodes
+    raise RuntimeError("sign-in screen did not become ready")
+
+
+def wait_for_owner(seconds=36):
+    deadline = time.time() + seconds
+    last = None
+    while time.time() < deadline:
+        try:
+            nodes = capture()
+        except Exception as error:
+            log("after submit: " + str(error))
+            time.sleep(2)
+            continue
+        last = nodes
+        if owner_visible(nodes):
+            log("left the sign-in screen")
+            return nodes
+        time.sleep(3)
+    if last is not None:
+        log("still on an unresolved screen: " + sign_in_note(last))
+    return None
+
+
+def submit_credentials(move):
+    nodes = launch_sign_in()
+    email = find_field(nodes, "Email")
+    if email is None:
+        raise RuntimeError("email field was not editable")
+    tap(email)
+    time.sleep(0.8)
+    type_email(EMAIL)
+    time.sleep(0.35)
+    if move == "next":
+        adb("shell", "input", "keyevent", "66")
+        time.sleep(0.55)
+    else:
+        nodes = capture_retry(3, 1)
+        password = find_password_field(nodes)
+        if password is None:
+            raise RuntimeError("password field was not editable")
+        tap(password)
+        time.sleep(0.7)
+    type_secret(PASSWORD, bang="key" if move == "next" else "text")
+    time.sleep(0.35)
+    adb("shell", "input", "keyevent", "66")
+    time.sleep(1.6)
+    try:
+        nodes = capture()
+    except Exception as error:
+        log("after submit: " + str(error))
+        nodes = None
+    if nodes is not None and owner_visible(nodes):
+        log("left the sign-in screen")
+        return nodes
+    if nodes is not None:
+        note = sign_in_note(nodes)
+        log("after keyboard submit: " + note)
+        if "auth-rejected" in note:
+            return None
+        if "Sign in" in screen_blob(nodes) and "email-empty" not in note and "password-empty" not in note:
+            button = find(nodes, "Sign in", clickable=True)
+            if button is not None:
+                tap(button)
+                time.sleep(1.5)
+    return wait_for_owner()
+
+
+def sign_in():
+    nodes = submit_credentials("next")
+    if nodes is not None:
+        return nodes
+    log("retrying sign-in by tapping the password field")
+    nodes = submit_credentials("tap")
+    if nodes is None:
+        raise RuntimeError("authenticated owner screen did not appear")
+    return nodes
 
 
 def capture():
@@ -133,6 +253,27 @@ def find(nodes, label, clickable=None):
     return None
 
 
+def find_field(nodes, hint):
+    needle = hint.lower()
+    for node in nodes:
+        if node.attrib.get("editable") != "true" and node.attrib.get("password") != "true":
+            continue
+        blob = " ".join(
+            (node.attrib.get(key) or "") for key in ("hint", "text", "content-desc")
+        ).lower()
+        if blob.startswith(needle):
+            return node
+    return None
+
+
+def find_password_field(nodes):
+    for node in nodes:
+        if node.attrib.get("password") == "true":
+            return node
+    return find_field(nodes, "Password")
+
+
+
 def center(node):
     match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
     if match is None:
@@ -151,15 +292,22 @@ def paste(value):
     adb("shell", f"input text '{encoded}'")
 
 
-def type_secret(value):
+def type_secret(value, bang="key"):
     index = 0
     while index < len(value):
         if value[index] == "!":
-            adb("shell", "input", "keycombination", "59", "8")
+            if bang == "text":
+                paste("!")
+            else:
+                adb("shell", "input", "keycombination", "59", "8")
+            index += 1
+            continue
+        if value[index] == "@":
+            adb("shell", "input", "keyevent", "77")
             index += 1
             continue
         end = index
-        while end < len(value) and value[end] != "!":
+        while end < len(value) and value[end] not in "!@":
             end += 1
         paste(value[index:end])
         index = end
@@ -228,66 +376,6 @@ def type_email(value):
         paste(domain)
 
 
-def sign_in():
-    adb("shell", "settings", "put", "secure", "show_ime_with_hard_keyboard", "0")
-    adb("shell", "am", "force-stop", PKG)
-    adb("shell", "am", "start", "-n", f"{PKG}/.MainActivity")
-    nodes = None
-    for _ in range(8):
-        time.sleep(2)
-        try:
-            nodes = capture()
-        except Exception as error:
-            log("waiting for sign-in: " + str(error))
-            continue
-        email_field = find(nodes, "Email")
-        sign_in = find(nodes, "Sign in", clickable=True)
-        if email_field is not None and sign_in is not None:
-            break
-    else:
-        raise RuntimeError("sign-in screen did not become ready")
-    email = find(nodes, "Email")
-    password = find(nodes, "Password")
-    button = find(nodes, "Sign in", clickable=True)
-    if email is None or password is None or button is None:
-        raise RuntimeError("sign-in controls were not tappable")
-    fill_field("Email", EMAIL)
-    time.sleep(0.4)
-    fill_field("Password", PASSWORD)
-    time.sleep(0.4)
-    nodes = capture_retry(3, 1)
-    retry = find(nodes, "Sign in", clickable=True)
-    if retry is not None:
-        button = retry
-    tap(button)
-    time.sleep(2)
-    deadline = time.time() + 70
-    last = []
-    tapped_button = False
-    while time.time() < deadline:
-        try:
-            nodes = capture()
-        except Exception as error:
-            log("after submit: " + str(error))
-            time.sleep(2)
-            continue
-        last = labels(nodes)
-        blob = " | ".join(last)
-        if "Sign in" not in blob and (
-            "Open navigation" in blob or "Home" in blob or "Needs You" in blob
-        ):
-            log("left the sign-in screen")
-            return nodes
-        if not tapped_button and "Sign in" in blob:
-            retry = find(nodes, "Sign in", clickable=True)
-            if retry is not None:
-                tap(retry)
-                tapped_button = True
-        time.sleep(3)
-    log("still on an unresolved screen: " + " | ".join(last[:12]))
-    raise RuntimeError("authenticated owner screen did not appear")
-
-
 def enter_customer(report):
     nodes = capture_retry()
     if find(nodes, "Clients") is None and find(nodes, "Enter client workspace") is None:
@@ -305,7 +393,9 @@ def enter_customer(report):
     tap(button)
     time.sleep(1)
     nodes = capture_retry()
-    field = find(nodes, "Reason for administrator access") or find(nodes, "For example")
+    field = find(nodes, "Reason for administrator access")
+    if field is None:
+        field = find(nodes, "For example")
     if field is None:
         entry["detail"] = "reason dialog did not appear"
         entry["visible"] = labels(nodes)[:30]
