@@ -136,12 +136,18 @@ def paste(value):
     adb("shell", f"input text '{encoded}'")
 
 
-def type_email(value):
-    local, separator, domain = value.partition("@")
-    paste(local)
-    if separator:
-        adb("shell", "input", "keyevent", "77")
-        paste(domain)
+def type_secret(value):
+    index = 0
+    while index < len(value):
+        if value[index] == "!":
+            adb("shell", "input", "keycombination", "59", "8")
+            index += 1
+            continue
+        end = index
+        while end < len(value) and value[end] != "!":
+            end += 1
+        paste(value[index:end])
+        index = end
 
 
 def shot(name, nodes):
@@ -172,7 +178,9 @@ def open_drawer(nodes):
 
 def reveal(nodes, label):
     for _ in range(5):
-        found = find(nodes, label, clickable=True) or find(nodes, label)
+        found = find(nodes, label, clickable=True)
+        if found is None:
+            found = find(nodes, label)
         if found is not None:
             return nodes, found
         adb("shell", "input", "swipe", "280", "1700", "280", "700", "250")
@@ -197,7 +205,16 @@ def go(screen_id, label):
     return record
 
 
+def type_email(value):
+    local, separator, domain = value.partition("@")
+    paste(local)
+    if separator:
+        adb("shell", "input", "keyevent", "77")
+        paste(domain)
+
+
 def sign_in():
+    adb("shell", "settings", "put", "secure", "show_ime_with_hard_keyboard", "0")
     adb("shell", "am", "force-stop", PKG)
     adb("shell", "am", "start", "-n", f"{PKG}/.MainActivity")
     nodes = None
@@ -224,9 +241,13 @@ def sign_in():
     time.sleep(0.8)
     type_email(EMAIL)
     time.sleep(0.4)
+    nodes = capture_retry(3, 1)
+    password = find(nodes, "Password")
+    if password is None:
+        raise RuntimeError("password field was not visible after the email")
     tap(password)
     time.sleep(0.8)
-    paste(PASSWORD)
+    type_secret(PASSWORD)
     time.sleep(0.4)
     nodes = capture_retry(3, 1)
     retry = find(nodes, "Sign in", clickable=True)
