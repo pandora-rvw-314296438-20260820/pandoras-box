@@ -4,6 +4,7 @@ import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/models/pandora_models.dart';
 import '../../core/state/screen_controller.dart';
+import '../../core/widgets/pandora_editorial_scope.dart';
 import 'pandora_simple_ui.dart';
 
 class SimpleSafetyScreen extends StatefulWidget {
@@ -108,10 +109,10 @@ class _SimpleSafetyScreenState extends State<SimpleSafetyScreen> {
           title: 'Four protection layers',
           meta: 'No aggregate score',
         ),
-        const Text(
+         Text(
           'Each claim stands on its own evidence. Missing proof stays visibly unverified.',
           style: TextStyle(
-            color: PandoraSimpleColors.muted,
+            color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
             fontSize: 14,
             height: 1.35,
           ),
@@ -123,26 +124,26 @@ class _SimpleSafetyScreenState extends State<SimpleSafetyScreen> {
         ],
         const SizedBox(height: 26),
         PandoraSimpleCard(
-          backgroundColor: PandoraSimpleColors.blueWash,
-          borderColor: PandoraSimpleColors.line,
+          backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.blueWash),
+          borderColor: pandoraOwnerColor(context, PandoraSimpleColors.line),
           shadow: false,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const PandoraIconBadge(
+               PandoraIconBadge(
                 icon: Icons.info_outline_rounded,
-                foreground: PandoraSimpleColors.blue,
-                background: PandoraSimpleColors.surface,
+                foreground: pandoraOwnerColor(context, PandoraSimpleColors.blue),
+                background: pandoraOwnerColor(context, PandoraSimpleColors.surface),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                     Text(
                       'Technical details stay out of the way',
                       style: TextStyle(
-                        color: PandoraSimpleColors.ink,
+                        color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -152,8 +153,8 @@ class _SimpleSafetyScreenState extends State<SimpleSafetyScreen> {
                       safety.extraIdentityCheckAdvertised
                           ? 'A connected service currently requires an extra identity check. Pandora keeps that requirement visible instead of bypassing it.'
                           : 'Simple Mode shows clear safety conclusions here. Detailed technical evidence remains in Professional Mode under More.',
-                      style: const TextStyle(
-                        color: PandoraSimpleColors.muted,
+                      style:  TextStyle(
+                        color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
                         fontSize: 13.5,
                         height: 1.35,
                       ),
@@ -194,19 +195,19 @@ class _SafetyHero extends StatelessWidget {
         unknown == 0 &&
         hasCurrentClaims;
     final foreground = blocked > 0
-        ? PandoraSimpleColors.deepRed
+        ? pandoraOwnerColor(context, PandoraSimpleColors.deepRed)
         : attention > 0 || !auditValid
-            ? PandoraSimpleColors.amber
+            ? pandoraOwnerColor(context, PandoraSimpleColors.amber)
             : healthy
-                ? PandoraSimpleColors.green
-                : PandoraSimpleColors.muted;
+                ? pandoraOwnerColor(context, PandoraSimpleColors.green)
+                : pandoraOwnerColor(context, PandoraSimpleColors.muted);
     final background = blocked > 0
-        ? PandoraSimpleColors.blush
+        ? pandoraOwnerColor(context, PandoraSimpleColors.blush)
         : attention > 0 || !auditValid
-            ? PandoraSimpleColors.amberWash
+            ? pandoraOwnerColor(context, PandoraSimpleColors.amberWash)
             : healthy
-                ? PandoraSimpleColors.greenWash
-                : PandoraSimpleColors.surface;
+                ? pandoraOwnerColor(context, PandoraSimpleColors.greenWash)
+                : pandoraOwnerColor(context, PandoraSimpleColors.surface);
     final title = blocked > 0
         ? 'Protection is blocked'
         : attention > 0 || !auditValid
@@ -235,7 +236,7 @@ class _SafetyHero extends StatelessWidget {
                         ? Icons.gpp_maybe_outlined
                         : Icons.verified_user_outlined,
                 foreground: foreground,
-                background: PandoraSimpleColors.surface,
+                background: pandoraOwnerColor(context, PandoraSimpleColors.surface),
                 size: 50,
               ),
               const SizedBox(width: 13),
@@ -245,8 +246,8 @@ class _SafetyHero extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: PandoraSimpleColors.ink,
+                      style:  TextStyle(
+                        color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -.25,
@@ -255,8 +256,8 @@ class _SafetyHero extends StatelessWidget {
                     const SizedBox(height: 5),
                     Text(
                       message,
-                      style: const TextStyle(
-                        color: PandoraSimpleColors.muted,
+                      style:  TextStyle(
+                        color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
                         fontSize: 14,
                         height: 1.35,
                       ),
@@ -277,30 +278,30 @@ class _SafetyHero extends StatelessWidget {
                     ? Icons.check_circle_outline_rounded
                     : Icons.error_outline_rounded,
                 foreground: auditValid
-                    ? PandoraSimpleColors.green
-                    : PandoraSimpleColors.deepRed,
-                background: PandoraSimpleColors.surface,
+                    ? pandoraOwnerColor(context, PandoraSimpleColors.green)
+                    : pandoraOwnerColor(context, PandoraSimpleColors.deepRed),
+                background: pandoraOwnerColor(context, PandoraSimpleColors.surface),
               ),
               if (attention > 0)
                 PandoraStatusPill(
                   label: '$attention need attention',
                   icon: Icons.warning_amber_rounded,
-                  foreground: PandoraSimpleColors.amber,
-                  background: PandoraSimpleColors.surface,
+                  foreground: pandoraOwnerColor(context, PandoraSimpleColors.amber),
+                  background: pandoraOwnerColor(context, PandoraSimpleColors.surface),
                 ),
               if (blocked > 0)
                 PandoraStatusPill(
                   label: '$blocked blocked',
                   icon: Icons.block_rounded,
-                  foreground: PandoraSimpleColors.deepRed,
-                  background: PandoraSimpleColors.surface,
+                  foreground: pandoraOwnerColor(context, PandoraSimpleColors.deepRed),
+                  background: pandoraOwnerColor(context, PandoraSimpleColors.surface),
                 ),
               if (unknown > 0)
                 PandoraStatusPill(
                   label: '$unknown not verified',
                   icon: Icons.help_outline_rounded,
-                  foreground: PandoraSimpleColors.muted,
-                  background: PandoraSimpleColors.surface,
+                  foreground: pandoraOwnerColor(context, PandoraSimpleColors.muted),
+                  background: pandoraOwnerColor(context, PandoraSimpleColors.surface),
                 ),
             ],
           ),
@@ -334,8 +335,8 @@ class _SafetyGroupCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   group.title,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.ink,
+                  style:  TextStyle(
+                    color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
@@ -347,8 +348,8 @@ class _SafetyGroupCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             group.description,
-            style: const TextStyle(
-              color: PandoraSimpleColors.muted,
+            style:  TextStyle(
+              color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
               fontSize: 13.5,
               height: 1.35,
             ),
@@ -357,7 +358,7 @@ class _SafetyGroupCard extends StatelessWidget {
           for (var index = 0; index < group.items.length; index++) ...[
             _SafetyItemRow(item: group.items[index]),
             if (index != group.items.length - 1)
-              const Divider(height: 20, color: PandoraSimpleColors.line),
+               Divider(height: 20, color: pandoraOwnerColor(context, PandoraSimpleColors.line)),
           ],
         ],
       ),
@@ -392,8 +393,8 @@ class _SafetyItemRow extends StatelessWidget {
               children: [
                 Text(
                   item.title,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.ink,
+                  style:  TextStyle(
+                    color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -401,8 +402,8 @@ class _SafetyItemRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   item.explanation,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.muted,
+                  style:  TextStyle(
+                    color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
                     fontSize: 12.8,
                     height: 1.35,
                   ),
@@ -458,22 +459,22 @@ class _SafetyUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-        backgroundColor: PandoraSimpleColors.amberWash,
-        borderColor: PandoraSimpleColors.line,
+        backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
+        borderColor: pandoraOwnerColor(context, PandoraSimpleColors.line),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const PandoraIconBadge(
+             PandoraIconBadge(
               icon: Icons.shield_outlined,
-              foreground: PandoraSimpleColors.amber,
-              background: PandoraSimpleColors.surface,
+              foreground: pandoraOwnerColor(context, PandoraSimpleColors.amber),
+              background: pandoraOwnerColor(context, PandoraSimpleColors.surface),
               size: 52,
             ),
             const SizedBox(height: 12),
-            const Text(
+             Text(
               'Safety is not verified',
               style: TextStyle(
-                color: PandoraSimpleColors.ink,
+                color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
               ),
@@ -481,8 +482,8 @@ class _SafetyUnavailable extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               message,
-              style: const TextStyle(
-                color: PandoraSimpleColors.muted,
+              style:  TextStyle(
+                color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
                 fontSize: 14,
                 height: 1.35,
               ),
@@ -505,21 +506,21 @@ class _InlineNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-        backgroundColor: PandoraSimpleColors.amberWash,
-        borderColor: PandoraSimpleColors.line,
+        backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
+        borderColor: pandoraOwnerColor(context, PandoraSimpleColors.line),
         shadow: false,
         child: Row(
           children: [
-            const Icon(
+             Icon(
               Icons.warning_amber_rounded,
-              color: PandoraSimpleColors.amber,
+              color: pandoraOwnerColor(context, PandoraSimpleColors.amber),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(
-                  color: PandoraSimpleColors.ink,
+                style:  TextStyle(
+                  color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                   fontSize: 13.5,
                   height: 1.35,
                 ),
@@ -739,19 +740,19 @@ _SimpleTruth _groupTruth(List<SafetyItem> items) {
 }
 
 Color _truthForeground(_SimpleTruth truth) => switch (truth) {
-      _SimpleTruth.healthy => PandoraSimpleColors.green,
-      _SimpleTruth.attention => PandoraSimpleColors.amber,
-      _SimpleTruth.blocked => PandoraSimpleColors.deepRed,
-      _SimpleTruth.notChecked => PandoraSimpleColors.muted,
-      _SimpleTruth.notApplicable => PandoraSimpleColors.blue,
+      _SimpleTruth.healthy => pandoraOwnerColor(context, PandoraSimpleColors.green),
+      _SimpleTruth.attention => pandoraOwnerColor(context, PandoraSimpleColors.amber),
+      _SimpleTruth.blocked => pandoraOwnerColor(context, PandoraSimpleColors.deepRed),
+      _SimpleTruth.notChecked => pandoraOwnerColor(context, PandoraSimpleColors.muted),
+      _SimpleTruth.notApplicable => pandoraOwnerColor(context, PandoraSimpleColors.blue),
     };
 
 Color _truthBackground(_SimpleTruth truth) => switch (truth) {
-      _SimpleTruth.healthy => PandoraSimpleColors.greenWash,
-      _SimpleTruth.attention => PandoraSimpleColors.amberWash,
-      _SimpleTruth.blocked => PandoraSimpleColors.blush,
-      _SimpleTruth.notChecked => PandoraSimpleColors.surface,
-      _SimpleTruth.notApplicable => PandoraSimpleColors.blueWash,
+      _SimpleTruth.healthy => pandoraOwnerColor(context, PandoraSimpleColors.greenWash),
+      _SimpleTruth.attention => pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
+      _SimpleTruth.blocked => pandoraOwnerColor(context, PandoraSimpleColors.blush),
+      _SimpleTruth.notChecked => pandoraOwnerColor(context, PandoraSimpleColors.surface),
+      _SimpleTruth.notApplicable => pandoraOwnerColor(context, PandoraSimpleColors.blueWash),
     };
 
 IconData _truthIcon(_SimpleTruth truth) => switch (truth) {

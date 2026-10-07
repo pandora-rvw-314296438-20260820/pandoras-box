@@ -526,7 +526,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
             Text(
               copy.detail,
               textAlign: TextAlign.center,
-              style: pandoraSimpleMutedText,
+              style: pandoraSimpleMutedText.owner(context),
             ),
             const SizedBox(height: 28),
             _TheatreMark(controller: _orbit),
@@ -588,7 +588,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                     ),
                   ),
                   const SizedBox(height: 7),
-                  Text(_error!, style: pandoraSimpleMutedText),
+                  Text(_error!, style: pandoraSimpleMutedText.owner(context)),
                   const SizedBox(height: 16),
                   PandoraPrimaryButton(
                     label: 'Try again',
@@ -624,7 +624,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
             const SizedBox(height: 8),
             const Text(
               'This version is available to preview. Pandora may still be checking it before publication is allowed.',
-              style: pandoraSimpleMutedText,
+              style: pandoraSimpleMutedText.owner(context),
             ),
             const SizedBox(height: 20),
             PandoraSimpleCard(
@@ -961,7 +961,7 @@ class _ProjectJourneyWorkspaceScreenState
             const SizedBox(height: 8),
             const Text(
               'Pandora will publish the exact preview version you reviewed. A custom domain is optional.',
-              style: pandoraSimpleMutedText,
+              style: pandoraSimpleMutedText.owner(context),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -1084,7 +1084,7 @@ class _ProjectJourneyWorkspaceScreenState
                         const Spacer(),
                         Text(
                           project.buildKind.label,
-                          style: pandoraSimpleMutedText,
+                          style: pandoraSimpleMutedText.owner(context),
                         ),
                       ],
                     ),
@@ -1103,7 +1103,7 @@ class _ProjectJourneyWorkspaceScreenState
                           ),
                           const SizedBox(height: 7),
                           Text(project.objective,
-                              style: pandoraSimpleMutedText),
+                              style: pandoraSimpleMutedText.owner(context)),
                         ],
                       ),
                     ),
@@ -1163,7 +1163,7 @@ class _ProjectJourneyWorkspaceScreenState
                                     _snapshot!.domain!.verified
                                         ? 'Domain connected'
                                         : 'Domain verification required',
-                                    style: pandoraSimpleMutedText,
+                                    style: pandoraSimpleMutedText.owner(context),
                                   ),
                                 ],
                               ),
@@ -1257,7 +1257,7 @@ class _ProjectLinkCard extends StatelessWidget {
                     url ?? 'Deployment URL is still being prepared',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: pandoraSimpleMutedText,
+                    style: pandoraSimpleMutedText.owner(context),
                   ),
                   const SizedBox(height: 4),
                   Text(

@@ -15,6 +15,7 @@ import '../core/security/pandora_identity_verification.dart';
 import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../core/widgets/pandora_navigation_layout.dart';
+import '../core/widgets/pandora_owner_theme.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/core/pandora_box_frame.dart';
 import '../features/core/pandora_core_screen.dart';
@@ -989,34 +990,25 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                                                       .section,
                                             )
                                           : const SizedBox.expand(),
-          1 => const PandoraBoxFrame(
-              title: 'Platform',
-              child: ProjectsScreen(),
-            ),
+          1 => _ownerPanel('Platform', const ProjectsScreen()),
           2 => _coreScreen('home', initialAction: 'needs_you'),
-          3 => const PandoraBoxFrame(
-              title: 'Administration',
-              child: MoreScreen(),
+          3 => _ownerPanel('Administration', const MoreScreen()),
+          4 => _ownerPanel('Activity', const ActivityScreen()),
+          5 => _ownerPanel(
+              'Platform',
+              PluginsScreen(onOpenProviderCatalog: () => _select(11)),
             ),
-          4 => const PandoraBoxFrame(
-              title: 'Activity',
-              child: ActivityScreen(),
+          6 => _ownerPanel(
+              'Safety & Evidence',
+              const OfflineEvidenceScreen(),
             ),
-          5 => PandoraBoxFrame(
-              title: 'Platform',
-              child: PluginsScreen(onOpenProviderCatalog: () => _select(11)),
+          7 => _ownerPanel(
+              'Safety & Evidence',
+              const SimpleSafetyScreen(),
             ),
-          6 => const PandoraBoxFrame(
-              title: 'Safety & Evidence',
-              child: OfflineEvidenceScreen(),
-            ),
-          7 => const PandoraBoxFrame(
-              title: 'Safety & Evidence',
-              child: SimpleSafetyScreen(),
-            ),
-          8 => PandoraBoxFrame(
-              title: 'Operations Room',
-              child: PandoraOperationsRoomScreen(
+          8 => _ownerPanel(
+              'Operations Room',
+              PandoraOperationsRoomScreen(
                 onHome: () => _select(9),
                 globalConversation: true,
               ),
@@ -1027,15 +1019,20 @@ class _PandoraChatShellState extends State<PandoraChatShell>
           14 => _coreScreen('platform'),
           15 => _coreScreen('administration'),
           10 => const EnterpriseVisionScreen(),
-          11 => PandoraBoxFrame(
-              title: 'Capabilities',
-              child: ProviderEcosystemScreen(
+          11 => _ownerPanel(
+              'Capabilities',
+              ProviderEcosystemScreen(
                 onOpenConnections: () => _select(5),
               ),
             ),
           _ => const SizedBox.expand(),
         },
       );
+
+  Widget _ownerPanel(String title, Widget child) {
+    if (widget.mirrorPlpNavigation && !_inClientWorkspace) return child;
+    return PandoraBoxFrame(title: title, child: child);
+  }
 
   Widget _coreScreen(String section,
       {String? organizationId, String? initialAction}) {
@@ -1054,9 +1051,7 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       'coreSection': organizationId == null ? section : 'client',
       if (organizationId != null) 'organizationId': organizationId,
     };
-    return PandoraCoreTone(
-      editorial: widget.mirrorPlpNavigation,
-      child: PandoraCoreScreen(
+    return PandoraCoreScreen(
       gateway: _coreGateway,
       section: section,
       organizationId: organizationId,
@@ -1075,7 +1070,6 @@ class _PandoraChatShellState extends State<PandoraChatShell>
         if (_index == routeIndex)
           setState(() => _surfaceSelectedObject = scoped);
       },
-    ),
     );
   }
 
@@ -1739,6 +1733,9 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                   onDidRemovePage: (_) {},
                 ),
               );
+            }
+            if (widget.mirrorPlpNavigation && !_inClientWorkspace) {
+              businessBody = PandoraOwnerTheme(child: businessBody);
             }
             final chatScopeEpoch = _scopeEpoch;
             final plpAssistant =

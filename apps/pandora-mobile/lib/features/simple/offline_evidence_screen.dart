@@ -6,6 +6,7 @@ import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/network/pandora_api_error.dart';
 import '../../core/security/pandora_auth.dart';
+import '../../core/widgets/pandora_editorial_scope.dart';
 import 'pandora_simple_ui.dart';
 
 class OfflineEvidenceScreen extends StatefulWidget {
@@ -228,15 +229,15 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
               )
             : _packet == null
                 ? PandoraSimpleCard(
-                    backgroundColor: PandoraSimpleColors.amberWash,
+                    backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
                     shadow: false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
+                         Text(
                           'Evidence unavailable',
                           style: TextStyle(
-                            color: PandoraSimpleColors.ink,
+                            color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                           ),
@@ -270,12 +271,12 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
           ],
           if (_error != null) ...[
             PandoraSimpleCard(
-              backgroundColor: PandoraSimpleColors.amberWash,
+              backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
               shadow: false,
               child: Text(
                 _error!,
-                style: const TextStyle(
-                  color: PandoraSimpleColors.ink,
+                style:  TextStyle(
+                  color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                   height: 1.35,
                 ),
               ),
@@ -283,15 +284,15 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
             const SizedBox(height: 12),
           ],
           PandoraSimpleCard(
-            backgroundColor: PandoraSimpleColors.blueWash,
+            backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.blueWash),
             shadow: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                 Text(
                   'Saved evidence',
                   style: TextStyle(
-                    color: PandoraSimpleColors.ink,
+                    color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                   ),
@@ -303,15 +304,15 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
                       : p.cached
                           ? 'Showing earlier observations held in this session. They may be out of date.'
                           : 'Read-only observations from the latest successful refresh.',
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.muted,
+                  style:  TextStyle(
+                    color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
                     height: 1.35,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Oldest observation: ${_observationTime(p.oldestObservation)}',
-                  style: const TextStyle(color: PandoraSimpleColors.muted),
+                  style:  TextStyle(color: pandoraOwnerColor(context, PandoraSimpleColors.muted)),
                 ),
               ],
             ),
@@ -322,28 +323,28 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
             child: Column(
               children: [
                 _row('Systems', p.projects),
-                const Divider(color: PandoraSimpleColors.line),
+                 Divider(color: pandoraOwnerColor(context, PandoraSimpleColors.line)),
                 _row('Connections', p.connections),
-                const Divider(color: PandoraSimpleColors.line),
+                 Divider(color: pandoraOwnerColor(context, PandoraSimpleColors.line)),
                 _row('Activity records', p.activity),
               ],
             ),
           ),
           const SizedBox(height: 14),
           PandoraSimpleCard(
-            backgroundColor: PandoraSimpleColors.amberWash,
+            backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
             shadow: false,
-            child: const Row(
+            child:  Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(Icons.lock_clock_outlined,
-                    color: PandoraSimpleColors.amber),
+                    color: pandoraOwnerColor(context, PandoraSimpleColors.amber)),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Saved evidence is for reference only. Refresh the current system status before approving, releasing, or changing anything.',
                     style:
-                        TextStyle(color: PandoraSimpleColors.ink, height: 1.35),
+                        TextStyle(color: pandoraOwnerColor(context, PandoraSimpleColors.ink), height: 1.35),
                   ),
                 ),
               ],
@@ -359,8 +360,8 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: PandoraSimpleColors.ink,
+                style:  TextStyle(
+                  color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -369,8 +370,8 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
               count == null ? 'Unavailable' : '$count',
               style: TextStyle(
                 color: count == null
-                    ? PandoraSimpleColors.muted
-                    : PandoraSimpleColors.ink,
+                    ? pandoraOwnerColor(context, PandoraSimpleColors.muted)
+                    : pandoraOwnerColor(context, PandoraSimpleColors.ink),
                 fontSize: count == null ? 13 : 18,
                 fontWeight: FontWeight.w800,
               ),

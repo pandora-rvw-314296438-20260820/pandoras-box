@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'pandora_editorial_scope.dart';
+
 /// Shared by shell roots. Pushed routes retain their normal back navigation.
 class PandoraNavigationScope extends InheritedWidget {
   const PandoraNavigationScope({
@@ -101,6 +103,29 @@ class PandoraPageHeader extends StatelessWidget {
     final openDrawer =
         onOpenNavigation ?? PandoraNavigationScope.maybeOf(context)?.openDrawer;
     final isSecondaryRoute = ModalRoute.of(context)?.isFirst == false;
+    if (PandoraEditorialScope.active(context)) {
+      return SizedBox(
+        key: const ValueKey<String>('pandora-page-header-floating'),
+        height: 56,
+        child: Row(
+          children: [
+            if (isSecondaryRoute)
+              const SizedBox.square(
+                dimension: 48,
+                child: BackButton(),
+              ),
+            if (openDrawer != null)
+              PandoraMenuButton(
+                key: const ValueKey<String>('pandora-side-panel-open'),
+                onPressed: openDrawer,
+              ),
+            const SizedBox(width: 12),
+            Expanded(child: PandoraEditorialTitle(title)),
+            ...actions,
+          ],
+        ),
+      );
+    }
     final showPandoraChevron = title == 'Pandora';
     return SizedBox(
       key: const ValueKey<String>('pandora-page-header-floating'),

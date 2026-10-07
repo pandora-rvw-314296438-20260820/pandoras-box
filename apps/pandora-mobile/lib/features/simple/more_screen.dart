@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/data/pandora_user_admin_api.dart';
+import '../../core/widgets/pandora_editorial_scope.dart';
 import '../activity/activity_screen.dart';
 import '../connections/connections_screen.dart';
 import '../intelligence/owner_intelligence_screen.dart';
@@ -135,7 +136,8 @@ class MoreScreen extends StatelessWidget {
                 icon: const Icon(Icons.settings_outlined, size: 18),
                 label: const Text('Settings'),
                 style: TextButton.styleFrom(
-                  foregroundColor: PandoraSimpleColors.muted,
+                  foregroundColor:
+                      pandoraOwnerColor(context, PandoraSimpleColors.muted),
                 ),
               ),
             ),
@@ -152,8 +154,8 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         label,
-        style: const TextStyle(
-          color: PandoraSimpleColors.muted,
+        style: TextStyle(
+          color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
           fontSize: 12,
           fontWeight: FontWeight.w700,
           letterSpacing: .8,
@@ -165,10 +167,10 @@ class _TileDivider extends StatelessWidget {
   const _TileDivider();
 
   @override
-  Widget build(BuildContext context) => const Divider(
+  Widget build(BuildContext context) => Divider(
         height: 1,
         indent: 68,
-        color: PandoraSimpleColors.line,
+        color: pandoraOwnerColor(context, PandoraSimpleColors.line),
       );
 }
 
@@ -195,10 +197,13 @@ class _MoreTile extends StatelessWidget {
           leading: PandoraIconBadge(icon: icon, size: 40),
           title: Text(
             title,
-            style: const TextStyle(
-              color: PandoraSimpleColors.ink,
-              fontSize: 15.5,
-              fontWeight: FontWeight.w700,
+            style: TextStyle(
+              color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
+              fontFamily: PandoraEditorialScope.active(context) ? 'serif' : null,
+              fontSize: 20,
+              fontWeight: PandoraEditorialScope.active(context)
+                  ? FontWeight.w400
+                  : FontWeight.w700,
             ),
           ),
           subtitle: Padding(
@@ -207,12 +212,12 @@ class _MoreTile extends StatelessWidget {
               subtitle,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: pandoraSimpleMutedText,
+              style: pandoraSimpleMutedText.owner(context),
             ),
           ),
-          trailing: const Icon(
+          trailing: Icon(
             Icons.arrow_forward_ios_rounded,
-            color: PandoraSimpleColors.muted,
+            color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
             size: 15,
           ),
           onTap: onTap,

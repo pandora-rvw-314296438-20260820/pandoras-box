@@ -91,7 +91,7 @@ class BuildProgressScreen extends StatelessWidget {
                     ? 'Pandora is preparing the reviewed result for final checks, your approval, and a safe release.'
                     : 'Pandora is doing the work and will notify you when your decision is required.'),
             textAlign: TextAlign.center,
-            style: pandoraSimpleMutedText,
+            style: pandoraSimpleMutedText.owner(context),
           ),
           const SizedBox(height: 24),
           _OrbitingBuildMark(
@@ -172,7 +172,7 @@ class BuildProgressScreen extends StatelessWidget {
                       receipt.needsApproval
                           ? 'The release request is recorded and waiting in Needs You.'
                           : 'The release request is recorded. Activity and verified release proof show the current status.',
-                      style: pandoraSimpleText,
+                      style: pandoraSimpleText.owner(context),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -208,7 +208,7 @@ class BuildProgressScreen extends StatelessWidget {
                       ? 'Pandora will notify you because a decision is already required.'
                       : 'Pandora will notify you when the next real decision is required.',
                   textAlign: TextAlign.center,
-                  style: pandoraSimpleMutedText,
+                  style: pandoraSimpleMutedText.owner(context),
                 ),
               ),
             ],
@@ -458,7 +458,7 @@ class _BuildTaskRow extends StatelessWidget {
                     detail,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: pandoraSimpleMutedText,
+                    style: pandoraSimpleMutedText.owner(context),
                   ),
                 ],
               ),
@@ -505,12 +505,12 @@ class _PrototypePreviewCard extends StatelessWidget {
                   request,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: pandoraSimpleMutedText,
+                  style: pandoraSimpleMutedText.owner(context),
                 ),
                 const SizedBox(height: 8),
                 const Text(
                   'This is a prototype. It is not live or production verified.',
-                  style: pandoraSimpleMutedText,
+                  style: pandoraSimpleMutedText.owner(context),
                 ),
                 const SizedBox(height: 14),
                 PandoraPrimaryButton(
@@ -655,7 +655,7 @@ class _FirstPreviewScreenState extends State<FirstPreviewScreen> {
             const SizedBox(height: 7),
             const Text(
               'Pandora created a reviewable prototype. It is not live and nothing will be released until the governed result is approved and verified.',
-              style: pandoraSimpleMutedText,
+              style: pandoraSimpleMutedText.owner(context),
             ),
             const SizedBox(height: 18),
             PandoraDeviceSelector<_PreviewDevice>(
@@ -855,7 +855,7 @@ class _PreviewSideRail extends StatelessWidget {
                       SizedBox(height: 5),
                       Text(
                         'Tell Pandora what feels wrong before approving the result.',
-                        style: pandoraSimpleMutedText,
+                        style: pandoraSimpleMutedText.owner(context),
                       ),
                     ],
                   ),
@@ -883,7 +883,7 @@ class _CapabilityLine extends StatelessWidget {
               size: 19,
             ),
             const SizedBox(width: 9),
-            Expanded(child: Text(label, style: pandoraSimpleText)),
+            Expanded(child: Text(label, style: pandoraSimpleText.owner(context))),
           ],
         ),
       );
@@ -1163,7 +1163,7 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
             const SizedBox(height: 7),
             const Text(
               'This is an interactive preview. Test it like a real customer before approving a release.',
-              style: pandoraSimpleMutedText,
+              style: pandoraSimpleMutedText.owner(context),
             ),
             const SizedBox(height: 22),
             LayoutBuilder(

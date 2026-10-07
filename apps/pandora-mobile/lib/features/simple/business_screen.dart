@@ -134,7 +134,7 @@ class _SimpleBusinessScreenState extends State<SimpleBusinessScreen> {
                     const SizedBox(height: 7),
                     const Text(
                       'A simple view of what is live, what Pandora is working on, and what needs you.',
-                      style: pandoraSimpleMutedText,
+                      style: pandoraSimpleMutedText.owner(context),
                     ),
                     const SizedBox(height: 20),
                     LayoutBuilder(
@@ -191,7 +191,7 @@ class _SimpleBusinessScreenState extends State<SimpleBusinessScreen> {
                         shadow: false,
                         child: Text(
                           'No customer projects are visible yet. Create a Project and Pandora will track its result here.',
-                          style: pandoraSimpleMutedText,
+                          style: pandoraSimpleMutedText.owner(context),
                         ),
                       )
                     else
@@ -225,7 +225,7 @@ class _SimpleBusinessScreenState extends State<SimpleBusinessScreen> {
                                         project.purpose,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: pandoraSimpleMutedText,
+                                        style: pandoraSimpleMutedText.owner(context),
                                       ),
                                     ],
                                   ),
@@ -278,7 +278,7 @@ class _PulseCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                Text(label, style: pandoraSimpleMutedText),
+                Text(label, style: pandoraSimpleMutedText.owner(context)),
               ],
             ),
           ],

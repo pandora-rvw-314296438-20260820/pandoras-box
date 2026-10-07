@@ -5,40 +5,20 @@ import '../../core/data/pandora_core_api.dart';
 import '../../core/data/pandora_user_admin_api.dart';
 import '../../core/security/pandora_auth.dart';
 import '../../core/security/pandora_identity_verification.dart';
+import '../../core/widgets/pandora_editorial_scope.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../approvals/approvals_screen.dart';
 import '../enterprise/plp_editorial_surfaces.dart';
 import '../team/team_screen.dart';
 import 'pandora_core_memory_panel.dart';
 
-class PandoraCoreTone extends InheritedWidget {
-  const PandoraCoreTone({required this.editorial, required super.child});
+PandoraChromePalette _palette(BuildContext context) => PandoraChrome.of(context);
 
-  final bool editorial;
-
-  static bool editorialOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<PandoraCoreTone>()?.editorial ??
-      false;
-
-  @override
-  bool updateShouldNotify(PandoraCoreTone oldWidget) =>
-      editorial != oldWidget.editorial;
-}
-
-Color _toneInk(BuildContext context) => PandoraCoreTone.editorialOf(context)
-    ? plpInk
-    : const Color(0xFFF2F2F2);
-Color _toneMuted(BuildContext context) => PandoraCoreTone.editorialOf(context)
-    ? plpMuted
-    : const Color(0xFFA0A3A8);
-Color _toneSurface(BuildContext context) =>
-    PandoraCoreTone.editorialOf(context) ? plpPaper : const Color(0xFF121519);
-Color _toneLine(BuildContext context) => PandoraCoreTone.editorialOf(context)
-    ? plpLine
-    : const Color(0xFF292D32);
-Color _tonePill(BuildContext context) => PandoraCoreTone.editorialOf(context)
-    ? const Color(0xFFE7E1D6)
-    : const Color(0xFF23272D);
+Color _toneInk(BuildContext context) => _palette(context).ink;
+Color _toneMuted(BuildContext context) => _palette(context).muted;
+Color _toneSurface(BuildContext context) => _palette(context).paper;
+Color _toneLine(BuildContext context) => _palette(context).line;
+Color _tonePill(BuildContext context) => _palette(context).pill;
 
 /// A single operational projection of Pandora Core. The same signed-in RPC
 /// contract powers Home, client administration and the deeper owner sections.
@@ -424,16 +404,22 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             ],
           ),
         );
+    final palette = _palette(context);
+    final homeBare = _section == 'home' && _tool == null;
+    final displayTitle = _tool != null
+        ? (_tool is TeamScreen ? 'Team & Access' : _toolTitle)
+        : _title;
     return PopScope<void>(
       canPop: !navigationActive || !canGoBack,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && navigationActive && canGoBack) _back();
       },
       child: Material(
-        color: PandoraCoreTone.editorialOf(context) ||
-                (_section == 'home' && _tool == null)
-            ? plpCanvas
-            : const Color(0xFF090B0E),
+        color: palette.editorial || homeBare
+            ? palette.editorial
+                ? palette.canvas
+                : plpCanvas
+            : palette.canvas,
         child: SafeArea(
           bottom: false,
           child: Column(
@@ -461,34 +447,18 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                       const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        (PandoraCoreTone.editorialOf(context)
-                                ? (_tool != null
-                                        ? (_tool is TeamScreen
-                                            ? 'Team & Access'
-                                            : _toolTitle)
-                                        : _title)
-                                    .toUpperCase()
-                                : _tool != null
-                                    ? (_tool is TeamScreen
-                                        ? 'Team & Access'
-                                        : _toolTitle)
-                                    : _title),
+                        palette.editorial
+                            ? displayTitle.toUpperCase()
+                            : displayTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: PandoraCoreTone.editorialOf(context)
-                            ? const TextStyle(
-                                color: plpInk,
-                                fontFamily: 'serif',
-                                fontSize: 16,
-                                letterSpacing: 2.6,
-                                fontWeight: FontWeight.w400,
-                              )
+                        style: palette.editorial
+                            ? palette.contextTitle
                             : TextStyle(
-                                color: _section == 'home' && _tool == null
-                                    ? plpInk
-                                    : _toneInk(context),
+                                color: homeBare ? plpInk : palette.ink,
                                 fontSize: 20,
-                                fontWeight: FontWeight.w700),
+                                fontWeight: FontWeight.w700,
+                              ),
                       ),
                     ),
                     if (_tool is! TeamScreen)
@@ -498,8 +468,10 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                         onPressed: _loading ? null : _load,
                         icon: Icon(Icons.refresh_rounded,
                             size: 21,
-                            color: _section == 'home' && _tool == null
-                                ? plpInk
+                            color: palette.editorial || homeBare
+                                ? palette.editorial
+                                    ? palette.ink
+                                    : plpInk
                                 : null),
                       ),
                   ],
@@ -654,8 +626,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
         Row(children: [
           Expanded(
               child: Text(coreText(client['display_name'], 'Enterprise client'),
-                  style: TextStyle(
-                      color: _toneInk(context), fontWeight: FontWeight.w700, fontSize: 17))),
+                  style: _palette(context).recordTitle)),
           const SizedBox(width: 8),
           _StatePill(client['lifecycle_state']),
         ]),
@@ -2815,15 +2786,30 @@ class _Panel extends StatelessWidget {
   const _Panel({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
+  Widget build(BuildContext context) {
+    final palette = _palette(context);
+    if (palette.editorial) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 2),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-            color: _toneSurface(context),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _toneLine(context))),
+          border: Border(top: BorderSide(color: palette.line)),
+        ),
         child: child,
       );
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: palette.paper,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.line),
+      ),
+      child: child,
+    );
+  }
 }
 
 class _Heading extends StatelessWidget {
@@ -2836,9 +2822,7 @@ class _Heading extends StatelessWidget {
         padding: const EdgeInsets.only(top: 22, bottom: 9),
         child: Row(children: [
           Expanded(
-              child: Text(title,
-                  style: TextStyle(
-                      color: _toneInk(context), fontSize: 16, fontWeight: FontWeight.w700))),
+              child: Text(title, style: _palette(context).sectionTitle)),
           if (action != null)
             TextButton(
                 onPressed: onAction,

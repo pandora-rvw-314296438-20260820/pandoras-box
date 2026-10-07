@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/widgets/pandora_editorial_scope.dart';
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
 import '../simple/pandora_v2_ui.dart';
@@ -26,7 +27,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _intro(),
+            _intro(context),
             const SizedBox(height: 16),
             LayoutBuilder(
               builder: (context, constraints) {
@@ -54,23 +55,23 @@ class EnterpriseVisionScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 20),
-            _capabilities(),
+            _capabilities(context),
             const SizedBox(height: 20),
-            _architecture(),
+            _architecture(context),
           ],
         ),
       );
 
-  Widget _intro() => PandoraSurface(
+  Widget _intro(BuildContext context) => PandoraSurface(
         title: 'Live Vision Feed',
         subtitle: 'Kabukicho · Shinjuku, Tokyo',
         leading: const Icon(Icons.videocam_rounded),
-        child: const Text(
+        child:  Text(
           'A live Kabukicho street camera provides continuous pedestrian and vehicle '
           'activity inside Pandora Enterprise. Automated analysis is '
           'not connected to this public source.',
           style: TextStyle(
-            color: PandoraV2Colors.muted,
+            color: pandoraOwnerColor(context, PandoraV2Colors.muted),
             height: 1.45,
           ),
         ),
@@ -139,11 +140,11 @@ class EnterpriseVisionScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+             Text(
               'Source: CamStreamer · Shinjuku Kabukicho 24/7 live street camera. '
               '',
               style: TextStyle(
-                color: PandoraV2Colors.muted,
+                color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                 fontSize: 12,
                 height: 1.4,
               ),
@@ -169,7 +170,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
         title: 'Live feed status',
         subtitle: 'Current live source and analysis state',
         leading: const Icon(Icons.verified_user_outlined),
-        child: const Column(
+        child:  Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _VisionStatusRow(
@@ -209,7 +210,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
               'enable governed detection, search, timelines and incident review '
               'under that customer’s configured policy.',
               style: TextStyle(
-                color: PandoraV2Colors.muted,
+                color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                 fontSize: 12.5,
                 height: 1.45,
               ),
@@ -218,7 +219,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
         ),
       );
 
-  Widget _capabilities() => PandoraSurface(
+  Widget _capabilities(BuildContext context) => PandoraSurface(
         title: 'What Vision Intelligence adds',
         subtitle: 'Available for enterprise-owned or otherwise authorized cameras',
         leading: const Icon(Icons.visibility_outlined),
@@ -285,11 +286,11 @@ class EnterpriseVisionScreen extends StatelessWidget {
         ),
       );
 
-  Widget _architecture() => PandoraSurface(
+  Widget _architecture(BuildContext context) => PandoraSurface(
         title: 'Enterprise camera path',
         subtitle: 'Live Kabukicho feed now · governed customer ingest next',
         leading: const Icon(Icons.account_tree_outlined),
-        child: const Wrap(
+        child:  Wrap(
           spacing: 8,
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -301,7 +302,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
             Icon(
               Icons.arrow_forward_rounded,
               size: 18,
-              color: PandoraV2Colors.muted,
+              color: pandoraOwnerColor(context, PandoraV2Colors.muted),
             ),
             _VisionPathChip(
               icon: Icons.memory_rounded,
@@ -310,7 +311,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
             Icon(
               Icons.arrow_forward_rounded,
               size: 18,
-              color: PandoraV2Colors.muted,
+              color: pandoraOwnerColor(context, PandoraV2Colors.muted),
             ),
             _VisionPathChip(
               icon: Icons.visibility_rounded,
@@ -319,7 +320,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
             Icon(
               Icons.arrow_forward_rounded,
               size: 18,
-              color: PandoraV2Colors.muted,
+              color: pandoraOwnerColor(context, PandoraV2Colors.muted),
             ),
             _VisionPathChip(
               icon: Icons.auto_awesome_rounded,
@@ -345,7 +346,7 @@ class _VisionStatusRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 19, color: PandoraV2Colors.ink),
+          Icon(icon, size: 19, color: pandoraOwnerColor(context, PandoraV2Colors.ink)),
           const SizedBox(width: 9),
           Expanded(
             child: Column(
@@ -353,8 +354,8 @@ class _VisionStatusRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: PandoraV2Colors.muted,
+                  style:  TextStyle(
+                    color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                     fontSize: 11.5,
                   ),
                 ),
@@ -391,9 +392,9 @@ class _VisionCapabilityCard extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 146),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: PandoraV2Colors.soft,
+          color: pandoraOwnerColor(context, PandoraV2Colors.soft),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: PandoraV2Colors.muted),
+          border: Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.muted)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,8 +411,8 @@ class _VisionCapabilityCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               capability.description,
-              style: const TextStyle(
-                color: PandoraV2Colors.muted,
+              style:  TextStyle(
+                color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                 fontSize: 12.5,
                 height: 1.4,
               ),
@@ -435,9 +436,9 @@ class _VisionPathChip extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 44),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: PandoraV2Colors.soft,
+          color: pandoraOwnerColor(context, PandoraV2Colors.soft),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: PandoraV2Colors.muted),
+          border: Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.muted)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
