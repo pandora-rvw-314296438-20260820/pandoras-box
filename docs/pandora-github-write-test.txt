@@ -1,0 +1,1 @@
+Vault-backed GitHub transport verification. This file is safe to remove after verification.
