@@ -38,7 +38,7 @@ const CONNECT_BRIDGE_MAX_RESPONSE_BYTES = 64 * 1024;
 
 const CORS_BASE_HEADERS = {
   "access-control-allow-headers":
-    "authorization, apikey, content-type, idempotency-key, x-client-info, x-organization-id",
+    "authorization, apikey, content-type, idempotency-key, x-client-info, x-organization-id, x-pandora-billing-environment",
   "access-control-allow-methods": "GET, POST, OPTIONS",
   "access-control-max-age": "86400",
   "vary": "Origin",
@@ -3268,11 +3268,39 @@ Deno.serve(async (req: Request) => {
     return reject(405, "METHOD_NOT_ALLOWED", "That action is not available.");
   }
 
+  const rawUrl = new URL(req.url);
+  if (rawUrl.pathname.endsWith("/billing/paypal/webhook")) {
+    if (req.method !== "POST") return new Response("Method Not Allowed", {status:405});
+    try { return await billingWebhook(req); }
+    catch (error) {
+      console.error(JSON.stringify({requestId,code:error instanceof Error?error.message:"PAYPAL_WEBHOOK_FAILED"}));
+      return new Response("Webhook processing failed",{status:500});
+    }
+  }
+
   try {
     const context = await authenticate(req);
     const url = new URL(req.url);
     const route = normalizeOwnerRoute(url.pathname);
     await enforceRateLimit(context, req.method);
+
+
+    if (route.startsWith("/billing/paypal/")) {
+      // Billing always acts on an explicitly selected organization; never on
+      // an implicit single-membership fallback.
+      if (!req.headers.get("x-organization-id")?.trim()) throw new Error("BILLING_ORGANIZATION_REQUIRED");
+      const billingEnv = await billingEnvironment(req, context);
+      if (route === "/billing/paypal/health" && req.method === "GET") return send(await billingHealth(billingEnv));
+      if (route === "/billing/paypal/bootstrap" && req.method === "POST") {
+        billingAal2(context);
+        return send({environment:billingEnv,mode:billingEnv==="sandbox"?"sandbox":(await billingCfg()).mode,catalog:await billingEnsureCatalog(billingEnv),webhook:billingEnv==="live"?await billingEnsureWebhook():null});
+      }
+      if (route === "/billing/paypal/status" && req.method === "GET") return send(await billingStatus(billingEnv,context));
+      if (route === "/billing/paypal/checkout" && req.method === "POST") return send(await billingStart(billingEnv,context,await bodyJson(req)));
+      if (route === "/billing/paypal/cancel" && req.method === "POST") return send(await billingCancel(billingEnv,context,await bodyJson(req)));
+      if (route === "/billing/paypal/reconcile" && req.method === "POST") return send(await billingReconcile(billingEnv,context));
+      if (route === "/billing/paypal/change-plan" && req.method === "POST") return send(await billingChangePlan(billingEnv,context,await bodyJson(req)));
+    }
 
     if (req.method === "GET" && route === "/home") {
       return send(await home(context));
@@ -3573,6 +3601,11 @@ Deno.serve(async (req: Request) => {
     ) {
       return reject(400, code, "Please check that information and try again.");
     }
+    if (Object.hasOwn(BILLING_ERROR_RESPONSES, code)) {
+      const [status, plainMessage] = BILLING_ERROR_RESPONSES[code];
+      if (status >= 500) console.error(JSON.stringify({ requestId, code }));
+      return reject(status, code, plainMessage);
+    }
     if (code === "WORKER_PLAN_NOT_FOUND") {
       return reject(404, code, "That exact worker plan was not found.");
     }
@@ -3678,3 +3711,660 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// Pandora PayPal billing.
+//
+// Credentials are read server-side from Supabase Vault through the
+// service-role-only `pandora_paypal_secret` accessor; nothing in this block
+// returns a credential, PayPal token or Vault value to the caller.
+//
+// Environments:
+// * live (default, unchanged): `paypal_client_id` / `paypal_client_secret`,
+//   base URL chosen by the `paypal.mode` provider config (currently `live`,
+//   https://api-m.paypal.com). Live state stays in the original tables.
+// * sandbox (explicit only): selected per request with the
+//   `x-pandora-billing-environment: sandbox` header, and ONLY when the
+//   caller's organization is listed in the server-side provider config
+//   `paypal.sandbox_organization_ids`. Owner/admin membership is already
+//   enforced by authenticate(). Sandbox always uses
+//   https://api-m.sandbox.paypal.com with the `*_sandbox` Vault secrets and
+//   keeps every record in separate `pandora_paypal_sandbox_*` tables, so a
+//   sandbox subscription can never surface as live provider state.
+// ---------------------------------------------------------------------------
+type BillingEnv = "live" | "sandbox";
+const BILLING_PLAN_CODES = ["launch", "professional"];
+const BILLING_SECRET_NAMES: Record<BillingEnv, { id: string; secret: string; webhook: string }> = {
+  live: { id: "paypal_client_id", secret: "paypal_client_secret", webhook: "paypal_webhook_id" },
+  sandbox: { id: "paypal_client_id_sandbox", secret: "paypal_client_secret_sandbox", webhook: "paypal_webhook_id_sandbox" },
+};
+const BILLING_TABLES: Record<BillingEnv, { sessions: string; changes: string; subscriptions: string }> = {
+  live: {
+    sessions: "pandora_paypal_billing_sessions",
+    changes: "pandora_paypal_plan_change_sessions",
+    subscriptions: "pandora_customer_subscriptions",
+  },
+  sandbox: {
+    sessions: "pandora_paypal_sandbox_billing_sessions",
+    changes: "pandora_paypal_sandbox_plan_change_sessions",
+    subscriptions: "pandora_paypal_sandbox_subscriptions",
+  },
+};
+const BILLING_ERROR_RESPONSES: Record<string, [number, string]> = {
+  BILLING_ORGANIZATION_REQUIRED: [400, "Choose the organization whose billing you want to manage."],
+  BILLING_ENVIRONMENT_INVALID: [400, "That billing environment is not available."],
+  BILLING_SANDBOX_NOT_ALLOWED: [403, "PayPal sandbox billing is not enabled for this organization."],
+  PLAN_REQUIRED: [400, "Choose a plan first."],
+  INVALID_BILLING_IDEMPOTENCY_KEY: [400, "Please check that information and try again."],
+  PLAN_NOT_FOUND: [400, "That plan is not available."],
+  PLAN_REQUIRES_CONTRACT: [400, "That plan is arranged by contract, not through PayPal."],
+  PLAN_NOT_PAYPAL_ELIGIBLE: [400, "That plan cannot be billed through PayPal."],
+  RETURN_URL_INVALID: [400, "The PayPal return address is not valid."],
+  RETURN_URL_NOT_ALLOWED: [400, "The PayPal return address is not allowed."],
+  BILLING_ACCOUNT_REQUIRED: [409, "This organization does not have a Pandora billing account yet."],
+  ACTIVE_SUBSCRIPTION_EXISTS: [409, "This organization already has an active subscription. Change the plan instead."],
+  SUBSCRIPTION_NOT_FOUND: [409, "No PayPal subscription is linked to this organization yet."],
+  PROVIDER_SUBSCRIPTION_NOT_LINKED: [409, "No PayPal subscription is linked to this organization yet."],
+  PAYPAL_PLAN_CHANGE_NOT_ALLOWED: [409, "PayPal does not allow that plan change for this subscription."],
+  PAYPAL_PLAN_SAME: [409, "The subscription is already on that plan."],
+  PAYPAL_PLAN_MISMATCH: [409, "PayPal reports a plan Pandora does not recognise. Billing needs review."],
+  PAYPAL_PROVIDER_MISMATCH: [409, "PayPal returned a subscription that does not match this checkout. Billing needs review."],
+  PAYPAL_NOT_CONFIGURED: [503, "PayPal is not configured for this environment."],
+  PAYPAL_SECRET_ACCESS_UNAVAILABLE: [503, "PayPal is unavailable right now."],
+  PAYPAL_AUTH_FAILED: [503, "PayPal is unavailable right now. Pandora could not authenticate with PayPal."],
+  PAYPAL_PLAN_NOT_READY: [503, "The PayPal plan catalog is not ready yet."],
+  PAYPAL_PRODUCT_CREATE_FAILED: [502, "PayPal could not prepare the plan catalog."],
+  PAYPAL_PLAN_CREATE_FAILED: [502, "PayPal could not prepare the plan catalog."],
+  PLAN_BINDING_WRITE_FAILED: [503, "Pandora could not record the PayPal plan catalog."],
+  PAYPAL_WEBHOOK_CREATE_FAILED: [502, "PayPal could not register billing notifications."],
+  PAYPAL_WEBHOOK_SECRET_STORE_FAILED: [503, "Pandora could not record the PayPal notification setup."],
+  CHECKOUT_SESSION_WRITE_FAILED: [503, "Pandora could not start checkout. Nothing was sent to PayPal."],
+  PAYPAL_SUBSCRIPTION_CREATE_FAILED: [502, "PayPal could not start checkout."],
+  PAYPAL_APPROVAL_URL_MISSING: [502, "PayPal did not return an approval link."],
+  PAYPAL_PLAN_CHANGE_APPROVAL_MISSING: [502, "PayPal did not return an approval link for the plan change."],
+  PAYPAL_PLAN_CHANGE_FAILED: [502, "PayPal could not change the plan."],
+  BILLING_PLAN_CHANGE_SESSION_READ_FAILED: [503, "Pandora could not read the plan change state."],
+  BILLING_PLAN_CHANGE_SESSION_WRITE_FAILED: [503, "Pandora could not record the plan change. Nothing was sent to PayPal."],
+  PAYPAL_SUBSCRIPTION_READ_FAILED: [502, "PayPal could not confirm the subscription state."],
+  SUBSCRIPTION_STATE_WRITE_FAILED: [503, "Pandora could not record the PayPal subscription state."],
+  PAYPAL_CANCEL_FAILED: [502, "PayPal could not cancel the subscription."],
+  PAYPAL_PATH_NOT_ALLOWED: [503, "Pandora blocked an unexpected PayPal request."],
+  BILLING_STATE_READ_FAILED: [503, "Pandora could not read the billing state."],
+};
+
+async function billingSecret(name: string) {
+  const client = createOperationalAdminClient();
+  const result = await client.rpc("pandora_paypal_secret", { p_name: name });
+  if (result.error) throw new Error("PAYPAL_SECRET_ACCESS_UNAVAILABLE");
+  return typeof result.data === "string" ? result.data : "";
+}
+async function billingCfg() {
+  const client = createOperationalAdminClient();
+  const result = await client.from("pandora_runtime_provider_configs").select("config_key,config_value,active").eq("provider","paypal").eq("active",true);
+  const map = new Map(((result.data || []) as JsonRecord[]).map((x)=>[String(x.config_key),String(x.config_value || "")]));
+  const list = (key: string) => new Set((map.get(key) || "").split(",").map((x)=>x.trim()).filter(Boolean));
+  return {
+    mode: map.get("mode") === "live" ? "live" : "sandbox",
+    origins: list("allowed_origins"),
+    sandboxOrganizations: list("sandbox_organization_ids"),
+    webhookUrl: map.get("webhook_url") || (SUPABASE_URL + "/functions/v1/pandora-owner-api/billing/paypal/webhook")
+  };
+}
+async function billingEnvironment(req: Request, context: UserContext): Promise<BillingEnv> {
+  const requested = (req.headers.get("x-pandora-billing-environment") || "").trim().toLowerCase();
+  if (!requested || requested === "live") return "live";
+  if (requested !== "sandbox") throw new Error("BILLING_ENVIRONMENT_INVALID");
+  const cfg = await billingCfg();
+  if (!cfg.sandboxOrganizations.has(context.organizationId)) throw new Error("BILLING_SANDBOX_NOT_ALLOWED");
+  return "sandbox";
+}
+async function billingBase(env: BillingEnv) {
+  if (env === "sandbox") return "https://api-m.sandbox.paypal.com";
+  const cfg = await billingCfg();
+  return cfg.mode === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+}
+async function billingPaypalToken(env: BillingEnv) {
+  const names = BILLING_SECRET_NAMES[env];
+  const clientId = await billingSecret(names.id);
+  const clientSecret = await billingSecret(names.secret);
+  if (!clientId || !clientSecret) throw new Error("PAYPAL_NOT_CONFIGURED");
+  const base = await billingBase(env);
+  const response = await fetch(base + "/v1/oauth2/token", {
+    method:"POST",
+    headers:{authorization:"Basic " + btoa(clientId + ":" + clientSecret),"content-type":"application/x-www-form-urlencoded",accept:"application/json","user-agent":"Pandora-Billing/1.0"},
+    body:"grant_type=client_credentials",
+    signal: AbortSignal.timeout(15000),
+  }).catch(()=>{ throw new Error("PAYPAL_AUTH_FAILED"); });
+  const body = asRecord(await response.json().catch(()=>({})));
+  if (!response.ok || typeof body.access_token !== "string") throw new Error("PAYPAL_AUTH_FAILED");
+  return {token:String(body.access_token),base};
+}
+function billingAllowedPath(path: string) {
+  const patterns = [
+    /^\/v1\/catalogs\/products(\?.*)?$/,
+    /^\/v1\/catalogs\/products\/[A-Za-z0-9_-]+$/,
+    /^\/v1\/billing\/plans(\?.*)?$/,
+    /^\/v1\/billing\/plans\/[A-Za-z0-9_-]+$/,
+    /^\/v1\/billing\/subscriptions$/,
+    /^\/v1\/billing\/subscriptions\/[A-Za-z0-9_-]+$/,
+    /^\/v1\/billing\/subscriptions\/[A-Za-z0-9_-]+\/cancel$/,
+    /^\/v1\/billing\/subscriptions\/[A-Za-z0-9_-]+\/revise$/,
+    /^\/v1\/notifications\/webhooks(\?.*)?$/,
+    /^\/v1\/notifications\/verify-webhook-signature$/
+  ];
+  if (!path.startsWith("/v1/") || path.includes("..") || /[\r\n]/.test(path) || !patterns.some((x)=>x.test(path))) throw new Error("PAYPAL_PATH_NOT_ALLOWED");
+}
+async function billingPaypalRequest(env: BillingEnv, path: string, init: RequestInit = {}) {
+  billingAllowedPath(path);
+  const auth = await billingPaypalToken(env);
+  const headers = new Headers(init.headers || {});
+  headers.set("authorization","Bearer " + auth.token);
+  headers.set("accept","application/json");
+  headers.set("content-type","application/json");
+  headers.set("user-agent","Pandora-Billing/1.0");
+  let response: Response;
+  try {
+    response = await fetch(auth.base + path,{...init,headers,signal: AbortSignal.timeout(20000)});
+  } catch {
+    return {status:0,ok:false,body:{name:"PAYPAL_UNREACHABLE"} as JsonRecord};
+  }
+  const text = await response.text();
+  let body: JsonRecord = {};
+  try { body = text ? asRecord(JSON.parse(text)) : {}; } catch { body = {name:"UNREADABLE_RESPONSE"}; }
+  return {status:response.status,ok:response.ok,body};
+}
+function billingApproveLink(body: JsonRecord) {
+  const links = Array.isArray(body.links) ? body.links as unknown[] : [];
+  const found = links.map(asRecord).find((x)=>String(x.rel||"").toLowerCase()==="approve");
+  const href = found ? textValue(found.href) : "";
+  if (!href) return "";
+  try {
+    const url = new URL(href);
+    if (url.protocol !== "https:" || !/(^|\.)paypal\.com$/.test(url.hostname)) return "";
+    return url.toString();
+  } catch { return ""; }
+}
+function billingNextBilling(body: JsonRecord) {
+  return textValue(asRecord(body.billing_info).next_billing_time);
+}
+function billingMoney(micros: number) { return (micros/1000000).toFixed(2); }
+function billingUrl(value: string,origins: Set<string>) {
+  let parsed: URL;
+  try { parsed=new URL(value); } catch { throw new Error("RETURN_URL_INVALID"); }
+  if(parsed.protocol!=="https:") throw new Error("RETURN_URL_INVALID");
+  if(origins.size && !origins.has(parsed.origin)) throw new Error("RETURN_URL_NOT_ALLOWED");
+  return parsed.toString();
+}
+async function billingPlan(code:string) {
+  const client=createOperationalAdminClient();
+  const result=await client.from("pandora_service_plans").select("id,code,name,state,currency,monthly_fee_micros,paypal_product_id,paypal_plan_id").eq("code",code).eq("state","active").maybeSingle();
+  if(result.error || !result.data) throw new Error("PLAN_NOT_FOUND");
+  const p=result.data as JsonRecord;
+  if(String(p.currency)!=="USD" || p.monthly_fee_micros==null) throw new Error("PLAN_NOT_PAYPAL_ELIGIBLE");
+  if(!BILLING_PLAN_CODES.includes(String(p.code))) throw new Error("PLAN_REQUIRES_CONTRACT");
+  return p;
+}
+async function billingCatalog() {
+  const client=createOperationalAdminClient();
+  const result=await client.from("pandora_service_plans").select("id,code,name,state,currency,monthly_fee_micros,paypal_plan_id").in("code",BILLING_PLAN_CODES).eq("state","active");
+  if(result.error) throw new Error("BILLING_STATE_READ_FAILED");
+  return ((result.data||[]) as JsonRecord[])
+    .filter((p)=>String(p.currency)==="USD" && p.monthly_fee_micros!=null)
+    .sort((a,b)=>Number(a.monthly_fee_micros)-Number(b.monthly_fee_micros));
+}
+// Sandbox plan bindings live in their own table so the live catalog columns on
+// pandora_service_plans are never touched by sandbox bootstrap.
+async function billingBinding(env: BillingEnv, p: JsonRecord) {
+  if(env==="live") return {productId:textValue(p.paypal_product_id),planId:textValue(p.paypal_plan_id)};
+  const client=createOperationalAdminClient();
+  const r=await client.from("pandora_paypal_catalog_bindings").select("paypal_product_id,paypal_plan_id").eq("environment",env).eq("plan_code",String(p.code)).maybeSingle();
+  if(r.error) throw new Error("BILLING_STATE_READ_FAILED");
+  const row=asRecord(r.data);
+  return {productId:textValue(row.paypal_product_id),planId:textValue(row.paypal_plan_id)};
+}
+async function billingSaveBinding(env: BillingEnv, p: JsonRecord, patch: {productId?: string; planId?: string}) {
+  const client=createOperationalAdminClient();
+  const now=new Date().toISOString();
+  if(env==="live"){
+    const w=await client.from("pandora_service_plans").update({
+      ...(patch.productId?{paypal_product_id:patch.productId}:{}),
+      ...(patch.planId?{paypal_plan_id:patch.planId}:{}),
+      updated_at:now
+    }).eq("id",String(p.id));
+    if(w.error) throw new Error("PLAN_BINDING_WRITE_FAILED");
+    return;
+  }
+  const current=await billingBinding(env,p);
+  const w=await client.from("pandora_paypal_catalog_bindings").upsert({
+    environment:env,plan_code:String(p.code),
+    paypal_product_id:patch.productId||current.productId||null,
+    paypal_plan_id:patch.planId||current.planId||null,
+    updated_at:now
+  },{onConflict:"environment,plan_code"});
+  if(w.error) throw new Error("PLAN_BINDING_WRITE_FAILED");
+}
+async function billingPlanByPaypalPlanId(env: BillingEnv, paypalPlanId:string) {
+  const client=createOperationalAdminClient();
+  if(!paypalPlanId) throw new Error("PAYPAL_PLAN_MISMATCH");
+  if(env==="live"){
+    const result=await client.from("pandora_service_plans").select("id,code,name,state,currency,monthly_fee_micros,paypal_product_id,paypal_plan_id").eq("paypal_plan_id",paypalPlanId).eq("state","active").maybeSingle();
+    if(result.error || !result.data) throw new Error("PAYPAL_PLAN_MISMATCH");
+    return result.data as JsonRecord;
+  }
+  const b=await client.from("pandora_paypal_catalog_bindings").select("plan_code,paypal_product_id").eq("environment",env).eq("paypal_plan_id",paypalPlanId).maybeSingle();
+  if(b.error || !b.data) throw new Error("PAYPAL_PLAN_MISMATCH");
+  const p=await billingPlan(String(asRecord(b.data).plan_code));
+  return {...p,paypal_product_id:textValue(asRecord(b.data).paypal_product_id),paypal_plan_id:paypalPlanId};
+}
+// Live keeps its existing per-plan PayPal products. Sandbox uses one product
+// with one plan per tier, which is what PayPal requires for /revise plan
+// changes. Bootstrap is idempotent: bound ids are reused, products are created
+// with fixed ids (409 => reuse), and plans are matched by name+price first.
+function billingProductId(env: BillingEnv, code: string) {
+  if(env==="sandbox") return "PANDORABOXSERVICESBX1";
+  return code==="launch"?"PANDORALAUNCHV1":"PANDORAPROFESSIONALV1";
+}
+async function billingEnsureCatalog(env: BillingEnv) {
+  const result: JsonRecord[]=[];
+  for(const code of BILLING_PLAN_CODES) {
+    const p=await billingPlan(code);
+    const bound=await billingBinding(env,p);
+    let productId=bound.productId;
+    let planId=bound.planId;
+    const created: string[]=[];
+    if(!productId){
+      const localId=billingProductId(env,code);
+      const existing=await billingPaypalRequest(env,"/v1/catalogs/products/"+localId);
+      if(existing.ok && String(existing.body.id||"")===localId) productId=localId;
+      else {
+        const made=await billingPaypalRequest(env,"/v1/catalogs/products",{method:"POST",headers:{"paypal-request-id":"pandora-catalog-"+env+"-"+localId},body:JSON.stringify({
+          id:localId,name:env==="sandbox"?"Pandora's Box (sandbox)":"Pandora's Box "+String(p.name),
+          description:"Pandora's Box monthly software service",
+          type:"SERVICE",category:"SOFTWARE",home_url:"https://pandoras-box-system.vercel.app/"
+        })});
+        if(made.ok && typeof made.body.id==="string") { productId=String(made.body.id); created.push("product"); }
+        else if(made.status===409) productId=localId;
+        else throw new Error("PAYPAL_PRODUCT_CREATE_FAILED");
+      }
+      await billingSaveBinding(env,p,{productId});
+    }
+    if(!planId){
+      const wantedName="Pandora's Box "+String(p.name)+" Monthly";
+      const wantedPrice=billingMoney(Number(p.monthly_fee_micros));
+      const listed=await billingPaypalRequest(env,"/v1/billing/plans?page=1&page_size=20&product_id="+encodeURIComponent(productId));
+      if(listed.ok){
+        const plans=(Array.isArray(listed.body.plans)?listed.body.plans as unknown[]:[]).map(asRecord);
+        for(const candidate of plans){
+          if(String(candidate.name||"")!==wantedName || String(candidate.status||"")!=="ACTIVE") continue;
+          const detail=await billingPaypalRequest(env,"/v1/billing/plans/"+String(candidate.id||""));
+          const cycles=Array.isArray(detail.body.billing_cycles)?detail.body.billing_cycles as unknown[]:[];
+          const price=asRecord(asRecord(asRecord(cycles[0]).pricing_scheme).fixed_price);
+          if(detail.ok && Number(price.value)===Number(wantedPrice) && String(price.currency_code)==="USD"){ planId=String(candidate.id); break; }
+        }
+      }
+      if(!planId){
+        const made=await billingPaypalRequest(env,"/v1/billing/plans",{method:"POST",headers:{"paypal-request-id":"pandora-plan-"+env+"-"+code+"-"+productId},body:JSON.stringify({
+          product_id:productId,name:wantedName,
+          description:"Pandora's Box "+String(p.name)+" plan - monthly recurring billing",status:"ACTIVE",
+          billing_cycles:[{frequency:{interval_unit:"MONTH",interval_count:1},tenure_type:"REGULAR",sequence:1,total_cycles:0,
+            pricing_scheme:{fixed_price:{value:wantedPrice,currency_code:"USD"}}}],
+          payment_preferences:{auto_bill_outstanding:true,setup_fee_failure_action:"CONTINUE",payment_failure_threshold:3}
+        })});
+        if(!made.ok || typeof made.body.id!=="string") throw new Error("PAYPAL_PLAN_CREATE_FAILED");
+        planId=String(made.body.id); created.push("plan");
+      }
+      await billingSaveBinding(env,p,{planId});
+    }
+    result.push({code,productId,paypalPlanId:planId,monthly:billingMoney(Number(p.monthly_fee_micros)),currency:"USD",created});
+  }
+  return result;
+}
+async function billingEnsureWebhook() {
+  const client=createOperationalAdminClient();
+  const c=await billingCfg();
+  let webhookId=await billingSecret("paypal_webhook_id");
+  if(!webhookId){
+    const list=await billingPaypalRequest("live","/v1/notifications/webhooks?page=1&page_size=20");
+    if(list.ok){
+      const found=(Array.isArray(list.body.webhooks)?list.body.webhooks as unknown[]:[]).map(asRecord).find((x)=>String(x.url||"")===c.webhookUrl);
+      if(found?.id) webhookId=String(found.id);
+    }
+  }
+  if(!webhookId){
+    const events=["BILLING.SUBSCRIPTION.CREATED","BILLING.SUBSCRIPTION.ACTIVATED","BILLING.SUBSCRIPTION.UPDATED","BILLING.SUBSCRIPTION.SUSPENDED","BILLING.SUBSCRIPTION.CANCELLED","BILLING.SUBSCRIPTION.EXPIRED","BILLING.SUBSCRIPTION.PAYMENT.FAILED","PAYMENT.SALE.COMPLETED","PAYMENT.SALE.REFUNDED","PAYMENT.SALE.REVERSED"];
+    const created=await billingPaypalRequest("live","/v1/notifications/webhooks",{method:"POST",headers:{"paypal-request-id":"pandora-webhook-registration-v1"},body:JSON.stringify({url:c.webhookUrl,event_types:events.map((name)=>({name}))})});
+    if(!created.ok || typeof created.body.id!=="string") throw new Error("PAYPAL_WEBHOOK_CREATE_FAILED");
+    webhookId=String(created.body.id);
+    const save=await client.rpc("pandora_paypal_store_secret",{p_name:"paypal_webhook_id",p_secret:webhookId});
+    if(save.error) throw new Error("PAYPAL_WEBHOOK_SECRET_STORE_FAILED");
+  }
+  return {webhookIdPresent:Boolean(webhookId),webhookUrl:c.webhookUrl};
+}
+function billingAal2(context: UserContext) { if(context.aal!=="aal2") throw new Error("AAL2_REQUIRED"); }
+function billingSubscriptionRow(env: BillingEnv, context: UserContext, fields: JsonRecord, active: boolean, admissionStartedAt: unknown) {
+  const row: JsonRecord={organization_id:context.organizationId,...fields,updated_at:new Date().toISOString()};
+  if(env==="live"){
+    row.request_admission_enabled=active;
+    row.request_admission_started_at=active?(admissionStartedAt||new Date().toISOString()):null;
+    row.updated_by=context.userId;
+  } else {
+    row.environment="sandbox";
+    row.updated_by=context.userId;
+  }
+  return row;
+}
+async function billingStart(env: BillingEnv, context: UserContext, body: JsonRecord) {
+  billingAal2(context);
+  const t=BILLING_TABLES[env];
+  const c=await billingCfg();
+  const code=String(body.planCode||"").trim().toLowerCase();
+  if(!code) throw new Error("PLAN_REQUIRED");
+  const returnUrl=billingUrl(String(body.returnUrl||""),c.origins.size?c.origins:ALLOWED_ORIGINS);
+  const cancelUrl=billingUrl(String(body.cancelUrl||""),c.origins.size?c.origins:ALLOWED_ORIGINS);
+  const p=await billingPlan(code);
+  const client=createOperationalAdminClient();
+  if(env==="live"){
+    // Live checkout is limited to organizations with a Pandora billing account.
+    const account=await client.from("pandora_enterprise_accounts").select("organization_id").eq("organization_id",context.organizationId).maybeSingle();
+    if(account.error || !account.data) throw new Error("BILLING_ACCOUNT_REQUIRED");
+  }
+  const current=await client.from(t.subscriptions).select("state").eq("organization_id",context.organizationId).maybeSingle();
+  if(current.data && ["trial","active","past_due","suspended"].includes(String(asRecord(current.data).state))) throw new Error("ACTIVE_SUBSCRIPTION_EXISTS");
+  const key=String(body.idempotencyKey||"").trim();
+  if(!/^[A-Za-z0-9._:-]{8,128}$/.test(key)) throw new Error("INVALID_IDEMPOTENCY_KEY");
+  const prior=await client.from(t.sessions).select("id,approval_url,status,expires_at,plan_code,paypal_subscription_id").eq("organization_id",context.organizationId).eq("idempotency_key",key).maybeSingle();
+  const priorRow=asRecord(prior.data);
+  if(priorRow.approval_url && new Date(String(priorRow.expires_at)).getTime()>Date.now()) return {environment:env,checkoutId:priorRow.id,subscriptionId:priorRow.paypal_subscription_id,approvalUrl:priorRow.approval_url,status:priorRow.status,planCode:priorRow.plan_code,replayed:true};
+  let paypalPlanId=(await billingBinding(env,p)).planId;
+  if(!paypalPlanId){await billingEnsureCatalog(env);paypalPlanId=(await billingBinding(env,p)).planId;}
+  if(!paypalPlanId) throw new Error("PAYPAL_PLAN_NOT_READY");
+  const session=await client.from(t.sessions).upsert({
+    organization_id:context.organizationId,requested_by:context.userId,plan_id:p.id,plan_code:p.code,idempotency_key:key,
+    paypal_plan_id:paypalPlanId,status:"created",return_url:returnUrl,cancel_url:cancelUrl,updated_at:new Date().toISOString()
+  },{onConflict:"organization_id,idempotency_key"}).select("id").single();
+  if(session.error || !session.data) throw new Error("CHECKOUT_SESSION_WRITE_FAILED");
+  const sessionId=String(asRecord(session.data).id);
+  const created=await billingPaypalRequest(env,"/v1/billing/subscriptions",{method:"POST",headers:{"paypal-request-id":"pandora-subscription-"+sessionId},body:JSON.stringify({
+    plan_id:paypalPlanId,custom_id:sessionId,
+    application_context:{brand_name:"Pandora's Box",locale:"en-US",shipping_preference:"NO_SHIPPING",user_action:"SUBSCRIBE_NOW",return_url:returnUrl,cancel_url:cancelUrl}
+  })});
+  if(!created.ok || typeof created.body.id!=="string"){
+    await client.from(t.sessions).update({status:"failed",updated_at:new Date().toISOString()}).eq("id",sessionId);
+    throw new Error("PAYPAL_SUBSCRIPTION_CREATE_FAILED");
+  }
+  const subId=String(created.body.id);
+  const approval=billingApproveLink(created.body);
+  if(!approval){
+    await client.from(t.sessions).update({paypal_subscription_id:subId,status:"failed",updated_at:new Date().toISOString()}).eq("id",sessionId);
+    throw new Error("PAYPAL_APPROVAL_URL_MISSING");
+  }
+  await client.from(t.sessions).update({paypal_subscription_id:subId,approval_url:approval,status:"approval_pending",updated_at:new Date().toISOString()}).eq("id",sessionId);
+  return {environment:env,checkoutId:sessionId,subscriptionId:subId,planCode:p.code,amount:billingMoney(Number(p.monthly_fee_micros)),currency:"USD",approvalUrl:approval,status:"approval_pending"};
+}
+async function billingStatus(env: BillingEnv, context: UserContext) {
+  const t=BILLING_TABLES[env];
+  const client=createOperationalAdminClient();
+  const [s,c,pc,catalog]=await Promise.all([
+    client.from(t.subscriptions).select("plan_id,state,currency,monthly_fee_micros,starts_on,ends_on,renews_on,source_kind,provider_reference,verified_at,updated_at").eq("organization_id",context.organizationId).maybeSingle(),
+    client.from(t.sessions).select("id,plan_code,paypal_subscription_id,approval_url,status,expires_at,created_at,updated_at").eq("organization_id",context.organizationId).order("created_at",{ascending:false}).limit(1).maybeSingle(),
+    client.from(t.changes).select("id,from_plan_code,to_plan_code,approval_url,status,created_at,updated_at,completed_at").eq("organization_id",context.organizationId).order("created_at",{ascending:false}).limit(1).maybeSingle(),
+    billingCatalog(),
+  ]);
+  if(s.error || c.error || pc.error) throw new Error("BILLING_STATE_READ_FAILED");
+  const plans=catalog.map((p)=>({code:String(p.code),name:String(p.name),currency:String(p.currency),monthlyAmount:billingMoney(Number(p.monthly_fee_micros)),interval:"month"}));
+  let subscription: JsonRecord|null=s.data?{...asRecord(s.data)}:null;
+  if(subscription){
+    const plan=catalog.find((p)=>String(p.id)===String(subscription!.plan_id));
+    subscription={...subscription,plan_code:plan?String(plan.code):null,environment:env};
+  }
+  return {environment:env,plans,subscription,checkout:c.data||null,planChange:pc.data||null};
+}
+async function billingChangePlan(env: BillingEnv, context: UserContext, body: JsonRecord) {
+  billingAal2(context);
+  const t=BILLING_TABLES[env];
+  const targetCode=String(body.planCode||"").trim().toLowerCase();
+  if(!targetCode) throw new Error("PLAN_REQUIRED");
+  const key=String(body.idempotencyKey||"").trim();
+  if(!/^[A-Za-z0-9._:-]{8,128}$/.test(key)) throw new Error("INVALID_BILLING_IDEMPOTENCY_KEY");
+  const client=createOperationalAdminClient();
+  const current=await client.from(t.subscriptions).select("plan_id,state,provider_reference").eq("organization_id",context.organizationId).maybeSingle();
+  if(current.error || !current.data) throw new Error("SUBSCRIPTION_NOT_FOUND");
+  const cur=asRecord(current.data);
+  if(String(cur.state)!=="active") throw new Error("PAYPAL_PLAN_CHANGE_NOT_ALLOWED");
+  const subscriptionId=String(cur.provider_reference||"");
+  if(!subscriptionId) throw new Error("PROVIDER_SUBSCRIPTION_NOT_LINKED");
+  const target=await billingPlan(targetCode);
+  const targetBinding=await billingBinding(env,target);
+  if(!targetBinding.planId) throw new Error("PAYPAL_PLAN_NOT_READY");
+  const prior=await client.from(t.changes).select("id,approval_url,status,to_plan_code").eq("organization_id",context.organizationId).eq("idempotency_key",key).maybeSingle();
+  if(prior.error) throw new Error("BILLING_PLAN_CHANGE_SESSION_READ_FAILED");
+  const priorRow=asRecord(prior.data);
+  if(priorRow.approval_url) return {environment:env,changeId:priorRow.id,approvalUrl:priorRow.approval_url,status:priorRow.status,toPlanCode:priorRow.to_plan_code,replayed:true};
+  const currentRead=await billingPaypalRequest(env,"/v1/billing/subscriptions/"+subscriptionId);
+  if(!currentRead.ok || String(currentRead.body.id||"")!==subscriptionId) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+  if(String(currentRead.body.status||"")!=="ACTIVE") throw new Error("PAYPAL_PLAN_CHANGE_NOT_ALLOWED");
+  const currentPlan=await billingPlanByPaypalPlanId(env,String(currentRead.body.plan_id||""));
+  if(String(currentPlan.id)===String(target.id)) throw new Error("PAYPAL_PLAN_SAME");
+  const currentBinding=await billingBinding(env,currentPlan);
+  if(!currentBinding.productId || currentBinding.productId!==targetBinding.productId) throw new Error("PAYPAL_PLAN_CHANGE_NOT_ALLOWED");
+  const created=await client.from(t.changes).insert({
+    organization_id:context.organizationId,requested_by:context.userId,paypal_subscription_id:subscriptionId,
+    from_plan_id:currentPlan.id,to_plan_id:target.id,from_plan_code:currentPlan.code,to_plan_code:target.code,
+    idempotency_key:key,status:"created",updated_at:new Date().toISOString()
+  }).select("id").single();
+  if(created.error || !created.data) throw new Error("BILLING_PLAN_CHANGE_SESSION_WRITE_FAILED");
+  const changeId=String(asRecord(created.data).id);
+  const revised=await billingPaypalRequest(env,"/v1/billing/subscriptions/"+subscriptionId+"/revise",{
+    method:"POST",headers:{"paypal-request-id":"pandora-revise-"+changeId},
+    body:JSON.stringify({plan_id:targetBinding.planId})
+  });
+  if(!revised.ok) {
+    await client.from(t.changes).update({status:"failed",error_message:"PayPal revise failed",updated_at:new Date().toISOString()}).eq("id",changeId);
+    throw new Error("PAYPAL_PLAN_CHANGE_FAILED");
+  }
+  const approval=billingApproveLink(revised.body);
+  if(!approval){
+    await client.from(t.changes).update({status:"failed",error_message:"PayPal approval link missing",updated_at:new Date().toISOString()}).eq("id",changeId);
+    throw new Error("PAYPAL_PLAN_CHANGE_APPROVAL_MISSING");
+  }
+  await client.from(t.changes).update({status:"approval_pending",approval_url:approval,provider_reference:subscriptionId,updated_at:new Date().toISOString()}).eq("id",changeId);
+  return {environment:env,changeId,subscriptionId,fromPlanCode:currentPlan.code,toPlanCode:target.code,approvalUrl:approval,status:"approval_pending",effective:"after_paypal_approval"};
+}
+// Reconcile re-reads PayPal and writes only provider-confirmed state. If no
+// subscription is linked yet (approval just happened, webhook not processed),
+// it falls back to the newest checkout session and verifies custom_id.
+async function billingReconcile(env: BillingEnv, context: UserContext) {
+  billingAal2(context);
+  const t=BILLING_TABLES[env];
+  const client=createOperationalAdminClient();
+  const current=await client.from(t.subscriptions).select("state,provider_reference,request_admission_started_at,starts_on").eq("organization_id",context.organizationId).maybeSingle();
+  if(current.error) throw new Error("BILLING_STATE_READ_FAILED");
+  const cur=current.data?asRecord(current.data):null;
+  let subscriptionId=cur?String(cur.provider_reference||""):"";
+  let session: JsonRecord|null=null;
+  if(!subscriptionId || String(cur?.state)==="cancelled"){
+    const s=await client.from(t.sessions).select("id,paypal_subscription_id,status,plan_code").eq("organization_id",context.organizationId).not("paypal_subscription_id","is",null).in("status",["approval_pending","active"]).order("created_at",{ascending:false}).limit(1).maybeSingle();
+    if(s.error) throw new Error("BILLING_STATE_READ_FAILED");
+    if(s.data){ session=asRecord(s.data); subscriptionId=String(session.paypal_subscription_id); }
+  }
+  if(!subscriptionId) throw new Error(cur?"PROVIDER_SUBSCRIPTION_NOT_LINKED":"SUBSCRIPTION_NOT_FOUND");
+  const read=await billingPaypalRequest(env,"/v1/billing/subscriptions/"+subscriptionId);
+  if(!read.ok || String(read.body.id||"")!==subscriptionId) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+  if(session && String(read.body.custom_id||"")!==String(session.id)) throw new Error("PAYPAL_PROVIDER_MISMATCH");
+  const providerStatus=String(read.body.status||"");
+  const now=new Date().toISOString();
+  if(session && ["APPROVAL_PENDING","APPROVED"].includes(providerStatus)){
+    return {environment:env,verified:true,subscriptionId,state:"approval_pending",providerStatus,planCode:session.plan_code,renewsOn:null};
+  }
+  if(session && ["CANCELLED","EXPIRED"].includes(providerStatus) && !cur){
+    await client.from(t.sessions).update({status:providerStatus==="EXPIRED"?"expired":"cancelled",updated_at:now}).eq("id",String(session.id));
+    return {environment:env,verified:true,subscriptionId,state:"cancelled",providerStatus,planCode:session.plan_code,renewsOn:null};
+  }
+  const plan=await billingPlanByPaypalPlanId(env,String(read.body.plan_id||""));
+  const state=["CANCELLED","EXPIRED"].includes(providerStatus) ? "cancelled" : providerStatus==="SUSPENDED" ? "suspended" : providerStatus==="ACTIVE" ? "active" : String(cur?.state||"");
+  if(!["active","suspended","cancelled","past_due","trial"].includes(state)) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+  const next=billingNextBilling(read.body);
+  const active=state==="active";
+  const start=textValue(read.body.start_time)||textValue(read.body.create_time)||now;
+  const row=billingSubscriptionRow(env,context,{
+    plan_id:plan.id,state,currency:"USD",monthly_fee_micros:plan.monthly_fee_micros,
+    starts_on:(session||!cur?.starts_on)?start.slice(0,10):cur.starts_on,
+    ends_on:state==="cancelled"?now.slice(0,10):null,
+    renews_on:next&&state!=="cancelled"?next.slice(0,10):null,
+    source_kind:"provider_verified",provider_reference:subscriptionId,verified_at:now,
+    ...(env==="live"?{notes:"PayPal recurring subscription"}:{provider_status:providerStatus}),
+  },active,cur?.request_admission_started_at);
+  const w=await client.from(t.subscriptions).upsert(row,{onConflict:"organization_id"});
+  if(w.error) throw new Error("SUBSCRIPTION_STATE_WRITE_FAILED");
+  const sessionStatus=state==="past_due"||state==="trial"?"active":state;
+  await client.from(t.sessions).update({status:sessionStatus,updated_at:now}).eq("organization_id",context.organizationId).eq("paypal_subscription_id",subscriptionId).neq("status",sessionStatus);
+  if(active){
+    await client.from(t.changes).update({status:"completed",completed_at:now,updated_at:now})
+      .eq("organization_id",context.organizationId).eq("paypal_subscription_id",subscriptionId)
+      .eq("to_plan_id",String(plan.id)).eq("status","approval_pending");
+  }
+  return {environment:env,verified:true,subscriptionId,planCode:plan.code,state,providerStatus,requestAdmissionEnabled:env==="live"?active:false,renewsOn:next||null};
+}
+async function billingCancel(env: BillingEnv, context: UserContext, body: JsonRecord) {
+  billingAal2(context);
+  const t=BILLING_TABLES[env];
+  const client=createOperationalAdminClient();
+  const s=await client.from(t.subscriptions).select("provider_reference,state").eq("organization_id",context.organizationId).maybeSingle();
+  if(s.error||!s.data) throw new Error("SUBSCRIPTION_NOT_FOUND");
+  const row=asRecord(s.data);
+  const subId=String(row.provider_reference||"");
+  if(!subId) throw new Error("PROVIDER_SUBSCRIPTION_NOT_LINKED");
+  if(String(row.state)==="cancelled") return {environment:env,status:"cancelled",subscriptionId:subId};
+  const result=await billingPaypalRequest(env,"/v1/billing/subscriptions/"+subId+"/cancel",{method:"POST",headers:{"paypal-request-id":"pandora-cancel-"+subId},body:JSON.stringify({reason:String(body.reason||"Cancelled by Pandora owner").slice(0,127)})});
+  if(!result.ok && result.status!==204) throw new Error("PAYPAL_CANCEL_FAILED");
+  await client.from(t.sessions).update({status:"cancel_requested",updated_at:new Date().toISOString()}).eq("organization_id",context.organizationId).eq("paypal_subscription_id",subId);
+  return {environment:env,status:"cancel_requested",subscriptionId:subId};
+}
+async function billingVerifyWebhook(rawBody:string,req:Request) {
+  const webhookId=await billingSecret("paypal_webhook_id");
+  if(!webhookId) throw new Error("PAYPAL_WEBHOOK_NOT_CONFIGURED");
+  const fields={
+    transmission_id:req.headers.get("paypal-transmission-id")||"",
+    transmission_time:req.headers.get("paypal-transmission-time")||"",
+    cert_url:req.headers.get("paypal-cert-url")||"",
+    auth_algo:req.headers.get("paypal-auth-algo")||"",
+    transmission_sig:req.headers.get("paypal-transmission-sig")||""
+  };
+  if(Object.values(fields).some((x)=>!x)) throw new Error("PAYPAL_WEBHOOK_HEADERS_MISSING");
+  const result=await billingPaypalRequest("live","/v1/notifications/verify-webhook-signature",{method:"POST",body:JSON.stringify({...fields,webhook_id:webhookId,webhook_event:JSON.parse(rawBody)})});
+  if(!result.ok || String(result.body.verification_status||"")!=="SUCCESS") throw new Error("PAYPAL_WEBHOOK_VERIFICATION_FAILED");
+}
+// The webhook is registered for the live PayPal app only; it never touches
+// sandbox tables.
+async function billingWebhook(req:Request) {
+  const rawBody=await req.text();
+  if(rawBody.length>131072) return new Response("Payload Too Large",{status:413});
+  await billingVerifyWebhook(rawBody,req);
+  const event=JSON.parse(rawBody) as JsonRecord;
+  const eventId=String(event.id||"");
+  const eventType=String(event.event_type||"");
+  if(!eventId||!eventType) throw new Error("PAYPAL_WEBHOOK_EVENT_INVALID");
+  const resource=asRecord(event.resource);
+  const subId=String(resource.billing_agreement_id||resource.id||"");
+  const digest=await sha256Hex(rawBody);
+  const safePayload={id:eventId,event_type:eventType,resource:{id:resource.id||null,status:resource.status||null,plan_id:resource.plan_id||null,billing_agreement_id:resource.billing_agreement_id||null,custom_id:resource.custom_id||null,billing_info:resource.billing_info||null,amount:resource.amount||null}};
+  const client=createOperationalAdminClient();
+  const ins=await client.from("pandora_paypal_billing_webhook_events").insert({provider_event_id:eventId,event_type:eventType,resource_id:String(resource.id||"")||null,paypal_subscription_id:subId||null,payload_sha256:digest,payload:safePayload,processing_status:"received"}).select("provider_event_id").maybeSingle();
+  if(ins.error && String(ins.error.code||"")==="23505"){
+    const priorEvent=await client.from("pandora_paypal_billing_webhook_events").select("processing_status").eq("provider_event_id",eventId).maybeSingle();
+    const priorStatus=String(asRecord(priorEvent.data).processing_status||"");
+    if(priorStatus==="processed" || priorStatus==="ignored") return new Response(JSON.stringify({ok:true,duplicate:true,eventId}),{status:200,headers:{"content-type":"application/json"}});
+    await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"received",processing_error:null,processed_at:null}).eq("provider_event_id",eventId);
+  }else if(ins.error) throw new Error("PAYPAL_WEBHOOK_EVENT_WRITE_FAILED");
+  const sr=await client.from("pandora_paypal_billing_sessions").select("*").eq("paypal_subscription_id",subId).maybeSingle();
+  if(!sr.data){await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"ignored",processed_at:new Date().toISOString()}).eq("provider_event_id",eventId);return new Response(JSON.stringify({ok:true,ignored:true,eventId}),{status:200,headers:{"content-type":"application/json"}});}
+  const session=sr.data as JsonRecord;
+  await client.from("pandora_paypal_billing_webhook_events").update({organization_id:session.organization_id}).eq("provider_event_id",eventId);
+  try{
+    if(eventType==="BILLING.SUBSCRIPTION.CREATED"){
+      await client.from("pandora_paypal_billing_sessions").update({status:"approval_pending",updated_at:new Date().toISOString()}).eq("id",session.id);
+    }else if(["BILLING.SUBSCRIPTION.ACTIVATED","BILLING.SUBSCRIPTION.UPDATED","BILLING.SUBSCRIPTION.SUSPENDED","BILLING.SUBSCRIPTION.CANCELLED","BILLING.SUBSCRIPTION.EXPIRED","BILLING.SUBSCRIPTION.PAYMENT.FAILED"].includes(eventType)){
+      const read=await billingPaypalRequest("live","/v1/billing/subscriptions/"+subId);
+      if(!read.ok || String(read.body.id||"")!==subId) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+      const providerPlanId=String(read.body.plan_id||"");
+      const p=await billingPlanByPaypalPlanId("live",providerPlanId);
+      const ps=String(read.body.status||"");
+      const state=eventType==="BILLING.SUBSCRIPTION.PAYMENT.FAILED"?"past_due":eventType==="BILLING.SUBSCRIPTION.SUSPENDED"?"suspended":["CANCELLED","EXPIRED"].includes(ps)||["BILLING.SUBSCRIPTION.CANCELLED","BILLING.SUBSCRIPTION.EXPIRED"].includes(eventType)?"cancelled":ps==="SUSPENDED"?"suspended":"active";
+      const next=billingNextBilling(read.body);
+      const start=String(read.body.start_time||read.body.create_time||new Date().toISOString());
+      const w=await client.from("pandora_customer_subscriptions").upsert({
+        organization_id:session.organization_id,plan_id:p.id,state,currency:"USD",monthly_fee_micros:p.monthly_fee_micros,
+        starts_on:start.slice(0,10),ends_on:state==="cancelled"?new Date().toISOString().slice(0,10):null,renews_on:next?next.slice(0,10):null,
+        source_kind:"provider_verified",provider_reference:subId,verified_at:new Date().toISOString(),notes:"PayPal recurring subscription",
+        request_admission_enabled:state==="active",
+        request_admission_started_at:state==="active" ? new Date().toISOString() : null,
+        updated_by:session.requested_by,updated_at:new Date().toISOString()
+      },{onConflict:"organization_id"});
+      if(w.error) throw new Error("SUBSCRIPTION_STATE_WRITE_FAILED");
+      await client.from("pandora_paypal_billing_sessions").update({status:state==="past_due"?"active":state,updated_at:new Date().toISOString()}).eq("id",session.id);
+      if(["BILLING.SUBSCRIPTION.UPDATED","BILLING.SUBSCRIPTION.ACTIVATED"].includes(eventType)){
+        await client.from("pandora_paypal_plan_change_sessions")
+          .update({status:state==="active"?"completed":state,completed_at:state==="active"?new Date().toISOString():null,updated_at:new Date().toISOString()})
+          .eq("organization_id",String(session.organization_id))
+          .eq("paypal_subscription_id",subId)
+          .eq("to_plan_id",String(p.id))
+          .eq("status","approval_pending");
+      }
+    }else if(["PAYMENT.SALE.COMPLETED","PAYMENT.SALE.REFUNDED","PAYMENT.SALE.REVERSED"].includes(eventType)){
+      const read=await billingPaypalRequest("live","/v1/billing/subscriptions/"+subId);
+      await billingPlanByPaypalPlanId("live",String(read.body.plan_id||""));
+      const amount=asRecord(resource.amount);
+      const total=Number(amount.total||NaN); const currency=String(amount.currency||"USD");
+      if(!Number.isFinite(total)||total<=0||currency!=="USD") throw new Error("PAYPAL_PAYMENT_AMOUNT_INVALID");
+      const invoiceNumber=(eventType==="PAYMENT.SALE.REFUNDED"?"PP-REFUND-":eventType==="PAYMENT.SALE.REVERSED"?"PP-REVERSED-":"PP-")+eventId;
+      const invoiceState=eventType==="PAYMENT.SALE.COMPLETED"?"paid":eventType==="PAYMENT.SALE.REFUNDED"?"refunded":"reversed";
+      const inv=await client.from("pandora_customer_invoices").upsert({
+        organization_id:session.organization_id,invoice_number:invoiceNumber,currency,amount_micros:Math.round(total*1000000),state:invoiceState,
+        issued_on:new Date().toISOString().slice(0,10),due_on:new Date().toISOString().slice(0,10),source_kind:"provider_verified",
+        provider_reference:eventId,verified_at:new Date().toISOString(),notes:"PayPal recurring subscription "+eventType,
+        created_by:session.requested_by,updated_at:new Date().toISOString()
+      },{onConflict:"organization_id,invoice_number"}).select("id").single();
+      if(inv.error||!inv.data) throw new Error("PAYPAL_INVOICE_WRITE_FAILED");
+      const kind=eventType==="PAYMENT.SALE.COMPLETED"?"payment":eventType==="PAYMENT.SALE.REFUNDED"?"refund":"adjustment";
+      const pay=await client.from("pandora_customer_payments").upsert({
+        organization_id:session.organization_id,invoice_id:asRecord(inv.data).id,currency,amount_micros:Math.round(total*1000000),
+        payment_kind:kind,reference:"paypal:"+eventType+":"+String(resource.id||eventId),occurred_on:new Date().toISOString().slice(0,10),
+        source_kind:"provider_verified",verified_at:new Date().toISOString(),created_by:session.requested_by
+      },{onConflict:"organization_id,reference"});
+      if(pay.error) throw new Error("PAYPAL_PAYMENT_WRITE_FAILED");
+      if(eventType==="PAYMENT.SALE.REVERSED") await client.from("pandora_customer_subscriptions").update({state:"past_due",updated_at:new Date().toISOString()}).eq("organization_id",String(session.organization_id));
+    }else{
+      await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"ignored",processed_at:new Date().toISOString()}).eq("provider_event_id",eventId);
+      return new Response(JSON.stringify({ok:true,ignored:true,eventId}),{status:200,headers:{"content-type":"application/json"}});
+    }
+    await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"processed",processed_at:new Date().toISOString(),processing_error:null}).eq("provider_event_id",eventId);
+    return new Response(JSON.stringify({ok:true,processed:true,eventId}),{status:200,headers:{"content-type":"application/json"}});
+  }catch(error){
+    const message=error instanceof Error?error.message:"PAYPAL_WEBHOOK_PROCESSING_FAILED";
+    await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"failed",processing_error:message.slice(0,500)}).eq("provider_event_id",eventId);
+    throw error;
+  }
+}
+async function billingHealth(env: BillingEnv) {
+  const names=BILLING_SECRET_NAMES[env];
+  const cfg=await billingCfg();
+  const clientId=await billingSecret(names.id).catch(()=> "");
+  const clientSecret=await billingSecret(names.secret).catch(()=> "");
+  const webhook=env==="live"?await billingSecret(names.webhook).catch(()=> ""):"";
+  const catalog=await billingCatalog();
+  const bindings=await Promise.all(catalog.map(async (p)=>({p,b:await billingBinding(env,p)})));
+  let apiConnectivityVerified=false;
+  try { await billingPaypalToken(env); apiConnectivityVerified=true; } catch { /* reported below */ }
+  const mode=env==="sandbox"?"sandbox":cfg.mode;
+  const catalogReady=bindings.length===2&&bindings.every((x)=>Boolean(x.b.productId)&&Boolean(x.b.planId));
+  return {
+    environment:env,mode,
+    apiBase:await billingBase(env),
+    credentials:{clientIdPresent:Boolean(clientId),clientSecretPresent:Boolean(clientSecret),webhookIdPresent:env==="live"?Boolean(webhook):null},
+    apiConnectivityVerified,
+    catalog:bindings.map((x)=>({code:String(x.p.code),name:String(x.p.name),currency:String(x.p.currency),monthlyAmount:billingMoney(Number(x.p.monthly_fee_micros)),productBound:Boolean(x.b.productId),planBound:Boolean(x.b.planId)})),
+    webhookUrl:env==="live"?cfg.webhookUrl:null,
+    productionReady:env==="live"?Boolean(cfg.mode==="live"&&clientId&&clientSecret&&webhook&&apiConnectivityVerified&&catalogReady):false,
+    sandboxReady:env==="sandbox"?Boolean(clientId&&clientSecret&&apiConnectivityVerified&&catalogReady):null,
+  };
+}

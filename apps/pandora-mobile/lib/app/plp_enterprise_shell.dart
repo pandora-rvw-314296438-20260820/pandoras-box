@@ -13,9 +13,9 @@ import '../features/enterprise/plp_activity_screen.dart';
 import '../features/enterprise/plp_activity_read_model.dart';
 import '../features/enterprise/plp_connectivity_infrastructure_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
-import '../features/enterprise/plp_paypal_billing_screen.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
+import '../features/enterprise/plp_paypal_billing_screen.dart';
 import '../features/enterprise/plp_resort_operational_screens.dart';
 import '../features/enterprise/plp_resort_transaction_screens.dart';
 import '../features/enterprise/plp_resort_workspace.dart';
@@ -1082,7 +1082,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 _openTool(
                   'paypal-billing',
                   PlpPaypalBillingScreen(
-                    organizationId: _organizationId(bootstrap) ?? '',
+                    organizationId: _organizationId(bootstrap),
                     onOpenNavigation: _openDrawer,
                   ),
                 );

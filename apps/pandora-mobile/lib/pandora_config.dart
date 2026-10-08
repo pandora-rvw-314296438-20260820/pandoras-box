@@ -35,6 +35,14 @@ class PandoraConfig {
     defaultValue: '076a9306-5c4e-4d9d-98d3-e3a6fea968fb',
   );
 
+  /// PayPal billing environment requested from the owner API. `live` is the
+  /// default. `sandbox` is honoured by the server only for organizations on
+  /// its server-side sandbox allowlist; any other organization is rejected.
+  static const billingEnvironment = String.fromEnvironment(
+    'PANDORA_BILLING_ENVIRONMENT',
+    defaultValue: 'live',
+  );
+
   static const appVersion = String.fromEnvironment(
     'PANDORA_APP_VERSION',
     defaultValue: '0.4.0-rc.14+21',

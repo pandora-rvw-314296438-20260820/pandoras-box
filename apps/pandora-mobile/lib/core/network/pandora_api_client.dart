@@ -35,7 +35,9 @@ class PandoraApiClient {
     this.timeout = const Duration(seconds: 20),
     this.maxResponseBytes = 1024 * 1024,
     DateTime Function()? clock,
+    Map<String, String> defaultHeaders = const <String, String>{},
   })  : baseUri = _validatedBaseUri(baseUri),
+        defaultHeaders = Map<String, String>.unmodifiable(defaultHeaders),
         organizationId = organizationId.trim(),
         _sessionTokenProvider = sessionTokenProvider,
         _httpClient = httpClient ?? http.Client(),
@@ -63,6 +65,11 @@ class PandoraApiClient {
 
   final Uri baseUri;
   final String organizationId;
+
+  /// Non-credential headers sent with every request (for example the public
+  /// Supabase publishable key). They are applied first, so they can never
+  /// replace the session Authorization or the organization header.
+  final Map<String, String> defaultHeaders;
   final Duration timeout;
   final int maxResponseBytes;
   final SessionTokenProvider _sessionTokenProvider;
@@ -130,6 +137,7 @@ class PandoraApiClient {
 
       final uri = _buildUri(pathSegments, queryParameters);
       final request = http.Request(method, uri)
+        ..headers.addAll(defaultHeaders)
         ..headers.addAll(<String, String>{
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
