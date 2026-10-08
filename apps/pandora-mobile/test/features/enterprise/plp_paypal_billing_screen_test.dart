@@ -1,13 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pandora_mobile/core/data/plp_paypal_billing_api.dart';
 import 'package:pandora_mobile/core/network/session_token_provider.dart';
+import 'package:pandora_mobile/core/widgets/pandora_navigation.dart';
 import 'package:pandora_mobile/features/enterprise/plp_paypal_billing_screen.dart';
+import 'package:pandora_mobile/features/enterprise/plp_resort_workspace.dart';
 
 import '../../helpers/test_app.dart';
 
@@ -96,44 +97,34 @@ Future<List<Uri>> _mount(
   String? organizationId = _org,
   bool launchSucceeds = true,
   String environment = 'live',
-  VoidCallback? onBack,
-  double height = 2200,
-  bool motion = false,
+  double height = 1400,
 }) async {
   await setTestSurface(tester, logicalSize: Size(430, height));
   final launched = <Uri>[];
   await tester.pumpWidget(testApp(
-    // testApp turns animations off (reduced motion); motion tests turn
-    // them back on for this screen only.
-    child: Builder(
-      builder: (context) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(disableAnimations: !motion),
-        child: PlpPaypalBillingScreen(
-          organizationId: organizationId,
-          onOpenNavigation: () {},
-          onBack: onBack,
-          api: organizationId == null
-              ? null
-              : PlpPaypalBillingApi.forOrganization(
-                  organizationId,
-                  tokenProvider: const _Token(),
-                  httpClient: backend.client,
-                  environment: environment,
-                ),
-          launchApproval: (uri) async {
-            launched.add(uri);
-            return launchSucceeds;
-          },
-          clock: () => DateTime.utc(2026, 10, 8, 14, 5),
-        ),
-      ),
+    child: PlpPaypalBillingScreen(
+      organizationId: organizationId,
+      onOpenNavigation: () {},
+      onBack: () {},
+      billingEnvironment: environment,
+      api: organizationId == null
+          ? null
+          : PlpPaypalBillingApi.forOrganization(
+              organizationId,
+              tokenProvider: const _Token(),
+              httpClient: backend.client,
+              environment: environment,
+            ),
+      launchApproval: (uri) async {
+        launched.add(uri);
+        return launchSucceeds;
+      },
+      clock: () => DateTime.utc(2026, 10, 8, 14, 5),
     ),
   ));
   await tester.pumpAndSettle();
   return launched;
 }
-
-Finder _rich(String text) => find.text(text, findRichText: true);
 
 Map<String, Object?> _pendingCheckout([String plan = 'launch']) => {
       'status': 'approval_pending',
@@ -143,14 +134,73 @@ Map<String, Object?> _pendingCheckout([String plan = 'launch']) => {
       'expires_at': '2026-10-08T15:20:00Z',
     };
 
-Future<void> _openPlan(WidgetTester tester, String code) async {
-  await tester.tap(find.byKey(ValueKey('plp-billing-plan-$code')));
-  await tester.pumpAndSettle();
+const _pendingChange = <String, Object?>{
+  'status': 'approval_pending',
+  'to_plan_code': 'professional',
+  'approval_url':
+      'https://www.sandbox.paypal.com/webapps/billing/subscriptions/update?ba_token=BA-2',
+};
+
+final _cancelledVerified = <String, Object?>{
+  ..._active,
+  'state': 'cancelled',
+  'ends_on': '2026-11-08',
+  'renews_on': null,
+};
+
+Finder _rich(String text) => find.text(text, findRichText: true);
+
+Finder _tile(String id) => find.byKey(ValueKey('plp-capability-$id'));
+final _notice = find.byKey(const ValueKey('plp-billing-notice'));
+
+String _noticeText(WidgetTester tester) => tester
+    .widget<Text>(find.descendant(of: _notice, matching: find.byType(Text)))
+    .data!;
+
+/// Labels of the capability tiles, in order.
+List<String> _tiles(WidgetTester tester) {
+  final grid = find.byKey(const ValueKey('plp-billing-tiles'));
+  if (grid.evaluate().isEmpty) return const [];
+  return tester
+      .widget<PlpCapabilityGrid>(grid)
+      .items
+      .map((item) => item.label)
+      .toList();
 }
 
-Future<void> _openHandoff(WidgetTester tester) async {
-  await tester.tap(
-      find.textContaining('starts after PayPal approval', findRichText: true));
+/// Title, notice and tiles: the Rooms page pattern, nothing else.
+void _expectTilePage(WidgetTester tester, String notice, List<String> tiles) {
+  expect(find.byType(PlpPageTitle), findsOneWidget);
+  expect(find.text('BILLING'), findsOneWidget);
+  expect(find.byType(PlpNoticeBox), findsOneWidget);
+  expect(_noticeText(tester), notice);
+  expect(_tiles(tester), tiles);
+  final texts = find.descendant(
+      of: find.byKey(const ValueKey('plp-billing-page')),
+      matching: find.byType(Text));
+  expect(texts.evaluate().length, lessThanOrEqualTo(6));
+  // The rejected temporal design is gone.
+  for (final key in [
+    'plp-billing-hero-value',
+    'plp-billing-playhead',
+    'plp-billing-axis',
+    'plp-billing-seal',
+    'plp-billing-waiting',
+    'plp-billing-cancel-panel',
+    'plp-billing-handoff',
+    'plp-billing-hold',
+    'plp-billing-back',
+  ]) {
+    expect(find.byKey(ValueKey(key)), findsNothing, reason: key);
+  }
+  expect(find.text('HOLD TO CANCEL'), findsNothing);
+  expect(find.byType(Divider), findsNothing);
+  // Shell-owned chrome is never drawn by the page.
+  expect(find.byType(PandoraMenuButton), findsNothing);
+}
+
+Future<void> _tapTile(WidgetTester tester, String id) async {
+  await tester.tap(_tile(id));
   await tester.pumpAndSettle();
 }
 
@@ -158,25 +208,17 @@ int _count(_Backend backend, String path) =>
     backend.paths.where((p) => p == path).length;
 
 void main() {
-  testWidgets('inactive: two backend plans on the axis, no data columns',
+  testWidgets('no plan: BILLING tile page with the backend plans as tiles',
       (tester) async {
     final backend = _Backend({
       'GET /billing/paypal/status': () => [_json(_status())]
     });
     await _mount(tester, backend);
-    expect(find.text('Pandora billing'), findsOneWidget);
-    expect(_rich('Not subscribed'), findsOneWidget);
-    expect(find.text('CHOOSE A PLAN'), findsOneWidget);
-    expect(find.text('Launch'), findsOneWidget);
-    expect(find.text('USD 51/mo'), findsOneWidget);
-    expect(find.text('USD 151/mo'), findsOneWidget);
-    expect(find.text('Billed monthly through PayPal.'), findsOneWidget);
-    for (final column in ['Status', 'Plan', 'Renewal']) {
-      expect(find.text(column), findsNothing);
-    }
-    expect(find.byKey(const ValueKey('plp-billing-hero-value')), findsNothing);
-    expect(find.byKey(const ValueKey('plp-billing-playhead')), findsNothing);
-    expect(find.byKey(const ValueKey('plp-billing-cancel')), findsNothing);
+    _expectTilePage(
+        tester, 'No PayPal plan yet.', ['Launch', 'Professional']);
+    // Labels only: no price essay on the tiles.
+    expect(find.textContaining('USD'), findsNothing);
+    expect(find.byKey(const ValueKey('plp-billing-sandbox')), findsNothing);
     expect(backend.paths, ['GET /billing/paypal/status']);
     final request = backend.calls.single;
     expect(request.headers['authorization'], 'Bearer session-token');
@@ -185,146 +227,29 @@ void main() {
         request.headers.containsKey('x-pandora-billing-environment'), isFalse);
   });
 
-  testWidgets('active: temporal hero, playhead and PayPal seal from backend',
+  testWidgets('tiles are the Rooms capability tiles: 2 columns, 88 px',
       (tester) async {
     final backend = _Backend({
-      'GET /billing/paypal/status': () =>
-          [_json(_status(subscription: _active))]
+      'GET /billing/paypal/status': () => [_json(_status())]
     });
-    await _mount(tester, backend);
-    expect(_rich('Active \u00b7 Launch \u00b7 USD 51/mo'), findsOneWidget);
-    expect(find.text('31'), findsOneWidget);
-    expect(find.text('days'), findsOneWidget);
-    expect(_rich('renews 8 Nov 2026'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-billing-playhead')), findsOneWidget);
-    expect(find.text('8 Oct'), findsOneWidget);
-    expect(find.text('8 Nov'), findsOneWidget);
-    // verified_at 14:00Z, clock 14:05Z: the backend's last PayPal check.
-    expect(find.text('PayPal \u00b7 checked 5 min ago'), findsOneWidget);
-    expect(find.text('PLAN'), findsOneWidget);
-    expect(find.text('Cancel subscription'), findsOneWidget);
-    expect(find.text('Refresh'), findsNothing);
-    for (final column in ['Status', 'Renewal']) {
-      expect(find.text(column), findsNothing);
-    }
-  });
-
-  testWidgets('the seal is its own accessible button', (tester) async {
-    final handle = tester.ensureSemantics();
-    await _mount(
-        tester,
-        _Backend({
-          'GET /billing/paypal/status': () =>
-              [_json(_status(subscription: _active))],
-        }));
-    final node =
-        tester.getSemantics(find.byKey(const ValueKey('plp-billing-seal')));
-    expect(node.label, startsWith('PayPal \u00b7 checked'));
-    expect(node.label, isNot(contains('Nov')));
-    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-    expect(node.rect.width, lessThan(394)); // not the whole playhead row
-    // Plan nodes and the cancel line are activatable by screen readers too.
-    for (final key in ['plp-billing-plan-professional', 'plp-billing-cancel']) {
-      expect(
-          tester
-              .getSemantics(find.byKey(ValueKey(key)))
-              .getSemanticsData()
-              .hasAction(SemanticsAction.tap),
-          isTrue,
-          reason: key);
-    }
-    handle.dispose();
-  });
-
-  testWidgets('tapping the seal reconciles then reads status', (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [
-            _json(_status(subscription: _active)),
-            _json(_status(subscription: {
-              ..._active,
-              'verified_at': '2026-10-08T14:04:30Z'
-            })),
-          ],
-      'POST /billing/paypal/reconcile': () => [
-            _json({'verified': true})
-          ],
-    });
-    await _mount(tester, backend);
-    await tester.tap(find.byKey(const ValueKey('plp-billing-seal')));
-    await tester.pumpAndSettle();
-    expect(backend.paths.skip(1).toList(),
-        ['POST /billing/paypal/reconcile', 'GET /billing/paypal/status']);
-    expect(find.text('PayPal \u00b7 checked just now'), findsOneWidget);
-  });
-
-  testWidgets('plan axis shows the upgrade and downgrade difference line',
-      (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () =>
-          [_json(_status(subscription: _active))]
-    });
-    await _mount(tester, backend);
-    await _openPlan(tester, 'professional');
-    expect(_rich('+ USD 100/mo \u00b7 starts after PayPal approval'),
-        findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-billing-cancel')), findsNothing);
-    // Tapping the current plan again closes the preview.
-    await _openPlan(tester, 'launch');
+    await _mount(tester, backend, height: 932);
+    final launch = tester.getRect(find.descendant(
+        of: _tile('launch'), matching: find.byType(Container)).first);
+    final pro = tester.getRect(find.descendant(
+        of: _tile('professional'), matching: find.byType(Container)).first);
+    expect(launch.height, 88);
+    expect(pro.height, 88);
+    expect(launch.top, pro.top, reason: 'two columns, same row');
+    expect(launch.right, lessThan(pro.left));
     expect(
-        find.textContaining('starts after PayPal approval', findRichText: true),
-        findsNothing);
-    expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);
-  });
-
-  testWidgets('downgrade shows a minus difference', (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [
-            _json(_status(
-                subscription: {..._active, 'plan_code': 'professional'}))
-          ]
-    });
-    await _mount(tester, backend);
-    await _openPlan(tester, 'launch');
-    expect(_rich('\u2212 USD 100/mo \u00b7 starts after PayPal approval'),
+        find.descendant(
+            of: _tile('launch'),
+            matching: find.byIcon(Icons.arrow_forward_rounded)),
         findsOneWidget);
   });
 
   testWidgets(
-      'handoff from active runs change-plan with its key and never claims the change',
-      (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () =>
-          [_json(_status(subscription: _active))],
-      'POST /billing/paypal/change-plan': () => [
-            _json({
-              'approvalUrl':
-                  'https://www.sandbox.paypal.com/webapps/billing/subscriptions/update?ba_token=BA-2',
-              'status': 'approval_pending'
-            }),
-          ],
-    });
-    final launched = await _mount(tester, backend);
-    await _openPlan(tester, 'professional');
-    await _openHandoff(tester);
-    expect(find.byKey(const ValueKey('plp-billing-handoff')), findsOneWidget);
-    expect(find.text('Professional'), findsNWidgets(2));
-    expect(find.text('You\u2019ll approve this in PayPal.'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('plp-billing-continue')));
-    await tester.pumpAndSettle();
-    final change =
-        backend.calls.firstWhere((c) => c.url.path.endsWith('/change-plan'));
-    final body = jsonDecode(change.body) as Map<String, dynamic>;
-    expect(body['planCode'], 'professional');
-    expect(body['idempotencyKey'], startsWith('plp-plan-change-'));
-    expect(Uri.parse(body['returnUrl'] as String).scheme, 'https');
-    expect(Uri.parse(body['cancelUrl'] as String).scheme, 'https');
-    expect(launched.single.host, 'www.sandbox.paypal.com');
-    expect(find.byKey(const ValueKey('plp-billing-handoff')), findsNothing);
-    expect(_rich('Active \u00b7 Launch \u00b7 USD 51/mo'), findsOneWidget);
-  });
-
-  testWidgets(
-      'handoff from inactive runs checkout, then the workspace locks while PayPal waits',
+      'tapping a plan starts checkout, hands off to PayPal, then waits',
       (tester) async {
     final backend = _Backend({
       'GET /billing/paypal/status': () => [
@@ -340,12 +265,7 @@ void main() {
           ],
     });
     final launched = await _mount(tester, backend);
-    await _openPlan(tester, 'launch');
-    expect(
-        _rich('USD 51/mo \u00b7 starts after PayPal approval'), findsOneWidget);
-    await _openHandoff(tester);
-    await tester.tap(find.byKey(const ValueKey('plp-billing-continue')));
-    await tester.pumpAndSettle();
+    await _tapTile(tester, 'launch');
     final checkout =
         backend.calls.firstWhere((c) => c.url.path.endsWith('/checkout'));
     final body = jsonDecode(checkout.body) as Map<String, dynamic>;
@@ -354,29 +274,42 @@ void main() {
     expect(Uri.parse(body['returnUrl'] as String).scheme, 'https');
     expect(Uri.parse(body['cancelUrl'] as String).scheme, 'https');
     expect(launched.single.host, 'www.paypal.com');
-    expect(find.byKey(const ValueKey('plp-billing-waiting')), findsOneWidget);
-    expect(find.text('Waiting for PayPal'), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('plp-billing-node-pending')), findsOneWidget);
-    expect(_rich('Active'), findsNothing);
+    _expectTilePage(tester, 'Waiting for PayPal.', ['Open PayPal', 'Refresh']);
+    expect(_tile('cancel'), findsNothing);
   });
 
-  testWidgets('Not now lowers the handoff panel without any call',
+  testWidgets('returning from PayPal reconciles, then reads status',
       (tester) async {
     final backend = _Backend({
-      'GET /billing/paypal/status': () => [_json(_status())]
+      'GET /billing/paypal/status': () => [
+            _json(_status()),
+            _json(_status(checkout: _pendingCheckout())),
+            _json(_status(subscription: _active)),
+          ],
+      'POST /billing/paypal/checkout': () => [
+            _json({
+              'approvalUrl':
+                  'https://www.paypal.com/webapps/billing/subscriptions?ba_token=BA-1',
+              'status': 'approval_pending'
+            })
+          ],
+      'POST /billing/paypal/reconcile': () => [
+            _json({'verified': true})
+          ],
     });
     await _mount(tester, backend);
-    await _openPlan(tester, 'professional');
-    await _openHandoff(tester);
-    await tester.tap(find.byKey(const ValueKey('plp-billing-not-now')));
+    await _tapTile(tester, 'launch');
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('plp-billing-handoff')), findsNothing);
-    expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);
+    expect(backend.paths.skip(3).toList(),
+        ['POST /billing/paypal/reconcile', 'GET /billing/paypal/status']);
+    _expectTilePage(tester, 'Launch is active, confirmed by PayPal.',
+        ['Change plan', 'Refresh', 'Cancel']);
   });
 
   testWidgets(
-      'pending lock: workspace inert, Open PayPal reopens, Check again reconciles',
+      'approval pending: Open PayPal and Refresh, Cancel absent, Refresh reconciles',
       (tester) async {
     final backend = _Backend({
       'GET /billing/paypal/status': () => [
@@ -387,531 +320,32 @@ void main() {
           ],
     });
     final launched = await _mount(tester, backend);
-    expect(find.byKey(const ValueKey('plp-billing-waiting')), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('plp-billing-node-pending')), findsOneWidget);
-    // The dimmed workspace ignores taps.
-    await tester.tap(find.byKey(const ValueKey('plp-billing-plan-launch')),
-        warnIfMissed: false);
-    await tester.pumpAndSettle();
-    expect(
-        find.textContaining('starts after PayPal approval', findRichText: true),
-        findsNothing);
-    await tester.tap(find.byKey(const ValueKey('plp-billing-open-paypal')));
-    await tester.pumpAndSettle();
+    _expectTilePage(tester, 'Waiting for PayPal.', ['Open PayPal', 'Refresh']);
+    expect(_tile('cancel'), findsNothing);
+    expect(find.text('Cancel'), findsNothing);
+    await _tapTile(tester, 'open-paypal');
     expect(launched.single.queryParameters['ba_token'], 'BA-9');
     expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);
-    await tester.tap(find.byKey(const ValueKey('plp-billing-check-again')));
-    await tester.pumpAndSettle();
+    await _tapTile(tester, 'refresh');
     expect(backend.paths.skip(1).toList(),
         ['POST /billing/paypal/reconcile', 'GET /billing/paypal/status']);
+    expect(_tile('cancel'), findsNothing);
   });
 
-  testWidgets('pending plan change locks with a dashed ring on the target',
+  testWidgets('pending plan change waits and offers no Cancel or Change plan',
       (tester) async {
     final backend = _Backend({
       'GET /billing/paypal/status': () => [
-            _json(_status(subscription: _active, planChange: {
-              'status': 'approval_pending',
-              'to_plan_code': 'professional',
-              'approval_url':
-                  'https://www.sandbox.paypal.com/webapps/billing/subscriptions/update?ba_token=BA-2',
-            })),
+            _json(_status(subscription: _active, planChange: _pendingChange)),
           ],
     });
     await _mount(tester, backend);
-    expect(find.text('Waiting for PayPal'), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('plp-billing-node-pending')), findsOneWidget);
-    expect(_rich('Active \u00b7 Launch \u00b7 USD 51/mo'), findsOneWidget);
+    _expectTilePage(tester, 'Waiting for PayPal.', ['Open PayPal', 'Refresh']);
+    expect(_tile('cancel'), findsNothing);
+    expect(_tile('change-plan'), findsNothing);
   });
 
-  testWidgets('expired or untrusted approval links do not lock the workspace',
-      (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [
-            _json(_status(checkout: {
-              'status': 'approval_pending',
-              'approval_url': 'https://evil.example/paypal.com',
-              'expires_at': '2026-10-08T15:00:00Z',
-            })),
-          ],
-    });
-    await _mount(tester, backend);
-    expect(find.byKey(const ValueKey('plp-billing-waiting')), findsNothing);
-  });
-
-  group('motion (animations on)', () {
-    double bandHeight(WidgetTester tester) => tester
-        .getSize(find
-            .ancestor(
-                of: find.byKey(const ValueKey('plp-billing-waiting')),
-                matching: find.byType(ClipRect))
-            .first)
-        .height;
-
-    Future<void> pumpUntilFound(WidgetTester tester, Finder finder) async {
-      for (var i = 0; i < 40 && finder.evaluate().isEmpty; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-      }
-      expect(finder, findsWidgets);
-    }
-
-    testWidgets(
-        'waiting header eases down from the top, then eases away on resolve',
-        (tester) async {
-      const approval =
-          'https://www.paypal.com/webapps/billing/subscriptions/update?ba_token=BA-3';
-      final backend = _Backend({
-        'GET /billing/paypal/status': () => [
-              _json(_status(subscription: _active)),
-              _json(_status(subscription: _active, planChange: {
-                'status': 'approval_pending',
-                'to_plan_code': 'professional',
-                'approval_url': approval,
-              })),
-              _json(_status(
-                  subscription: {..._active, 'plan_code': 'professional'})),
-            ],
-        'POST /billing/paypal/change-plan': () => [
-              _json({'approvalUrl': approval, 'status': 'approval_pending'})
-            ],
-        'POST /billing/paypal/reconcile': () => [
-              _json({'verified': true})
-            ],
-      });
-      await _mount(tester, backend, height: 932, motion: true, onBack: () {});
-      await _openPlan(tester, 'professional');
-      await _openHandoff(tester);
-      await tester.tap(find.byKey(const ValueKey('plp-billing-continue')));
-      final band = find.byKey(const ValueKey('plp-billing-waiting'));
-      await pumpUntilFound(tester, band);
-      await tester.pump(const Duration(milliseconds: 60));
-      final early = bandHeight(tester);
-      await tester.pump(const Duration(milliseconds: 400));
-      final full = bandHeight(tester);
-      expect(early, greaterThan(0));
-      expect(early, lessThan(full), reason: 'header eases in, no hard cut');
-      expect(find.byKey(const ValueKey('plp-billing-handoff')), findsNothing);
-
-      await tester.tap(find.byKey(const ValueKey('plp-billing-check-again')));
-      for (var i = 0; i < 10; i++) {
-        await tester.pump();
-      }
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(band, findsOneWidget, reason: 'header eases away, no hard cut');
-      expect(bandHeight(tester), lessThan(full));
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(band, findsNothing);
-      await tester.pumpAndSettle();
-      expect(_rich('Active \u00b7 Professional \u00b7 USD 151/mo'),
-          findsOneWidget);
-      expect(find.byKey(const ValueKey('plp-billing-back')), findsOneWidget);
-    });
-
-    testWidgets('cancel panel slides up, and slides down on Keep plan',
-        (tester) async {
-      final backend = _Backend({
-        'GET /billing/paypal/status': () =>
-            [_json(_status(subscription: _active))],
-      });
-      await _mount(tester, backend, height: 932, motion: true, onBack: () {});
-      final panel = find.byKey(const ValueKey('plp-billing-cancel-panel'));
-      await tester.tap(find.text('Cancel subscription'));
-      await pumpUntilFound(tester, panel);
-      await tester.pump(const Duration(milliseconds: 60));
-      final rising = tester.getTopLeft(panel).dy;
-      await tester.pumpAndSettle();
-      final settled = tester.getTopLeft(panel).dy;
-      expect(rising, greaterThan(settled), reason: 'slides up, no snap');
-
-      await tester.tap(find.byKey(const ValueKey('plp-billing-keep')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(panel, findsOneWidget, reason: 'slides down, no snap');
-      expect(tester.getTopLeft(panel).dy, greaterThan(settled));
-      await tester.pumpAndSettle();
-      expect(panel, findsNothing);
-      expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);
-    });
-
-    testWidgets('top bar stays fixed while the handoff lifts the content',
-        (tester) async {
-      final backend = _Backend({
-        'GET /billing/paypal/status': () =>
-            [_json(_status(subscription: _active))],
-      });
-      await _mount(tester, backend, height: 932, motion: true, onBack: () {});
-      final back = find.byKey(const ValueKey('plp-billing-back'));
-      final menuTop = tester.getTopLeft(back).dy;
-      await _openPlan(tester, 'professional');
-      final diff = find.byKey(const ValueKey('plp-billing-diff'));
-      final before = tester.getTopLeft(diff).dy;
-      await tester.tap(diff);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 16));
-      await tester.pump(const Duration(milliseconds: 100));
-      final mid = tester.getTopLeft(diff).dy;
-      expect(tester.getTopLeft(back).dy, menuTop);
-      await tester.pumpAndSettle();
-      final after = tester.getTopLeft(diff).dy;
-      expect(after, lessThan(before), reason: 'content lifts above the panel');
-      expect(mid, lessThan(before));
-      expect(mid, greaterThan(after), reason: 'lifts with the panel, no jump');
-      expect(tester.getTopLeft(back).dy, menuTop);
-      expect(find.text('SUBSCRIPTION'), findsOneWidget);
-      final panelTop = tester
-          .getTopLeft(find.byKey(const ValueKey('plp-billing-handoff')))
-          .dy;
-      expect(tester.getBottomLeft(diff).dy, lessThanOrEqualTo(panelTop));
-    });
-
-    testWidgets('cancelled: the dashed remainder draws in from today',
-        (tester) async {
-      final backend = _Backend({
-        'GET /billing/paypal/status': () => [
-              _json(_status(subscription: _active)),
-              _json(_status(subscription: {
-                ..._active,
-                'state': 'cancelled',
-                'ends_on': '2026-11-08',
-                'renews_on': null
-              })),
-            ],
-        'POST /billing/paypal/cancel': () => [
-              _json({
-                'status': 'cancelled',
-                'cancelled': true,
-                'verified': true,
-                'providerStatus': 'CANCELLED'
-              })
-            ],
-        'POST /billing/paypal/reconcile': () => [
-              _json({'verified': true})
-            ],
-      });
-      await _mount(tester, backend, motion: true);
-      await tester.tap(find.text('Cancel subscription'));
-      await tester.pumpAndSettle();
-      final gesture = await tester.startGesture(
-          tester.getCenter(find.byKey(const ValueKey('plp-billing-hold'))));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 1600));
-      await gesture.up();
-      double drawn() {
-        final paints = tester.widgetList<CustomPaint>(find.descendant(
-            of: find.byKey(const ValueKey('plp-billing-playhead')),
-            matching: find.byType(CustomPaint)));
-        for (final paint in paints) {
-          final painter = paint.painter;
-          if (painter.runtimeType.toString() == '_PlayheadPainter' &&
-              (painter as dynamic).ghost == true) {
-            return (painter as dynamic).drawn as double;
-          }
-        }
-        return -1;
-      }
-
-      for (var i = 0; i < 40 && drawn() < 0; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-      }
-      await tester.pump(const Duration(milliseconds: 120));
-      final partway = drawn();
-      expect(partway, greaterThan(0));
-      expect(partway, lessThan(1), reason: 'draws in, no hard cut');
-      await tester.pumpAndSettle();
-      expect(drawn(), 1);
-      expect(_count(backend, 'POST /billing/paypal/cancel'), 1);
-      expect(find.text('Access until 8 Nov'), findsOneWidget);
-    });
-
-    testWidgets('reduced motion: header and panels are instant',
-        (tester) async {
-      final backend = _Backend({
-        'GET /billing/paypal/status': () =>
-            [_json(_status(subscription: _active))],
-      });
-      await _mount(tester, backend, height: 932);
-      await tester.tap(find.text('Cancel subscription'));
-      await tester.pump();
-      await tester.pump();
-      expect(find.byKey(const ValueKey('plp-billing-cancel-panel')),
-          findsOneWidget);
-      final settled = tester
-          .getTopLeft(find.byKey(const ValueKey('plp-billing-cancel-panel')))
-          .dy;
-      await tester.pumpAndSettle();
-      expect(
-          tester
-              .getTopLeft(
-                  find.byKey(const ValueKey('plp-billing-cancel-panel')))
-              .dy,
-          settled);
-      await tester.tap(find.byKey(const ValueKey('plp-billing-keep')));
-      await tester.pump();
-      expect(
-          find.byKey(const ValueKey('plp-billing-cancel-panel')), findsNothing);
-    });
-  });
-
-  group('hold to cancel', () {
-    _Backend cancelBackend() => _Backend({
-          'GET /billing/paypal/status': () => [
-                _json(_status(subscription: _active)),
-                _json(_status(subscription: {
-                  ..._active,
-                  'state': 'cancelled',
-                  'ends_on': '2026-11-08',
-                  'renews_on': null
-                })),
-              ],
-          'POST /billing/paypal/cancel': () => [
-                _json({
-                  'status': 'cancelled',
-                  'cancelled': true,
-                  'verified': true,
-                  'providerStatus': 'CANCELLED'
-                })
-              ],
-          'POST /billing/paypal/reconcile': () => [
-                _json({'verified': true, 'state': 'cancelled'})
-              ],
-        });
-
-    Future<void> openPanel(WidgetTester tester) async {
-      await tester.tap(find.text('Cancel subscription'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('plp-billing-cancel-panel')),
-          findsOneWidget);
-      expect(find.text('Access continues until 8 Nov 2026.'), findsOneWidget);
-      expect(find.text('HOLD TO CANCEL'), findsOneWidget);
-      expect(find.byType(Dialog), findsNothing);
-    }
-
-    testWidgets('releasing early makes no call', (tester) async {
-      final backend = cancelBackend();
-      await _mount(tester, backend);
-      await openPanel(tester);
-      final gesture = await tester.startGesture(
-          tester.getCenter(find.byKey(const ValueKey('plp-billing-hold'))));
-      await tester.pump();
-      // Reduced motion is on in testApp; the hold must still take ~1.5 s.
-      await tester.pump(const Duration(milliseconds: 1400));
-      expect(_count(backend, 'POST /billing/paypal/cancel'), 0);
-      await gesture.up();
-      await tester.pump(const Duration(seconds: 2));
-      await tester.pumpAndSettle();
-      expect(_count(backend, 'POST /billing/paypal/cancel'), 0);
-      expect(find.text('HOLD TO CANCEL'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('plp-billing-keep')));
-      await tester.pumpAndSettle();
-      expect(
-          find.byKey(const ValueKey('plp-billing-cancel-panel')), findsNothing);
-      expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);
-    });
-
-    testWidgets(
-        'completing the hold sends exactly one cancel, then reconcile + status',
-        (tester) async {
-      final backend = cancelBackend();
-      await _mount(tester, backend);
-      await openPanel(tester);
-      final gesture = await tester.startGesture(
-          tester.getCenter(find.byKey(const ValueKey('plp-billing-hold'))));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 1600));
-      await tester.pump(const Duration(milliseconds: 400));
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(_count(backend, 'POST /billing/paypal/cancel'), 1);
-      expect(backend.paths, [
-        'GET /billing/paypal/status',
-        'POST /billing/paypal/cancel',
-        'POST /billing/paypal/reconcile',
-        'GET /billing/paypal/status',
-      ]);
-      expect(
-          find.byKey(const ValueKey('plp-billing-cancel-panel')), findsNothing);
-      expect(_rich('Cancelled \u00b7 Launch'), findsOneWidget);
-    });
-
-    testWidgets('screen readers get a custom action instead of the hold',
-        (tester) async {
-      final handle = tester.ensureSemantics();
-      final backend = cancelBackend();
-      await _mount(tester, backend);
-      await openPanel(tester);
-      final semantics = tester.widget<Semantics>(find.byWidgetPredicate((w) =>
-          w is Semantics && w.properties.customSemanticsActions != null));
-      final actions = semantics.properties.customSemanticsActions!;
-      expect(actions.keys.single.label, 'Cancel subscription now');
-      actions.values.single();
-      await tester.pumpAndSettle();
-      expect(_count(backend, 'POST /billing/paypal/cancel'), 1);
-      handle.dispose();
-    });
-  });
-
-  testWidgets('cancel PayPal has not confirmed stays active with a short note',
-      (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [
-            _json(_status(subscription: _active)),
-            _json(_status(subscription: _active, checkout: {
-              'status': 'cancel_requested',
-              'plan_code': 'launch'
-            })),
-          ],
-      'POST /billing/paypal/cancel': () => [
-            _json({
-              'status': 'cancel_unconfirmed',
-              'cancelRequested': true,
-              'cancelled': false,
-              'verified': false,
-              'providerStatus': 'ACTIVE',
-              'reason': 'CANCELLATION_NOT_CONFIRMED'
-            })
-          ],
-      'POST /billing/paypal/reconcile': () => [
-            _json({'verified': true, 'state': 'active'})
-          ],
-    });
-    await _mount(tester, backend);
-    await tester.tap(find.text('Cancel subscription'));
-    await tester.pumpAndSettle();
-    final semantics = tester.widget<Semantics>(find.byWidgetPredicate(
-        (w) => w is Semantics && w.properties.customSemanticsActions != null));
-    semantics.properties.customSemanticsActions!.values.single();
-    await tester.pumpAndSettle();
-    expect(
-        _rich(
-          'Cancelled',
-        ),
-        findsNothing);
-    expect(
-        find.byKey(const ValueKey('plp-billing-cancel-sent')), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-billing-cancel')), findsNothing);
-  });
-
-  testWidgets(
-      'cancel blocked while PayPal awaits buyer approval: never shows Cancelled',
-      (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [
-            _json(_status(subscription: _active)),
-            _json(_status(subscription: _active)),
-          ],
-      'POST /billing/paypal/cancel': () => [
-            _json({
-              'status': 'blocked',
-              'cancelRequested': false,
-              'cancelled': false,
-              'verified': false,
-              'providerStatus': 'APPROVAL_PENDING',
-              'reason': 'AWAITING_BUYER_APPROVAL'
-            })
-          ],
-    });
-    await _mount(tester, backend);
-    await tester.tap(find.text('Cancel subscription'));
-    await tester.pumpAndSettle();
-    final semantics = tester.widget<Semantics>(find.byWidgetPredicate(
-        (w) => w is Semantics && w.properties.customSemanticsActions != null));
-    semantics.properties.customSemanticsActions!.values.single();
-    await tester.pumpAndSettle();
-    expect(_count(backend, 'POST /billing/paypal/cancel'), 1);
-    expect(_count(backend, 'POST /billing/paypal/reconcile'), 0);
-    expect(find.byKey(const ValueKey('plp-billing-problem')), findsOneWidget);
-    expect(find.text('Cancellation blocked.'), findsOneWidget);
-    expect(find.textContaining('waiting for the buyer to approve'),
-        findsOneWidget);
-    expect(_rich('Cancelled'), findsNothing);
-    expect(_rich('Cancelled \u00b7 Launch'), findsNothing);
-    expect(find.byKey(const ValueKey('plp-billing-cancel-sent')), findsNothing);
-  });
-
-  testWidgets('ghost state: dashed remainder, days left, Restart rail',
-      (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [
-            _json(_status(subscription: {
-              ..._active,
-              'plan_code': 'professional',
-              'state': 'cancelled',
-              'ends_on': '2026-11-08',
-              'renews_on': null,
-            })),
-          ],
-    });
-    await _mount(tester, backend);
-    expect(_rich('Cancelled \u00b7 Professional'), findsOneWidget);
-    expect(find.text('31'), findsOneWidget);
-    expect(find.text('days left'), findsOneWidget);
-    expect(find.text('Access until 8 Nov'), findsOneWidget);
-    expect(find.text('RESTART'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-billing-cancel')), findsNothing);
-    // No marker on the rail: every node is hollow.
-    final dots = tester.widgetList<AnimatedContainer>(find.descendant(
-        of: find.byKey(const ValueKey('plp-billing-axis')),
-        matching: find.byType(AnimatedContainer)));
-    expect(dots, hasLength(2));
-    for (final dot in dots) {
-      expect((dot.decoration! as BoxDecoration).color, isNot(Colors.black));
-      expect((dot.decoration! as BoxDecoration).color, const Color(0xFFFAF8F3));
-    }
-  });
-
-  testWidgets('cancelled without a PayPal end date shows no invented access',
-      (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [
-            _json(_status(subscription: {
-              ..._active,
-              'state': 'cancelled',
-              'ends_on': null,
-              'renews_on': null
-            })),
-          ],
-    });
-    await _mount(tester, backend);
-    expect(_rich('Cancelled \u00b7 Launch'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-billing-hero-value')), findsNothing);
-    expect(find.byKey(const ValueKey('plp-billing-playhead')), findsNothing);
-    expect(find.text('RESTART'), findsOneWidget);
-  });
-
-  testWidgets('missing renewal date shows a dash and hides the timeline',
-      (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [
-            _json(_status(subscription: {..._active, 'renews_on': null}))
-          ],
-    });
-    await _mount(tester, backend);
-    expect(find.text('\u2014'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-billing-hero-date')), findsNothing);
-    expect(find.byKey(const ValueKey('plp-billing-playhead')), findsNothing);
-    expect(find.byKey(const ValueKey('plp-billing-seal')), findsOneWidget);
-  });
-
-  testWidgets('unknown billing interval hides the timeline segment',
-      (tester) async {
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [
-            _json({
-              ..._status(subscription: _active),
-              'plans': [
-                for (final plan in _plans) {...plan}..remove('interval')
-              ],
-            })
-          ],
-    });
-    await _mount(tester, backend);
-    expect(find.text('31'), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-billing-playhead')), findsNothing);
-  });
-
-  testWidgets('account records are not presented as PayPal-verified',
+  testWidgets('a plan PayPal has not verified waits; Cancel stays blocked',
       (tester) async {
     final backend = _Backend({
       'GET /billing/paypal/status': () => [
@@ -923,20 +357,284 @@ void main() {
           ],
     });
     await _mount(tester, backend);
-    expect(find.textContaining('Account record'), findsOneWidget);
-    expect(find.textContaining('PayPal \u00b7 checked'), findsNothing);
+    _expectTilePage(tester, 'Waiting for PayPal.', ['Refresh']);
+    expect(_tile('cancel'), findsNothing);
   });
 
-  group('errors render short inside the PLP page', () {
+  testWidgets('expired or untrusted approval links do not wait',
+      (tester) async {
+    final backend = _Backend({
+      'GET /billing/paypal/status': () => [
+            _json(_status(checkout: {
+              'status': 'approval_pending',
+              'approval_url': 'https://evil.example/paypal.com',
+              'expires_at': '2026-10-08T15:00:00Z',
+            })),
+          ],
+    });
+    await _mount(tester, backend);
+    _expectTilePage(
+        tester, 'No PayPal plan yet.', ['Launch', 'Professional']);
+  });
+
+  testWidgets('active: one-line notice, Change plan, Refresh, Cancel',
+      (tester) async {
+    final backend = _Backend({
+      'GET /billing/paypal/status': () => [
+            _json(_status(subscription: _active)),
+            _json(_status(subscription: _active)),
+          ],
+      'POST /billing/paypal/reconcile': () => [
+            _json({'verified': true})
+          ],
+    });
+    await _mount(tester, backend);
+    _expectTilePage(tester, 'Launch is active, confirmed by PayPal.',
+        ['Change plan', 'Refresh', 'Cancel']);
+    await _tapTile(tester, 'refresh');
+    expect(backend.paths.skip(1).toList(),
+        ['POST /billing/paypal/reconcile', 'GET /billing/paypal/status']);
+  });
+
+  testWidgets('change plan: other catalog plans, change-plan with its key',
+      (tester) async {
+    final backend = _Backend({
+      'GET /billing/paypal/status': () => [
+            _json(_status(subscription: _active)),
+            _json(_status(subscription: _active, planChange: _pendingChange)),
+          ],
+      'POST /billing/paypal/change-plan': () => [
+            _json({
+              'approvalUrl': _pendingChange['approval_url'],
+              'status': 'approval_pending'
+            }),
+          ],
+    });
+    final launched = await _mount(tester, backend);
+    await _tapTile(tester, 'change-plan');
+    _expectTilePage(tester, 'Choose a plan.', ['Professional']);
+    expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);
+    await _tapTile(tester, 'professional');
+    final change =
+        backend.calls.firstWhere((c) => c.url.path.endsWith('/change-plan'));
+    final body = jsonDecode(change.body) as Map<String, dynamic>;
+    expect(body['planCode'], 'professional');
+    expect(body['idempotencyKey'], startsWith('plp-plan-change-'));
+    expect(Uri.parse(body['returnUrl'] as String).scheme, 'https');
+    expect(Uri.parse(body['cancelUrl'] as String).scheme, 'https');
+    expect(launched.single.host, 'www.sandbox.paypal.com');
+    // Never claims the change: PayPal approval is still pending.
+    _expectTilePage(tester, 'Waiting for PayPal.', ['Open PayPal', 'Refresh']);
+  });
+
+  testWidgets('sandbox refuses plan changes and the notice says so',
+      (tester) async {
+    final backend = _Backend({
+      'GET /billing/paypal/status': () => [
+            _json(_status(environment: 'sandbox', subscription: _active)),
+          ],
+      'POST /billing/paypal/change-plan': () => [
+            _json({
+              'code': 'SANDBOX_PLAN_CHANGE_UNAVAILABLE',
+              'plainMessage':
+                  'Plan changes are not available in PayPal sandbox. Nothing was sent to PayPal.'
+            }, 409),
+          ],
+    });
+    final launched = await _mount(tester, backend, environment: 'sandbox');
+    await _tapTile(tester, 'change-plan');
+    await _tapTile(tester, 'professional');
+    expect(launched, isEmpty);
+    expect(_noticeText(tester), 'Plan changes are not available in sandbox.');
+    expect(backend.paths.last, 'GET /billing/paypal/status');
+  });
+
+  group('cancel', () {
+    testWidgets('confirm is the same tile page, not a sheet or a hold',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () =>
+            [_json(_status(subscription: _active))],
+      });
+      await _mount(tester, backend);
+      await _tapTile(tester, 'cancel');
+      _expectTilePage(
+          tester, 'Cancel this plan. PayPal must confirm.', ['Confirm cancel']);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(Dialog), findsNothing);
+      expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);
+    });
+
+    testWidgets(
+        'Confirm cancel: cancel, reconcile, status; CANCELLED readback shows Cancelled',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () => [
+              _json(_status(subscription: _active)),
+              _json(_status(subscription: _cancelledVerified)),
+            ],
+        'POST /billing/paypal/cancel': () => [
+              _json({
+                'status': 'cancelled',
+                'cancelled': true,
+                'verified': true,
+                'providerStatus': 'CANCELLED'
+              })
+            ],
+        'POST /billing/paypal/reconcile': () => [
+              _json({'verified': true, 'state': 'cancelled'})
+            ],
+      });
+      await _mount(tester, backend);
+      await _tapTile(tester, 'cancel');
+      await _tapTile(tester, 'confirm-cancel');
+      expect(backend.paths, [
+        'GET /billing/paypal/status',
+        'POST /billing/paypal/cancel',
+        'POST /billing/paypal/reconcile',
+        'GET /billing/paypal/status',
+      ]);
+      _expectTilePage(tester, 'Cancelled.', ['Choose a plan']);
+      await _tapTile(tester, 'choose-a-plan');
+      _expectTilePage(
+          tester, 'No PayPal plan yet.', ['Launch', 'Professional']);
+    });
+
+    testWidgets(
+        'AWAITING_BUYER_APPROVAL stays on waiting and never shows Cancelled',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () => [
+              _json(_status(subscription: _active)),
+              _json(_status(subscription: _active)),
+            ],
+        'POST /billing/paypal/cancel': () => [
+              _json({
+                'status': 'blocked',
+                'cancelRequested': false,
+                'cancelled': false,
+                'verified': false,
+                'providerStatus': 'APPROVAL_PENDING',
+                'reason': 'AWAITING_BUYER_APPROVAL'
+              })
+            ],
+      });
+      await _mount(tester, backend);
+      await _tapTile(tester, 'cancel');
+      await _tapTile(tester, 'confirm-cancel');
+      expect(_count(backend, 'POST /billing/paypal/cancel'), 1);
+      expect(_count(backend, 'POST /billing/paypal/reconcile'), 0);
+      _expectTilePage(tester, 'Waiting for PayPal.', ['Refresh']);
+      expect(find.text('Cancelled.'), findsNothing);
+      expect(find.textContaining('Cancelled'), findsNothing);
+      expect(_tile('cancel'), findsNothing);
+      expect(_tile('confirm-cancel'), findsNothing);
+    });
+
+    testWidgets('unconfirmed cancel waits for PayPal, not Cancelled',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () => [
+              _json(_status(subscription: _active)),
+              _json(_status(subscription: _active, checkout: {
+                'status': 'cancel_requested',
+                'plan_code': 'launch'
+              })),
+            ],
+        'POST /billing/paypal/cancel': () => [
+              _json({
+                'status': 'cancel_unconfirmed',
+                'cancelRequested': true,
+                'cancelled': false,
+                'verified': false,
+                'providerStatus': 'ACTIVE',
+                'reason': 'CANCELLATION_NOT_CONFIRMED'
+              })
+            ],
+        'POST /billing/paypal/reconcile': () => [
+              _json({'verified': true, 'state': 'active'})
+            ],
+      });
+      await _mount(tester, backend);
+      await _tapTile(tester, 'cancel');
+      await _tapTile(tester, 'confirm-cancel');
+      _expectTilePage(tester, 'Waiting for PayPal.', ['Refresh']);
+      expect(find.textContaining('Cancelled'), findsNothing);
+      expect(_tile('cancel'), findsNothing);
+    });
+
+    testWidgets('a cancelled response without a CANCELLED readback is not shown',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () => [
+              _json(_status(subscription: _active)),
+              _json(_status(subscription: _active)),
+            ],
+        'POST /billing/paypal/cancel': () => [
+              _json({'status': 'cancelled'})
+            ],
+        'POST /billing/paypal/reconcile': () => [
+              _json({'verified': true, 'state': 'active'})
+            ],
+      });
+      await _mount(tester, backend);
+      await _tapTile(tester, 'cancel');
+      await _tapTile(tester, 'confirm-cancel');
+      expect(find.textContaining('Cancelled'), findsNothing);
+      expect(_noticeText(tester), 'Launch is active, confirmed by PayPal.');
+    });
+
+    testWidgets('other blocked reasons keep the plan and say so',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () =>
+            [_json(_status(subscription: _active))],
+        'POST /billing/paypal/cancel': () => [
+              _json({'status': 'blocked', 'reason': 'RECONCILIATION_REQUIRED'})
+            ],
+      });
+      await _mount(tester, backend);
+      await _tapTile(tester, 'cancel');
+      await _tapTile(tester, 'confirm-cancel');
+      expect(_noticeText(tester), contains('Nothing was cancelled'));
+      expect(find.textContaining('Cancelled'), findsNothing);
+    });
+  });
+
+  testWidgets('cancelled from status: Cancelled. and Choose a plan',
+      (tester) async {
+    final backend = _Backend({
+      'GET /billing/paypal/status': () =>
+          [_json(_status(subscription: _cancelledVerified))],
+    });
+    await _mount(tester, backend);
+    _expectTilePage(tester, 'Cancelled.', ['Choose a plan']);
+  });
+
+  testWidgets('a cancelled record PayPal has not verified is not Cancelled',
+      (tester) async {
+    final backend = _Backend({
+      'GET /billing/paypal/status': () => [
+            _json(_status(subscription: {
+              ..._cancelledVerified,
+              'source_kind': 'manual',
+              'verified_at': null,
+            }))
+          ],
+    });
+    await _mount(tester, backend);
+    _expectTilePage(tester, 'Waiting for PayPal.', ['Refresh']);
+  });
+
+  group('errors render as the one notice', () {
     Future<void> expectProblem(
         WidgetTester tester, http.Response status, String text) async {
       final backend = _Backend({
         'GET /billing/paypal/status': () => [status]
       });
       await _mount(tester, backend);
-      expect(find.byKey(const ValueKey('plp-billing-problem')), findsOneWidget);
-      expect(find.textContaining(text), findsOneWidget);
-      expect(find.text('Try again'), findsOneWidget);
+      _expectTilePage(tester, _noticeText(tester), ['Try again']);
+      expect(_noticeText(tester), contains(text));
       expect(find.textContaining('Exception'), findsNothing);
     }
 
@@ -961,7 +659,7 @@ void main() {
         (tester) => expectProblem(
             tester,
             _json({'code': 'PAYPAL_AUTH_FAILED', 'plainMessage': 'x'}, 503),
-            'PayPal unavailable.'));
+            'PayPal is unavailable'));
     testWidgets(
         'malformed response',
         (tester) => expectProblem(
@@ -979,17 +677,15 @@ void main() {
             ],
       });
       await _mount(tester, backend);
-      await tester.tap(find.text('Try again'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('plp-billing-problem')), findsNothing);
-      expect(_rich('Not subscribed'), findsOneWidget);
+      await _tapTile(tester, 'try-again');
+      _expectTilePage(
+          tester, 'No PayPal plan yet.', ['Launch', 'Professional']);
     });
 
     testWidgets('missing organization sends no request', (tester) async {
       final backend = _Backend({});
       await _mount(tester, backend, organizationId: null);
-      expect(find.textContaining('no organization selected'), findsOneWidget);
-      expect(find.text('Try again'), findsNothing);
+      _expectTilePage(tester, 'No organization is selected.', []);
       expect(backend.calls, isEmpty);
     });
 
@@ -1001,14 +697,9 @@ void main() {
             ],
       });
       final launched = await _mount(tester, backend);
-      await _openPlan(tester, 'professional');
-      await _openHandoff(tester);
-      await tester.tap(find.byKey(const ValueKey('plp-billing-continue')));
-      await tester.pumpAndSettle();
+      await _tapTile(tester, 'professional');
       expect(launched, isEmpty);
-      expect(find.textContaining('did not return an approval link'),
-          findsOneWidget);
-      expect(find.byKey(const ValueKey('plp-billing-handoff')), findsNothing);
+      expect(_noticeText(tester), contains('did not return an approval link'));
     });
 
     testWidgets('launch failure', (tester) async {
@@ -1022,11 +713,8 @@ void main() {
             ],
       });
       await _mount(tester, backend, launchSucceeds: false);
-      await _openPlan(tester, 'launch');
-      await _openHandoff(tester);
-      await tester.tap(find.byKey(const ValueKey('plp-billing-continue')));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('could not open PayPal'), findsOneWidget);
+      await _tapTile(tester, 'launch');
+      expect(_noticeText(tester), contains('could not open PayPal'));
     });
 
     testWidgets('checkout failure from PayPal re-reads status', (tester) async {
@@ -1040,15 +728,13 @@ void main() {
             ],
       });
       await _mount(tester, backend);
-      await _openPlan(tester, 'launch');
-      await _openHandoff(tester);
-      await tester.tap(find.byKey(const ValueKey('plp-billing-continue')));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('could not start checkout'), findsOneWidget);
+      await _tapTile(tester, 'launch');
+      expect(_noticeText(tester), contains('could not start checkout'));
+      expect(_tiles(tester), ['Launch', 'Professional']);
       expect(backend.paths.last, 'GET /billing/paypal/status');
     });
 
-    testWidgets('seal check with nothing linked', (tester) async {
+    testWidgets('refresh with nothing linked', (tester) async {
       final backend = _Backend({
         'GET /billing/paypal/status': () =>
             [_json(_status(subscription: _active))],
@@ -1058,13 +744,13 @@ void main() {
             ],
       });
       await _mount(tester, backend);
-      await tester.tap(find.byKey(const ValueKey('plp-billing-seal')));
-      await tester.pumpAndSettle();
-      expect(find.text('No PayPal subscription yet.'), findsOneWidget);
+      await _tapTile(tester, 'refresh');
+      expect(_noticeText(tester), contains('No PayPal subscription is linked'));
       expect(backend.paths.last, 'GET /billing/paypal/status');
     });
 
-    testWidgets('extra identity check offers verification', (tester) async {
+    testWidgets('extra identity check offers a Verify identity tile',
+        (tester) async {
       final backend = _Backend({
         'GET /billing/paypal/status': () => [_json(_status())],
         'POST /billing/paypal/checkout': () => [
@@ -1072,38 +758,24 @@ void main() {
             ],
       });
       await _mount(tester, backend);
-      await _openPlan(tester, 'launch');
-      await _openHandoff(tester);
-      await tester.tap(find.byKey(const ValueKey('plp-billing-continue')));
-      await tester.pumpAndSettle();
-      expect(find.text('Confirm it is you.'), findsOneWidget);
-      expect(find.text('Verify identity'), findsOneWidget);
+      await _tapTile(tester, 'launch');
+      expect(_noticeText(tester), contains('authenticator code'));
+      expect(_tiles(tester), ['Verify identity']);
     });
   });
 
-  testWidgets('sandbox environment is labelled and sent explicitly',
+  testWidgets('sandbox header only for the sandbox billing environment',
       (tester) async {
     final backend = _Backend({
       'GET /billing/paypal/status': () =>
           [_json(_status(environment: 'sandbox', subscription: _active))],
     });
     await _mount(tester, backend, environment: 'sandbox');
-    expect(find.text('PayPal sandbox \u00b7 test mode'), findsOneWidget);
-    expect(
-        find.text('PayPal sandbox \u00b7 checked 5 min ago'), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-billing-sandbox')), findsOneWidget);
     expect(backend.calls.single.headers['x-pandora-billing-environment'],
         'sandbox');
-  });
-
-  testWidgets('back button returns to the opening PLP surface', (tester) async {
-    var backs = 0;
-    final backend = _Backend({
-      'GET /billing/paypal/status': () => [_json(_status())],
-    });
-    await _mount(tester, backend, onBack: () => backs++);
-    await tester.tap(find.byKey(const ValueKey('plp-billing-back')));
-    await tester.pump();
-    expect(backs, 1);
+    _expectTilePage(tester, 'Launch is active, confirmed by PayPal.',
+        ['Change plan', 'Refresh', 'Cancel']);
   });
 
   testWidgets('phone size renders every state without overflow',
@@ -1112,18 +784,15 @@ void main() {
       _status(),
       _status(subscription: _active),
       _status(checkout: _pendingCheckout()),
-      _status(subscription: {
-        ..._active,
-        'state': 'cancelled',
-        'ends_on': '2026-11-08',
-        'renews_on': null
-      }),
+      _status(subscription: _active, planChange: _pendingChange),
+      _status(subscription: _cancelledVerified),
     ]) {
       final backend = _Backend({
         'GET /billing/paypal/status': () => [_json(status)]
       });
-      await _mount(tester, backend, height: 932);
+      await _mount(tester, backend, height: 700);
       expect(tester.takeException(), isNull);
+      expect(find.byType(PlpCapabilityGrid), findsOneWidget);
     }
   });
 

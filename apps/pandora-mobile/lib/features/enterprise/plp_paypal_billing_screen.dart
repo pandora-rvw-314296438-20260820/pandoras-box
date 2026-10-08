@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,10 +6,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/plp_paypal_billing_api.dart';
+import '../../core/network/pandora_api_error.dart';
 import '../../core/security/pandora_identity_verification.dart';
+import '../../pandora_config.dart';
 import 'plp_billing_surfaces.dart';
-import 'plp_editorial_surfaces.dart';
-import 'plp_line_icons.dart';
+import 'plp_resort_workspace.dart';
 
 typedef PlpBillingUrlLauncher = Future<bool> Function(Uri url);
 
@@ -35,112 +35,61 @@ DateTime? plpBillingDate(String? value) {
 String plpBillingDateShort(DateTime d) => '${d.day} ${_months[d.month - 1]}';
 String plpBillingDateLong(DateTime d) => '${plpBillingDateShort(d)} ${d.year}';
 
-DateTime _oneMonthBefore(DateTime d) {
-  final year = d.month == 1 ? d.year - 1 : d.year;
-  final month = d.month == 1 ? 12 : d.month - 1;
-  final lastDay = DateTime.utc(year, month + 1, 0).day;
-  return DateTime.utc(year, month, math.min(d.day, lastDay));
-}
-
-String _ago(DateTime then, DateTime now) {
-  final diff = now.difference(then);
-  if (diff.inMinutes < 1) return 'just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-  if (diff.inHours < 24) return '${diff.inHours} h ago';
-  return '${diff.inDays} d ago';
-}
-
-String _money(int cents) => cents % 100 == 0
-    ? '${cents ~/ 100}'
-    : '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
-
-/// Everything the workspace shows, derived only from the backend status.
+/// What the backend status says, reduced to the facts the page needs.
 class _BillingView {
-  _BillingView(this.snapshot, this.now)
-      : today = DateTime.utc(now.year, now.month, now.day) {
+  _BillingView(this.snapshot, this.now) {
     final sub = snapshot.subscription;
     holds = sub != null && sub.holdsPlan;
-    ghost = sub != null && sub.state == 'cancelled';
+    cancelled = sub != null && sub.state == 'cancelled';
     final checkout = snapshot.checkout;
     final change = snapshot.planChange;
-    pendingCheckout = !holds && checkout?.pendingAt(now) == true;
-    pendingChange = holds && change?.pending == true;
+    final pendingCheckout = !holds && checkout?.pendingAt(now) == true;
+    final pendingChange = holds && change?.pending == true;
     waitingUrl = pendingCheckout
         ? checkout!.approvalUrl
         : pendingChange
             ? change!.approvalUrl
             : null;
-    pendingPlan = pendingCheckout
-        ? checkout!.planCode
-        : pendingChange
-            ? change!.toPlanCode
-            : null;
     cancelRequested = holds && checkout?.status == 'cancel_requested';
     plan = snapshot.plan(sub?.planCode);
     cycleEnd = holds
         ? plpBillingDate(sub!.renewsOn)
-        : ghost
+        : cancelled
             ? plpBillingDate(sub!.endsOn)
             : null;
-    final end = cycleEnd;
-    if (end != null && plan?.interval == 'month') {
-      var start = _oneMonthBefore(end);
-      final started = plpBillingDate(sub!.startsOn);
-      if (started != null && started.isAfter(start) && started.isBefore(end)) {
-        start = started;
-      }
-      cycleStart = start;
-    }
   }
 
   final PlpBillingSnapshot snapshot;
   final DateTime now;
-  final DateTime today;
   late final bool holds;
-  late final bool ghost;
-  late final bool pendingCheckout;
-  late final bool pendingChange;
+  late final bool cancelled;
   late final Uri? waitingUrl;
-  late final String? pendingPlan;
   late final bool cancelRequested;
   late final PlpBillingPlan? plan;
   late final DateTime? cycleEnd;
-  DateTime? cycleStart;
 
   PlpBillingSubscription? get sub => snapshot.subscription;
+
+  /// A checkout or plan change is waiting for the buyer in PayPal.
   bool get locked => waitingUrl != null;
-  int? get daysLeft => cycleEnd?.difference(today).inDays;
-  bool get ghostWithAccess => ghost && (daysLeft ?? -1) >= 0;
-  String? get currentPlanCode => holds ? sub!.planCode : null;
 
-  /// Timeline only when both ends are known and today sits inside the cycle.
-  bool get hasPlayhead {
-    final start = cycleStart;
-    final end = cycleEnd;
-    return start != null &&
-        end != null &&
-        start.isBefore(end) &&
-        !now.isBefore(start) &&
-        !now.isAfter(end.add(const Duration(days: 1)));
-  }
+  String? get planName => plan?.name ?? sub?.planCode;
 
-  double _pos(DateTime t) {
-    final start = cycleStart!.millisecondsSinceEpoch;
-    final span = cycleEnd!.millisecondsSinceEpoch - start;
-    return ((t.millisecondsSinceEpoch - start) / span).clamp(0.0, 1.0);
-  }
+  /// ACTIVE in PayPal and read back by the server (provider_verified). Only
+  /// this state may offer plan changes and cancellation.
+  bool get activeVerified =>
+      holds &&
+      sub!.state == 'active' &&
+      sub!.providerVerified &&
+      !locked &&
+      !cancelRequested;
 
-  double get todayPos => _pos(now);
-
-  double get sealPos {
-    final verified = DateTime.tryParse(sub?.verifiedAt ?? '')?.toUtc();
-    if (verified == null) return todayPos;
-    return math.min(_pos(verified), todayPos);
-  }
+  /// CANCELLED read back from PayPal and recorded by the server.
+  bool get cancelledVerified => cancelled && sub!.providerVerified;
 
   (String, String) get entryText {
     if (locked) return ('Pandora billing', ' \u00b7 waiting for PayPal');
-    final name = plan?.name ?? sub?.planCode;
+    final name = planName;
     if (holds) {
       final end = cycleEnd;
       return (
@@ -151,12 +100,15 @@ class _BillingView {
         ].map((part) => ' \u00b7 $part').join(),
       );
     }
-    if (ghostWithAccess) {
+    final end = cycleEnd;
+    if (cancelled &&
+        end != null &&
+        !end.isBefore(DateTime.utc(now.year, now.month, now.day))) {
       return (
         'Pandora',
         [
           if (name != null) name,
-          'access until ${plpBillingDateShort(cycleEnd!)}',
+          'access until ${plpBillingDateShort(end)}',
         ].map((part) => ' \u00b7 $part').join(),
       );
     }
@@ -164,12 +116,26 @@ class _BillingView {
   }
 }
 
-/// Native PLP Enterprise billing workspace (approved concept).
+/// Sub-pages of the active plan. Every one is the same tile page.
+enum _Mode { home, changePlan, confirmCancel, choosePlan }
+
+enum _Retry { none, checkout, changePlan, reconcile, cancel }
+
+/// One rendered billing page: one notice sentence and its tiles.
+class _Page {
+  const _Page(this.notice, this.tiles);
+  final String notice;
+  final List<PlpCapability> tiles;
+}
+
+/// PLP billing, drawn as a Rooms & Housekeeping tile page: serif title,
+/// one notice, capability tiles. The shell owns the menu button and the
+/// Pandora logo; this page never draws either.
 ///
-/// Every value shown is read back from the owner API, which reads it from
-/// PayPal or from Pandora's billing records. Nothing is assumed
-/// optimistically: checkout, plan changes and cancellation only appear as
-/// done after reconcile + status confirm them. Flutter never calls PayPal.
+/// Every state comes from the owner API, which reads it from PayPal. Nothing
+/// is assumed optimistically: checkout, plan changes and cancellation only
+/// show as done after reconcile + status confirm them. Flutter never calls
+/// PayPal and holds no PayPal credential.
 class PlpPaypalBillingScreen extends StatefulWidget {
   const PlpPaypalBillingScreen({
     super.key,
@@ -179,60 +145,49 @@ class PlpPaypalBillingScreen extends StatefulWidget {
     this.launchApproval,
     this.clock,
     this.onBack,
+    this.billingEnvironment = PandoraConfig.billingEnvironment,
   });
 
   /// The current PLP organization. Null/empty renders a missing-organization
-  /// state and no request is sent.
+  /// notice and no request is sent.
   final String? organizationId;
+
+  /// Kept for the shell contract; the shell draws the menu button.
   final VoidCallback onOpenNavigation;
   final PlpPaypalBillingApi? api;
   final PlpBillingUrlLauncher? launchApproval;
   final DateTime Function()? clock;
 
-  /// Returns to the surface that opened billing (PLP routed-tool back).
+  /// Kept for the shell contract; the shell handles back.
   final VoidCallback? onBack;
+
+  /// `sandbox` shows the sandbox header. Defaults to the build config.
+  final String billingEnvironment;
 
   @override
   State<PlpPaypalBillingScreen> createState() => _PlpPaypalBillingScreenState();
 }
 
-enum _PendingAction { none, checkout, changePlan, reconcile, cancel }
-
-enum _PanelKind { none, handoff, cancel }
-
 class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
-    with WidgetsBindingObserver, TickerProviderStateMixin {
-  final _scroll = ScrollController();
-  final _diffKey = GlobalKey();
+    with WidgetsBindingObserver {
   PlpPaypalBillingApi? _api;
   PlpBillingSnapshot? _snapshot;
   PlpBillingProblem? _problem;
-  String? _selectedPlan;
   bool _loading = true;
   bool _busy = false;
-  bool _checking = false;
-  bool _handoffOpen = false;
-  bool _cancelOpen = false;
   bool _awaitingProviderReturn = false;
-  _PendingAction _identityRetry = _PendingAction.none;
-  String? _identityRetryPlan;
-  Timer? _ticker;
 
-  // Motion: waiting header + dim, and the bottom panels (handoff, cancel).
-  late final AnimationController _lock =
-      AnimationController(vsync: this, duration: plpMotionPanel);
-  late final Animation<double> _lockCurve =
-      CurvedAnimation(parent: _lock, curve: plpMotionIn);
-  late final AnimationController _panel =
-      AnimationController(vsync: this, duration: plpMotionPanel)
-        ..addListener(_applyLift);
-  late final Animation<double> _panelCurve =
-      CurvedAnimation(parent: _panel, curve: plpMotionIn);
-  _PanelKind _panelKind = _PanelKind.none;
-  String? _handoffPlan;
-  bool _lockSynced = false;
-  double _liftBase = 0;
-  double _liftDelta = 0;
+  _Mode _mode = _Mode.home;
+
+  /// Cancel was refused with AWAITING_BUYER_APPROVAL: stay on waiting until
+  /// a refresh reads PayPal again.
+  bool _awaitingBuyer = false;
+
+  /// Change-plan refused with SANDBOX_PLAN_CHANGE_UNAVAILABLE.
+  bool _sandboxChangeUnavailable = false;
+
+  _Retry _identityRetry = _Retry.none;
+  String? _identityRetryPlan;
 
   String? get _organizationId {
     final id = widget.organizationId?.trim();
@@ -248,27 +203,14 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     final organizationId = _organizationId;
     if (organizationId == null) {
       _loading = false;
-      _problem = const PlpBillingProblem(
-        'Organization missing.',
-        'This workspace has no organization selected, so billing cannot load.',
-      );
       return;
     }
     _api = widget.api ?? PlpPaypalBillingApi.forOrganization(organizationId);
     unawaited(_loadStatus());
-    // Keeps "checked X ago" honest as time passes; the time itself is the
-    // backend's last PayPal verification.
-    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
   void dispose() {
-    _ticker?.cancel();
-    _lock.dispose();
-    _panel.dispose();
-    _scroll.dispose();
     WidgetsBinding.instance.removeObserver(this);
     if (widget.api == null) _api?.close();
     super.dispose();
@@ -276,11 +218,24 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Returning from the external PayPal approval: confirm with PayPal first,
-    // then show what the server recorded.
+    // Back from the PayPal approval: confirm with PayPal first, then show
+    // what the server recorded.
     if (state == AppLifecycleState.resumed && _awaitingProviderReturn) {
       _awaitingProviderReturn = false;
-      unawaited(_check());
+      unawaited(_refresh());
+    }
+  }
+
+  void _apply(PlpBillingSnapshot snapshot) {
+    _snapshot = snapshot;
+    final view = _BillingView(snapshot, _now);
+    // Sub-pages only exist where their state still holds.
+    if ((_mode == _Mode.changePlan || _mode == _Mode.confirmCancel) &&
+        !view.activeVerified) {
+      _mode = _Mode.home;
+    }
+    if (_mode == _Mode.choosePlan && (view.holds || view.locked)) {
+      _mode = _Mode.home;
     }
   }
 
@@ -291,13 +246,9 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
       final snapshot = await api.status();
       if (!mounted) return;
       setState(() {
-        _snapshot = snapshot;
+        _apply(snapshot);
         _loading = false;
-        if (_selectedPlan != null && snapshot.plan(_selectedPlan) == null) {
-          _selectedPlan = null;
-        }
       });
-      _syncLock();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -307,7 +258,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     }
   }
 
-  Future<void> _retry() async {
+  Future<void> _retryLoad() async {
     if (_busy) return;
     setState(() {
       _loading = _snapshot == null;
@@ -318,24 +269,35 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
 
   Future<void> _run(
     Future<void> Function() work, {
-    _PendingAction retry = _PendingAction.none,
+    _Retry retry = _Retry.none,
     String? retryPlan,
   }) async {
     if (_busy || _api == null) return;
     setState(() {
       _busy = true;
       _problem = null;
+      _sandboxChangeUnavailable = false;
     });
     try {
       await work();
     } catch (error) {
-      final problem = PlpBillingProblem.from(error);
-      if (mounted) {
-        setState(() {
-          _problem = problem;
-          _identityRetry = problem.needsIdentity ? retry : _PendingAction.none;
-          _identityRetryPlan = problem.needsIdentity ? retryPlan : null;
-        });
+      if (error is PandoraApiError &&
+          error.code == 'SANDBOX_PLAN_CHANGE_UNAVAILABLE') {
+        if (mounted) {
+          setState(() {
+            _sandboxChangeUnavailable = true;
+            _mode = _Mode.home;
+          });
+        }
+      } else {
+        final problem = PlpBillingProblem.from(error);
+        if (mounted) {
+          setState(() {
+            _problem = problem;
+            _identityRetry = problem.needsIdentity ? retry : _Retry.none;
+            _identityRetryPlan = problem.needsIdentity ? retryPlan : null;
+          });
+        }
       }
       // Never leave an unconfirmed outcome on screen: re-read server state.
       await _loadStatusQuietly();
@@ -347,10 +309,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
   Future<void> _loadStatusQuietly() async {
     try {
       final snapshot = await _api!.status();
-      if (mounted) {
-        setState(() => _snapshot = snapshot);
-        _syncLock();
-      }
+      if (mounted) setState(() => _apply(snapshot));
     } catch (_) {
       // The primary problem is already on screen.
     }
@@ -361,10 +320,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
       await _api!.reconcile();
     } finally {
       final snapshot = await _api!.status();
-      if (mounted) {
-        setState(() => _snapshot = snapshot);
-        _syncLock();
-      }
+      if (mounted) setState(() => _apply(snapshot));
     }
   }
 
@@ -385,7 +341,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
           await _loadStatusQuietly();
           await _openApproval(approval.approvalUrl);
         },
-        retry: _PendingAction.checkout,
+        retry: _Retry.checkout,
         retryPlan: planCode,
       );
 
@@ -402,36 +358,42 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
           } else {
             await _reconcileAndReload();
           }
+          if (mounted) setState(() => _mode = _Mode.home);
         },
-        retry: _PendingAction.changePlan,
+        retry: _Retry.changePlan,
         retryPlan: planCode,
       );
 
   /// Reconcile with PayPal (server side), then read status.
-  Future<void> _check() async {
+  Future<void> _refresh() async {
     if (_busy) return;
-    setState(() => _checking = true);
-    try {
-      await _run(_reconcileAndReload, retry: _PendingAction.reconcile);
-    } finally {
-      if (mounted) setState(() => _checking = false);
-    }
+    setState(() => _awaitingBuyer = false);
+    await _run(_reconcileAndReload, retry: _Retry.reconcile);
   }
 
-  /// The owner API decides the outcome from PayPal readbacks. A blocked
-  /// cancel (e.g. buyer approval still pending) is shown as such; an
-  /// unconfirmed one re-reads status, which keeps the plan and shows the
-  /// "waiting for PayPal" note. Only a server-recorded cancellation renders
-  /// as cancelled.
+  /// The owner API decides the outcome from PayPal readbacks. Only a
+  /// `cancelled` response followed by a CANCELLED status readback renders
+  /// as Cancelled. AWAITING_BUYER_APPROVAL keeps the page on waiting.
   Future<void> _cancel() => _run(
         () async {
           final outcome = await _api!.cancel();
           if (outcome.blocked) {
+            if (outcome.reason == 'AWAITING_BUYER_APPROVAL') {
+              if (mounted) {
+                setState(() {
+                  _awaitingBuyer = true;
+                  _mode = _Mode.home;
+                });
+              }
+              await _loadStatusQuietly();
+              return;
+            }
             throw PlpBillingProblemException(outcome.blockedProblem);
           }
           await _reconcileAndReload();
+          if (mounted) setState(() => _mode = _Mode.home);
         },
-        retry: _PendingAction.cancel,
+        retry: _Retry.cancel,
       );
 
   Future<void> _openApproval(Uri? url) async {
@@ -452,7 +414,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     if (!opened) {
       throw const PlpBillingProblemException(PlpBillingProblem(
         'PayPal did not open.',
-        'Pandora could not open PayPal. Use \u201cOpen PayPal\u201d to try again.',
+        'Pandora could not open PayPal. Try Open PayPal again.',
       ));
     }
     _awaitingProviderReturn = true;
@@ -477,672 +439,241 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     if (!verified) {
       setState(() => _problem = const PlpBillingProblem(
             'Identity not confirmed.',
-            'The authenticator check was not completed, so nothing was sent to PayPal.',
+            'Identity not confirmed. Nothing was sent to PayPal.',
             needsIdentity: true,
           ));
       return;
     }
     setState(() {
       _problem = null;
-      _identityRetry = _PendingAction.none;
+      _identityRetry = _Retry.none;
     });
     switch (retry) {
-      case _PendingAction.checkout:
+      case _Retry.checkout:
         if (plan != null) await _checkout(plan);
-      case _PendingAction.changePlan:
+      case _Retry.changePlan:
         if (plan != null) await _changePlan(plan);
-      case _PendingAction.reconcile:
-        await _check();
-      case _PendingAction.cancel:
+      case _Retry.reconcile:
+        await _refresh();
+      case _Retry.cancel:
         await _cancel();
-      case _PendingAction.none:
+      case _Retry.none:
         break;
     }
   }
 
-  void _select(_BillingView view, String code) {
+  void _go(_Mode mode) {
+    if (_busy) return;
     setState(() {
-      _selectedPlan =
-          code == view.currentPlanCode || code == _selectedPlan ? null : code;
+      _mode = mode;
+      _problem = null;
+      _sandboxChangeUnavailable = false;
     });
   }
 
-  double _panelHeight(BuildContext context) {
-    final h = MediaQuery.sizeOf(context).height;
-    return (h * .4).clamp(330.0, math.max(330.0, h - 120));
+  VoidCallback? _tap(VoidCallback action) => _busy ? null : action;
+
+  static IconData _planIcon(int index) => index == 0
+      ? Icons.rocket_launch_outlined
+      : Icons.workspace_premium_outlined;
+
+  List<PlpCapability> _planTiles(
+    List<PlpBillingPlan> plans,
+    void Function(String code) onPick,
+  ) {
+    final all = _snapshot?.plans ?? const <PlpBillingPlan>[];
+    return [
+      for (final plan in plans)
+        PlpCapability(
+          plan.name,
+          _planIcon(all.indexOf(plan)),
+          _tap(() => onPick(plan.code)),
+        ),
+    ];
   }
 
-  /// Eases the black "Waiting for PayPal" header (and the dim) in or out to
-  /// match the server's state. The first status read applies instantly.
-  void _syncLock() {
+  _Page _waiting(_BillingView view) {
+    final url = view.waitingUrl;
+    return _Page('Waiting for PayPal.', [
+      if (url != null)
+        PlpCapability(
+          'Open PayPal',
+          Icons.open_in_new_rounded,
+          _tap(() => _reopenApproval(url)),
+        ),
+      PlpCapability('Refresh', Icons.refresh_rounded, _tap(_refresh)),
+    ]);
+  }
+
+  _Page _page() {
+    if (_organizationId == null) {
+      return const _Page('No organization is selected.', []);
+    }
     final snapshot = _snapshot;
-    if (snapshot == null || !mounted) return;
-    final target = _BillingView(snapshot, _now).locked ? 1.0 : 0.0;
-    if (!_lockSynced || plpReduceMotion(context)) {
-      _lockSynced = true;
-      _lock.value = target;
-      return;
-    }
-    if (_lock.value == target && !_lock.isAnimating) return;
-    if (target == 1) {
-      unawaited(_lock.forward());
-    } else {
-      unawaited(_lock.reverse());
-    }
-  }
-
-  /// Keeps the lifted content in step with the panel, so it rises and
-  /// settles together with it instead of jumping.
-  void _applyLift() {
-    if (_liftDelta == 0 || !_scroll.hasClients) return;
-    final position = _scroll.position;
-    _scroll.jumpTo((_liftBase + _liftDelta * _panelCurve.value)
-        .clamp(position.minScrollExtent, position.maxScrollExtent));
-  }
-
-  void _raisePanel({required bool lift}) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _panelKind == _PanelKind.none) return;
-      _liftBase = _scroll.hasClients ? _scroll.offset : 0;
-      _liftDelta = 0;
-      if (lift && _scroll.hasClients) {
-        final box = _diffKey.currentContext?.findRenderObject() as RenderBox?;
-        if (box != null && box.attached) {
-          final bottom = box.localToGlobal(Offset(0, box.size.height)).dy;
-          final limit =
-              MediaQuery.sizeOf(context).height - _panelHeight(context) - 16;
-          final delta = bottom - limit;
-          if (delta > 0) {
-            final target =
-                math.min(_liftBase + delta, _scroll.position.maxScrollExtent);
-            _liftDelta = target - _liftBase;
-          }
-        }
-      }
-      if (plpReduceMotion(context)) {
-        _panel.value = 1;
-      } else {
-        unawaited(_panel.forward());
-      }
-    });
-  }
-
-  void _openHandoff() {
-    setState(() {
-      _handoffOpen = true;
-      _cancelOpen = false;
-      _panelKind = _PanelKind.handoff;
-      _handoffPlan = _selectedPlan;
-    });
-    _raisePanel(lift: true);
-  }
-
-  void _openCancel() {
-    setState(() {
-      _cancelOpen = true;
-      _handoffOpen = false;
-      _panelKind = _PanelKind.cancel;
-    });
-    _raisePanel(lift: false);
-  }
-
-  /// Slides the open panel back down (same curve and duration it rose with).
-  void _closePanel() {
-    if (_panelKind == _PanelKind.none) return;
-    setState(() {
-      _handoffOpen = false;
-      _cancelOpen = false;
-    });
-    void finish() {
-      if (!mounted || _panel.value != 0) return;
-      setState(() {
-        _panelKind = _PanelKind.none;
-        _liftDelta = 0;
-      });
+    if (snapshot == null) {
+      if (_loading) return const _Page('Loading\u2026', []);
+      return _Page(_problem?.body ?? 'Billing could not load.', [
+        if (_api != null)
+          PlpCapability('Try again', Icons.refresh_rounded, _tap(_retryLoad)),
+      ]);
     }
 
-    if (plpReduceMotion(context)) {
-      _panel.value = 0;
-      finish();
-    } else {
-      _panel.reverse().whenCompleteOrCancel(finish);
-    }
-  }
+    final view = _BillingView(snapshot, _now);
+    final sub = view.sub;
+    final name = view.planName ?? 'Your plan';
 
-  Future<void> _continueHandoff(_BillingView view) async {
-    final code = _selectedPlan;
-    if (code == null) return;
+    // Waiting: approval pending, cancel refused while the buyer approves,
+    // cancellation sent but not read back, or a record PayPal has not
+    // verified yet. Cancel is never offered here.
+    if (_awaitingBuyer || view.locked) return _waiting(view);
     if (view.holds) {
-      await _changePlan(code);
-    } else {
-      await _checkout(code);
+      if (view.cancelRequested || !sub!.providerVerified) {
+        return _waiting(view);
+      }
+      if (!view.activeVerified) {
+        final refresh =
+            PlpCapability('Refresh', Icons.refresh_rounded, _tap(_refresh));
+        return switch (sub.state) {
+          'trial' => _Page('$name is in trial, confirmed by PayPal.', [refresh]),
+          _ => _Page('Payment needs attention in PayPal.', [refresh]),
+        };
+      }
+      final others = [
+        for (final plan in snapshot.plans)
+          if (plan.code != sub.planCode) plan,
+      ];
+      switch (_mode) {
+        case _Mode.changePlan:
+          return _Page(
+            others.isEmpty ? 'No other plan is available.' : 'Choose a plan.',
+            _planTiles(others, _changePlan),
+          );
+        case _Mode.confirmCancel:
+          return _Page('Cancel this plan. PayPal must confirm.', [
+            PlpCapability(
+              'Confirm cancel',
+              Icons.check_circle_outline_rounded,
+              _tap(_cancel),
+            ),
+          ]);
+        case _Mode.home:
+        case _Mode.choosePlan:
+          return _Page(
+            _sandboxChangeUnavailable
+                ? 'Plan changes are not available in sandbox.'
+                : '$name is active, confirmed by PayPal.',
+            [
+              if (others.isNotEmpty)
+                PlpCapability(
+                  'Change plan',
+                  Icons.swap_horiz_rounded,
+                  _tap(() => _go(_Mode.changePlan)),
+                ),
+              PlpCapability('Refresh', Icons.refresh_rounded, _tap(_refresh)),
+              PlpCapability(
+                'Cancel',
+                Icons.cancel_outlined,
+                _tap(() => _go(_Mode.confirmCancel)),
+              ),
+            ],
+          );
+      }
     }
-    if (mounted) {
-      setState(() => _selectedPlan = null);
-      _closePanel();
+
+    if (view.cancelled && _mode != _Mode.choosePlan) {
+      if (!view.cancelledVerified) return _waiting(view);
+      return _Page('Cancelled.', [
+        PlpCapability(
+          'Choose a plan',
+          Icons.add_circle_outline_rounded,
+          _tap(() => _go(_Mode.choosePlan)),
+        ),
+      ]);
     }
-  }
 
-  Future<void> _holdConfirmed() async {
-    await _cancel();
-    if (mounted) _closePanel();
+    return _Page(
+      snapshot.plans.isEmpty
+          ? 'No PayPal plan is available yet.'
+          : 'No PayPal plan yet.',
+      _planTiles(snapshot.plans, _checkout),
+    );
   }
-
-  static const _identity = <double>[
-    1, 0, 0, 0, 0, //
-    0, 1, 0, 0, 0, //
-    0, 0, 1, 0, 0, //
-    0, 0, 0, 1, 0,
-  ];
-  static const _grey = <double>[
-    .2126, .7152, .0722, 0, 0, //
-    .2126, .7152, .0722, 0, 0, //
-    .2126, .7152, .0722, 0, 0, //
-    0, 0, 0, 1, 0,
-  ];
 
   @override
   Widget build(BuildContext context) {
-    final snapshot = _snapshot;
-    final view = snapshot == null ? null : _BillingView(snapshot, _now);
-    final locked = view?.locked ?? false;
-    final open = (_handoffOpen || _cancelOpen) && view != null && !locked;
+    var page = _page();
+    final problem = _problem;
+    if (problem != null && _snapshot != null) {
+      final identity =
+          problem.needsIdentity && _identityRetry != _Retry.none;
+      page = _Page(
+        problem.body,
+        identity
+            ? [
+                PlpCapability(
+                  'Verify identity',
+                  Icons.verified_user_outlined,
+                  _tap(_verifyIdentity),
+                ),
+              ]
+            : page.tiles,
+      );
+    }
+    final sandbox = widget.billingEnvironment == 'sandbox';
 
     return Material(
       key: const ValueKey('plp-paypal-billing'),
-      color: plpCanvas,
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_lock, _panel]),
-        builder: (context, _) {
-          final t = _lockCurve.value;
-          final p = _panelCurve.value;
-          final panelShown =
-              view != null && _panelKind != _PanelKind.none && _panel.value > 0;
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: Column(
-                  children: [
-                    // Fixed: never scrolls or lifts with the content.
-                    _topBar(view, locked, t),
-                    Expanded(
-                      child: IgnorePointer(
-                        ignoring: locked,
-                        child: ExcludeSemantics(
-                          excluding: locked,
-                          child: Opacity(
-                            opacity: 1 - .66 * t,
-                            child: ColorFiltered(
-                              colorFilter: ColorFilter.matrix(<double>[
-                                for (var i = 0; i < 20; i++)
-                                  _identity[i] + (_grey[i] - _identity[i]) * t,
-                              ]),
-                              child: _content(context, view,
-                                  locked: locked, open: open, lockT: t),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+      color: PlpResortWorkspaceScreen.canvas,
+      child: SafeArea(
+        bottom: false,
+        child: ListView(
+          key: const ValueKey('plp-billing-page'),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            18,
+            12,
+            18,
+            // Clear of the shell's bottom-right Pandora logo.
+            120 + MediaQuery.viewPaddingOf(context).bottom,
+          ),
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: const Align(
+                alignment: Alignment.topLeft,
+                heightFactor: 1,
+                child: PlpPageTitle('BILLING'),
+              ),
+            ),
+            if (sandbox)
+              const Padding(
+                padding: EdgeInsets.only(left: 56, top: 2),
+                child: Text(
+                  'PayPal sandbox',
+                  key: ValueKey('plp-billing-sandbox'),
+                  style: TextStyle(
+                    color: PlpResortWorkspaceScreen.warn,
+                    fontSize: 11,
+                    letterSpacing: .4,
+                  ),
                 ),
               ),
-              if (panelShown) ...[
-                Positioned.fill(
-                  child: GestureDetector(
-                    key: const ValueKey('plp-billing-scrim'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _busy || !open ? null : _closePanel,
-                    child: ColoredBox(
-                      color: Color.fromRGBO(0x17, 0x15, 0x12, .22 * p),
-                    ),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: FractionalTranslation(
-                    translation: Offset(0, 1 - p),
-                    child: _panelKind == _PanelKind.handoff
-                        ? _handoffPanel(context, view)
-                        : _cancelPanel(view),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            PlpNoticeBox(
+              page.notice,
+              key: const ValueKey('plp-billing-notice'),
+            ),
+            if (page.tiles.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              PlpCapabilityGrid(
+                key: const ValueKey('plp-billing-tiles'),
+                items: page.tiles,
+              ),
             ],
-          );
-        },
-      ),
-    );
-  }
-
-  /// Light header, with the black waiting header easing down over it from
-  /// the top while a checkout or plan change waits for PayPal.
-  Widget _topBar(_BillingView? view, bool locked, double t) {
-    final back = widget.onBack;
-    final url = locked ? view!.waitingUrl : null;
-    return SizedBox(
-      width: double.infinity,
-      child: Stack(
-        children: [
-          if (t < 1)
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-                child: PlpEditorialHeader(
-                  title: 'Subscription',
-                  onOpenNavigation: widget.onOpenNavigation,
-                  trailing: back == null
-                      ? null
-                      : IconButton(
-                          key: const ValueKey('plp-billing-back'),
-                          onPressed: back,
-                          tooltip: 'Back',
-                          color: plpInk,
-                          icon: const Icon(Icons.arrow_back_rounded),
-                        ),
-                ),
-              ),
-            ),
-          if (t > 0)
-            ClipRect(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                heightFactor: t,
-                child: PlpBillingWaitingBand(
-                  onOpenNavigation: widget.onOpenNavigation,
-                  onBack: back,
-                  checking: locked && _checking,
-                  onOpenPaypal:
-                      _busy || url == null ? null : () => _reopenApproval(url),
-                  onCheckAgain: _busy || !locked ? null : _check,
-                  problem: locked ? _problem?.title : null,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _handoffPanel(BuildContext context, _BillingView view) {
-    final plan = view.snapshot.plan(_handoffPlan);
-    return PlpBillingBlackPanel(
-      height: _panelHeight(context),
-      child: PlpBillingHandoffContent(
-        planName: plan?.name ?? '',
-        price: plan?.priceLabel ?? '',
-        busy: _busy,
-        onContinue: () => _continueHandoff(view),
-        onNotNow: _closePanel,
-      ),
-    );
-  }
-
-  Widget _cancelPanel(_BillingView view) {
-    final end = view.cycleEnd;
-    return PlpBillingBlackPanel(
-      child: PlpBillingCancelContent(
-        accessLine: end == null
-            ? 'PayPal confirms when access ends.'
-            : 'Access continues until ${plpBillingDateLong(end)}.',
-        busy: _busy,
-        onConfirmed: _holdConfirmed,
-        onKeep: _closePanel,
-      ),
-    );
-  }
-
-  Widget _content(
-    BuildContext context,
-    _BillingView? view, {
-    required bool locked,
-    required bool open,
-    required double lockT,
-  }) {
-    final children = <Widget>[
-      SizedBox(height: 34 + 16 * lockT),
-      const PlpBillingTitle('Pandora billing'),
-    ];
-
-    if (view != null) {
-      final sub = view.sub;
-      children
-        ..add(const SizedBox(height: 14))
-        ..add(PlpMorph(
-          key: const ValueKey('m-status'),
-          signature: '${view.holds}|${view.ghost}|${sub?.state}|'
-              '${view.plan?.code}|${view.cancelRequested}',
-          child: _statusLine(view),
-        ));
-      if (view.snapshot.sandbox) {
-        children.add(const Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text(
-            'PayPal sandbox \u00b7 test mode',
-            key: ValueKey('plp-billing-sandbox'),
-            style: TextStyle(color: plpWarn, fontSize: 11.5),
-          ),
-        ));
-      }
-    }
-
-    final problem = locked ? null : _problem;
-    final identity = problem != null &&
-        problem.needsIdentity &&
-        _identityRetry != _PendingAction.none;
-    children.add(PlpMorph(
-      key: const ValueKey('m-problem'),
-      signature: problem?.title ?? 'none',
-      child: problem == null
-          ? const SizedBox.shrink()
-          : Padding(
-              padding: const EdgeInsets.only(top: 18),
-              child: PlpBillingNotice(
-                key: const ValueKey('plp-billing-problem'),
-                title: problem.title,
-                body: problem.body,
-                action: identity
-                    ? 'Verify identity'
-                    : _api == null
-                        ? null
-                        : 'Try again',
-                onAction: identity ? _verifyIdentity : (_busy ? null : _retry),
-              ),
-            ),
-    ));
-
-    if (_loading) {
-      children.add(const Padding(
-        padding: EdgeInsets.only(top: 40),
-        child: Text('Loading\u2026',
-            style: TextStyle(color: plpMuted, fontSize: 14.5)),
-      ));
-    } else if (view != null) {
-      children.addAll(_workspace(view, open: open));
-    }
-
-    return ListView(
-      controller: _scroll,
-      padding: EdgeInsets.fromLTRB(18, 0, 18,
-          _panelKind != _PanelKind.none ? _panelHeight(context) + 40 : 140),
-      children: children,
-    );
-  }
-
-  Widget _statusLine(_BillingView view) {
-    final sub = view.sub;
-    final name = view.plan?.name ?? sub?.planCode;
-    if (view.holds) {
-      final state = switch (sub!.state) {
-        'active' => 'Active',
-        'trial' => 'Trial',
-        'past_due' => 'Past due',
-        'suspended' => 'Suspended',
-        _ => sub.state,
-      };
-      final rest = [
-        if (name != null) name,
-        if (view.plan != null) view.plan!.priceLabel,
-        if (view.cancelRequested) 'cancellation sent',
-      ];
-      return PlpBillingStatusLine(
-        key: const ValueKey('plp-billing-status'),
-        lead: state,
-        rest: rest.map((p) => '\u00b7 $p').join(' '),
-        tone: sub.state == 'active' || sub.state == 'trial'
-            ? PlpBillingTone.good
-            : PlpBillingTone.warn,
-      );
-    }
-    if (view.ghost) {
-      return PlpBillingStatusLine(
-        key: const ValueKey('plp-billing-status'),
-        lead: 'Cancelled',
-        rest: name == null ? '' : '\u00b7 $name',
-        tone: PlpBillingTone.off,
-      );
-    }
-    return const PlpBillingStatusLine(
-      key: ValueKey('plp-billing-status'),
-      lead: 'Not subscribed',
-      rest: '',
-      tone: PlpBillingTone.off,
-    );
-  }
-
-  PlpBillingSeal _seal(_BillingView view) {
-    final sub = view.sub!;
-    final source = view.snapshot.sandbox ? 'PayPal sandbox' : 'PayPal';
-    final verified = DateTime.tryParse(sub.verifiedAt ?? '')?.toUtc();
-    final String label;
-    if (_checking) {
-      label = '$source \u00b7 checking\u2026';
-    } else if (!sub.providerVerified || verified == null) {
-      label = 'Account record \u00b7 not checked with PayPal';
-    } else {
-      label = '$source \u00b7 checked ${_ago(verified, view.now)}';
-    }
-    return PlpBillingSeal(
-      label: label,
-      verified: sub.providerVerified,
-      checking: _checking,
-      onTap: _busy ? null : _check,
-    );
-  }
-
-  List<Widget> _workspace(_BillingView view, {required bool open}) {
-    final sub = view.sub;
-    final widgets = <Widget>[];
-
-    // Attention notices.
-    final notices = <PlpBillingNotice>[
-      if (sub != null && (sub.state == 'past_due' || sub.state == 'suspended'))
-        const PlpBillingNotice(title: 'Payment needs attention in PayPal.'),
-      if (view.cancelRequested)
-        const PlpBillingNotice(
-          key: ValueKey('plp-billing-cancel-sent'),
-          title: 'Cancellation sent \u00b7 waiting for PayPal',
-        ),
-      if (sub == null && view.snapshot.checkout?.status == 'failed')
-        const PlpBillingNotice(
-            title: 'Last checkout did not start \u00b7 nothing charged'),
-    ];
-    widgets.add(PlpMorph(
-      key: const ValueKey('m-notices'),
-      signature: notices.map((n) => n.title).join('|'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final notice in notices)
-            Padding(padding: const EdgeInsets.only(top: 14), child: notice),
-        ],
-      ),
-    ));
-
-    // Temporal hero. The number itself rolls when it changes.
-    final days = view.daysLeft;
-    final end = view.cycleEnd;
-    var heroSignature = 'none';
-    Widget hero = const SizedBox.shrink();
-    if (view.holds) {
-      final known = days != null && days >= 0;
-      heroSignature = 'renews';
-      hero = Padding(
-        padding: const EdgeInsets.only(top: 42),
-        child: PlpBillingTemporalHero(
-          value: known ? '$days' : '\u2014',
-          unit: known ? (days == 1 ? 'day' : 'days') : '',
-          caption: 'renews',
-          date: end == null ? null : plpBillingDateLong(end),
-        ),
-      );
-    } else if (view.ghostWithAccess) {
-      heroSignature = 'access';
-      hero = Padding(
-        padding: const EdgeInsets.only(top: 42),
-        child: PlpBillingTemporalHero(
-          value: '$days',
-          unit: days == 1 ? 'day left' : 'days left',
-          caption: 'access until',
-          date: view.hasPlayhead ? null : plpBillingDateLong(end!),
-        ),
-      );
-    }
-    widgets.add(PlpMorph(
-      key: const ValueKey('m-hero'),
-      signature: heroSignature,
-      child: hero,
-    ));
-
-    // Billing playhead (or the seal alone when dates are incomplete). The
-    // playhead stays in place across active -> cancelled so its dashed
-    // remainder can draw in.
-    var cycleSignature = 'none';
-    Widget cycle = const SizedBox.shrink();
-    if (sub != null &&
-        (view.holds || view.ghostWithAccess) &&
-        view.hasPlayhead) {
-      cycleSignature = 'playhead';
-      cycle = Padding(
-        padding: const EdgeInsets.only(top: 38),
-        child: PlpBillingPlayhead(
-          today: view.todayPos,
-          sealAt: view.sealPos,
-          startLabel: plpBillingDateShort(view.cycleStart!),
-          endLabel: view.ghost
-              ? 'Access until ${plpBillingDateShort(end!)}'
-              : plpBillingDateShort(end!),
-          ghost: view.ghost,
-          seal: _seal(view),
-        ),
-      );
-    } else if (sub != null) {
-      cycleSignature = 'seal';
-      cycle = Padding(
-        padding: const EdgeInsets.only(top: 18),
-        child: Align(alignment: Alignment.centerLeft, child: _seal(view)),
-      );
-    }
-    widgets.add(PlpMorph(
-      key: const ValueKey('m-cycle'),
-      signature: cycleSignature,
-      child: cycle,
-    ));
-
-    // Spatial plan axis.
-    final axisEnabled = !_busy &&
-        !view.locked &&
-        !open &&
-        !view.cancelRequested &&
-        (!view.holds || sub!.state == 'active');
-    final heroAxis = !view.holds && !view.ghost;
-    final label = view.ghost
-        ? 'Restart'
-        : view.holds
-            ? 'Plan'
-            : 'Choose a plan';
-    widgets.add(PlpMorph(
-      key: const ValueKey('m-axis-label'),
-      signature: label,
-      child: Padding(
-        padding: EdgeInsets.only(
-            top: heroAxis ? 92 : 50, bottom: heroAxis ? 30 : 22),
-        child: PlpBillingLabel(
-          label,
-          icon: view.ghost ? PlpLineGlyph.rotateCcw : null,
+          ],
         ),
       ),
-    ));
-    if (view.snapshot.plans.isEmpty) {
-      widgets.add(const PlpBillingNotice(
-          key: ValueKey('plp-billing-no-plans'), title: 'No plans available'));
-    } else {
-      widgets.add(PlpPlanAxis(
-        key: const ValueKey('plp-billing-axis'),
-        hero: heroAxis,
-        nodes: [
-          for (final plan in view.snapshot.plans)
-            PlpPlanNode(
-                code: plan.code, name: plan.name, price: plan.priceLabel),
-        ],
-        current: view.currentPlanCode,
-        selected: _selectedPlan,
-        pending: view.pendingPlan,
-        onSelect: axisEnabled ? (code) => _select(view, code) : null,
-      ));
-    }
-
-    // Difference line (or the billing hint when not subscribed).
-    final selected = view.snapshot.plan(_selectedPlan);
-    var tailSignature = 'none';
-    Widget tail = const SizedBox.shrink();
-    if (selected != null && !view.locked) {
-      final current = view.holds ? view.plan : null;
-      String lead = selected.priceLabel;
-      final from = current?.amountCents;
-      final to = selected.amountCents;
-      if (current != null && from != null && to != null) {
-        final delta = to - from;
-        lead = delta >= 0
-            ? '+ ${selected.currency} ${_money(delta)}/mo'
-            : '\u2212 ${selected.currency} ${_money(-delta)}/mo';
-      }
-      tailSignature = 'diff';
-      tail = Padding(
-        padding: const EdgeInsets.only(top: 20),
-        child: PlpBillingRuledLine(
-          key: const ValueKey('plp-billing-diff'),
-          lead: lead,
-          rest: ' \u00b7 starts after PayPal approval',
-          chevron: true,
-          semanticsLabel:
-              '${selected.name}, $lead, starts after PayPal approval. Continue.',
-          onTap: _busy || open ? null : _openHandoff,
-        ),
-      );
-    } else if (heroAxis && !view.locked) {
-      tailSignature = 'hint';
-      tail = Padding(
-        padding: const EdgeInsets.only(top: 32),
-        child: Container(
-          padding: const EdgeInsets.only(top: 16),
-          decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: plpLine)),
-          ),
-          child: const Text(
-            'Billed monthly through PayPal.',
-            style: TextStyle(color: plpMuted, fontSize: 12),
-          ),
-        ),
-      );
-    }
-    widgets.add(KeyedSubtree(
-      key: _diffKey,
-      child: PlpMorph(signature: tailSignature, child: tail),
-    ));
-
-    final showCancel = view.holds &&
-        sub!.state == 'active' &&
-        !view.cancelRequested &&
-        _selectedPlan == null;
-    widgets.add(PlpMorph(
-      key: const ValueKey('m-cancel'),
-      signature: showCancel,
-      child: showCancel
-          ? Padding(
-              padding: const EdgeInsets.only(top: 40),
-              child: PlpBillingRuledLine(
-                key: const ValueKey('plp-billing-cancel'),
-                lead: 'Cancel subscription',
-                bottomRule: false,
-                chevron: true,
-                onTap: _busy || open || view.locked ? null : _openCancel,
-              ),
-            )
-          : const SizedBox.shrink(),
-    ));
-    return widgets;
+    );
   }
 }
 

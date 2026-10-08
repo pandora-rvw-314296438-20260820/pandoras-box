@@ -137,7 +137,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       'team' => _team(),
       'activity' => _activity(),
       _ => <Widget>[
-          const _EmptyState('This resort workspace is not available.')
+          const PlpNoticeBox('This resort workspace is not available.')
         ],
     };
 
@@ -219,22 +219,22 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ];
       case 'rooms':
         return <Widget>[
-          _CapabilityGrid(items: <_Capability>[
-            _Capability(
+          PlpCapabilityGrid(items: <PlpCapability>[
+            PlpCapability(
               'Housekeeping',
               Icons.cleaning_services_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('housekeeping'),
             ),
-            _Capability(
+            PlpCapability(
               'Maintenance',
               Icons.build_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('maintenance'),
             ),
-            _Capability(
+            PlpCapability(
               'Linen',
               Icons.local_laundry_service_outlined,
               onOpenModule == null ? null : () => onOpenModule!.call('linen'),
@@ -243,15 +243,15 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ];
       case 'guests':
         return <Widget>[
-          _CapabilityGrid(items: <_Capability>[
-            _Capability(
+          PlpCapabilityGrid(items: <PlpCapability>[
+            PlpCapability(
               'Concierge',
               Icons.support_agent_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('concierge'),
             ),
-            _Capability(
+            PlpCapability(
               'Transfers',
               Icons.airport_shuttle_outlined,
               onOpenModule == null
@@ -262,20 +262,20 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ];
       case 'revenue':
         return <Widget>[
-          _CapabilityGrid(items: <_Capability>[
-            _Capability(
+          PlpCapabilityGrid(items: <PlpCapability>[
+            PlpCapability(
               'Rates',
               Icons.sell_outlined,
               onOpenModule == null ? null : () => onOpenModule!.call('rates'),
             ),
-            _Capability(
+            PlpCapability(
               'Channels',
               Icons.hub_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('channels'),
             ),
-            _Capability(
+            PlpCapability(
               'Forecast',
               Icons.timeline_outlined,
               onOpenModule == null
@@ -286,20 +286,20 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ];
       case 'experiences':
         return <Widget>[
-          _CapabilityGrid(items: <_Capability>[
-            _Capability(
+          PlpCapabilityGrid(items: <PlpCapability>[
+            PlpCapability(
               'Concierge',
               Icons.support_agent_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('concierge'),
             ),
-            _Capability(
+            PlpCapability(
               'Dining',
               Icons.restaurant_outlined,
               onOpenModule == null ? null : () => onOpenModule!.call('dining'),
             ),
-            _Capability(
+            PlpCapability(
               'Wellness',
               Icons.spa_outlined,
               onOpenModule == null
@@ -337,7 +337,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           onOpenSettings: onOpenSourceSettings,
         )
       else
-        _EmptyState(detail),
+        PlpNoticeBox(detail),
       if (availableActions.isNotEmpty) ...[
         const SizedBox(height: 16),
         ...availableActions,
@@ -366,10 +366,10 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final command = _map(bootstrap['resortCommandCenter']);
     final pulse = _map(command['roomPulse']);
     final source = _map(bootstrap['sourceHealth']);
-    final directSourceEmpty =
-        _text(source['sourceProvider'], fallback: '').toLowerCase() ==
-                'pandora_direct' &&
-            _number(pulse['total'], fallback: _number(today['rooms_total'])) == 0;
+    final directSourceEmpty = _text(source['sourceProvider'], fallback: '')
+                .toLowerCase() ==
+            'pandora_direct' &&
+        _number(pulse['total'], fallback: _number(today['rooms_total'])) == 0;
     if (directSourceEmpty) {
       return <Widget>[
         _SourceRecoveryPanel(
@@ -522,7 +522,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       if (stays.isEmpty)
-        const _EmptyState('No stay records are available.')
+        const PlpNoticeBox('No stay records are available.')
       else
         _StayList(
           items: stays,
@@ -572,7 +572,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ),
       const SizedBox(height: 10),
       if (rooms.isEmpty)
-        const _EmptyState(
+        const PlpNoticeBox(
           'Room-level status will appear when accommodation records are connected.',
         )
       else
@@ -581,25 +581,25 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           onOpen: (room) => onOpenRecord?.call('room', room),
         ),
       const SizedBox(height: 22),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Housekeeping',
             Icons.cleaning_services_outlined,
             () => onOpenModule?.call('housekeeping'),
             detail: _integer(_number(universal['housekeepingJobs'])) + ' jobs',
           ),
-          _Capability(
+          PlpCapability(
             'Maintenance',
             Icons.build_outlined,
             () => onOpenModule?.call('maintenance'),
           ),
-          _Capability(
+          PlpCapability(
             'Linen',
             Icons.local_laundry_service_outlined,
             () => onOpenModule?.call('linen'),
           ),
-          _Capability(
+          PlpCapability(
             'Available',
             Icons.bed_outlined,
             null,
@@ -664,20 +664,20 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           onOpen: (request) => onOpenRecord?.call('request', request),
         ),
       const SizedBox(height: 22),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Concierge',
             Icons.support_agent_outlined,
             () => onOpenModule?.call('concierge'),
             detail: requests.length.toString() + ' guest signals',
           ),
-          _Capability(
+          PlpCapability(
             'VIP',
             Icons.workspace_premium_outlined,
             () => onOpenModule?.call('vip'),
           ),
-          _Capability(
+          PlpCapability(
             'Transfers',
             Icons.airport_shuttle_outlined,
             () => onOpenModule?.call('transfers'),
@@ -730,7 +730,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       if (attention.isEmpty && !liveSource)
-        const _EmptyState(
+        const PlpNoticeBox(
           'No manual work item is open. Channel exceptions cannot be verified '
           'until a live resort source is connected.',
         )
@@ -744,19 +744,19 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           onOpenRecord: onOpenRecord,
         ),
       const SizedBox(height: 22),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Property',
             Icons.domain_outlined,
             () => onOpenModule?.call('property'),
           ),
-          _Capability(
+          PlpCapability(
             'Security',
             Icons.shield_outlined,
             () => onOpenModule?.call('security'),
           ),
-          _Capability(
+          PlpCapability(
             'Transport',
             Icons.directions_car_outlined,
             () => onOpenModule?.call('transport'),
@@ -821,23 +821,23 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         tone: good,
       ),
       const SizedBox(height: 18),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Rates',
             Icons.sell_outlined,
             () => onOpenModule?.call('rates'),
             detail: _integer(_number(today['rooms_available'])) +
                 ' rooms available',
           ),
-          _Capability(
+          PlpCapability(
             'Channels',
             Icons.travel_explore_outlined,
             () => onOpenModule?.call('channels'),
             detail: _integer(_number(operations['channelExceptions'])) +
                 ' exceptions',
           ),
-          _Capability(
+          PlpCapability(
             'Forecast',
             Icons.query_stats_outlined,
             () => onOpenModule?.call('forecast'),
@@ -857,19 +857,19 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
               'verified resort source is connected.',
         ),
         const SizedBox(height: 18),
-        _CapabilityGrid(
+        PlpCapabilityGrid(
           items: [
-            _Capability('Concierge', Icons.support_agent_outlined,
+            PlpCapability('Concierge', Icons.support_agent_outlined,
                 () => onOpenModule?.call('concierge')),
-            _Capability('Transfers', Icons.airport_shuttle_outlined,
+            PlpCapability('Transfers', Icons.airport_shuttle_outlined,
                 () => onOpenModule?.call('transfers')),
-            _Capability('Dining', Icons.restaurant_outlined,
+            PlpCapability('Dining', Icons.restaurant_outlined,
                 () => onOpenModule?.call('dining')),
-            _Capability('Wellness', Icons.spa_outlined,
+            PlpCapability('Wellness', Icons.spa_outlined,
                 () => onOpenModule?.call('wellness')),
-            _Capability('Activities', Icons.explore_outlined,
+            PlpCapability('Activities', Icons.explore_outlined,
                 () => onOpenModule?.call('activities')),
-            _Capability('Events', Icons.celebration_outlined,
+            PlpCapability('Events', Icons.celebration_outlined,
                 () => onOpenModule?.call('events')),
           ],
         ),
@@ -880,19 +880,19 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     );
     return [
       ..._sourceContextPrelude(),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Concierge',
             Icons.support_agent_outlined,
             () => onOpenModule?.call('concierge'),
           ),
-          _Capability(
+          PlpCapability(
             'Transfers',
             Icons.airport_shuttle_outlined,
             () => onOpenModule?.call('transfers'),
           ),
-          _Capability(
+          PlpCapability(
             'Dining',
             Icons.restaurant_outlined,
             () => onOpenModule?.call('dining'),
@@ -905,7 +905,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
                 ]).toString() +
                 ' requests',
           ),
-          _Capability(
+          PlpCapability(
             'Wellness',
             Icons.spa_outlined,
             () => onOpenModule?.call('wellness'),
@@ -914,7 +914,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
                         .toString() +
                     ' requests',
           ),
-          _Capability(
+          PlpCapability(
             'Activities',
             Icons.explore_outlined,
             () => onOpenModule?.call('activities'),
@@ -926,7 +926,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
                 ]).toString() +
                 ' requests',
           ),
-          _Capability(
+          PlpCapability(
             'Events',
             Icons.celebration_outlined,
             () => onOpenModule?.call('events'),
@@ -980,7 +980,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       _SectionHeader('TEAM MEMBERS', action: members.length.toString()),
       const SizedBox(height: 8),
       if (members.isEmpty)
-        const _EmptyState('No team member is available.')
+        const PlpNoticeBox('No team member is available.')
       else
         _MemberStrip(items: members),
       if (activity.isNotEmpty) ...[
@@ -1025,13 +1025,13 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       if (!loaded && bootstrap['verifiedActivityLoading'] == true)
-        const _EmptyState('Loading verified activity…')
+        const PlpNoticeBox('Loading verified activity…')
       else if (!loaded)
-        const _EmptyState(
+        const PlpNoticeBox(
           'Verified resort activity is temporarily unavailable. Refresh or open the activity feed to try again.',
         )
       else if (rows.isEmpty)
-        const _EmptyState(
+        const PlpNoticeBox(
           'No verified production activity has been recorded yet.',
         )
       else
@@ -1054,12 +1054,23 @@ class _ResortHeader extends StatelessWidget {
   final PlpResortSection section;
 
   @override
+  Widget build(BuildContext context) => PlpPageTitle(section.headerTitle);
+}
+
+/// Serif, uppercase, tracked page title; leaves room for the shell's
+/// floating menu button.
+class PlpPageTitle extends StatelessWidget {
+  const PlpPageTitle(this.title, {super.key});
+
+  final String title;
+
+  @override
   Widget build(BuildContext context) => Row(
         children: [
           const SizedBox(width: 56),
           Expanded(
             child: Text(
-              section.headerTitle,
+              title,
               key: const ValueKey<String>('plp-contextual-page-title'),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -1737,8 +1748,8 @@ class _RequestList extends StatelessWidget {
       );
 }
 
-class _Capability {
-  const _Capability(
+class PlpCapability {
+  const PlpCapability(
     this.label,
     this.icon,
     this.onTap, {
@@ -1751,9 +1762,9 @@ class _Capability {
   final String? detail;
 }
 
-class _CapabilityGrid extends StatelessWidget {
-  const _CapabilityGrid({required this.items});
-  final List<_Capability> items;
+class PlpCapabilityGrid extends StatelessWidget {
+  const PlpCapabilityGrid({super.key, required this.items});
+  final List<PlpCapability> items;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -2275,9 +2286,12 @@ class _ClearState extends StatelessWidget {
       );
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState(this.text);
+/// Thin warm-bordered notice with one muted sentence, optionally led by a
+/// bold line (same type as the capability tile labels).
+class PlpNoticeBox extends StatelessWidget {
+  const PlpNoticeBox(this.text, {super.key, this.title});
   final String text;
+  final String? title;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -2288,13 +2302,30 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
         padding: const EdgeInsets.all(16),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: PlpResortWorkspaceScreen.muted,
-            fontSize: 11.5,
-            height: 1.4,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title != null) ...[
+              Text(
+                title!,
+                style: const TextStyle(
+                  color: PlpResortWorkspaceScreen.ink,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 5),
+            ],
+            Text(
+              text,
+              style: const TextStyle(
+                color: PlpResortWorkspaceScreen.muted,
+                fontSize: 11.5,
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
       );
 }
@@ -2498,7 +2529,8 @@ String _clientSourceMessage(String state) {
   if (const {'stale', 'delayed'}.contains(normalized)) {
     return 'The resort source is delayed. Previously verified records remain available.';
   }
-  if (const {'offline', 'unavailable', 'error', 'failed'}.contains(normalized)) {
+  if (const {'offline', 'unavailable', 'error', 'failed'}
+      .contains(normalized)) {
     return 'The resort source is unavailable. Refresh its status to check recovery.';
   }
   return 'The resort source status is not verified. Refresh to confirm what is available.';
