@@ -13,6 +13,7 @@ import '../features/enterprise/plp_activity_screen.dart';
 import '../features/enterprise/plp_activity_read_model.dart';
 import '../features/enterprise/plp_connectivity_infrastructure_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
+import '../features/enterprise/plp_paypal_billing_screen.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_resort_operational_screens.dart';
@@ -1077,6 +1078,15 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: const ValueKey('plp-revenue'),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
+              onOpenBilling: () {
+                _openTool(
+                  'paypal-billing',
+                  PlpPaypalBillingScreen(
+                    organizationId: _organizationId(bootstrap) ?? '',
+                    onOpenNavigation: _openDrawer,
+                  ),
+                );
+              },
             ),
             PlpNeedsYouScreen(
               key: const ValueKey('plp-needs-you'),

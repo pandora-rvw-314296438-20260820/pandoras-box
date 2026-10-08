@@ -747,10 +747,12 @@ class PlpRevenueScreen extends StatelessWidget {
     super.key,
     required this.bootstrap,
     required this.onOpenNavigation,
+    this.onOpenBilling,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback onOpenNavigation;
+  final VoidCallback? onOpenBilling;
 
   @override
   Widget build(BuildContext context) {
@@ -802,6 +804,15 @@ class PlpRevenueScreen extends StatelessWidget {
               : plpWarn,
         ),
         const SizedBox(height: 28),
+        if (onOpenBilling != null)
+          PlpBlackPanel(
+            eyebrow: 'Subscription',
+            title: 'Manage Pandora billing.',
+            body:
+                'Review PayPal state, choose a plan, and manage the subscription without leaving the PLP Enterprise workspace.',
+            action: 'Manage PayPal billing',
+            onTap: onOpenBilling,
+          ),
       ],
     );
   }
