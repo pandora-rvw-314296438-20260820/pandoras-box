@@ -118,6 +118,14 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     }
   }
 
+  Future<void> _retryStatus() async {
+    setState(() {
+      _loading = true;
+      _problem = null;
+    });
+    await _loadStatus();
+  }
+
   Future<void> _run(
     Future<void> Function() work, {
     String? notice,
@@ -345,6 +353,13 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
       ));
     } else if (snapshot != null) {
       children.addAll(_snapshotChildren(snapshot));
+    } else if (_api != null) {
+      children.add(PlpEditorialRow(
+        key: const ValueKey('plp-billing-retry'),
+        title: 'Read billing state again',
+        detail: 'Ask Pandora for the subscription it has on record.',
+        onTap: _busy ? null : _retryStatus,
+      ));
     }
     if (_busy) {
       children.add(const Padding(

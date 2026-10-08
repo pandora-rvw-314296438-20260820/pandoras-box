@@ -386,6 +386,20 @@ void main() {
             tester,
             _json({'code': 'PAYPAL_AUTH_FAILED', 'plainMessage': 'x'}, 503),
             'could not authenticate with PayPal'));
+    testWidgets('failed status read can be retried in place', (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () => [
+              _json({'code': 'PAYPAL_AUTH_FAILED', 'plainMessage': 'x'}, 503),
+              _json(_status()),
+            ],
+      });
+      await _mount(tester, backend);
+      expect(find.byKey(const ValueKey('plp-billing-problem')), findsOneWidget);
+      await tester.tap(find.text('Read billing state again'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('plp-billing-problem')), findsNothing);
+      expect(find.text('Inactive'), findsOneWidget);
+    });
     testWidgets(
         'malformed response',
         (tester) => expectProblem(
