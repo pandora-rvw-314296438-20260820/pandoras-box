@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "1.0.0",
+  "purpose": "Explicit PayPal SANDBOX routing for the deployed pandora-owner-api billing module (pandora_plp_billing_sandbox_*_v1), with the live path unchanged.",
+  "provider": {
+    "projectRef": "jcyqixttuebxqqfkjonq",
+    "functionSlug": "pandora-owner-api",
+    "baselineVersion": 97,
+    "baselineEzbrSha256": "81af9e46c6dee20fcf2a93ea50b5f704c7b8b38ade3df34349674e8c7c8f83ab",
+    "baselineFiles": {
+      "index.ts": {
+        "sha256": "e401b4771fddbc6295f54f7363d6fdb36d930a14ad4107d706700d7682396775",
+        "bytes": 134582
+      },
+      "contract.ts": {
+        "sha256": "0e759ab34c583a41eaf15f61c3372c73ef70dd212cdcf914aabac835a6859cdd",
+        "bytes": 3459
+      },
+      "command-pipeline.mjs": {
+        "sha256": "eaf7e9d19db4ef30639d66cdbc3b8ab58c76e11ebcf0f6603a818628e584993b",
+        "bytes": 14511
+      },
+      "operational-workspace.mjs": {
+        "sha256": "b6a30254f4c50017852febc55c87adf853bc4c4fe63b5ac1e7e93664ad7d1a5f",
+        "bytes": 19926
+      },
+      "paypal-billing.mjs": {
+        "sha256": "57d2ba6f7bf655dcabf53bf295b3bc41e73023db6c17193c9129f3d5955df8a8",
+        "bytes": 3407
+      },
+      "deno.json": {
+        "sha256": "fc9fc38c21441b7f67a91280ed28b8ca4ad67fc69d713db441f5c0fd9a6abf9f",
+        "bytes": 50
+      }
+    },
+    "verifyJwt": false,
+    "importMap": "deno.json"
+  },
+  "files": [
+    {
+      "name": "index.ts",
+      "sha256": "ff1e27a3533a23ca1eea5377f4c15d1ad07b7cb8100b471d1f6bb0f5b0f229cf",
+      "bytes": 136715,
+      "changedFromProviderBaseline": true
+    },
+    {
+      "name": "contract.ts",
+      "sha256": "0e759ab34c583a41eaf15f61c3372c73ef70dd212cdcf914aabac835a6859cdd",
+      "bytes": 3459,
+      "changedFromProviderBaseline": false
+    },
+    {
+      "name": "command-pipeline.mjs",
+      "sha256": "eaf7e9d19db4ef30639d66cdbc3b8ab58c76e11ebcf0f6603a818628e584993b",
+      "bytes": 14511,
+      "changedFromProviderBaseline": false
+    },
+    {
+      "name": "operational-workspace.mjs",
+      "sha256": "b6a30254f4c50017852febc55c87adf853bc4c4fe63b5ac1e7e93664ad7d1a5f",
+      "bytes": 19926,
+      "changedFromProviderBaseline": false
+    },
+    {
+      "name": "paypal-billing.mjs",
+      "sha256": "84ea6ae922c6e1c4cba7ca35146ca654d2356ca9f308d9897198f3122d5812d6",
+      "bytes": 13760,
+      "changedFromProviderBaseline": true
+    },
+    {
+      "name": "deno.json",
+      "sha256": "fc9fc38c21441b7f67a91280ed28b8ca4ad67fc69d713db441f5c0fd9a6abf9f",
+      "bytes": 50,
+      "changedFromProviderBaseline": false
+    }
+  ],
+  "sandbox": {
+    "selector": "header x-pandora-billing-environment: sandbox (default live; any other value rejected)",
+    "requires": [
+      "explicit x-organization-id header",
+      "organization listed in active pandora_runtime_provider_configs paypal.sandbox_organization_ids"
+    ],
+    "routes": {
+      "GET /billing/paypal/status": "read-only select of pandora_paypal_sandbox_* tables (no sandbox status function exists)",
+      "POST /billing/paypal/checkout": "pandora_plp_billing_sandbox_checkout_v1",
+      "POST /billing/paypal/reconcile": "pandora_plp_billing_sandbox_reconcile_v1",
+      "POST /billing/paypal/cancel": "pandora_plp_billing_sandbox_cancel_v1 (reason passed through, e.g. AWAITING_BUYER_APPROVAL)",
+      "POST /billing/paypal/change-plan": "refused: SANDBOX_PLAN_CHANGE_UNAVAILABLE (no pandora_plp_billing_sandbox_change_plan_v1 exists)"
+    }
+  },
+  "restrictions": [
+    "This artifact records deployed provider source; it is not the canonical repo owner-api (PR #991 index.ts implements billing natively and differs).",
+    "Deploy only as an exact patch from provider v97 after readback.",
+    "The live billing routes and the first 3407 bytes of paypal-billing.mjs are byte-identical to provider v97."
+  ]
+}
