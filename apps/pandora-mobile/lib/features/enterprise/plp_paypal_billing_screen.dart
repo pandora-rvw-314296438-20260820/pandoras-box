@@ -194,8 +194,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         },
         retry: _PendingAction.checkout,
         retryPlan: planCode,
-        notice:
-            'PayPal approval opened. Return here when you have approved it.',
+        notice: 'PayPal opened. Come back here after approving.',
       );
 
   Future<void> _changePlan(String planCode) => _run(
@@ -214,14 +213,13 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         },
         retry: _PendingAction.changePlan,
         retryPlan: planCode,
-        notice:
-            'Plan change sent to PayPal. The plan updates here once PayPal confirms it.',
+        notice: 'Approve the change in PayPal.',
       );
 
   Future<void> _refresh() => _run(
         _reconcileAndReload,
         retry: _PendingAction.reconcile,
-        notice: 'Payment state re-read from PayPal.',
+        notice: 'Updated from PayPal.',
       );
 
   Future<void> _cancel() => _run(
@@ -303,25 +301,8 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
   Future<void> _confirmCancel() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        key: const ValueKey('plp-billing-cancel-dialog'),
-        title: const Text('Cancel the PayPal subscription?'),
-        content: const Text(
-          'Pandora will send the cancellation to PayPal, then re-read the '
-          'subscription from PayPal. It shows as cancelled only after PayPal '
-          'confirms it.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep subscription'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Send cancellation to PayPal'),
-          ),
-        ],
-      ),
+      barrierColor: const Color(0x99171512),
+      builder: (context) => const _PlpCancelDialog(),
     );
     if (confirmed == true) await _cancel();
   }
@@ -348,16 +329,18 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     }
     if (_loading) {
       children.add(const PlpEditorialRow(
-        title: 'Reading billing state',
-        detail: 'Loading the subscription Pandora has on record.',
+        title: 'Loading…',
+        detail: '',
+        divider: false,
       ));
     } else if (snapshot != null) {
       children.addAll(_snapshotChildren(snapshot));
     } else if (_api != null) {
       children.add(PlpEditorialRow(
         key: const ValueKey('plp-billing-retry'),
-        title: 'Read billing state again',
-        detail: 'Ask Pandora for the subscription it has on record.',
+        title: 'Try again',
+        detail: '',
+        divider: false,
         onTap: _busy ? null : _retryStatus,
       ));
     }
@@ -383,10 +366,8 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     return PlpEditorialPage(
       pageKey: const ValueKey('plp-paypal-billing'),
       eyebrow: 'Subscription',
-      title: 'Pandora billing.',
-      intro: 'Review PayPal state, choose a plan, and manage the subscription. '
-          'PayPal credentials stay on the server; this workspace receives '
-          'subscription state and approval links only.',
+      title: 'Pandora billing',
+      intro: '',
       onOpenNavigation: widget.onOpenNavigation,
       children: children,
     );
@@ -408,9 +389,9 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         const PlpEditorialRow(
           key: ValueKey('plp-billing-sandbox'),
           title: 'PayPal sandbox',
-          detail:
-              'Test environment. Nothing shown here is live billing or a real payment.',
+          detail: 'Test mode. No real payments.',
           tone: plpWarn,
+          divider: false,
         ),
       PlpMetricStrip(
         key: const ValueKey('plp-billing-metrics'),
@@ -419,48 +400,43 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
           (
             'Plan',
             currentPlan?.name ?? (sub?.planCode ?? '—'),
-            currentPlan?.priceLabel ?? 'no plan on record',
+            currentPlan?.priceLabel ?? '',
           ),
           (
             'Renewal',
             sub?.state == 'cancelled'
                 ? (sub?.endsOn ?? '—')
                 : (sub?.renewsOn ?? '—'),
-            sub?.state == 'cancelled' ? 'ended' : 'next PayPal renewal',
+            sub?.state == 'cancelled' ? 'ended' : '',
           ),
         ],
       ),
-      const PlpSectionTitle('Billing record'),
-      PlpEditorialRow(
-        key: const ValueKey('plp-billing-verification'),
-        title: _verificationTitle(snapshot),
-        detail: _verificationDetail(snapshot),
-        tone: sub == null
-            ? null
-            : sub.providerVerified
-                ? plpGood
-                : plpWarn,
-      ),
+      if (sub != null)
+        _PlpVerifiedMarker(
+          key: const ValueKey('plp-billing-verification'),
+          label: _verificationTitle(snapshot),
+          verified: sub.providerVerified,
+        ),
       if (sub != null && (sub.state == 'past_due' || sub.state == 'suspended'))
         const PlpEditorialRow(
           title: 'Payment needs attention',
-          detail:
-              'PayPal reports this subscription is not in good standing. Review it in PayPal, then refresh payment state.',
+          detail: 'Check PayPal, then refresh.',
           tone: plpWarn,
+          divider: false,
         ),
       if (cancelRequested)
         const PlpEditorialRow(
           title: 'Cancellation sent',
-          detail:
-              'PayPal has the cancellation request. It shows as cancelled once PayPal confirms it.',
+          detail: 'Waiting for PayPal to confirm.',
           tone: plpWarn,
+          divider: false,
         ),
       if (checkout != null && checkout.status == 'failed' && sub == null)
         const PlpEditorialRow(
           title: 'Last checkout did not start',
-          detail:
-              'PayPal did not create that subscription. Nothing was charged.',
+          detail: 'Nothing was charged.',
           tone: plpWarn,
+          divider: false,
         ),
     ];
 
@@ -482,16 +458,13 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     }
 
     if (sub == null || !sub.holdsPlan) {
-      widgets.add(const PlpSectionTitle(
-        'Choose a plan',
-        detail:
-            'PayPal approval opens in your browser. Pandora confirms the result with PayPal when you return.',
-      ));
+      widgets.add(const PlpSectionTitle('Choose a plan'));
       if (snapshot.plans.isEmpty) {
         widgets.add(const PlpEditorialRow(
           title: 'No plans available',
-          detail: 'The billing catalog returned no PayPal plans.',
+          detail: '',
           tone: plpWarn,
+          divider: false,
         ));
       }
       for (final plan in snapshot.plans) {
@@ -499,10 +472,9 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         widgets.add(PlpEditorialRow(
           key: ValueKey('plp-billing-plan-${plan.code}'),
           title: plan.name,
-          detail: selected
-              ? '${plan.priceLabel} · selected'
-              : '${plan.priceLabel} · billed monthly through PayPal',
-          tone: selected ? plpAccent : null,
+          detail: plan.priceLabel,
+          tone: selected ? plpInk : null,
+          divider: false,
           onTap: _busy ? null : () => setState(() => _selectedPlan = plan.code),
         ));
       }
@@ -513,9 +485,8 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
           child: PlpBlackPanel(
             key: const ValueKey('plp-billing-checkout'),
             eyebrow: 'Checkout',
-            title: '${selected.name} · ${selected.priceLabel}.',
-            body:
-                'PayPal opens to approve the subscription. Nothing is active until PayPal confirms it.',
+            title: '${selected.name} · ${selected.priceLabel}',
+            body: '',
             action: 'Continue to PayPal',
             onTap: _busy ? null : () => _checkout(selected.code),
           ),
@@ -523,14 +494,12 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
       }
     }
 
-    widgets.add(const PlpSectionTitle(
-      'Manage subscription',
-      detail: 'Every change is confirmed with PayPal before it shows here.',
-    ));
+    widgets.add(const PlpSectionTitle('Manage'));
     widgets.add(PlpEditorialRow(
       key: const ValueKey('plp-billing-refresh'),
-      title: 'Refresh payment state',
-      detail: 'Re-read the subscription from PayPal and update this workspace.',
+      title: 'Refresh',
+      detail: '',
+      divider: false,
       onTap: _busy ? null : _refresh,
     ));
     if (sub != null && sub.state == 'active') {
@@ -538,8 +507,9 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         if (plan.code == sub.planCode) continue;
         widgets.add(PlpEditorialRow(
           key: ValueKey('plp-billing-switch-${plan.code}'),
-          title: 'Switch to ${plan.name}',
-          detail: '${plan.priceLabel} · PayPal approval required.',
+          title: 'Switch to ${plan.name} · ${plan.priceLabel}',
+          detail: '',
+          divider: false,
           onTap: _busy ? null : () => _changePlan(plan.code),
         ));
       }
@@ -547,9 +517,8 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         widgets.add(PlpEditorialRow(
           key: const ValueKey('plp-billing-cancel'),
           title: 'Cancel subscription',
-          detail:
-              'Stop recurring PayPal billing. Pandora confirms the cancellation with PayPal.',
-          tone: plpWarn,
+          detail: '',
+          divider: false,
           onTap: _busy ? null : _confirmCancel,
         ));
       }
@@ -563,13 +532,13 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     bool cancelRequested,
   ) {
     if (sub == null || !sub.holdsPlan) {
-      if (pendingCheckout) return ('Pending', 'awaiting PayPal approval');
-      if (sub?.state == 'cancelled') return ('Cancelled', 'confirmed ended');
-      return ('Inactive', 'no subscription on record');
+      if (pendingCheckout) return ('Pending', 'awaiting PayPal');
+      if (sub?.state == 'cancelled') return ('Cancelled', 'ended');
+      return ('Inactive', 'no subscription');
     }
     if (cancelRequested) return ('Active', 'cancellation pending');
     return switch (sub.state) {
-      'active' => ('Active', 'recurring monthly'),
+      'active' => ('Active', 'monthly'),
       'trial' => ('Trial', 'trial period'),
       'past_due' => ('Past due', 'needs attention'),
       'suspended' => ('Suspended', 'needs attention'),
@@ -585,22 +554,112 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         ? 'Verified by PayPal sandbox'
         : 'Verified by PayPal';
   }
+}
 
-  String _verificationDetail(PlpBillingSnapshot snapshot) {
-    final sub = snapshot.subscription;
-    if (sub == null) {
-      return 'Pandora has no subscription for this organization yet.';
-    }
-    if (!sub.providerVerified) {
-      return 'Recorded in Pandora, not confirmed by PayPal.';
-    }
-    final at = sub.verifiedAt == null
-        ? ''
-        : ' Last checked ${sub.verifiedAt!.replaceFirst('T', ' ').split('.').first} UTC.';
-    final ref = sub.providerReference;
-    final masked = ref == null || ref.length < 6
-        ? ''
-        : ' Reference …${ref.substring(ref.length - 4)}.';
-    return 'State read from PayPal.$at$masked';
-  }
+class _PlpVerifiedMarker extends StatelessWidget {
+  const _PlpVerifiedMarker({
+    super.key,
+    required this.label,
+    required this.verified,
+  });
+
+  final String label;
+  final bool verified;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              color: verified ? plpGood : plpWarn,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(color: plpMuted, fontSize: 11),
+            ),
+          ],
+        ),
+      );
+}
+
+class _PlpCancelDialog extends StatelessWidget {
+  const _PlpCancelDialog();
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+        key: const ValueKey('plp-billing-cancel-dialog'),
+        backgroundColor: plpCanvas,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 22),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 26, 22, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Cancel subscription?',
+                  style: TextStyle(
+                    color: plpInk,
+                    fontFamily: 'serif',
+                    fontSize: 29,
+                    height: 1.05,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'PayPal will stop billing after confirmation.',
+                  style: TextStyle(color: plpMuted, fontSize: 13, height: 1.4),
+                ),
+                const SizedBox(height: 26),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton(
+                      key: const ValueKey('plp-billing-cancel-keep'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: plpInk,
+                        shape: const RoundedRectangleBorder(),
+                        textStyle: const TextStyle(fontSize: 13),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Keep subscription'),
+                    ),
+                    FilledButton(
+                      key: const ValueKey('plp-billing-cancel-confirm'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: plpInk,
+                        foregroundColor: Colors.white,
+                        shape: const RoundedRectangleBorder(),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('YES, CANCEL'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 }

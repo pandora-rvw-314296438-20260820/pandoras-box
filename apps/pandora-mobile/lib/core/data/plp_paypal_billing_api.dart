@@ -169,7 +169,7 @@ class PlpBillingPlan {
     final amount = monthlyAmount.endsWith('.00')
         ? monthlyAmount.substring(0, monthlyAmount.length - 3)
         : monthlyAmount;
-    return '$currency $amount / month';
+    return '$currency $amount/mo';
   }
 }
 

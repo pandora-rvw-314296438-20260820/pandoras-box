@@ -161,17 +161,19 @@ class PlpEditorialPage extends StatelessWidget {
                   letterSpacing: -1.4,
                 ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                intro,
-                style: const TextStyle(
-                  color: plpMuted,
-                  fontSize: 14.5,
-                  height: 1.55,
+              if (intro.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  intro,
+                  style: const TextStyle(
+                    color: plpMuted,
+                    fontSize: 14.5,
+                    height: 1.55,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 28),
-              const Divider(height: 1, color: plpLine),
+                const SizedBox(height: 28),
+                const Divider(height: 1, color: plpLine),
+              ],
               ...children,
             ],
           ),
@@ -306,6 +308,7 @@ class PlpEditorialRow extends StatelessWidget {
     this.value,
     this.onTap,
     this.tone,
+    this.divider = true,
   });
 
   final String title;
@@ -314,16 +317,21 @@ class PlpEditorialRow extends StatelessWidget {
   final VoidCallback? onTap;
   final Color? tone;
 
+  /// Hairline above the row. Compact surfaces may switch it off.
+  final bool divider;
+
   @override
   Widget build(BuildContext context) => Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           child: Container(
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: plpLine)),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 17),
+            decoration: divider
+                ? const BoxDecoration(
+                    border: Border(top: BorderSide(color: plpLine)),
+                  )
+                : null,
+            padding: EdgeInsets.symmetric(vertical: divider ? 17 : 13),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -350,15 +358,17 @@ class PlpEditorialRow extends StatelessWidget {
                           fontWeight: FontWeight.w400,
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      Text(
-                        detail,
-                        style: const TextStyle(
-                          color: plpMuted,
-                          fontSize: 11.5,
-                          height: 1.4,
+                      if (detail.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Text(
+                          detail,
+                          style: const TextStyle(
+                            color: plpMuted,
+                            fontSize: 11.5,
+                            height: 1.4,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -434,15 +444,17 @@ class PlpBlackPanel extends StatelessWidget {
                     fontWeight: FontWeight.w400,
                   ),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    color: Color(0xFFBDB7AE),
-                    fontSize: 12,
-                    height: 1.5,
+                if (body.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    body,
+                    style: const TextStyle(
+                      color: Color(0xFFBDB7AE),
+                      fontSize: 12,
+                      height: 1.5,
+                    ),
                   ),
-                ),
+                ],
                 if (action != null) ...[
                   const SizedBox(height: 18),
                   Row(
@@ -807,10 +819,9 @@ class PlpRevenueScreen extends StatelessWidget {
         if (onOpenBilling != null)
           PlpBlackPanel(
             eyebrow: 'Subscription',
-            title: 'Manage Pandora billing.',
-            body:
-                'Review PayPal state, choose a plan, and manage the subscription without leaving the PLP Enterprise workspace.',
-            action: 'Manage PayPal billing',
+            title: 'Pandora billing',
+            body: '',
+            action: 'Manage billing',
             onTap: onOpenBilling,
           ),
       ],

@@ -128,14 +128,15 @@ void main() {
       'GET /billing/paypal/status': () => [_json(_status())]
     });
     await _mount(tester, backend);
-    expect(find.text('Pandora billing.'), findsOneWidget);
+    expect(find.text('Pandora billing'), findsOneWidget);
     expect(find.text('Inactive'), findsOneWidget);
-    expect(find.text('no subscription on record'), findsOneWidget);
+    expect(find.text('no subscription'), findsOneWidget);
     expect(find.text('Launch'), findsOneWidget);
-    expect(find.textContaining('USD 51 / month'), findsOneWidget);
-    expect(find.textContaining('USD 151 / month'), findsOneWidget);
+    expect(find.textContaining('USD 51/mo'), findsOneWidget);
+    expect(find.textContaining('USD 151/mo'), findsOneWidget);
     expect(find.textContaining('USD 49'), findsNothing);
-    expect(find.text('No subscription record'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('plp-billing-verification')), findsNothing);
     expect(find.byKey(const ValueKey('plp-billing-handoff')), findsNothing);
     expect(find.byKey(const ValueKey('plp-billing-cancel')), findsNothing);
     final status = backend.calls.single;
@@ -198,14 +199,14 @@ void main() {
     expect(find.text('Active'), findsOneWidget);
     expect(find.text('2026-11-08'), findsOneWidget);
     expect(find.text('Verified by PayPal'), findsOneWidget);
-    expect(find.text('Switch to Professional'), findsOneWidget);
+    expect(find.text('Switch to Professional · USD 151/mo'), findsOneWidget);
     expect(find.text('Choose a plan'), findsNothing);
     await tester.tap(find.text('Cancel subscription'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('plp-billing-cancel-dialog')),
         findsOneWidget);
-    expect(
-        find.textContaining('send the cancellation to PayPal'), findsOneWidget);
+    expect(find.text('PayPal will stop billing after confirmation.'),
+        findsOneWidget);
     await tester.tap(find.text('Keep subscription'));
     await tester.pumpAndSettle();
     expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);
@@ -234,7 +235,7 @@ void main() {
     await _mount(tester, backend);
     await tester.tap(find.text('Cancel subscription'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send cancellation to PayPal'));
+    await tester.tap(find.text('YES, CANCEL'));
     await tester.pumpAndSettle();
     expect(backend.paths, [
       'GET /billing/paypal/status',
@@ -266,7 +267,7 @@ void main() {
     await _mount(tester, backend);
     await tester.tap(find.text('Cancel subscription'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send cancellation to PayPal'));
+    await tester.tap(find.text('YES, CANCEL'));
     await tester.pumpAndSettle();
     expect(find.text('Cancelled'), findsNothing);
     expect(find.text('cancellation pending'), findsOneWidget);
@@ -288,7 +289,7 @@ void main() {
           ],
     });
     final launched = await _mount(tester, backend);
-    await tester.tap(find.text('Switch to Professional'));
+    await tester.tap(find.text('Switch to Professional · USD 151/mo'));
     await tester.pumpAndSettle();
     final change =
         backend.calls.firstWhere((c) => c.url.path.endsWith('/change-plan'));
@@ -310,7 +311,7 @@ void main() {
           ],
     });
     await _mount(tester, backend);
-    await tester.tap(find.text('Refresh payment state'));
+    await tester.tap(find.text('Refresh'));
     await tester.pumpAndSettle();
     expect(backend.paths.skip(1).toList(),
         ['POST /billing/paypal/reconcile', 'GET /billing/paypal/status']);
@@ -395,7 +396,7 @@ void main() {
       });
       await _mount(tester, backend);
       expect(find.byKey(const ValueKey('plp-billing-problem')), findsOneWidget);
-      await tester.tap(find.text('Read billing state again'));
+      await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('plp-billing-problem')), findsNothing);
       expect(find.text('Inactive'), findsOneWidget);
@@ -479,7 +480,7 @@ void main() {
             ],
       });
       await _mount(tester, backend);
-      await tester.tap(find.text('Refresh payment state'));
+      await tester.tap(find.text('Refresh'));
       await tester.pumpAndSettle();
       expect(find.text('No PayPal subscription yet.'), findsOneWidget);
       expect(backend.paths.last, 'GET /billing/paypal/status');
