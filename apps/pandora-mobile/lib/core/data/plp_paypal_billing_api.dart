@@ -157,12 +157,24 @@ class PlpBillingPlan {
     required this.name,
     required this.currency,
     required this.monthlyAmount,
+    this.interval,
   });
 
   final String code;
   final String name;
   final String currency;
   final String monthlyAmount;
+
+  /// Billing interval from the catalog (`month`); null when not reported.
+  final String? interval;
+
+  /// Amount in minor units, or null when the backend amount is not numeric.
+  int? get amountCents {
+    final match = RegExp(r'^(\d+)(?:\.(\d{1,2}))?$').firstMatch(monthlyAmount);
+    if (match == null) return null;
+    final cents = (match.group(2) ?? '0').padRight(2, '0');
+    return int.parse(match.group(1)!) * 100 + int.parse(cents);
+  }
 
   /// `USD 49 / month` from the backend amount (`49.00`).
   String get priceLabel {
@@ -179,6 +191,7 @@ class PlpBillingSubscription {
     required this.planCode,
     required this.renewsOn,
     required this.endsOn,
+    this.startsOn,
     required this.providerVerified,
     required this.verifiedAt,
     required this.providerReference,
@@ -188,6 +201,7 @@ class PlpBillingSubscription {
   final String? planCode;
   final String? renewsOn;
   final String? endsOn;
+  final String? startsOn;
   final bool providerVerified;
   final String? verifiedAt;
   final String? providerReference;
@@ -273,6 +287,7 @@ class PlpBillingSnapshot {
         name: name,
         currency: currency,
         monthlyAmount: amount,
+        interval: _text(plan['interval']),
       ));
     }
     final sub = json['subscription'];
@@ -293,6 +308,7 @@ class PlpBillingSnapshot {
         planCode: _text(s['plan_code']),
         renewsOn: _text(s['renews_on']),
         endsOn: _text(s['ends_on']),
+        startsOn: _text(s['starts_on']),
         providerVerified: _text(s['source_kind']) == 'provider_verified' &&
             _text(s['provider_reference']) != null &&
             _text(s['verified_at']) != null,

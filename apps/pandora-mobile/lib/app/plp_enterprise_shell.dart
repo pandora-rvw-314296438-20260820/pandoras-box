@@ -144,6 +144,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final List<({String key, Widget tool})> _routedToolHistory =
       <({String key, Widget tool})>[];
   bool _commandBusy = false;
+  int _billingEntryEpoch = 0;
   String? _commandReply;
   List<PlpRecentChatItem> _recentChats = const <PlpRecentChatItem>[];
   bool _recentChatsLoading = false;
@@ -547,6 +548,17 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     _bindCurrentConversationContext();
   }
 
+  void _openBilling(Map<String, Object?> bootstrap) {
+    _openTool(
+      'paypal-billing',
+      PlpPaypalBillingScreen(
+        organizationId: _organizationId(bootstrap),
+        onOpenNavigation: _openDrawer,
+        onBack: _closeTool,
+      ),
+    );
+  }
+
   void _closeTool() {
     if (_routedTool == null) return;
     final closedKey = _routedToolKey;
@@ -563,6 +575,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     _bindCurrentConversationContext();
     if (closedKey == 'team-management') {
       _refresh();
+    }
+    if (closedKey == 'paypal-billing') {
+      // Re-read the Revenue billing line after leaving billing.
+      setState(() => _billingEntryEpoch++);
     }
   }
 
@@ -1078,16 +1094,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: const ValueKey('plp-revenue'),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
-              onOpenBilling: () {
-                _openTool(
-                  'paypal-billing',
-                  PlpPaypalBillingScreen(
-                    organizationId: _organizationId(bootstrap),
-                    onOpenNavigation: _openDrawer,
-                    onBack: _closeTool,
-                  ),
-                );
-              },
+              onOpenBilling: () => _openBilling(bootstrap),
+              billingEntry: PlpBillingEntryLine(
+                key: ValueKey<String>(
+                  'plp-billing-entry-$_billingEntryEpoch',
+                ),
+                organizationId: _organizationId(bootstrap),
+                onTap: () => _openBilling(bootstrap),
+              ),
             ),
             PlpNeedsYouScreen(
               key: const ValueKey('plp-needs-you'),

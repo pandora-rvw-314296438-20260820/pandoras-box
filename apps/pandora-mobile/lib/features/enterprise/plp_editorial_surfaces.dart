@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/widgets/pandora_navigation.dart';
 import 'enterprise_vision_embed.dart';
+import 'plp_billing_surfaces.dart';
 
 const plpCanvas = Color(0xFFFAF8F3);
 const plpPaper = Color(0xFFFFFDFC);
@@ -765,11 +766,15 @@ class PlpRevenueScreen extends StatelessWidget {
     required this.bootstrap,
     required this.onOpenNavigation,
     this.onOpenBilling,
+    this.billingEntry,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback onOpenNavigation;
   final VoidCallback? onOpenBilling;
+
+  /// Thin-ruled billing ledger line (reads the billing status itself).
+  final Widget? billingEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -820,13 +825,14 @@ class PlpRevenueScreen extends StatelessWidget {
               ? plpGood
               : plpWarn,
         ),
-        const SizedBox(height: 28),
-        if (onOpenBilling != null)
-          PlpBlackPanel(
-            eyebrow: 'Subscription',
-            title: 'Pandora billing',
-            body: '',
-            action: 'Manage billing',
+        const SizedBox(height: 30),
+        if (billingEntry != null)
+          billingEntry!
+        else if (onOpenBilling != null)
+          PlpBillingRuledLine(
+            key: const ValueKey('plp-billing-entry'),
+            lead: 'Pandora billing',
+            height: 58,
             onTap: onOpenBilling,
           ),
       ],
