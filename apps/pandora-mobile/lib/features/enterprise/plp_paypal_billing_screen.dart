@@ -908,7 +908,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         ));
     } else if (hero && !view.locked) {
       widgets
-        ..add(const SizedBox(height: 38))
+        ..add(const SizedBox(height: 32))
         ..add(Container(
           padding: const EdgeInsets.only(top: 16),
           decoration: const BoxDecoration(

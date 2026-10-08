@@ -537,7 +537,7 @@ class PlpPlanAxis extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: hero ? 20 : 14),
+          SizedBox(height: hero ? 15 : 14),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
