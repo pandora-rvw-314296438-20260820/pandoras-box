@@ -226,7 +226,7 @@ begin
     'to_plan_id', c.to_plan_id,
     'to_plan_code', tp.code,
     'to_plan_name', tp.name,
-    'provider_subscription', c.provider_subscription,
+    'provider_subscription', c.paypal_subscription_id,
     'status', c.status,
     'approval_url', c.approval_url,
     'provider_reference', c.provider_reference,

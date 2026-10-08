@@ -364,13 +364,19 @@ class PlpEditorialRow extends StatelessWidget {
                 ),
                 if (value != null) ...[
                   const SizedBox(width: 12),
-                  Text(
-                    value!,
-                    style: const TextStyle(
-                      color: plpInk,
-                      fontFamily: 'serif',
-                      fontSize: 28,
-                      height: 1,
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        value!,
+                        style: const TextStyle(
+                          color: plpInk,
+                          fontFamily: 'serif',
+                          fontSize: 28,
+                          height: 1,
+                        ),
+                      ),
                     ),
                   ),
                 ] else if (onTap != null) ...[
