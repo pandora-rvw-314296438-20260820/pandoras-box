@@ -58,6 +58,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
 
   static const _systemItems = <_PlpDrawerDestination>[
     _PlpDrawerDestination('settings', 'Settings', Icons.settings_outlined),
+    _PlpDrawerDestination('billing', 'Billing', Icons.credit_card_outlined),
     _PlpDrawerDestination('connectivity', 'Infrastructure', Icons.router_outlined),
     _PlpDrawerDestination('vision', 'Vision', Icons.visibility_outlined),
     _PlpDrawerDestination('tax-compliance', 'Tax & Compliance', Icons.account_balance_outlined),

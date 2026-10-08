@@ -10,6 +10,7 @@ import '../core/widgets/pandora_navigation.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/diagnostics/developer_diagnostics_screen.dart';
 import '../features/enterprise/plp_activity_screen.dart';
+import '../features/enterprise/plp_billing_screen.dart'
 import '../features/enterprise/plp_activity_read_model.dart';
 import '../features/enterprise/plp_connectivity_infrastructure_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
@@ -72,6 +73,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     'settings': 11,
     'system-developer': 12,
     'tax-compliance': 13,
+    'billing': 15,
   };
 
   static const _surfaceByDestination = <String, int>{
@@ -89,6 +91,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     'activity': 10,
     'settings': 11,
     'developer': 12,
+    'billing': 15,
   };
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -1089,6 +1092,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             PlpActivityScreen(
               key: const ValueKey('plp-activity'),
               readModel: _activityReadModel,
+              organizationId: _organizationId(bootstrap),
+              onOpenNavigation: _openDrawer,
+            ),
+            PlpBillingScreen(
+              key: const ValueKey('plp-billing'),
               organizationId: _organizationId(bootstrap),
               onOpenNavigation: _openDrawer,
             ),
