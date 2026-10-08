@@ -25,6 +25,7 @@ class PlpPaypalBillingScreen extends StatefulWidget {
     this.api,
     this.launchApproval,
     this.clock,
+    this.onBack,
   });
 
   /// The current PLP organization. Null/empty renders a missing-organization
@@ -34,6 +35,9 @@ class PlpPaypalBillingScreen extends StatefulWidget {
   final PlpPaypalBillingApi? api;
   final PlpBillingUrlLauncher? launchApproval;
   final DateTime Function()? clock;
+
+  /// Returns to the surface that opened billing (PLP routed-tool back).
+  final VoidCallback? onBack;
 
   @override
   State<PlpPaypalBillingScreen> createState() => _PlpPaypalBillingScreenState();
@@ -227,9 +231,12 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         () async {
           await _api!.cancel();
           await _reconcileAndReload();
+          // Footnote only once the backend reports the subscription cancelled.
+          if (mounted && _snapshot?.subscription?.state == 'cancelled') {
+            setState(() => _notice = 'Cancellation sent to PayPal.');
+          }
         },
         retry: _PendingAction.cancel,
-        notice: 'Cancellation sent to PayPal.',
       );
 
   Future<void> _openApproval(Uri? url) async {
@@ -345,7 +352,9 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         onTap: _busy ? null : _retryStatus,
       ));
     }
-    if (_busy) {
+    // The handoff panel already says PayPal is waiting; no second footnote.
+    final handoffShown = snapshot != null && _handoffUrl(snapshot) != null;
+    if (_busy && !handoffShown) {
       children.add(const Padding(
         padding: EdgeInsets.only(top: 14),
         child: Text(
@@ -370,17 +379,35 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
       title: 'Pandora billing',
       intro: '',
       onOpenNavigation: widget.onOpenNavigation,
+      trailing: widget.onBack == null
+          ? null
+          : IconButton(
+              key: const ValueKey('plp-billing-back'),
+              onPressed: widget.onBack,
+              tooltip: 'Back',
+              color: plpInk,
+              icon: const Icon(Icons.arrow_back_rounded),
+            ),
       children: children,
     );
+  }
+
+  bool _pendingCheckout(PlpBillingSnapshot snapshot) {
+    final sub = snapshot.subscription;
+    return (sub == null || !sub.holdsPlan) &&
+        snapshot.checkout?.pendingAt(_now) == true;
+  }
+
+  Uri? _handoffUrl(PlpBillingSnapshot snapshot) {
+    if (_pendingCheckout(snapshot)) return snapshot.checkout!.approvalUrl;
+    final change = snapshot.planChange;
+    return change?.pending == true ? change!.approvalUrl : null;
   }
 
   List<Widget> _snapshotChildren(PlpBillingSnapshot snapshot) {
     final sub = snapshot.subscription;
     final checkout = snapshot.checkout;
-    final change = snapshot.planChange;
-    final now = _now;
-    final pendingCheckout =
-        (sub == null || !sub.holdsPlan) && checkout?.pendingAt(now) == true;
+    final pendingCheckout = _pendingCheckout(snapshot);
     final cancelRequested =
         sub != null && sub.holdsPlan && checkout?.status == 'cancel_requested';
     final status = _statusLabel(sub, pendingCheckout, cancelRequested);
@@ -403,13 +430,10 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
             currentPlan?.name ?? (sub?.planCode ?? '—'),
             currentPlan?.priceLabel ?? '',
           ),
-          (
-            'Renewal',
-            sub?.state == 'cancelled'
-                ? (sub?.endsOn ?? '—')
-                : (sub?.renewsOn ?? '—'),
-            sub?.state == 'cancelled' ? 'ended' : '',
-          ),
+          if (sub?.state == 'cancelled')
+            ('Ends', sub?.endsOn ?? '—', '')
+          else
+            ('Renewal', sub?.renewsOn ?? '—', ''),
         ],
       ),
       if (sub != null)
@@ -441,24 +465,23 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         ),
     ];
 
-    final handoffUrl = pendingCheckout
-        ? checkout!.approvalUrl
-        : (change?.pending == true ? change!.approvalUrl : null);
+    final handoffUrl = _handoffUrl(snapshot);
     if (handoffUrl != null) {
       widgets.add(Padding(
         padding: const EdgeInsets.only(top: 28),
         child: PlpBlackPanel(
           key: const ValueKey('plp-billing-handoff'),
           eyebrow: 'Payment handoff',
-          title: 'PayPal approval is waiting.',
-          body: 'Reopen the existing provider approval link.',
-          action: 'Open PayPal approval',
+          title: 'Waiting for PayPal approval',
+          body: '',
+          action: 'Open PayPal',
           onTap: _busy ? null : () => _reopenApproval(handoffUrl),
         ),
       ));
     }
 
-    if (sub == null || !sub.holdsPlan) {
+    // While a checkout waits for PayPal, plan rows would only be disabled noise.
+    if ((sub == null || !sub.holdsPlan) && !pendingCheckout) {
       widgets.add(const PlpSectionTitle('Choose a plan'));
       if (snapshot.plans.isEmpty) {
         widgets.add(const PlpEditorialRow(
@@ -534,7 +557,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
   ) {
     if (sub == null || !sub.holdsPlan) {
       if (pendingCheckout) return ('Pending', 'awaiting PayPal');
-      if (sub?.state == 'cancelled') return ('Cancelled', 'ended');
+      if (sub?.state == 'cancelled') return ('Cancelled', '');
       return ('Inactive', 'no subscription');
     }
     if (cancelRequested) return ('Active', 'cancellation pending');

@@ -94,6 +94,7 @@ Future<List<Uri>> _mount(
   String? organizationId = _org,
   bool launchSucceeds = true,
   String environment = 'live',
+  VoidCallback? onBack,
 }) async {
   await setTestSurface(tester, logicalSize: const Size(430, 2200));
   final launched = <Uri>[];
@@ -101,6 +102,7 @@ Future<List<Uri>> _mount(
     child: PlpPaypalBillingScreen(
       organizationId: organizationId,
       onOpenNavigation: () {},
+      onBack: onBack,
       api: organizationId == null
           ? null
           : PlpPaypalBillingApi.forOrganization(
@@ -184,7 +186,12 @@ void main() {
     expect(Uri.parse(body['cancelUrl'] as String).scheme, 'https');
     expect(launched.single.host, 'www.paypal.com');
     expect(find.text('Pending'), findsOneWidget);
-    expect(find.text('PayPal approval is waiting.'), findsOneWidget);
+    expect(find.text('Waiting for PayPal approval'), findsOneWidget);
+    expect(
+        find.text('Reopen the existing provider approval link.'), findsNothing);
+    expect(find.text('Choose a plan'), findsNothing);
+    expect(find.byKey(const ValueKey('plp-billing-plan-launch')), findsNothing);
+    expect(find.text('Working with PayPal…'), findsNothing);
     expect(find.text('Active'), findsNothing);
     expect(find.text('CONTINUE TO PAYPAL'), findsNothing);
   });
@@ -222,7 +229,7 @@ void main() {
             _json(_status(subscription: {
               ..._active,
               'state': 'cancelled',
-              'ends_on': '2026-10-08',
+              'ends_on': '2026-11-08',
               'renews_on': null
             })),
           ],
@@ -245,6 +252,41 @@ void main() {
       'GET /billing/paypal/status',
     ]);
     expect(find.text('Cancelled'), findsOneWidget);
+    expect(find.text('Ends'), findsOneWidget);
+    expect(find.text('2026-11-08'), findsOneWidget);
+    expect(find.text('Renewal'), findsNothing);
+    expect(find.text('ended'), findsNothing);
+    expect(find.text('Cancellation sent to PayPal.'), findsOneWidget);
+  });
+
+  testWidgets('cancelled without a PayPal final billing date shows a dash',
+      (tester) async {
+    final backend = _Backend({
+      'GET /billing/paypal/status': () => [
+            _json(_status(subscription: {
+              ..._active,
+              'state': 'cancelled',
+              'ends_on': null,
+              'renews_on': null
+            })),
+          ],
+    });
+    await _mount(tester, backend);
+    expect(find.text('Ends'), findsOneWidget);
+    expect(find.text('—'), findsOneWidget);
+    expect(find.text('2026-11-08'), findsNothing);
+    expect(find.text('Cancellation sent to PayPal.'), findsNothing);
+  });
+
+  testWidgets('back button returns to the opening PLP surface', (tester) async {
+    var backs = 0;
+    final backend = _Backend({
+      'GET /billing/paypal/status': () => [_json(_status())],
+    });
+    await _mount(tester, backend, onBack: () => backs++);
+    await tester.tap(find.byKey(const ValueKey('plp-billing-back')));
+    await tester.pump();
+    expect(backs, 1);
   });
 
   testWidgets(
@@ -273,6 +315,7 @@ void main() {
     expect(find.text('Cancelled'), findsNothing);
     expect(find.text('cancellation pending'), findsOneWidget);
     expect(find.text('Cancellation sent'), findsOneWidget);
+    expect(find.text('Cancellation sent to PayPal.'), findsNothing);
   });
 
   testWidgets(
@@ -333,7 +376,7 @@ void main() {
     });
     final launched = await _mount(tester, backend);
     expect(find.text('Payment handoff'.toUpperCase()), findsOneWidget);
-    await tester.tap(find.text('OPEN PAYPAL APPROVAL'));
+    await tester.tap(find.text('OPEN PAYPAL'));
     await tester.pumpAndSettle();
     expect(launched.single.queryParameters['ba_token'], 'BA-9');
     expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);

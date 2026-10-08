@@ -127,6 +127,7 @@ class PlpEditorialPage extends StatelessWidget {
     required this.intro,
     required this.onOpenNavigation,
     required this.children,
+    this.trailing,
   });
 
   final Key pageKey;
@@ -135,6 +136,9 @@ class PlpEditorialPage extends StatelessWidget {
   final String intro;
   final VoidCallback onOpenNavigation;
   final List<Widget> children;
+
+  /// Optional header action, e.g. the PLP back button on routed tools.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -148,6 +152,7 @@ class PlpEditorialPage extends StatelessWidget {
               PlpEditorialHeader(
                 title: eyebrow,
                 onOpenNavigation: onOpenNavigation,
+                trailing: trailing,
               ),
               const SizedBox(height: 34),
               Text(

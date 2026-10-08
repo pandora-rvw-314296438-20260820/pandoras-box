@@ -4218,7 +4218,8 @@ async function billingReconcile(env: BillingEnv, context: UserContext) {
   const row=billingSubscriptionRow(env,context,{
     plan_id:plan.id,state,currency:"USD",monthly_fee_micros:plan.monthly_fee_micros,
     starts_on:(session||!cur?.starts_on)?start.slice(0,10):cur.starts_on,
-    ends_on:state==="cancelled"?now.slice(0,10):null,
+    // Final billing date only when PayPal reports one; never invented.
+    ends_on:state==="cancelled"&&next?next.slice(0,10):null,
     renews_on:next&&state!=="cancelled"?next.slice(0,10):null,
     source_kind:"provider_verified",provider_reference:subscriptionId,verified_at:now,
     ...(env==="live"?{notes:"PayPal recurring subscription"}:{provider_status:providerStatus}),
@@ -4303,7 +4304,7 @@ async function billingWebhook(req:Request) {
       const start=String(read.body.start_time||read.body.create_time||new Date().toISOString());
       const w=await client.from("pandora_customer_subscriptions").upsert({
         organization_id:session.organization_id,plan_id:p.id,state,currency:"USD",monthly_fee_micros:p.monthly_fee_micros,
-        starts_on:start.slice(0,10),ends_on:state==="cancelled"?new Date().toISOString().slice(0,10):null,renews_on:next?next.slice(0,10):null,
+        starts_on:start.slice(0,10),ends_on:state==="cancelled"&&next?next.slice(0,10):null,renews_on:next&&state!=="cancelled"?next.slice(0,10):null,
         source_kind:"provider_verified",provider_reference:subId,verified_at:new Date().toISOString(),notes:"PayPal recurring subscription",
         request_admission_enabled:state==="active",
         request_admission_started_at:state==="active" ? new Date().toISOString() : null,

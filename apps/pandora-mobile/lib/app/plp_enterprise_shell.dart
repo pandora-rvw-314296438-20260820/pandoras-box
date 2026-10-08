@@ -1084,6 +1084,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                   PlpPaypalBillingScreen(
                     organizationId: _organizationId(bootstrap),
                     onOpenNavigation: _openDrawer,
+                    onBack: _closeTool,
                   ),
                 );
               },
