@@ -91,5 +91,15 @@
     "This artifact records deployed provider source; it is not the canonical repo owner-api (PR #991 index.ts implements billing natively and differs).",
     "Deploy only as an exact patch from provider v97 after readback.",
     "The live billing routes and the first 3407 bytes of paypal-billing.mjs are byte-identical to provider v97."
-  ]
+  ],
+  "deployment": {
+    "method": "Supabase MCP deploy_edge_function, entrypoint deploy-entrypoint.ts (uploaded as index.ts) + deno.json; it imports index.ts from this directory at immutable commit 33f37ef9dea651ff5cc78fa8bff5a1158099dc01, bundled at deploy time",
+    "sourceCommit": "33f37ef9dea651ff5cc78fa8bff5a1158099dc01",
+    "rawContentSha256VerifiedBeforeDeploy": true,
+    "providerVersionReturnedByDeploy": 98,
+    "providerVersionActiveAfterReadback": 99,
+    "ezbrSha256": "1243f07ec1e584bb9236741d9e08eadbca0fb38d8252d2e481b1f631ad8f39d2",
+    "note": "v98 and v99 carry the same ezbr bundle hash; the provider bumped the version twice within ~3 s of the single deploy call.",
+    "rollback": "redeploy provider v97 (baselineFiles) exactly"
+  }
 }
