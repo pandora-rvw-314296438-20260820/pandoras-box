@@ -691,6 +691,7 @@ class PlpBillingRuledLine extends StatelessWidget {
     this.bottomRule = true,
     this.height = 56,
     this.leadSize = 15,
+    this.restSize = 13,
     this.semanticsLabel,
   });
 
@@ -700,6 +701,7 @@ class PlpBillingRuledLine extends StatelessWidget {
   final bool bottomRule;
   final double height;
   final double leadSize;
+  final double restSize;
   final String? semanticsLabel;
 
   @override
@@ -730,9 +732,9 @@ class PlpBillingRuledLine extends StatelessWidget {
                           if (rest.isNotEmpty)
                             TextSpan(
                               text: rest,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: plpMuted,
-                                fontSize: 13,
+                                fontSize: restSize,
                               ),
                             ),
                         ],

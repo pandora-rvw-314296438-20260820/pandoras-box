@@ -1027,6 +1027,7 @@ class _PlpBillingEntryLineState extends State<PlpBillingEntryLine> {
       lead: lead,
       rest: rest,
       height: 58,
+      restSize: 15,
       semanticsLabel: '$lead$rest. Open billing.',
       onTap: widget.onTap,
     );
