@@ -651,7 +651,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
                   icon: const Icon(Icons.arrow_back_rounded),
                 ),
         ),
-      SizedBox(height: locked ? 28 : 34),
+      SizedBox(height: locked ? 50 : 34),
       const PlpBillingTitle('Pandora billing'),
     ];
 
@@ -859,7 +859,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
             ? 'Plan'
             : 'Choose a plan';
     widgets
-      ..add(SizedBox(height: hero ? 72 : 50))
+      ..add(SizedBox(height: hero ? 92 : 50))
       ..add(PlpBillingLabel(
         label,
         icon: view.ghost ? PlpLineGlyph.rotateCcw : null,
@@ -896,18 +896,19 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
             : '\u2212 ${selected.currency} ${_money(-delta)}/mo';
       }
       widgets
-        ..add(const SizedBox(height: 26))
+        ..add(const SizedBox(height: 20))
         ..add(PlpBillingRuledLine(
           key: _diffKey,
           lead: lead,
           rest: ' \u00b7 starts after PayPal approval',
+          chevron: true,
           semanticsLabel:
               '${selected.name}, $lead, starts after PayPal approval. Continue.',
           onTap: _busy || open ? null : _openHandoff,
         ));
     } else if (hero && !view.locked) {
       widgets
-        ..add(const SizedBox(height: 44))
+        ..add(const SizedBox(height: 38))
         ..add(Container(
           padding: const EdgeInsets.only(top: 16),
           decoration: const BoxDecoration(
@@ -925,11 +926,12 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         !view.cancelRequested &&
         _selectedPlan == null) {
       widgets
-        ..add(const SizedBox(height: 46))
+        ..add(const SizedBox(height: 40))
         ..add(PlpBillingRuledLine(
           key: const ValueKey('plp-billing-cancel'),
           lead: 'Cancel subscription',
           bottomRule: false,
+          chevron: true,
           onTap: _busy || open || view.locked
               ? null
               : () => setState(() => _cancelOpen = true),

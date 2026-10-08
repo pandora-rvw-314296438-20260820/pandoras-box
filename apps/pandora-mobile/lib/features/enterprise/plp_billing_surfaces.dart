@@ -496,14 +496,14 @@ class PlpPlanAxis extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            height: 17,
+            height: 13,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
                 Positioned(
                   left: 6,
                   right: 6,
-                  top: 8,
+                  top: 6,
                   child: Container(height: 1, color: plpBillingRule),
                 ),
                 if (from >= 0 && to >= 0 && from != to)
@@ -514,13 +514,13 @@ class PlpPlanAxis extends StatelessWidget {
                     curve: Curves.easeOutCubic,
                     left: math.min(cx(from), cx(to)),
                     width: (cx(to) - cx(from)).abs(),
-                    top: 8,
+                    top: 6,
                     child: Container(height: 1, color: plpInk),
                   ),
                 for (var i = 0; i < count; i++)
                   Positioned(
                     left: cx(i) - 8.5,
-                    top: 0,
+                    top: -2,
                     child: SizedBox.square(
                       dimension: 17,
                       child: Center(
@@ -537,7 +537,7 @@ class PlpPlanAxis extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: hero ? 18 : 12),
+          SizedBox(height: hero ? 20 : 14),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -692,6 +692,7 @@ class PlpBillingRuledLine extends StatelessWidget {
     this.height = 56,
     this.leadSize = 15,
     this.restSize = 13,
+    this.chevron,
     this.semanticsLabel,
   });
 
@@ -702,6 +703,10 @@ class PlpBillingRuledLine extends StatelessWidget {
   final double height;
   final double leadSize;
   final double restSize;
+
+  /// Defaults to showing the chevron only when tappable. Lines that are
+  /// temporarily inert (dimmed lock, raised panel) keep it for continuity.
+  final bool? chevron;
   final String? semanticsLabel;
 
   @override
@@ -743,8 +748,11 @@ class PlpBillingRuledLine extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (onTap != null)
-                    const PlpLineIcon(PlpLineGlyph.chevronRight, color: plpInk),
+                  if (chevron ?? onTap != null)
+                    PlpLineIcon(
+                      PlpLineGlyph.chevronRight,
+                      color: onTap != null ? plpInk : plpMuted,
+                    ),
                 ],
               ),
             ),
@@ -1187,7 +1195,7 @@ class _PlpBillingWaitingBandState extends State<PlpBillingWaitingBand>
       key: const ValueKey('plp-billing-waiting'),
       color: plpInk,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(18, 14 + top, 18, 20),
+        padding: EdgeInsets.fromLTRB(18, 14 + top, 18, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1263,7 +1271,7 @@ class _PlpBillingWaitingBandState extends State<PlpBillingWaitingBand>
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
             Row(
               children: [
                 TextButton(
@@ -1314,6 +1322,7 @@ class _PlpBillingWaitingBandState extends State<PlpBillingWaitingBand>
                   height: 1.4,
                 ),
               ),
+              const SizedBox(height: 10),
             ],
           ],
         ),
