@@ -2,10 +2,44 @@
 -- Live catalog IDs verified against PayPal live on 2026-10-08.
 -- No credentials or tokens are stored in source.
 
+create table if not exists public.pandora_paypal_plan_links (
+  plan_id uuid primary key references public.pandora_service_plans(id),
+  paypal_plan_id text not null check (paypal_plan_id ~ '^P-[A-Z0-9]+$'),
+  currency text not null check (currency ~ '^[A-Z]{3}$'),
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.pandora_paypal_plan_change_sessions (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null,
+  requested_by uuid not null,
+  paypal_subscription_id text not null,
+  from_plan_id uuid not null,
+  to_plan_id uuid not null,
+  from_plan_code text not null,
+  to_plan_code text not null,
+  idempotency_key text not null,
+  status text not null default 'created',
+  approval_url text,
+  provider_reference text,
+  error_message text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  completed_at timestamptz,
+  unique (organization_id, idempotency_key)
+);
+
 insert into public.pandora_paypal_plan_links (plan_id, paypal_plan_id, currency, active)
-values
-  ('4975e1a8-535e-4b12-a0ea-2120dd9696b6','P-6HV700307G378832PNLDXSWY','USD',true),
-  ('2d95d87b-b41b-4d55-908c-b9889766d04e','P-7D160645N8043213CNLDXSXA','USD',true)
+select v.plan_id, v.paypal_plan_id, v.currency, v.active
+from (values
+  ('4975e1a8-535e-4b12-a0ea-2120dd9696b6'::uuid,'P-6HV700307G378832PNLDXSWY','USD',true),
+  ('2d95d87b-b41b-4d55-908c-b9889766d04e'::uuid,'P-7D160645N8043213CNLDXSXA','USD',true)
+) as v(plan_id, paypal_plan_id, currency, active)
+where exists (
+  select 1 from public.pandora_service_plans p where p.id=v.plan_id
+)
 on conflict (plan_id) do update
 set paypal_plan_id=excluded.paypal_plan_id,
     currency=excluded.currency,
