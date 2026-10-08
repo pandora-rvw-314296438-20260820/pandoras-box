@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -198,6 +199,33 @@ void main() {
     for (final column in ['Status', 'Renewal']) {
       expect(find.text(column), findsNothing);
     }
+  });
+
+  testWidgets('the seal is its own accessible button', (tester) async {
+    final handle = tester.ensureSemantics();
+    await _mount(
+        tester,
+        _Backend({
+          'GET /billing/paypal/status': () =>
+              [_json(_status(subscription: _active))],
+        }));
+    final node =
+        tester.getSemantics(find.byKey(const ValueKey('plp-billing-seal')));
+    expect(node.label, startsWith('PayPal \u00b7 checked'));
+    expect(node.label, isNot(contains('Nov')));
+    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    expect(node.rect.width, lessThan(394)); // not the whole playhead row
+    // Plan nodes and the cancel line are activatable by screen readers too.
+    for (final key in ['plp-billing-plan-professional', 'plp-billing-cancel']) {
+      expect(
+          tester
+              .getSemantics(find.byKey(ValueKey(key)))
+              .getSemanticsData()
+              .hasAction(SemanticsAction.tap),
+          isTrue,
+          reason: key);
+    }
+    handle.dispose();
   });
 
   testWidgets('tapping the seal reconciles then reads status', (tester) async {

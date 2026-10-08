@@ -284,10 +284,14 @@ class _PlpBillingSealState extends State<PlpBillingSeal>
     final children = widget.labelFirst
         ? <Widget>[Flexible(child: text), const SizedBox(width: 6), icon]
         : <Widget>[icon, const SizedBox(width: 6), Flexible(child: text)];
+    // Own node, so the cycle labels around it never merge into the button
+    // and its tap target stays the seal itself.
     return Semantics(
+      container: true,
       button: widget.onTap != null,
       label: widget.label,
       hint: widget.onTap == null ? null : 'Check PayPal again',
+      onTap: widget.onTap,
       child: ExcludeSemantics(
         child: GestureDetector(
           key: const ValueKey('plp-billing-seal'),
@@ -642,9 +646,11 @@ class _PlanNodeLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
+        container: true,
         button: onTap != null,
         selected: selected,
         label: '${node.name}, ${node.price}',
+        onTap: onTap,
         child: ExcludeSemantics(
           child: GestureDetector(
             key: ValueKey('plp-billing-plan-${node.code}'),
@@ -711,8 +717,10 @@ class PlpBillingRuledLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
+        container: true,
         button: onTap != null,
         label: semanticsLabel ?? '$lead$rest',
+        onTap: onTap,
         child: ExcludeSemantics(
           child: InkWell(
             onTap: onTap,
@@ -913,6 +921,7 @@ class PlpBillingHandoffContent extends StatelessWidget {
             button: true,
             enabled: !busy,
             label: busy ? 'Opening PayPal' : 'Continue to PayPal',
+            onTap: busy ? null : onContinue,
             child: ExcludeSemantics(
               child: Material(
                 color: busy ? plpBillingOnInkMuted : Colors.white,
