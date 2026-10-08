@@ -25,6 +25,13 @@ import {
   resolveOperationalConflict,
   stageOperationalImport,
 } from "./operational-workspace.mjs";
+import {
+  billingCancel,
+  billingChangePlan,
+  billingCheckout,
+  billingReconcile,
+  billingStatus,
+} from "./paypal-billing.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -3507,6 +3514,32 @@ Deno.serve(async (req: Request) => {
         ),
       );
     }
+    if (route.startsWith("/billing/paypal")) {
+      const billingAdmin = createClient(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_SECRET,
+        { auth: { persistSession: false, autoRefreshToken: false } },
+      );
+      if (req.method === "GET" && route === "/billing/paypal/status") {
+        return send(await billingStatus(billingAdmin, context.organizationId));
+      }
+      if (req.method === "POST" && route === "/billing/paypal/checkout") {
+        return send(await billingCheckout(billingAdmin, context, await bodyJson(req)));
+      }
+      if (req.method === "POST" && route === "/billing/paypal/change-plan") {
+        return send(await billingChangePlan(billingAdmin, context, await bodyJson(req)));
+      }
+      if (req.method === "POST" && route === "/billing/paypal/reconcile") {
+        const reconciled = await billingReconcile(billingAdmin, context);
+        const status = await billingStatus(billingAdmin, context.organizationId);
+        return send({ ...status, reconciliation: reconciled });
+      }
+      if (req.method === "POST" && route === "/billing/paypal/cancel") {
+        const cancelled = await billingCancel(billingAdmin, context, await bodyJson(req));
+        const status = await billingStatus(billingAdmin, context.organizationId);
+        return send({ ...status, cancellation: cancelled });
+      }
+    }
     return reject(
       404,
       "OWNER_ROUTE_NOT_FOUND",
@@ -3540,6 +3573,24 @@ Deno.serve(async (req: Request) => {
     if (code === "RATE_LIMITED") {
       return reject(429, code, "Please wait a moment before trying again.");
     }
+    if (code === "PLAN_PROVIDER_LINK_REQUIRED") {
+      return reject(409, code, "This plan is not linked to PayPal yet. No checkout was started.");
+    }
+    if (code === "RECONCILIATION_REQUIRED") {
+      return reject(409, code, "Reconcile provider state before changing this subscription.");
+    }
+    if (code === "SUBSCRIPTION_ALREADY_ACTIVE") {
+      return reject(409, code, "An active subscription already exists. Change the plan instead of starting checkout.");
+    }
+    if (code === "SUBSCRIPTION_NOT_ACTIVE") {
+      return reject(409, code, "There is no provider-backed subscription to change.");
+    }
+    if (code === "PAYPAL_NOT_CONFIGURED" || code === "PAYPAL_AUTH_FAILED") {
+      return reject(503, code, "Provider state unavailable. PayPal could not be verified.");
+    }
+    if (code === "PAYPAL_CHECKOUT_FAILED" || code === "PAYPAL_PLAN_CHANGE_FAILED" || code === "PAYPAL_CANCEL_FAILED") {
+      return reject(502, code, "PayPal did not confirm this billing action.");
+    }
     if (
       [
         "INVALID_JSON",
@@ -3568,6 +3619,19 @@ Deno.serve(async (req: Request) => {
         "MODEL_REQUIRED",
         "TEST_INFERENCE_REQUIRED",
         "BODY_TOO_LARGE",
+        "PLAN_NOT_FOUND",
+        "PLAN_UNCHANGED",
+        "INVALID_RETURN_URL",
+        "PLAN_PROVIDER_LINK_REQUIRED",
+        "SUBSCRIPTION_ALREADY_ACTIVE",
+        "SUBSCRIPTION_NOT_ACTIVE",
+        "RECONCILIATION_REQUIRED",
+        "PAYPAL_CHECKOUT_FAILED",
+        "PAYPAL_PLAN_CHANGE_FAILED",
+        "PAYPAL_CANCEL_FAILED",
+        "PAYPAL_NOT_CONFIGURED",
+        "PAYPAL_AUTH_FAILED",
+        "BILLING_REQUEST_FAILED",
       ]
         .includes(code)
     ) {

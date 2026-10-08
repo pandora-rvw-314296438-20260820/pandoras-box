@@ -806,11 +806,11 @@ class PlpRevenueScreen extends StatelessWidget {
         const SizedBox(height: 28),
         if (onOpenBilling != null)
           PlpBlackPanel(
-            eyebrow: 'Subscription',
-            title: 'Manage Pandora billing.',
+            eyebrow: 'Revenue',
+            title: 'Subscription truth.',
             body:
-                'Review PayPal state, choose a plan, and manage the subscription without leaving the PLP Enterprise workspace.',
-            action: 'Manage PayPal billing',
+                'Plan, price, renewal, and PayPal verification live in the revenue workspace. Provider credentials stay on the server.',
+            action: 'Open billing',
             onTap: onOpenBilling,
           ),
       ],
