@@ -169,3 +169,21 @@ begin
 end;
 $function$;
 ```
+
+## Subscription lifecycle (cancel / reconcile)
+
+The owner API decides every lifecycle outcome from PayPal readbacks; the app
+only renders the result. Identical in live and sandbox.
+
+| PayPal `GET /v1/billing/subscriptions/{id}` | Reconcile | Cancel |
+| --- | --- | --- |
+| `APPROVAL_PENDING` (buyer has not approved) | `verified: false`, reason `AWAITING_BUYER_APPROVAL`, nothing written | `status: "blocked"`, reason `AWAITING_BUYER_APPROVAL`; **no `POST /cancel` is sent** (PayPal would answer 404 `INVALID_RESOURCE_ID`) |
+| `APPROVED` (not activated yet) | `verified: false`, reason `AWAITING_PROVIDER_ACTIVATION` | `blocked`, `AWAITING_PROVIDER_ACTIVATION` |
+| `ACTIVE`, not yet recorded `provider_verified` | records `active` / `provider_verified` | `blocked`, `RECONCILIATION_REQUIRED` (reconcile first) |
+| `ACTIVE`, recorded `provider_verified` | refreshes | `POST /cancel` (`paypal-request-id: pandora-cancel-{id}`), then a second `GET`: |
+| ↳ readback `CANCELLED` | | recorded `cancelled` (`status: "cancelled"`) |
+| ↳ readback not `CANCELLED` | | `status: "cancel_unconfirmed"`; checkout session `cancel_requested`; plan unchanged, never shown as cancelled |
+| ↳ PayPal rejects the cancel and readback not `CANCELLED` | | `PAYPAL_CANCEL_FAILED` (502); nothing recorded |
+
+The live webhook follows the same rule: lifecycle state comes from the `GET`
+readback, never from the event name.

@@ -3787,7 +3787,7 @@ const BILLING_ERROR_RESPONSES: Record<string, [number, string]> = {
   BILLING_PLAN_CHANGE_SESSION_WRITE_FAILED: [503, "Pandora could not record the plan change. Nothing was sent to PayPal."],
   PAYPAL_SUBSCRIPTION_READ_FAILED: [502, "PayPal could not confirm the subscription state."],
   SUBSCRIPTION_STATE_WRITE_FAILED: [503, "Pandora could not record the PayPal subscription state."],
-  PAYPAL_CANCEL_FAILED: [502, "PayPal could not cancel the subscription."],
+  PAYPAL_CANCEL_FAILED: [502, "PayPal could not cancel the subscription. Nothing was recorded as cancelled."],
   PAYPAL_PATH_NOT_ALLOWED: [503, "Pandora blocked an unexpected PayPal request."],
   BILLING_STATE_READ_FAILED: [503, "Pandora could not read the billing state."],
 };
@@ -4179,6 +4179,36 @@ async function billingChangePlan(env: BillingEnv, context: UserContext, body: Js
   await client.from(t.changes).update({status:"approval_pending",approval_url:approval,provider_reference:subscriptionId,updated_at:new Date().toISOString()}).eq("id",changeId);
   return {environment:env,changeId,subscriptionId,fromPlanCode:currentPlan.code,toPlanCode:target.code,approvalUrl:approval,status:"approval_pending",effective:"after_paypal_approval"};
 }
+const BILLING_PROVIDER_CONFIRMED_STATUSES=["ACTIVE","SUSPENDED","CANCELLED","EXPIRED"];
+function billingNotActiveReason(providerStatus: string) {
+  if(providerStatus==="APPROVAL_PENDING") return "AWAITING_BUYER_APPROVAL";
+  if(providerStatus==="APPROVED") return "AWAITING_PROVIDER_ACTIVATION";
+  if(providerStatus==="SUSPENDED") return "SUBSCRIPTION_NOT_ACTIVE";
+  return "SUBSCRIPTION_NOT_CANCELLABLE";
+}
+async function billingReadSubscription(env: BillingEnv, subscriptionId: string) {
+  const read=await billingPaypalRequest(env,"/v1/billing/subscriptions/"+subscriptionId);
+  if(!read.ok || String(read.body.id||"")!==subscriptionId) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+  return {body:read.body,status:String(read.body.status||"").toUpperCase()};
+}
+function billingCancelResult(env: BillingEnv, subscriptionId: string, status: "blocked"|"cancelled"|"cancel_unconfirmed", fields: JsonRecord) {
+  return {environment:env,subscriptionId,status,cancelRequested:false,cancelled:false,verified:false,providerStatus:null,reason:null,...fields};
+}
+// Records a cancellation that PayPal has read back as CANCELLED. The paid-
+// through date is PayPal's next_billing_time (from the CANCELLED readback, or
+// the ACTIVE readback taken just before the cancel); never invented.
+async function billingRecordCancelled(env: BillingEnv, context: UserContext, subscriptionId: string, cancelledBody: JsonRecord, activeBody: JsonRecord|null) {
+  const t=BILLING_TABLES[env];
+  const client=createOperationalAdminClient();
+  const now=new Date().toISOString();
+  const next=billingNextBilling(cancelledBody)||(activeBody?billingNextBilling(activeBody):"");
+  const patch: JsonRecord={state:"cancelled",source_kind:"provider_verified",provider_reference:subscriptionId,verified_at:now,renews_on:null,updated_by:context.userId,updated_at:now,
+    ...(next?{ends_on:next.slice(0,10)}:{}),
+    ...(env==="live"?{request_admission_enabled:false,request_admission_started_at:null}:{provider_status:"CANCELLED"})};
+  const w=await client.from(t.subscriptions).update(patch).eq("organization_id",context.organizationId).eq("provider_reference",subscriptionId).select("organization_id");
+  if(w.error || !Array.isArray(w.data) || w.data.length!==1) throw new Error("SUBSCRIPTION_STATE_WRITE_FAILED");
+  await client.from(t.sessions).update({status:"cancelled",updated_at:now}).eq("organization_id",context.organizationId).eq("paypal_subscription_id",subscriptionId);
+}
 // Reconcile re-reads PayPal and writes only provider-confirmed state. If no
 // subscription is linked yet (approval just happened, webhook not processed),
 // it falls back to the newest checkout session and verifies custom_id.
@@ -4186,7 +4216,7 @@ async function billingReconcile(env: BillingEnv, context: UserContext) {
   billingAal2(context);
   const t=BILLING_TABLES[env];
   const client=createOperationalAdminClient();
-  const current=await client.from(t.subscriptions).select("state,provider_reference,request_admission_started_at,starts_on").eq("organization_id",context.organizationId).maybeSingle();
+  const current=await client.from(t.subscriptions).select("state,provider_reference,request_admission_started_at,starts_on,ends_on").eq("organization_id",context.organizationId).maybeSingle();
   if(current.error) throw new Error("BILLING_STATE_READ_FAILED");
   const cur=current.data?asRecord(current.data):null;
   let subscriptionId=cur?String(cur.provider_reference||""):"";
@@ -4197,36 +4227,39 @@ async function billingReconcile(env: BillingEnv, context: UserContext) {
     if(s.data){ session=asRecord(s.data); subscriptionId=String(session.paypal_subscription_id); }
   }
   if(!subscriptionId) throw new Error(cur?"PROVIDER_SUBSCRIPTION_NOT_LINKED":"SUBSCRIPTION_NOT_FOUND");
-  const read=await billingPaypalRequest(env,"/v1/billing/subscriptions/"+subscriptionId);
-  if(!read.ok || String(read.body.id||"")!==subscriptionId) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+  const read=await billingReadSubscription(env,subscriptionId);
   if(session && String(read.body.custom_id||"")!==String(session.id)) throw new Error("PAYPAL_PROVIDER_MISMATCH");
-  const providerStatus=String(read.body.status||"");
+  const providerStatus=read.status;
   const now=new Date().toISOString();
-  if(session && ["APPROVAL_PENDING","APPROVED"].includes(providerStatus)){
-    return {environment:env,verified:true,subscriptionId,state:"approval_pending",providerStatus,planCode:session.plan_code,renewsOn:null};
+  // Only ACTIVE / SUSPENDED / CANCELLED / EXPIRED are provider-confirmed
+  // lifecycle states. Anything else (APPROVAL_PENDING: the buyer has not
+  // approved yet; APPROVED: PayPal has not activated yet) is NOT verified and
+  // nothing is written.
+  if(!BILLING_PROVIDER_CONFIRMED_STATUSES.includes(providerStatus)){
+    return {environment:env,verified:false,subscriptionId,state:"approval_pending",providerStatus,reason:billingNotActiveReason(providerStatus),planCode:session?session.plan_code:null,renewsOn:null};
   }
   if(session && ["CANCELLED","EXPIRED"].includes(providerStatus) && !cur){
     await client.from(t.sessions).update({status:providerStatus==="EXPIRED"?"expired":"cancelled",updated_at:now}).eq("id",String(session.id));
     return {environment:env,verified:true,subscriptionId,state:"cancelled",providerStatus,planCode:session.plan_code,renewsOn:null};
   }
   const plan=await billingPlanByPaypalPlanId(env,String(read.body.plan_id||""));
-  const state=["CANCELLED","EXPIRED"].includes(providerStatus) ? "cancelled" : providerStatus==="SUSPENDED" ? "suspended" : providerStatus==="ACTIVE" ? "active" : String(cur?.state||"");
-  if(!["active","suspended","cancelled","past_due","trial"].includes(state)) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+  const state=["CANCELLED","EXPIRED"].includes(providerStatus) ? "cancelled" : providerStatus==="SUSPENDED" ? "suspended" : "active";
   const next=billingNextBilling(read.body);
   const active=state==="active";
   const start=textValue(read.body.start_time)||textValue(read.body.create_time)||now;
   const row=billingSubscriptionRow(env,context,{
     plan_id:plan.id,state,currency:"USD",monthly_fee_micros:plan.monthly_fee_micros,
     starts_on:(session||!cur?.starts_on)?start.slice(0,10):cur.starts_on,
-    // Final billing date only when PayPal reports one; never invented.
-    ends_on:state==="cancelled"&&next?next.slice(0,10):null,
+    // Final billing date only when PayPal reports one (now, or in the ACTIVE
+    // readback recorded at cancellation); never invented.
+    ends_on:state==="cancelled"?(next?next.slice(0,10):(cur?.ends_on??null)):null,
     renews_on:next&&state!=="cancelled"?next.slice(0,10):null,
     source_kind:"provider_verified",provider_reference:subscriptionId,verified_at:now,
     ...(env==="live"?{notes:"PayPal recurring subscription"}:{provider_status:providerStatus}),
   },active,cur?.request_admission_started_at);
   const w=await client.from(t.subscriptions).upsert(row,{onConflict:"organization_id"});
   if(w.error) throw new Error("SUBSCRIPTION_STATE_WRITE_FAILED");
-  const sessionStatus=state==="past_due"||state==="trial"?"active":state;
+  const sessionStatus=state;
   await client.from(t.sessions).update({status:sessionStatus,updated_at:now}).eq("organization_id",context.organizationId).eq("paypal_subscription_id",subscriptionId).neq("status",sessionStatus);
   if(active){
     await client.from(t.changes).update({status:"completed",completed_at:now,updated_at:now})
@@ -4235,20 +4268,65 @@ async function billingReconcile(env: BillingEnv, context: UserContext) {
   }
   return {environment:env,verified:true,subscriptionId,planCode:plan.code,state,providerStatus,requestAdmissionEnabled:env==="live"?active:false,renewsOn:next||null};
 }
+// Cancellation lifecycle (server-side; the app renders what this returns):
+// 1. GET the subscription from PayPal first. While it is APPROVAL_PENDING
+//    (buyer has not approved) or APPROVED (not activated yet) the cancel is
+//    BLOCKED and no POST /cancel is sent: PayPal answers 404
+//    INVALID_RESOURCE_ID for those, which must never read as "cancelled".
+// 2. POST /cancel only when PayPal reads back ACTIVE AND Pandora has already
+//    recorded that subscription as provider_verified (reconcile/webhook).
+// 3. GET again. Only a CANCELLED readback is recorded as cancelled. An
+//    accepted cancel that does not read back CANCELLED is recorded as
+//    unconfirmed (checkout session cancel_requested); the plan is unchanged.
 async function billingCancel(env: BillingEnv, context: UserContext, body: JsonRecord) {
   billingAal2(context);
   const t=BILLING_TABLES[env];
   const client=createOperationalAdminClient();
-  const s=await client.from(t.subscriptions).select("provider_reference,state").eq("organization_id",context.organizationId).maybeSingle();
-  if(s.error||!s.data) throw new Error("SUBSCRIPTION_NOT_FOUND");
-  const row=asRecord(s.data);
-  const subId=String(row.provider_reference||"");
-  if(!subId) throw new Error("PROVIDER_SUBSCRIPTION_NOT_LINKED");
-  if(String(row.state)==="cancelled") return {environment:env,status:"cancelled",subscriptionId:subId};
-  const result=await billingPaypalRequest(env,"/v1/billing/subscriptions/"+subId+"/cancel",{method:"POST",headers:{"paypal-request-id":"pandora-cancel-"+subId},body:JSON.stringify({reason:String(body.reason||"Cancelled by Pandora owner").slice(0,127)})});
-  if(!result.ok && result.status!==204) throw new Error("PAYPAL_CANCEL_FAILED");
+  const s=await client.from(t.subscriptions).select("provider_reference,state,source_kind,verified_at").eq("organization_id",context.organizationId).maybeSingle();
+  if(s.error) throw new Error("BILLING_STATE_READ_FAILED");
+  const row=s.data?asRecord(s.data):null;
+  const linked=row?String(row.provider_reference||""):"";
+  const recordedCancelled=Boolean(row) && String(row!.state)==="cancelled";
+  let subId=linked&&!recordedCancelled?linked:"";
+  let checkoutOnly=false;
+  if(!subId){
+    // A checkout PayPal has not activated (or Pandora has not verified) yet.
+    const p=await client.from(t.sessions).select("id,paypal_subscription_id,status").eq("organization_id",context.organizationId).not("paypal_subscription_id","is",null).in("status",["approval_pending","active"]).order("created_at",{ascending:false}).limit(1).maybeSingle();
+    if(p.error) throw new Error("BILLING_STATE_READ_FAILED");
+    if(p.data && String(asRecord(p.data).paypal_subscription_id)!==linked){ subId=String(asRecord(p.data).paypal_subscription_id); checkoutOnly=true; }
+  }
+  if(!subId){
+    // Idempotent replay: the cancellation was already recorded from a
+    // CANCELLED readback. Nothing is sent to PayPal again.
+    if(recordedCancelled && linked) return billingCancelResult(env,linked,"cancelled",{cancelled:true,verified:true,providerStatus:"CANCELLED",replayed:true});
+    throw new Error(row?"PROVIDER_SUBSCRIPTION_NOT_LINKED":"SUBSCRIPTION_NOT_FOUND");
+  }
+  const before=await billingReadSubscription(env,subId);
+  if(before.status==="CANCELLED" && !checkoutOnly){
+    await billingRecordCancelled(env,context,subId,before.body,null);
+    return billingCancelResult(env,subId,"cancelled",{cancelled:true,verified:true,providerStatus:before.status});
+  }
+  if(before.status!=="ACTIVE"){
+    return billingCancelResult(env,subId,"blocked",{providerStatus:before.status,reason:billingNotActiveReason(before.status)});
+  }
+  const locallyVerified=!checkoutOnly && row!==null && String(row.source_kind)==="provider_verified" && Boolean(row.verified_at) && ["active","past_due","trial"].includes(String(row.state));
+  if(!locallyVerified){
+    return billingCancelResult(env,subId,"blocked",{providerStatus:before.status,reason:"RECONCILIATION_REQUIRED"});
+  }
+  const posted=await billingPaypalRequest(env,"/v1/billing/subscriptions/"+subId+"/cancel",{method:"POST",headers:{"paypal-request-id":"pandora-cancel-"+subId},body:JSON.stringify({reason:String(body.reason||"Cancelled by Pandora owner").slice(0,127)})});
+  const accepted=posted.ok || posted.status===204;
+  let after: {body:JsonRecord;status:string}|null=null;
+  try { after=await billingReadSubscription(env,subId); } catch { after=null; }
+  if(after && after.status==="CANCELLED"){
+    await billingRecordCancelled(env,context,subId,after.body,before.body);
+    return billingCancelResult(env,subId,"cancelled",{cancelRequested:true,cancelled:true,verified:true,providerStatus:after.status});
+  }
+  if(!accepted){
+    console.error(JSON.stringify({code:"PAYPAL_CANCEL_FAILED",providerHttpStatus:posted.status,providerDebugId:textValue(posted.body.debug_id)||null,providerStatus:after?after.status:null}));
+    throw new Error("PAYPAL_CANCEL_FAILED");
+  }
   await client.from(t.sessions).update({status:"cancel_requested",updated_at:new Date().toISOString()}).eq("organization_id",context.organizationId).eq("paypal_subscription_id",subId);
-  return {environment:env,status:"cancel_requested",subscriptionId:subId};
+  return billingCancelResult(env,subId,"cancel_unconfirmed",{cancelRequested:true,providerStatus:after?after.status:null,reason:"CANCELLATION_NOT_CONFIRMED"});
 }
 async function billingVerifyWebhook(rawBody:string,req:Request) {
   const webhookId=await billingSecret("paypal_webhook_id");
@@ -4299,7 +4377,12 @@ async function billingWebhook(req:Request) {
       const providerPlanId=String(read.body.plan_id||"");
       const p=await billingPlanByPaypalPlanId("live",providerPlanId);
       const ps=String(read.body.status||"");
-      const state=eventType==="BILLING.SUBSCRIPTION.PAYMENT.FAILED"?"past_due":eventType==="BILLING.SUBSCRIPTION.SUSPENDED"?"suspended":["CANCELLED","EXPIRED"].includes(ps)||["BILLING.SUBSCRIPTION.CANCELLED","BILLING.SUBSCRIPTION.EXPIRED"].includes(eventType)?"cancelled":ps==="SUSPENDED"?"suspended":"active";
+      // Lifecycle state comes from the GET readback only, never from the
+      // event name: a CANCELLED event is recorded as cancelled only when
+      // PayPal reads back CANCELLED/EXPIRED, and nothing is recorded while the
+      // subscription is still APPROVAL_PENDING/APPROVED (PayPal retries).
+      const state=["CANCELLED","EXPIRED"].includes(ps)?"cancelled":ps==="SUSPENDED"?"suspended":ps==="ACTIVE"?(eventType==="BILLING.SUBSCRIPTION.PAYMENT.FAILED"?"past_due":"active"):"";
+      if(!state) throw new Error("PAYPAL_SUBSCRIPTION_NOT_CONFIRMED");
       const next=billingNextBilling(read.body);
       const start=String(read.body.start_time||read.body.create_time||new Date().toISOString());
       const w=await client.from("pandora_customer_subscriptions").upsert({

@@ -110,14 +110,16 @@ class PlpPaypalBillingApi {
     if (response.data is! Map) throw PlpBillingContractError();
   }
 
-  Future<void> cancel() async {
+  /// The owner API decides the cancellation outcome from PayPal readbacks;
+  /// the app only renders it (see [PlpBillingCancelOutcome]).
+  Future<PlpBillingCancelOutcome> cancel() async {
     final response = await _client.postJson(
       pathSegments: const ['billing', 'paypal', 'cancel'],
       operation: 'billing.paypal.cancel',
       routeTemplate: '/billing/paypal/cancel',
       body: const <String, Object?>{'reason': 'Cancelled by Pandora owner'},
     );
-    if (response.data is! Map) throw PlpBillingContractError();
+    return PlpBillingCancelOutcome.parse(response.data);
   }
 
   void close() => _client.close();
@@ -362,6 +364,49 @@ class PlpBillingApproval {
   }
 }
 
+/// Server-decided result of `POST /billing/paypal/cancel`.
+///
+/// * `cancelled`: PayPal read back CANCELLED and Pandora recorded it.
+/// * `blocked`: nothing was sent to PayPal (for example
+///   `AWAITING_BUYER_APPROVAL` while the buyer has not approved yet).
+/// * `cancel_unconfirmed`: PayPal accepted the request but did not read back
+///   CANCELLED, so nothing was recorded as cancelled.
+class PlpBillingCancelOutcome {
+  const PlpBillingCancelOutcome({required this.status, this.reason});
+
+  final String status;
+  final String? reason;
+
+  bool get cancelled => status == 'cancelled';
+  bool get blocked => status == 'blocked';
+
+  static PlpBillingCancelOutcome parse(Object? data) {
+    if (data is! Map) throw PlpBillingContractError();
+    final json = _map(data);
+    final status = _text(json['status']);
+    if (status == null) throw PlpBillingContractError();
+    return PlpBillingCancelOutcome(status: status, reason: _text(json['reason']));
+  }
+
+  static const _blockedByReason = <String, String>{
+    'AWAITING_BUYER_APPROVAL':
+        'PayPal is still waiting for the buyer to approve this subscription. Nothing was sent to PayPal and nothing was cancelled.',
+    'AWAITING_PROVIDER_ACTIVATION':
+        'PayPal has not activated this subscription yet. Nothing was sent to PayPal and nothing was cancelled.',
+    'RECONCILIATION_REQUIRED':
+        'Pandora has not verified this subscription with PayPal yet. Refresh payment state first. Nothing was cancelled.',
+    'SUBSCRIPTION_NOT_ACTIVE':
+        'PayPal reports this subscription is not active. Nothing was cancelled.',
+  };
+
+  /// Owner-facing wording for a blocked cancellation.
+  PlpBillingProblem get blockedProblem => PlpBillingProblem(
+        'Cancellation blocked.',
+        _blockedByReason[reason] ??
+            'PayPal does not allow cancelling this subscription in its current state. Nothing was cancelled.',
+      );
+}
+
 /// Concise owner-facing wording for billing failures. Raw exceptions are
 /// never shown.
 class PlpBillingProblem {
@@ -432,7 +477,7 @@ class PlpBillingProblem {
     ),
     'PAYPAL_CANCEL_FAILED': (
       'Cancellation not confirmed.',
-      'PayPal could not cancel the subscription. It is still active.'
+      'PayPal could not cancel the subscription. Nothing was recorded as cancelled.'
     ),
     'PAYPAL_SUBSCRIPTION_READ_FAILED': (
       'Payment state not confirmed.',

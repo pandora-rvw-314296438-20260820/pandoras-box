@@ -579,7 +579,12 @@ void main() {
               })),
             ],
         'POST /billing/paypal/cancel': () => [
-              _json({'status': 'cancel_requested'})
+              _json({
+                'status': 'cancelled',
+                'cancelled': true,
+                'verified': true,
+                'providerStatus': 'CANCELLED'
+              })
             ],
         'POST /billing/paypal/reconcile': () => [
               _json({'verified': true})
@@ -661,7 +666,12 @@ void main() {
                 })),
               ],
           'POST /billing/paypal/cancel': () => [
-                _json({'status': 'cancel_requested'})
+                _json({
+                  'status': 'cancelled',
+                  'cancelled': true,
+                  'verified': true,
+                  'providerStatus': 'CANCELLED'
+                })
               ],
           'POST /billing/paypal/reconcile': () => [
                 _json({'verified': true, 'state': 'cancelled'})
@@ -753,7 +763,14 @@ void main() {
             })),
           ],
       'POST /billing/paypal/cancel': () => [
-            _json({'status': 'cancel_requested'})
+            _json({
+              'status': 'cancel_unconfirmed',
+              'cancelRequested': true,
+              'cancelled': false,
+              'verified': false,
+              'providerStatus': 'ACTIVE',
+              'reason': 'CANCELLATION_NOT_CONFIRMED'
+            })
           ],
       'POST /billing/paypal/reconcile': () => [
             _json({'verified': true, 'state': 'active'})
@@ -774,6 +791,43 @@ void main() {
     expect(
         find.byKey(const ValueKey('plp-billing-cancel-sent')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-billing-cancel')), findsNothing);
+  });
+
+  testWidgets(
+      'cancel blocked while PayPal awaits buyer approval: never shows Cancelled',
+      (tester) async {
+    final backend = _Backend({
+      'GET /billing/paypal/status': () => [
+            _json(_status(subscription: _active)),
+            _json(_status(subscription: _active)),
+          ],
+      'POST /billing/paypal/cancel': () => [
+            _json({
+              'status': 'blocked',
+              'cancelRequested': false,
+              'cancelled': false,
+              'verified': false,
+              'providerStatus': 'APPROVAL_PENDING',
+              'reason': 'AWAITING_BUYER_APPROVAL'
+            })
+          ],
+    });
+    await _mount(tester, backend);
+    await tester.tap(find.text('Cancel subscription'));
+    await tester.pumpAndSettle();
+    final semantics = tester.widget<Semantics>(find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.customSemanticsActions != null));
+    semantics.properties.customSemanticsActions!.values.single();
+    await tester.pumpAndSettle();
+    expect(_count(backend, 'POST /billing/paypal/cancel'), 1);
+    expect(_count(backend, 'POST /billing/paypal/reconcile'), 0);
+    expect(find.byKey(const ValueKey('plp-billing-problem')), findsOneWidget);
+    expect(find.text('Cancellation blocked.'), findsOneWidget);
+    expect(find.textContaining('waiting for the buyer to approve'),
+        findsOneWidget);
+    expect(_rich('Cancelled'), findsNothing);
+    expect(_rich('Cancelled \u00b7 Launch'), findsNothing);
+    expect(find.byKey(const ValueKey('plp-billing-cancel-sent')), findsNothing);
   });
 
   testWidgets('ghost state: dashed remainder, days left, Restart rail',

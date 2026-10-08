@@ -418,9 +418,17 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     }
   }
 
+  /// The owner API decides the outcome from PayPal readbacks. A blocked
+  /// cancel (e.g. buyer approval still pending) is shown as such; an
+  /// unconfirmed one re-reads status, which keeps the plan and shows the
+  /// "waiting for PayPal" note. Only a server-recorded cancellation renders
+  /// as cancelled.
   Future<void> _cancel() => _run(
         () async {
-          await _api!.cancel();
+          final outcome = await _api!.cancel();
+          if (outcome.blocked) {
+            throw PlpBillingProblemException(outcome.blockedProblem);
+          }
           await _reconcileAndReload();
         },
         retry: _PendingAction.cancel,
