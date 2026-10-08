@@ -81,7 +81,11 @@ class PlpPaypalBillingApi {
     return PlpBillingApproval.parse(response.data);
   }
 
-  Future<PlpBillingApproval> changePlan(String planCode) async {
+  Future<PlpBillingApproval> changePlan(
+    String planCode, {
+    Uri? returnUrl,
+    Uri? cancelUrl,
+  }) async {
     final response = await _client.postJson(
       pathSegments: const ['billing', 'paypal', 'change-plan'],
       operation: 'billing.paypal.changePlan',
@@ -89,6 +93,8 @@ class PlpPaypalBillingApi {
       body: <String, Object?>{
         'planCode': planCode,
         'idempotencyKey': idempotencyKey('plp-plan-change'),
+        if (returnUrl != null) 'returnUrl': returnUrl.toString(),
+        if (cancelUrl != null) 'cancelUrl': cancelUrl.toString(),
       },
     );
     return PlpBillingApproval.parse(response.data);

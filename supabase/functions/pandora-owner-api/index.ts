@@ -4126,6 +4126,15 @@ async function billingChangePlan(env: BillingEnv, context: UserContext, body: Js
   if(!targetCode) throw new Error("PLAN_REQUIRED");
   const key=String(body.idempotencyKey||"").trim();
   if(!/^[A-Za-z0-9._:-]{8,128}$/.test(key)) throw new Error("INVALID_BILLING_IDEMPOTENCY_KEY");
+  // Optional return addresses so PayPal sends the buyer back to Pandora after
+  // approving the revision; validated exactly like checkout.
+  let applicationContext: JsonRecord|null=null;
+  if(body.returnUrl || body.cancelUrl){
+    const c=await billingCfg();
+    const origins=c.origins.size?c.origins:ALLOWED_ORIGINS;
+    applicationContext={brand_name:"Pandora's Box",locale:"en-US",shipping_preference:"NO_SHIPPING",user_action:"CONTINUE",
+      return_url:billingUrl(String(body.returnUrl||""),origins),cancel_url:billingUrl(String(body.cancelUrl||""),origins)};
+  }
   const client=createOperationalAdminClient();
   const current=await client.from(t.subscriptions).select("plan_id,state,provider_reference").eq("organization_id",context.organizationId).maybeSingle();
   if(current.error || !current.data) throw new Error("SUBSCRIPTION_NOT_FOUND");
@@ -4156,7 +4165,7 @@ async function billingChangePlan(env: BillingEnv, context: UserContext, body: Js
   const changeId=String(asRecord(created.data).id);
   const revised=await billingPaypalRequest(env,"/v1/billing/subscriptions/"+subscriptionId+"/revise",{
     method:"POST",headers:{"paypal-request-id":"pandora-revise-"+changeId},
-    body:JSON.stringify({plan_id:targetBinding.planId})
+    body:JSON.stringify(applicationContext?{plan_id:targetBinding.planId,application_context:applicationContext}:{plan_id:targetBinding.planId})
   });
   if(!revised.ok) {
     await client.from(t.changes).update({status:"failed",error_message:"PayPal revise failed",updated_at:new Date().toISOString()}).eq("id",changeId);

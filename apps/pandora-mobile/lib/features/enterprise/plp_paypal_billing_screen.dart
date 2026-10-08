@@ -192,7 +192,11 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
 
   Future<void> _changePlan(String planCode) => _run(
         () async {
-          final approval = await _api!.changePlan(planCode);
+          final approval = await _api!.changePlan(
+            planCode,
+            returnUrl: _returnUri('return'),
+            cancelUrl: _returnUri('cancel'),
+          );
           if (approval.approvalUrl != null) {
             await _loadStatusQuietly();
             await _openApproval(approval.approvalUrl);

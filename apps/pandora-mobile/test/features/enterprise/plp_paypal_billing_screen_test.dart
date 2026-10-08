@@ -295,6 +295,7 @@ void main() {
     final body = jsonDecode(change.body) as Map<String, dynamic>;
     expect(body['planCode'], 'professional');
     expect(body['idempotencyKey'], startsWith('plp-plan-change-'));
+    expect(Uri.parse(body['returnUrl'] as String).scheme, 'https');
     expect(launched.single.host, 'www.sandbox.paypal.com');
     expect(find.text('Launch'), findsOneWidget);
   });
