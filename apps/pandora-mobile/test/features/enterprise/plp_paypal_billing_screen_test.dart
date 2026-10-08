@@ -186,6 +186,7 @@ void main() {
     expect(find.text('Pending'), findsOneWidget);
     expect(find.text('PayPal approval is waiting.'), findsOneWidget);
     expect(find.text('Active'), findsNothing);
+    expect(find.text('CONTINUE TO PAYPAL'), findsNothing);
   });
 
   testWidgets(

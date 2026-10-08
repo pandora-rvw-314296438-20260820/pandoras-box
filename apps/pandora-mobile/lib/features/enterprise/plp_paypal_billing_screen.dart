@@ -189,6 +189,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
             returnUrl: _returnUri('return'),
             cancelUrl: _returnUri('cancel'),
           );
+          if (mounted) setState(() => _selectedPlan = null);
           await _loadStatusQuietly();
           await _openApproval(approval.approvalUrl);
         },
