@@ -720,213 +720,6 @@ function liveConnectionSummary(
   };
 }
 
-function applyConnectionVerificationObservation(
-  item: JsonRecord,
-  value: unknown,
-): JsonRecord {
-  const observation = asRecord(value);
-  const observedState = textValue(observation.state).toLowerCase();
-  if (!["verified", "partial", "not_connected", "error"].includes(observedState)) {
-    return item;
-  }
-  const mapping: Record<string, { state: string; label: string; canRead: boolean }> = {
-    verified: { state: "ready", label: "Verified", canRead: true },
-    partial: { state: "partial", label: "Partial", canRead: false },
-    not_connected: { state: "off", label: "Not connected", canRead: false },
-    error: { state: "problem", label: "Error", canRead: false },
-  };
-  const mapped = mapping[observedState];
-  return {
-    ...item,
-    state: mapped.state,
-    plainStatus: mapped.label,
-    canRead: mapped.canRead,
-    canChange: false,
-    lastCheckedAt: observation.observed_at ?? item.lastCheckedAt ?? null,
-    advanced: {
-      ...asRecord(item.advanced),
-      verificationState: observedState,
-      verificationSource: textValue(observation.source) || null,
-      verificationMissing: textValue(observation.missing_reason) || null,
-      verificationEvidence: asRecord(observation.evidence_redacted),
-    },
-  };
-}
-
-async function recordConnectionVerificationObservation(
-  context: UserContext,
-  provider: string,
-  state: "verified" | "partial" | "not_connected" | "error",
-  source: string,
-  missingReason: string | null,
-  evidence: JsonRecord,
-  staleSeconds = 900,
-) {
-  const admin = createOperationalAdminClient();
-  const observedAt = new Date();
-  const { error } = await admin
-    .from("pandora_connection_verification_observations_v1")
-    .upsert({
-      organization_id: context.organizationId,
-      provider_key: provider,
-      state,
-      observed_at: observedAt.toISOString(),
-      stale_after: state === "not_connected"
-        ? null
-        : new Date(observedAt.getTime() + staleSeconds * 1000).toISOString(),
-      source,
-      missing_reason: missingReason,
-      evidence_redacted: evidence,
-      updated_at: observedAt.toISOString(),
-    }, { onConflict: "organization_id,provider_key" });
-  if (error) throw new Error("CONNECTION_TEST_FAILED");
-}
-
-async function verifyVaultNoSpendConnection(
-  context: UserContext,
-  provider: string,
-) {
-  const admin = createOperationalAdminClient();
-  const { data, error } = await admin.rpc(
-    "pandora_connection_verify_vault_no_spend_v1",
-    {
-      p_organization_id: context.organizationId,
-      p_provider_key: provider,
-      p_actor_user_id: context.userId,
-    },
-  );
-  const result = asRecord(data);
-  if (
-    error ||
-    result.ok !== true ||
-    textValue(result.provider).toLowerCase() !== provider ||
-    !["verified", "partial", "not_connected", "error"].includes(
-      textValue(result.state).toLowerCase(),
-    )
-  ) {
-    throw new Error("CONNECTION_TEST_FAILED");
-  }
-  return result;
-}
-
-const PUBLIC_SAFE_READ_PROVIDERS: Record<string, {
-  url: string;
-  providerIdentity: string;
-  capabilityKey: string;
-  accept: string;
-}> = {
-  "ph.psa.openstat": {
-    url: "https://openstat.psa.gov.ph/PXWeb/api/v1/en",
-    providerIdentity: "PSA OpenSTAT PXWeb",
-    capabilityKey: "statistics.catalog.read",
-    accept: "application/json",
-  },
-  "ph.phivolcs.hazard_gis": {
-    url: "https://gisweb.phivolcs.dost.gov.ph/arcgis/rest/services/PHIVOLCS/GroundShaking/MapServer/0?f=pjson",
-    providerIdentity: "PHIVOLCS Ground Shaking (Deterministic)",
-    capabilityKey: "hazard.layer.read",
-    accept: "application/json",
-  },
-  "ph.namria.geoportal": {
-    url: "https://geoserver.geoportal.gov.ph/geoserver/ows?service=wms&version=1.1.1&request=GetCapabilities",
-    providerIdentity: "GeoServer Web Map Service",
-    capabilityKey: "geospatial.catalog.read",
-    accept: "application/vnd.ogc.wms_xml, text/xml",
-  },
-};
-
-async function verifyPublicSafeReadConnection(
-  context: UserContext,
-  provider: string,
-) {
-  const contract = PUBLIC_SAFE_READ_PROVIDERS[provider];
-  if (!contract) throw new Error("CONNECTION_TEST_UNSUPPORTED");
-  const response = await providerFetch(contract.url, {
-    headers: {
-      accept: contract.accept,
-      "user-agent": "PandoraSafeReadProbe/1.0",
-    },
-  });
-  const body = await response.text();
-  if (!response.ok || body.length === 0 || body.length > 8 * 1024 * 1024) {
-    await recordConnectionVerificationObservation(
-      context,
-      provider,
-      "error",
-      "public_safe_read_provider_readback",
-      "The official public provider did not return a valid safe-read response.",
-      { httpStatus: response.status, credentialReturned: false },
-    );
-    throw new Error("CONNECTION_TEST_FAILED");
-  }
-
-  let shapeVerified = false;
-  if (provider === "ph.namria.geoportal") {
-    shapeVerified =
-      /(?:WMT_MS_Capabilities|WMS_Capabilities)/.test(body) &&
-      /<Service>/.test(body);
-  } else {
-    const parsed = JSON.parse(body) as unknown;
-    if (provider === "ph.psa.openstat") {
-      shapeVerified = Array.isArray(parsed) && parsed.length > 0;
-    } else {
-      const record = asRecord(parsed);
-      shapeVerified = textValue(record.type) === "Feature Layer" &&
-        textValue(record.capabilities).split(",").includes("Query");
-    }
-  }
-  if (!shapeVerified) {
-    await recordConnectionVerificationObservation(
-      context,
-      provider,
-      "error",
-      "public_safe_read_provider_readback",
-      "The official public provider returned an unexpected response shape.",
-      { httpStatus: response.status, shapeVerified: false, credentialReturned: false },
-    );
-    throw new Error("CONNECTION_TEST_FAILED");
-  }
-
-  const digest = await sha256Text(body);
-  const observedAt = new Date().toISOString();
-  const admin = createOperationalAdminClient();
-  const { data, error } = await admin.rpc(
-    "pandora_connection_commit_public_safe_read_v1",
-    {
-      p_organization_id: context.organizationId,
-      p_provider_key: provider,
-      p_actor_user_id: context.userId,
-      p_tenant_key: "official-public-api",
-      p_provider_identity: contract.providerIdentity,
-      p_verified_at: observedAt,
-      p_provider_readback: {
-        verificationState: "provider_readback_verified",
-        providerKey: provider,
-        organizationId: context.organizationId,
-        tenantId: context.organizationId,
-        tenantKey: "official-public-api",
-        providerIdentity: contract.providerIdentity,
-        health: { state: "healthy" },
-        probe: { capabilityKey: contract.capabilityKey, ok: true },
-        credentialReturned: false,
-        httpStatus: response.status,
-        bodySha256: digest,
-        grantedScopes: [contract.capabilityKey],
-        observedAt,
-      },
-    },
-  );
-  if (error || asRecord(data).ok !== true) throw new Error("CONNECTION_TEST_FAILED");
-  await recordConnectionVerificationObservation(
-    context,
-    provider,
-    "verified",
-    "public_safe_read_provider_readback",
-    null,
-    { httpStatus: response.status, shapeVerified: true, credentialReturned: false },
-  );
-}
-
 function approvalSummary(value: unknown, riskCode = "") {
   const approval = asRecord(value);
   const preview = asRecord(approval.preview_redacted);
@@ -1373,7 +1166,7 @@ async function project(context: UserContext, identifier: string) {
 async function connections(
   context: UserContext,
 ){
-  const [liveResult, legacyResult, observationResult] = await Promise.all([
+  const [liveResult, legacyResult] = await Promise.all([
     context.client.rpc("pandora_live_connections_v1", {
       p_organization_id: context.organizationId,
     }),
@@ -1383,13 +1176,8 @@ async function connections(
       )
       .eq("organization_id", context.organizationId)
       .order("provider"),
-    context.client.from("pandora_connection_verification_observations_v1")
-      .select(
-        "provider_key,state,observed_at,stale_after,source,missing_reason,evidence_redacted",
-      )
-      .eq("organization_id", context.organizationId),
   ]);
-  if (liveResult.error || legacyResult.error || observationResult.error) {
+  if (liveResult.error || legacyResult.error) {
     throw new Error("BACKEND_READ_FAILED");
   }
   const live = asRecord(liveResult.data);
@@ -1401,56 +1189,28 @@ async function connections(
   ) {
     throw new Error("BACKEND_READ_FAILED");
   }
-
   const legacyRows = (legacyResult.data || []) as JsonRecord[];
   const legacyByProvider = new Map<string, JsonRecord>();
   for (const row of legacyRows) {
     const provider = textValue(row.provider).toLowerCase();
-    const existing = legacyByProvider.get(provider);
-    if (
-      provider &&
-      (!existing ||
-        textValue(row.status) === "active" ||
-        Date.parse(textValue(row.updated_at)) > Date.parse(textValue(existing.updated_at)))
-    ) {
+    if (provider && !legacyByProvider.has(provider)) {
       legacyByProvider.set(provider, row);
     }
   }
-
-  const now = Date.now();
-  const observationsByProvider = new Map<string, JsonRecord>();
-  for (const raw of (observationResult.data || []) as JsonRecord[]) {
-    const provider = textValue(raw.provider_key).toLowerCase();
-    const staleAfter = textValue(raw.stale_after);
-    const fresh = !staleAfter || Date.parse(staleAfter) > now;
-    if (provider && fresh) observationsByProvider.set(provider, raw);
-  }
-
   const liveProviders = new Set<string>();
   const projected: JsonRecord[] = live.providers.map((item) => {
     const provider = textValue(asRecord(item).provider).toLowerCase();
     if (!provider) throw new Error("BACKEND_READ_FAILED");
     liveProviders.add(provider);
-    const summary = liveConnectionSummary(
+    return liveConnectionSummary(
       item,
       context.organizationId,
       legacyByProvider.get(provider),
     );
-    return applyConnectionVerificationObservation(
-      summary,
-      observationsByProvider.get(provider),
-    );
   });
   for (const row of legacyRows) {
     const provider = textValue(row.provider).toLowerCase();
-    if (!liveProviders.has(provider)) {
-      projected.push(
-        applyConnectionVerificationObservation(
-          legacyConnectionSummary(row),
-          observationsByProvider.get(provider),
-        ),
-      );
-    }
+    if (!liveProviders.has(provider)) projected.push(legacyConnectionSummary(row));
   }
   return projected;
 }
@@ -1582,24 +1342,10 @@ async function ownerProviderAction(context: UserContext, body: JsonRecord) {
       !["connect", "health", "test_inference"].includes(action)) {
     throw new Error("CONNECTION_INPUT_INVALID");
   }
-  if (
-    action !== "connect" &&
-    (Object.prototype.hasOwnProperty.call(body, "credential") ||
-      Object.prototype.hasOwnProperty.call(body, "secret") ||
-      Object.prototype.hasOwnProperty.call(body, "token"))
-  ) {
-    throw new Error("CONNECTION_SECRET_INPUT_NOT_ALLOWED");
-  }
   const admin = createOperationalAdminClient();
   const now = new Date().toISOString();
   if (action === "connect") {
     if (context.aal !== "aal2") throw new Error("AAL2_REQUIRED");
-    if (
-      Object.prototype.hasOwnProperty.call(body, "secret") ||
-      Object.prototype.hasOwnProperty.call(body, "token")
-    ) {
-      throw new Error("CONNECTION_SECRET_INPUT_NOT_ALLOWED");
-    }
     const credential = textValue(body.credential);
     if (credential.length < 16 || credential.length > 8192 ||
         (provider !== "posthog" && body.runTestInference !== true)) {
@@ -1615,20 +1361,7 @@ async function ownerProviderAction(context: UserContext, body: JsonRecord) {
       p_verified_at: now, p_expires_at: null, p_provider_readback: verified.readback,
     });
     if (committed.error || committed.data?.ok !== true) throw new Error("CONNECTION_COMMIT_FAILED");
-    return {
-      ok: true,
-      action: "connect",
-      connectionId: committed.data.connectionId,
-      provider,
-      accountLabel: committed.data.accountLabel,
-      tenantId: organizationId,
-      tenantKey: verified.tenantKey,
-      tenantLabel: verified.tenantLabel,
-      healthy: true,
-      verifiedAt: committed.data.verifiedAt,
-      credentialStored: true,
-      credentialReturned: false,
-    };
+    return { ...committed.data, tenantId: organizationId, credential: undefined };
   }
 
   const connectionId = textValue(body.connectionId);
@@ -1648,7 +1381,6 @@ async function ownerProviderAction(context: UserContext, body: JsonRecord) {
     throw new Error("CONNECTION_ACCOUNT_TENANT_MISMATCH");
   }
   const credential = textValue(runtime.data?.credential);
-  if (!credential) throw new Error("CONNECTION_RUNTIME_UNAVAILABLE");
   const metadata = asRecord(runtime.data?.metadata);
   try {
     const verified = await verifyOwnerProvider(provider, credential, {
@@ -1670,7 +1402,6 @@ async function ownerProviderAction(context: UserContext, body: JsonRecord) {
     return {
       ok: true, connectionId, provider, tenantId: organizationId, tenantKey,
       healthy: true, verifiedAt: health.data.verifiedAt,
-      credentialReturned: false,
       testInference: action === "test_inference" ? "passed" : undefined,
     };
   } catch (error) {
@@ -1990,53 +1721,69 @@ async function verifyMetaConnection(
   }
 }
 
-async function verifyBrokerConnection(
-  context: UserContext,
-  item: JsonRecord,
-  provider: string,
-) {
-  const advanced = asRecord(item.advanced);
-  const connectionId = textValue(
-    advanced.accountId,
-    textValue(item.id),
-  );
-  const tenantKey = textValue(advanced.tenantKey);
-  if (!PROVIDER_UUID.test(connectionId) || !PROVIDER_TENANT.test(tenantKey)) {
-    throw new Error("CONNECTION_TEST_FAILED");
+async function governedGithubWrite(context: UserContext, body: JsonRecord) {
+  if (context.isAnonymous) throw new Error("PERMANENT_ACCOUNT_REQUIRED");
+  if (context.aal !== "aal2") throw new Error("AAL2_REQUIRED");
+
+  const expectedBaseSha = textValue(body.expectedBaseSha ?? body.expected_base_sha);
+  const branchSuffix = textValue(body.branchSuffix ?? body.branch_suffix);
+  const commitMessage = textValue(body.commitMessage ?? body.commit_message);
+  const idempotencyKey = textValue(body.idempotencyKey ?? body.idempotency_key);
+  const prTitle = textValue(body.prTitle ?? body.pr_title);
+  const prBody = textValue(body.prBody ?? body.pr_body);
+  const files = Array.isArray(body.files) ? body.files : [];
+
+  if (!/^[0-9a-f]{40}$/.test(expectedBaseSha) ||
+      !/^[a-z0-9][a-z0-9._-]{5,100}$/.test(branchSuffix) ||
+      commitMessage.length < 5 || commitMessage.length > 200 ||
+      prTitle.length < 5 || prTitle.length > 200 ||
+      prBody.length > 12000 || idempotencyKey.length < 8 ||
+      idempotencyKey.length > 200 || files.length < 1 || files.length > 12) {
+    throw new Error("GITHUB_GOVERNED_WRITE_INPUT_INVALID");
   }
 
-  const brokerResponse = await providerFetch(
-    `${SUPABASE_URL}/functions/v1/pandora-connections-broker`,
+  const normalizedFiles = files.map((raw) => {
+    const item = asRecord(raw);
+    return {
+      path: textValue(item.path),
+      content: typeof item.content === "string" ? item.content : "",
+    };
+  });
+
+  if (normalizedFiles.some((item) => !item.path || !item.content)) {
+    throw new Error("GITHUB_GOVERNED_WRITE_INPUT_INVALID");
+  }
+
+  const admin = createOperationalAdminClient();
+  const { data, error } = await admin.rpc(
+    "pandora_owner_github_governed_write_v1",
     {
-      method: "POST",
-      headers: {
-        authorization: context.authorization,
-        apikey: SUPABASE_ANON_KEY,
-        "content-type": "application/json",
-        accept: "application/json",
-      },
-      body: JSON.stringify({
-        action: "health",
-        provider,
-        organizationId: context.organizationId,
-        tenantId: context.organizationId,
-        connectionId,
-        tenantKey,
-      }),
+      p_expected_base_sha: expectedBaseSha,
+      p_branch_suffix: branchSuffix,
+      p_files: normalizedFiles,
+      p_commit_message: commitMessage,
+      p_idempotency_key: idempotencyKey,
+      p_pr_title: prTitle,
+      p_pr_body: prBody,
     },
   );
-  const result = await providerJson(brokerResponse);
-  if (
-    !brokerResponse.ok ||
-    result.ok !== true ||
-    textValue(result.provider).toLowerCase() !== provider ||
-    result.healthy !== true ||
-    textValue(result.connectionId) !== connectionId ||
-    textValue(result.tenantId) !== context.organizationId ||
-    textValue(result.tenantKey) !== tenantKey
-  ) {
-    throw new Error("CONNECTION_TEST_FAILED");
+
+  if (error) {
+    const providerCode = String(error.message || "").match(
+      /PANDORA_GITHUB_[A-Z0-9_]+/,
+    )?.[0];
+    throw new Error(providerCode || "GITHUB_GOVERNED_WRITE_FAILED");
   }
+
+  const result = asRecord(data);
+  return {
+    ...result,
+    credentialSource: "supabase-vault",
+    providerReadbackVerified: result.providerReadbackVerified === true,
+    mainMutated: result.mainMutated === false,
+    forceUpdateUsed: result.forceUpdateUsed === false,
+    executionMode: "branch_pr",
+  };
 }
 
 async function connectionAction(
@@ -2075,75 +1822,12 @@ async function connectionAction(
     const normalizedProvider = provider.toLowerCase();
     if (normalizedProvider === "github") {
       await verifyGithubConnection(context, connectionId);
-      await recordConnectionVerificationObservation(
-        context,
-        normalizedProvider,
-        "verified",
-        "github_provider_readback",
-        null,
-        { repositoryRead: true, credentialReturned: false },
-      );
     } else if (normalizedProvider === "supabase") {
       await verifySupabaseConnection(context, connectionId);
-      await recordConnectionVerificationObservation(
-        context,
-        normalizedProvider,
-        "verified",
-        "supabase_provider_readback",
-        null,
-        { providerHealth: "ACTIVE_HEALTHY", credentialReturned: false },
-      );
     } else if (normalizedProvider === "vercel") {
       await verifyVercelConnection(context, connectionId);
-      await recordConnectionVerificationObservation(
-        context,
-        normalizedProvider,
-        "verified",
-        "vercel_provider_readback",
-        null,
-        { canonicalProjectRead: true, credentialReturned: false },
-      );
     } else if (normalizedProvider === "meta") {
       await verifyMetaConnection(context, connectionId);
-      await recordConnectionVerificationObservation(
-        context,
-        normalizedProvider,
-        "verified",
-        "meta_live_vault_provider_readback",
-        null,
-        { providerHealth: "ACTIVE_HEALTHY", credentialReturned: false },
-      );
-    } else if (normalizedProvider === "google_workspace") {
-      await verifyVaultNoSpendConnection(context, normalizedProvider);
-    } else if (SELF_SERVICE_PROVIDERS.has(normalizedProvider)) {
-      const advanced = asRecord(item.advanced);
-      const accountId = textValue(advanced.accountId, textValue(item.id));
-      const tenantKey = textValue(advanced.tenantKey);
-      if (PROVIDER_UUID.test(accountId) && PROVIDER_TENANT.test(tenantKey)) {
-        await verifyBrokerConnection(context, item, normalizedProvider);
-        await recordConnectionVerificationObservation(
-          context,
-          normalizedProvider,
-          "verified",
-          "pandora_connections_broker",
-          null,
-          { brokerHealth: true, credentialReturned: false },
-        );
-      } else {
-        await verifyVaultNoSpendConnection(context, normalizedProvider);
-      }
-    } else if (PUBLIC_SAFE_READ_PROVIDERS[normalizedProvider]) {
-      await verifyPublicSafeReadConnection(context, normalizedProvider);
-    } else if (normalizedProvider === "ph.psa.psgc") {
-      await recordConnectionVerificationObservation(
-        context,
-        normalizedProvider,
-        "not_connected",
-        "connection_inventory",
-        "No PSA-issued PSGC query token is present in the tenant Vault.",
-        { credentialPresent: false },
-        0,
-      );
     } else {
       throw new Error("CONNECTION_TEST_UNSUPPORTED");
     }
@@ -3247,6 +2931,399 @@ async function decide(
   return { ok: true, decision: requested, approval: approvalSummary(data) };
 }
 
+
+async function billingSecret(name: string) {
+  const client = createOperationalAdminClient();
+  const result = await client.rpc("pandora_paypal_secret", { p_name: name });
+  if (result.error) throw new Error("PAYPAL_SECRET_ACCESS_UNAVAILABLE");
+  return typeof result.data === "string" ? result.data : "";
+}
+async function billingCfg() {
+  const client = createOperationalAdminClient();
+  const result = await client.from("pandora_runtime_provider_configs").select("config_key,config_value,active").eq("provider","paypal").eq("active",true);
+  const map = new Map((result.data || []).map((x)=>[String(x.config_key),String(x.config_value || "")]));
+  return {
+    mode: map.get("mode") === "live" ? "live" : "sandbox",
+    origins: new Set((map.get("allowed_origins") || "").split(",").map((x)=>x.trim()).filter(Boolean)),
+    webhookUrl: map.get("webhook_url") || (SUPABASE_URL + "/functions/v1/pandora-owner-api/billing/paypal/webhook")
+  };
+}
+async function billingPaypalToken() {
+  const clientId = await billingSecret("paypal_client_id");
+  const clientSecret = await billingSecret("paypal_client_secret");
+  if (!clientId || !clientSecret) throw new Error("PAYPAL_NOT_CONFIGURED");
+  const cfg = await billingCfg();
+  const base = cfg.mode === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+  const response = await fetch(base + "/v1/oauth2/token", {
+    method:"POST",
+    headers:{authorization:"Basic " + btoa(clientId + ":" + clientSecret),"content-type":"application/x-www-form-urlencoded",accept:"application/json","user-agent":"Pandora-Billing/1.0"},
+    body:"grant_type=client_credentials"
+  });
+  const body = await response.json().catch(()=>({}));
+  if (!response.ok || typeof body.access_token !== "string") throw new Error("PAYPAL_AUTH_FAILED");
+  return {token:String(body.access_token),base};
+}
+function billingAllowedPath(path: string) {
+  const patterns = [
+    /^\/v1\/catalogs\/products(\?.*)?$/,
+    /^\/v1\/catalogs\/products\/[A-Za-z0-9_-]+$/,
+    /^\/v1\/billing\/plans(\?.*)?$/,
+    /^\/v1\/billing\/plans\/[A-Za-z0-9_-]+$/,
+    /^\/v1\/billing\/subscriptions$/,
+    /^\/v1\/billing\/subscriptions\/[A-Za-z0-9_-]+$/,
+    /^\/v1\/billing\/subscriptions\/[A-Za-z0-9_-]+\/cancel$/,
+    /^\/v1\/notifications\/webhooks(\?.*)?$/,
+    /^\/v1\/notifications\/verify-webhook-signature$/
+  ];
+  if (!path.startsWith("/v1/") || path.includes("..") || /[\r\n]/.test(path) || !patterns.some((x)=>x.test(path))) throw new Error("PAYPAL_PATH_NOT_ALLOWED");
+}
+async function billingPaypalRequest(path: string, init: RequestInit = {}) {
+  billingAllowedPath(path);
+  const auth = await billingPaypalToken();
+  const headers = new Headers(init.headers || {});
+  headers.set("authorization","Bearer " + auth.token);
+  headers.set("accept","application/json");
+  headers.set("content-type","application/json");
+  headers.set("user-agent","Pandora-Billing/1.0");
+  const response = await fetch(auth.base + path,{...init,headers});
+  const text = await response.text();
+  let body: JsonRecord = {};
+  try { body = text ? JSON.parse(text) : {}; } catch { body = {name:"UNREADABLE_RESPONSE"}; }
+  return {status:response.status,ok:response.ok,body};
+}
+function billingMoney(micros: number) { return (micros/1000000).toFixed(2); }
+function billingUrl(value: string,origins: Set<string>) {
+  const parsed=new URL(value);
+  if(parsed.protocol!=="https:") throw new Error("RETURN_URL_INVALID");
+  if(origins.size && !origins.has(parsed.origin)) throw new Error("RETURN_URL_NOT_ALLOWED");
+  return parsed.toString();
+}
+async function billingPlan(code:string) {
+  const client=createOperationalAdminClient();
+  const result=await client.from("pandora_service_plans").select("id,code,name,state,currency,monthly_fee_micros,paypal_product_id,paypal_plan_id").eq("code",code).eq("state","active").maybeSingle();
+  if(result.error || !result.data) throw new Error("PLAN_NOT_FOUND");
+  const p=result.data as JsonRecord;
+  if(String(p.currency)!=="USD" || p.monthly_fee_micros==null) throw new Error("PLAN_NOT_PAYPAL_ELIGIBLE");
+  if(!["launch","professional"].includes(String(p.code))) throw new Error("PLAN_REQUIRES_CONTRACT");
+  return p;
+}
+async function billingPlanByPaypalPlanId(paypalPlanId:string) {
+  const client=createOperationalAdminClient();
+  const result=await client.from("pandora_service_plans").select("id,code,name,state,currency,monthly_fee_micros,paypal_product_id,paypal_plan_id").eq("paypal_plan_id",paypalPlanId).eq("state","active").maybeSingle();
+  if(result.error || !result.data) throw new Error("PAYPAL_PLAN_MISMATCH");
+  return result.data as JsonRecord;
+}
+async function billingEnsureCatalog() {
+  const client=createOperationalAdminClient();
+  const result: JsonRecord[]=[];
+  for(const code of ["launch","professional"]) {
+    const p=await billingPlan(code);
+    let productId=String(p.paypal_product_id||"");
+    let planId=String(p.paypal_plan_id||"");
+    if(!productId){
+      const localId=code==="launch"?"PANDORALAUNCHV1":"PANDORAPROFESSIONALV1";
+      const created=await billingPaypalRequest("/v1/catalogs/products",{method:"POST",headers:{"paypal-request-id":"pandora-catalog-"+code},body:JSON.stringify({
+        id:localId,name:"Pandora's Box "+String(p.name),description:"Pandora's Box "+String(p.name)+" monthly software service",
+        type:"SERVICE",category:"SOFTWARE",home_url:"https://pandoras-box-system.vercel.app/"
+      })});
+      if(created.ok && typeof created.body.id==="string") productId=String(created.body.id);
+      else if(created.status===409){
+        const existing=await billingPaypalRequest("/v1/catalogs/products/"+localId);
+        if(!existing.ok || String(existing.body.id||"")!==localId) throw new Error("PAYPAL_PRODUCT_CREATE_FAILED");
+        productId=localId;
+      } else throw new Error("PAYPAL_PRODUCT_CREATE_FAILED");
+      const w=await client.from("pandora_service_plans").update({paypal_product_id:productId,updated_at:new Date().toISOString()}).eq("id",String(p.id));
+      if(w.error) throw new Error("PLAN_BINDING_WRITE_FAILED");
+    }
+    if(!planId){
+      const listed=await billingPaypalRequest("/v1/billing/plans?page=1&page_size=20&product_id="+encodeURIComponent(productId));
+      if(listed.ok){
+        const wantedName="Pandora's Box "+String(p.name)+" Monthly";
+        const wantedPrice=billingMoney(Number(p.monthly_fee_micros));
+        const found=(Array.isArray(listed.body.plans)?listed.body.plans:[]).find((x)=>{
+          const cycle=Array.isArray(x.billing_cycles)?x.billing_cycles[0]:null;
+          return String(x.name||"")===wantedName && String(x.status||"")==="ACTIVE" && Number(cycle?.pricing_scheme?.fixed_price?.value||NaN)===Number(wantedPrice);
+        }) as JsonRecord | undefined;
+        if(found?.id) planId=String(found.id);
+      }
+      if(!planId){
+        const created=await billingPaypalRequest("/v1/billing/plans",{method:"POST",headers:{"paypal-request-id":"pandora-plan-"+code},body:JSON.stringify({
+          product_id:productId,name:"Pandora's Box "+String(p.name)+" Monthly",
+          description:"Pandora's Box "+String(p.name)+" plan - monthly recurring billing",status:"ACTIVE",
+          billing_cycles:[{frequency:{interval_unit:"MONTH",interval_count:1},tenure_type:"REGULAR",sequence:1,total_cycles:0,
+            pricing_scheme:{fixed_price:{value:billingMoney(Number(p.monthly_fee_micros)),currency_code:"USD"}}}],
+          payment_preferences:{auto_bill_outstanding:true,setup_fee_failure_action:"CONTINUE",payment_failure_threshold:3}
+        })});
+        if(!created.ok || typeof created.body.id!=="string") throw new Error("PAYPAL_PLAN_CREATE_FAILED");
+        planId=String(created.body.id);
+      }
+      const w=await client.from("pandora_service_plans").update({paypal_plan_id:planId,updated_at:new Date().toISOString()}).eq("id",String(p.id));
+      if(w.error) throw new Error("PLAN_BINDING_WRITE_FAILED");
+    }
+    result.push({code,productId,paypalPlanId:planId,monthly:billingMoney(Number(p.monthly_fee_micros)),currency:"USD"});
+  }
+  return result;
+}
+async function billingEnsureWebhook() {
+  const client=createOperationalAdminClient();
+  const c=await billingCfg();
+  let webhookId=await billingSecret("paypal_webhook_id");
+  if(!webhookId){
+    const list=await billingPaypalRequest("/v1/notifications/webhooks?page=1&page_size=20");
+    if(list.ok){
+      const found=(Array.isArray(list.body.webhooks)?list.body.webhooks:[]).find((x)=>String(x.url||"")===c.webhookUrl) as JsonRecord | undefined;
+      if(found?.id) webhookId=String(found.id);
+    }
+  }
+  if(!webhookId){
+    const events=["BILLING.SUBSCRIPTION.CREATED","BILLING.SUBSCRIPTION.ACTIVATED","BILLING.SUBSCRIPTION.UPDATED","BILLING.SUBSCRIPTION.SUSPENDED","BILLING.SUBSCRIPTION.CANCELLED","BILLING.SUBSCRIPTION.EXPIRED","BILLING.SUBSCRIPTION.PAYMENT.FAILED","PAYMENT.SALE.COMPLETED","PAYMENT.SALE.REFUNDED","PAYMENT.SALE.REVERSED"];
+    const created=await billingPaypalRequest("/v1/notifications/webhooks",{method:"POST",headers:{"paypal-request-id":"pandora-webhook-registration-v1"},body:JSON.stringify({url:c.webhookUrl,event_types:events.map((name)=>({name}))})});
+    if(!created.ok || typeof created.body.id!=="string") throw new Error("PAYPAL_WEBHOOK_CREATE_FAILED");
+    webhookId=String(created.body.id);
+    const save=await client.rpc("pandora_paypal_store_secret",{p_name:"paypal_webhook_id",p_secret:webhookId});
+    if(save.error) throw new Error("PAYPAL_WEBHOOK_SECRET_STORE_FAILED");
+  }
+  return {webhookIdPresent:Boolean(webhookId),webhookUrl:c.webhookUrl};
+}
+function billingAal2(context: UserContext) { if(context.aal!=="aal2") throw new Error("AAL2_REQUIRED"); }
+async function billingStart(context: UserContext, body: JsonRecord) {
+  billingAal2(context);
+  const c=await billingCfg();
+  const code=String(body.planCode||"").trim().toLowerCase();
+  if(!code) throw new Error("PLAN_REQUIRED");
+  const returnUrl=billingUrl(String(body.returnUrl||""),c.origins.size?c.origins:ALLOWED_ORIGINS);
+  const cancelUrl=billingUrl(String(body.cancelUrl||""),c.origins.size?c.origins:ALLOWED_ORIGINS);
+  const p=await billingPlan(code);
+  const client=createOperationalAdminClient();
+  const account=await client.from("pandora_enterprise_accounts").select("organization_id").eq("organization_id",context.organizationId).maybeSingle();
+  if(account.error || !account.data) throw new Error("BILLING_ACCOUNT_REQUIRED");
+  const current=await client.from("pandora_customer_subscriptions").select("state").eq("organization_id",context.organizationId).maybeSingle();
+  if(current.data && ["trial","active","past_due","suspended"].includes(String(current.data.state))) throw new Error("ACTIVE_SUBSCRIPTION_EXISTS");
+  const key=String(body.idempotencyKey||crypto.randomUUID());
+  if(!/^[A-Za-z0-9._:-]{8,128}$/.test(key)) throw new Error("INVALID_IDEMPOTENCY_KEY");
+  const prior=await client.from("pandora_paypal_billing_sessions").select("id,approval_url,status,expires_at,plan_code").eq("organization_id",context.organizationId).eq("idempotency_key",key).maybeSingle();
+  if(prior.data?.approval_url && new Date(String(prior.data.expires_at)).getTime()>Date.now()) return {checkoutId:prior.data.id,approvalUrl:prior.data.approval_url,status:prior.data.status,planCode:prior.data.plan_code};
+  let paypalPlanId=String(p.paypal_plan_id||"");
+  if(!paypalPlanId){await billingEnsureCatalog();paypalPlanId=String((await billingPlan(code)).paypal_plan_id||"");}
+  if(!paypalPlanId) throw new Error("PAYPAL_PLAN_NOT_READY");
+  const session=await client.from("pandora_paypal_billing_sessions").upsert({
+    organization_id:context.organizationId,requested_by:context.userId,plan_id:p.id,plan_code:p.code,idempotency_key:key,
+    paypal_plan_id:paypalPlanId,status:"created",return_url:returnUrl,cancel_url:cancelUrl,updated_at:new Date().toISOString()
+  },{onConflict:"organization_id,idempotency_key"}).select("id").single();
+  if(session.error || !session.data) throw new Error("CHECKOUT_SESSION_WRITE_FAILED");
+  const created=await billingPaypalRequest("/v1/billing/subscriptions",{method:"POST",headers:{"paypal-request-id":"pandora-subscription-"+String(session.data.id)},body:JSON.stringify({
+    plan_id:paypalPlanId,custom_id:String(session.data.id),
+    application_context:{brand_name:"Pandora's Box",locale:"en-US",shipping_preference:"NO_SHIPPING",user_action:"SUBSCRIBE_NOW",return_url:returnUrl,cancel_url:cancelUrl}
+  })});
+  if(!created.ok || typeof created.body.id!=="string"){
+    await client.from("pandora_paypal_billing_sessions").update({status:"failed",updated_at:new Date().toISOString()}).eq("id",String(session.data.id));
+    throw new Error("PAYPAL_SUBSCRIPTION_CREATE_FAILED");
+  }
+  const subId=String(created.body.id);
+  const approval=(Array.isArray(created.body.links)?created.body.links:[]).find((x)=>String(x.rel||"").toLowerCase()==="approve")?.href;
+  if(typeof approval!=="string" || !approval) throw new Error("PAYPAL_APPROVAL_URL_MISSING");
+  await client.from("pandora_paypal_billing_sessions").update({paypal_subscription_id:subId,approval_url:approval,status:"approval_pending",updated_at:new Date().toISOString()}).eq("id",String(session.data.id));
+  return {checkoutId:session.data.id,subscriptionId:subId,planCode:p.code,amount:billingMoney(Number(p.monthly_fee_micros)),currency:"USD",approvalUrl:approval,status:"approval_pending"};
+}
+async function billingStatus(context: UserContext) {
+  const client=createOperationalAdminClient();
+  const s=await client.from("pandora_customer_subscriptions").select("plan_id,state,currency,monthly_fee_micros,starts_on,ends_on,renews_on,source_kind,provider_reference,verified_at,updated_at").eq("organization_id",context.organizationId).maybeSingle();
+  const c=await client.from("pandora_paypal_billing_sessions").select("id,plan_code,paypal_subscription_id,approval_url,status,expires_at,created_at,updated_at").eq("organization_id",context.organizationId).order("created_at",{ascending:false}).limit(1).maybeSingle();
+  return {subscription:s.data||null,checkout:c.data||null};
+}
+async function billingChangePlan(context: UserContext, body: JsonRecord) {
+  billingAal2(context);
+  const targetCode=String(body.planCode||"").trim().toLowerCase();
+  if(!targetCode) throw new Error("PLAN_REQUIRED");
+  const key=String(body.idempotencyKey||crypto.randomUUID());
+  if(!/^[A-Za-z0-9._:-]{8,128}$/.test(key)) throw new Error("INVALID_BILLING_IDEMPOTENCY_KEY");
+  const client=createOperationalAdminClient();
+  const current=await client.from("pandora_customer_subscriptions").select("plan_id,state,provider_reference").eq("organization_id",context.organizationId).maybeSingle();
+  if(current.error || !current.data) throw new Error("SUBSCRIPTION_NOT_FOUND");
+  if(String(current.data.state)!=="active") throw new Error("PAYPAL_PLAN_CHANGE_NOT_ALLOWED");
+  const subscriptionId=String(current.data.provider_reference||"");
+  if(!subscriptionId) throw new Error("PROVIDER_SUBSCRIPTION_NOT_LINKED");
+  const target=await billingPlan(targetCode);
+  const currentRead=await billingPaypalRequest("/v1/billing/subscriptions/"+subscriptionId);
+  if(!currentRead.ok || String(currentRead.body.id||"")!==subscriptionId) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+  const currentPlan=await billingPlanByPaypalPlanId(String(currentRead.body.plan_id||""));
+  if(String(currentPlan.paypal_product_id||"")!==String(target.paypal_product_id||"")) throw new Error("PAYPAL_PLAN_CHANGE_NOT_ALLOWED");
+  if(String(currentPlan.id)===String(target.id)) throw new Error("PAYPAL_PLAN_SAME");
+  const prior=await client.from("pandora_paypal_plan_change_sessions").select("id,approval_url,status,to_plan_code").eq("organization_id",context.organizationId).eq("idempotency_key",key).maybeSingle();
+  if(prior.error) throw new Error("BILLING_PLAN_CHANGE_SESSION_READ_FAILED");
+  if(prior.data?.approval_url) return {changeId:prior.data.id,approvalUrl:prior.data.approval_url,status:prior.data.status,toPlanCode:prior.data.to_plan_code};
+  const created=await client.from("pandora_paypal_plan_change_sessions").insert({
+    organization_id:context.organizationId,requested_by:context.userId,paypal_subscription_id:subscriptionId,
+    from_plan_id:currentPlan.id,to_plan_id:target.id,from_plan_code:currentPlan.code,to_plan_code:target.code,
+    idempotency_key:key,status:"created",updated_at:new Date().toISOString()
+  }).select("id").single();
+  if(created.error || !created.data) throw new Error("BILLING_PLAN_CHANGE_SESSION_WRITE_FAILED");
+  const revised=await billingPaypalRequest("/v1/billing/subscriptions/"+subscriptionId+"/revise",{
+    method:"POST",headers:{"paypal-request-id":"pandora-revise-"+String(created.data.id)},
+    body:JSON.stringify({plan_id:String(target.paypal_plan_id)})
+  });
+  if(!revised.ok) {
+    await client.from("pandora_paypal_plan_change_sessions").update({status:"failed",error_message:"PayPal revise failed",updated_at:new Date().toISOString()}).eq("id",String(created.data.id));
+    throw new Error("PAYPAL_PLAN_CHANGE_FAILED");
+  }
+  const approval=(Array.isArray(revised.body.links)?revised.body.links:[]).find((x)=>String(x.rel||"").toLowerCase()==="approve")?.href;
+  if(typeof approval!=="string" || !approval) throw new Error("PAYPAL_PLAN_CHANGE_APPROVAL_MISSING");
+  await client.from("pandora_paypal_plan_change_sessions").update({status:"approval_pending",approval_url:approval,provider_reference:subscriptionId,updated_at:new Date().toISOString()}).eq("id",String(created.data.id));
+  return {changeId:created.data.id,subscriptionId,fromPlanCode:currentPlan.code,toPlanCode:target.code,approvalUrl:approval,status:"approval_pending",effective:"next_billing_cycle"};
+}
+async function billingReconcile(context: UserContext) {
+  billingAal2(context);
+  const client=createOperationalAdminClient();
+  const current=await client.from("pandora_customer_subscriptions").select("state,provider_reference,request_admission_started_at").eq("organization_id",context.organizationId).maybeSingle();
+  if(current.error || !current.data) throw new Error("SUBSCRIPTION_NOT_FOUND");
+  const subscriptionId=String(current.data.provider_reference||"");
+  if(!subscriptionId) throw new Error("PROVIDER_SUBSCRIPTION_NOT_LINKED");
+  const read=await billingPaypalRequest("/v1/billing/subscriptions/"+subscriptionId);
+  if(!read.ok || String(read.body.id||"")!==subscriptionId) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+  const plan=await billingPlanByPaypalPlanId(String(read.body.plan_id||""));
+  const providerStatus=String(read.body.status||"");
+  const state=["CANCELLED","EXPIRED"].includes(providerStatus) ? "cancelled" : providerStatus==="SUSPENDED" ? "suspended" : providerStatus==="ACTIVE" ? "active" : String(current.data.state);
+  const next=String((read.body.billing_info&&read.body.billing_info.next_billing_time)||"");
+  const active=state==="active";
+  const w=await client.from("pandora_customer_subscriptions").update({
+    plan_id:plan.id,state,currency:"USD",monthly_fee_micros:plan.monthly_fee_micros,
+    ends_on:state==="cancelled"?new Date().toISOString().slice(0,10):null,
+    renews_on:next?next.slice(0,10):null,
+    source_kind:"provider_verified",provider_reference:subscriptionId,verified_at:new Date().toISOString(),
+    request_admission_enabled:active,
+    request_admission_started_at:active ? (current.data.request_admission_started_at || new Date().toISOString()) : null,
+    updated_at:new Date().toISOString()
+  }).eq("organization_id",context.organizationId);
+  if(w.error) throw new Error("SUBSCRIPTION_STATE_WRITE_FAILED");
+  return {verified:true,subscriptionId,planCode:plan.code,state,requestAdmissionEnabled:active,renewsOn:next||null};
+}
+async function billingCancel(context: UserContext, body: JsonRecord) {
+  billingAal2(context);
+  const client=createOperationalAdminClient();
+  const s=await client.from("pandora_customer_subscriptions").select("provider_reference,state").eq("organization_id",context.organizationId).maybeSingle();
+  if(s.error||!s.data) throw new Error("SUBSCRIPTION_NOT_FOUND");
+  const subId=String(s.data.provider_reference||"");
+  if(!subId) throw new Error("PROVIDER_SUBSCRIPTION_NOT_LINKED");
+  if(String(s.data.state)==="cancelled") return {status:"cancelled"};
+  const result=await billingPaypalRequest("/v1/billing/subscriptions/"+subId+"/cancel",{method:"POST",headers:{"paypal-request-id":"pandora-cancel-"+subId},body:JSON.stringify({reason:String(body.reason||"Cancelled by Pandora owner").slice(0,255)})});
+  if(!result.ok && result.status!==204) throw new Error("PAYPAL_CANCEL_FAILED");
+  await client.from("pandora_paypal_billing_sessions").update({status:"cancel_requested",updated_at:new Date().toISOString()}).eq("paypal_subscription_id",subId);
+  return {status:"cancel_requested",subscriptionId:subId};
+}
+async function billingVerifyWebhook(rawBody:string,req:Request) {
+  const webhookId=await billingSecret("paypal_webhook_id");
+  if(!webhookId) throw new Error("PAYPAL_WEBHOOK_NOT_CONFIGURED");
+  const fields={
+    transmission_id:req.headers.get("paypal-transmission-id")||"",
+    transmission_time:req.headers.get("paypal-transmission-time")||"",
+    cert_url:req.headers.get("paypal-cert-url")||"",
+    auth_algo:req.headers.get("paypal-auth-algo")||"",
+    transmission_sig:req.headers.get("paypal-transmission-sig")||""
+  };
+  if(Object.values(fields).some((x)=>!x)) throw new Error("PAYPAL_WEBHOOK_HEADERS_MISSING");
+  const result=await billingPaypalRequest("/v1/notifications/verify-webhook-signature",{method:"POST",body:JSON.stringify({...fields,webhook_id:webhookId,webhook_event:JSON.parse(rawBody)})});
+  if(!result.ok || String(result.body.verification_status||"")!=="SUCCESS") throw new Error("PAYPAL_WEBHOOK_VERIFICATION_FAILED");
+}
+async function billingWebhook(req:Request) {
+  const rawBody=await req.text();
+  if(rawBody.length>131072) return new Response("Payload Too Large",{status:413});
+  await billingVerifyWebhook(rawBody,req);
+  const event=JSON.parse(rawBody) as JsonRecord;
+  const eventId=String(event.id||"");
+  const eventType=String(event.event_type||"");
+  if(!eventId||!eventType) throw new Error("PAYPAL_WEBHOOK_EVENT_INVALID");
+  const resource=event.resource&&typeof event.resource==="object"?event.resource as JsonRecord:{};
+  const subId=String(resource.billing_agreement_id||resource.id||"");
+  const digest=await sha256Hex(rawBody);
+  const safePayload={id:eventId,event_type:eventType,resource:{id:resource.id||null,status:resource.status||null,plan_id:resource.plan_id||null,billing_agreement_id:resource.billing_agreement_id||null,custom_id:resource.custom_id||null,billing_info:resource.billing_info||null,amount:resource.amount||null}};
+  const client=createOperationalAdminClient();
+  const ins=await client.from("pandora_paypal_billing_webhook_events").insert({provider_event_id:eventId,event_type:eventType,resource_id:String(resource.id||"")||null,paypal_subscription_id:subId||null,payload_sha256:digest,payload:safePayload,processing_status:"received"}).select("provider_event_id").maybeSingle();
+  if(ins.error && String(ins.error.code||"")==="23505"){
+    const priorEvent=await client.from("pandora_paypal_billing_webhook_events").select("processing_status").eq("provider_event_id",eventId).maybeSingle();
+    if(priorEvent.data?.processing_status==="processed" || priorEvent.data?.processing_status==="ignored") return new Response(JSON.stringify({ok:true,duplicate:true,eventId}),{status:200,headers:{"content-type":"application/json"}});
+    await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"received",processing_error:null,processed_at:null}).eq("provider_event_id",eventId);
+  }else if(ins.error) throw new Error("PAYPAL_WEBHOOK_EVENT_WRITE_FAILED");
+  const sr=await client.from("pandora_paypal_billing_sessions").select("*").eq("paypal_subscription_id",subId).maybeSingle();
+  if(!sr.data){await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"ignored",processed_at:new Date().toISOString()}).eq("provider_event_id",eventId);return new Response(JSON.stringify({ok:true,ignored:true,eventId}),{status:200,headers:{"content-type":"application/json"}});}
+  const session=sr.data as JsonRecord;
+  await client.from("pandora_paypal_billing_webhook_events").update({organization_id:session.organization_id}).eq("provider_event_id",eventId);
+  try{
+    if(eventType==="BILLING.SUBSCRIPTION.CREATED"){
+      await client.from("pandora_paypal_billing_sessions").update({status:"approval_pending",updated_at:new Date().toISOString()}).eq("id",session.id);
+    }else if(["BILLING.SUBSCRIPTION.ACTIVATED","BILLING.SUBSCRIPTION.UPDATED","BILLING.SUBSCRIPTION.SUSPENDED","BILLING.SUBSCRIPTION.CANCELLED","BILLING.SUBSCRIPTION.EXPIRED","BILLING.SUBSCRIPTION.PAYMENT.FAILED"].includes(eventType)){
+      const read=await billingPaypalRequest("/v1/billing/subscriptions/"+subId);
+      if(!read.ok || String(read.body.id||"")!==subId) throw new Error("PAYPAL_SUBSCRIPTION_READ_FAILED");
+      const providerPlanId=String(read.body.plan_id||"");
+      const p=await billingPlanByPaypalPlanId(providerPlanId);
+      const ps=String(read.body.status||"");
+      const state=eventType==="BILLING.SUBSCRIPTION.PAYMENT.FAILED"?"past_due":eventType==="BILLING.SUBSCRIPTION.SUSPENDED"?"suspended":["CANCELLED","EXPIRED"].includes(ps)||["BILLING.SUBSCRIPTION.CANCELLED","BILLING.SUBSCRIPTION.EXPIRED"].includes(eventType)?"cancelled":ps==="SUSPENDED"?"suspended":"active";
+      const next=String((read.body.billing_info&&read.body.billing_info.next_billing_time)||"");
+      const start=String(read.body.start_time||read.body.create_time||new Date().toISOString());
+      const w=await client.from("pandora_customer_subscriptions").upsert({
+        organization_id:session.organization_id,plan_id:p.id,state,currency:"USD",monthly_fee_micros:p.monthly_fee_micros,
+        starts_on:start.slice(0,10),ends_on:state==="cancelled"?new Date().toISOString().slice(0,10):null,renews_on:next?next.slice(0,10):null,
+        source_kind:"provider_verified",provider_reference:subId,verified_at:new Date().toISOString(),notes:"PayPal recurring subscription",
+        request_admission_enabled:state==="active",
+        request_admission_started_at:state==="active" ? new Date().toISOString() : null,
+        updated_by:session.requested_by,updated_at:new Date().toISOString()
+      },{onConflict:"organization_id"});
+      if(w.error) throw new Error("SUBSCRIPTION_STATE_WRITE_FAILED");
+      await client.from("pandora_paypal_billing_sessions").update({status:state==="past_due"?"active":state,updated_at:new Date().toISOString()}).eq("id",session.id);
+      if(["BILLING.SUBSCRIPTION.UPDATED","BILLING.SUBSCRIPTION.ACTIVATED"].includes(eventType)){
+        await client.from("pandora_paypal_plan_change_sessions")
+          .update({status:state==="active"?"completed":state,completed_at:state==="active"?new Date().toISOString():null,updated_at:new Date().toISOString()})
+          .eq("organization_id",String(session.organization_id))
+          .eq("paypal_subscription_id",subId)
+          .eq("to_plan_id",String(p.id))
+          .eq("status","approval_pending");
+      }
+    }else if(["PAYMENT.SALE.COMPLETED","PAYMENT.SALE.REFUNDED","PAYMENT.SALE.REVERSED"].includes(eventType)){
+      const read=await billingPaypalRequest("/v1/billing/subscriptions/"+subId);
+      await billingPlanByPaypalPlanId(String(read.body.plan_id||""));
+      const amount=resource.amount&&typeof resource.amount==="object"?resource.amount as JsonRecord:{};
+      const total=Number(amount.total||NaN); const currency=String(amount.currency||"USD");
+      if(!Number.isFinite(total)||total<=0||currency!=="USD") throw new Error("PAYPAL_PAYMENT_AMOUNT_INVALID");
+      const invoiceNumber=(eventType==="PAYMENT.SALE.REFUNDED"?"PP-REFUND-":eventType==="PAYMENT.SALE.REVERSED"?"PP-REVERSED-":"PP-")+eventId;
+      const invoiceState=eventType==="PAYMENT.SALE.COMPLETED"?"paid":eventType==="PAYMENT.SALE.REFUNDED"?"refunded":"reversed";
+      const inv=await client.from("pandora_customer_invoices").upsert({
+        organization_id:session.organization_id,invoice_number:invoiceNumber,currency,amount_micros:Math.round(total*1000000),state:invoiceState,
+        issued_on:new Date().toISOString().slice(0,10),due_on:new Date().toISOString().slice(0,10),source_kind:"provider_verified",
+        provider_reference:eventId,verified_at:new Date().toISOString(),notes:"PayPal recurring subscription "+eventType,
+        created_by:session.requested_by,updated_at:new Date().toISOString()
+      },{onConflict:"organization_id,invoice_number"}).select("id").single();
+      if(inv.error||!inv.data) throw new Error("PAYPAL_INVOICE_WRITE_FAILED");
+      const kind=eventType==="PAYMENT.SALE.COMPLETED"?"payment":eventType==="PAYMENT.SALE.REFUNDED"?"refund":"adjustment";
+      const pay=await client.from("pandora_customer_payments").upsert({
+        organization_id:session.organization_id,invoice_id:inv.data.id,currency,amount_micros:Math.round(total*1000000),
+        payment_kind:kind,reference:"paypal:"+eventType+":"+String(resource.id||eventId),occurred_on:new Date().toISOString().slice(0,10),
+        source_kind:"provider_verified",verified_at:new Date().toISOString(),created_by:session.requested_by
+      },{onConflict:"organization_id,reference"});
+      if(pay.error) throw new Error("PAYPAL_PAYMENT_WRITE_FAILED");
+      if(eventType==="PAYMENT.SALE.REVERSED") await client.from("pandora_customer_subscriptions").update({state:"past_due",updated_at:new Date().toISOString()}).eq("organization_id",String(session.organization_id));
+    }else{
+      await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"ignored",processed_at:new Date().toISOString()}).eq("provider_event_id",eventId);
+      return new Response(JSON.stringify({ok:true,ignored:true,eventId}),{status:200,headers:{"content-type":"application/json"}});
+    }
+    await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"processed",processed_at:new Date().toISOString(),processing_error:null}).eq("provider_event_id",eventId);
+    return new Response(JSON.stringify({ok:true,processed:true,eventId}),{status:200,headers:{"content-type":"application/json"}});
+  }catch(error){
+    const message=error instanceof Error?error.message:"PAYPAL_WEBHOOK_PROCESSING_FAILED";
+    await client.from("pandora_paypal_billing_webhook_events").update({processing_status:"failed",processing_error:message.slice(0,500)}).eq("provider_event_id",eventId);
+    throw error;
+  }
+}
+async function billingHealth() {
+  const cfg=await billingCfg();
+  const clientId=await billingSecret("paypal_client_id").catch(()=> "");
+  const clientSecret=await billingSecret("paypal_client_secret").catch(()=> "");
+  const webhook=await billingSecret("paypal_webhook_id").catch(()=> "");
+  const client=createOperationalAdminClient();
+  const rows=((await client.from("pandora_service_plans").select("code,state,paypal_product_id,paypal_plan_id").in("code",["launch","professional"])).data||[]) as JsonRecord[];
+  let apiConnectivityVerified=false;
+  try { await billingPaypalToken(); apiConnectivityVerified=true; } catch {}
+  return {mode:cfg.mode,credentials:{clientIdPresent:Boolean(clientId),clientSecretPresent:Boolean(clientSecret),webhookIdPresent:Boolean(webhook)},apiConnectivityVerified,catalog:rows.map((x)=>({code:x.code,state:x.state,productBound:Boolean(x.paypal_product_id),planBound:Boolean(x.paypal_plan_id)})),webhookUrl:cfg.webhookUrl,productionReady:Boolean(cfg.mode==="live"&&clientId&&clientSecret&&webhook&&apiConnectivityVerified&&rows.length===2&&rows.every((x)=>Boolean(x.paypal_product_id)&&Boolean(x.paypal_plan_id)))};
+}
+
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
   const requestOrigin = req.headers.get("origin");
@@ -3268,11 +3345,34 @@ Deno.serve(async (req: Request) => {
     return reject(405, "METHOD_NOT_ALLOWED", "That action is not available.");
   }
 
+
+  const rawUrl = new URL(req.url);
+  if (rawUrl.pathname.endsWith("/billing/paypal/webhook")) {
+    if (req.method !== "POST") return new Response("Method Not Allowed", {status:405});
+    try { return await billingWebhook(req); }
+    catch (error) {
+      console.error(JSON.stringify({requestId,code:error instanceof Error?error.message:"PAYPAL_WEBHOOK_FAILED"}));
+      return new Response("Webhook processing failed",{status:500});
+    }
+  }
+
   try {
     const context = await authenticate(req);
     const url = new URL(req.url);
     const route = normalizeOwnerRoute(url.pathname);
     await enforceRateLimit(context, req.method);
+
+
+    if (route === "/billing/paypal/health" && req.method === "GET") return send(await billingHealth());
+    if (route === "/billing/paypal/bootstrap" && req.method === "POST") {
+      if (context.aal !== "aal2") throw new Error("AAL2_REQUIRED");
+      return send({mode:(await billingCfg()).mode,catalog:await billingEnsureCatalog(),webhook:await billingEnsureWebhook()});
+    }
+    if (route === "/billing/paypal/status" && req.method === "GET") return send(await billingStatus(context));
+    if (route === "/billing/paypal/checkout" && req.method === "POST") return send(await billingStart(context,await bodyJson(req)));
+    if (route === "/billing/paypal/cancel" && req.method === "POST") return send(await billingCancel(context,await bodyJson(req)));
+    if (route === "/billing/paypal/reconcile" && req.method === "POST") return send(await billingReconcile(context));
+    if (route === "/billing/paypal/change-plan" && req.method === "POST") return send(await billingChangePlan(context,await bodyJson(req)));
 
     if (req.method === "GET" && route === "/home") {
       return send(await home(context));
@@ -3434,6 +3534,12 @@ Deno.serve(async (req: Request) => {
         ),
       );
     }
+    if (req.method === "POST" && route === "/github/governed-write") {
+      return send(
+        await governedGithubWrite(context, await bodyJson(req)),
+        201,
+      );
+    }
     if (req.method === "POST" && route === "/connections/providers/actions") {
       return send(await ownerProviderAction(context, await bodyJson(req)));
     }
@@ -3463,6 +3569,14 @@ Deno.serve(async (req: Request) => {
         throw new Error("AAL2_REQUIRED");
       }
       const body = await bodyJson(req);
+      if (actionId === "apply-approved-code-change" &&
+          body.githubWrite && typeof body.githubWrite === "object" &&
+          !Array.isArray(body.githubWrite)) {
+        return send(
+          await governedGithubWrite(context, asRecord(body.githubWrite)),
+          201,
+        );
+      }
       const projectId = textValue(body.projectId ?? body.projectKey) || null;
       const ownerOutcome = textValue(body.message);
       const workerCommand = actionId === "verify-exact-source"
@@ -3568,6 +3682,8 @@ Deno.serve(async (req: Request) => {
         "MODEL_REQUIRED",
         "TEST_INFERENCE_REQUIRED",
         "BODY_TOO_LARGE",
+        "PLAN_REQUIRED",
+        "INVALID_BILLING_IDEMPOTENCY_KEY",
       ]
         .includes(code)
     ) {
