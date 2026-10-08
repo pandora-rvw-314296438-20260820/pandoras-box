@@ -198,8 +198,10 @@ class PlpPaypalBillingScreen extends StatefulWidget {
 
 enum _PendingAction { none, checkout, changePlan, reconcile, cancel }
 
+enum _PanelKind { none, handoff, cancel }
+
 class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   final _scroll = ScrollController();
   final _diffKey = GlobalKey();
   PlpPaypalBillingApi? _api;
@@ -215,6 +217,22 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
   _PendingAction _identityRetry = _PendingAction.none;
   String? _identityRetryPlan;
   Timer? _ticker;
+
+  // Motion: waiting header + dim, and the bottom panels (handoff, cancel).
+  late final AnimationController _lock =
+      AnimationController(vsync: this, duration: plpMotionPanel);
+  late final Animation<double> _lockCurve =
+      CurvedAnimation(parent: _lock, curve: plpMotionIn);
+  late final AnimationController _panel =
+      AnimationController(vsync: this, duration: plpMotionPanel)
+        ..addListener(_applyLift);
+  late final Animation<double> _panelCurve =
+      CurvedAnimation(parent: _panel, curve: plpMotionIn);
+  _PanelKind _panelKind = _PanelKind.none;
+  String? _handoffPlan;
+  bool _lockSynced = false;
+  double _liftBase = 0;
+  double _liftDelta = 0;
 
   String? get _organizationId {
     final id = widget.organizationId?.trim();
@@ -248,6 +266,8 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
   @override
   void dispose() {
     _ticker?.cancel();
+    _lock.dispose();
+    _panel.dispose();
     _scroll.dispose();
     WidgetsBinding.instance.removeObserver(this);
     if (widget.api == null) _api?.close();
@@ -277,6 +297,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
           _selectedPlan = null;
         }
       });
+      _syncLock();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -326,7 +347,10 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
   Future<void> _loadStatusQuietly() async {
     try {
       final snapshot = await _api!.status();
-      if (mounted) setState(() => _snapshot = snapshot);
+      if (mounted) {
+        setState(() => _snapshot = snapshot);
+        _syncLock();
+      }
     } catch (_) {
       // The primary problem is already on screen.
     }
@@ -337,7 +361,10 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
       await _api!.reconcile();
     } finally {
       final snapshot = await _api!.status();
-      if (mounted) setState(() => _snapshot = snapshot);
+      if (mounted) {
+        setState(() => _snapshot = snapshot);
+        _syncLock();
+      }
     }
   }
 
@@ -477,29 +504,101 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     return (h * .4).clamp(330.0, math.max(330.0, h - 120));
   }
 
-  void _openHandoff() {
-    setState(() => _handoffOpen = true);
-    // Lift the workspace so the chosen node and difference line stay
-    // visible above the panel.
+  /// Eases the black "Waiting for PayPal" header (and the dim) in or out to
+  /// match the server's state. The first status read applies instantly.
+  void _syncLock() {
+    final snapshot = _snapshot;
+    if (snapshot == null || !mounted) return;
+    final target = _BillingView(snapshot, _now).locked ? 1.0 : 0.0;
+    if (!_lockSynced || plpReduceMotion(context)) {
+      _lockSynced = true;
+      _lock.value = target;
+      return;
+    }
+    if (_lock.value == target && !_lock.isAnimating) return;
+    if (target == 1) {
+      unawaited(_lock.forward());
+    } else {
+      unawaited(_lock.reverse());
+    }
+  }
+
+  /// Keeps the lifted content in step with the panel, so it rises and
+  /// settles together with it instead of jumping.
+  void _applyLift() {
+    if (_liftDelta == 0 || !_scroll.hasClients) return;
+    final position = _scroll.position;
+    _scroll.jumpTo((_liftBase + _liftDelta * _panelCurve.value)
+        .clamp(position.minScrollExtent, position.maxScrollExtent));
+  }
+
+  void _raisePanel({required bool lift}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scroll.hasClients) return;
-      final box = _diffKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box == null || !box.attached) return;
-      final bottom = box.localToGlobal(Offset(0, box.size.height)).dy;
-      final limit =
-          MediaQuery.sizeOf(context).height - _panelHeight(context) - 16;
-      final delta = bottom - limit;
-      if (delta <= 0) return;
-      final target =
-          math.min(_scroll.offset + delta, _scroll.position.maxScrollExtent);
+      if (!mounted || _panelKind == _PanelKind.none) return;
+      _liftBase = _scroll.hasClients ? _scroll.offset : 0;
+      _liftDelta = 0;
+      if (lift && _scroll.hasClients) {
+        final box = _diffKey.currentContext?.findRenderObject() as RenderBox?;
+        if (box != null && box.attached) {
+          final bottom = box.localToGlobal(Offset(0, box.size.height)).dy;
+          final limit =
+              MediaQuery.sizeOf(context).height - _panelHeight(context) - 16;
+          final delta = bottom - limit;
+          if (delta > 0) {
+            final target =
+                math.min(_liftBase + delta, _scroll.position.maxScrollExtent);
+            _liftDelta = target - _liftBase;
+          }
+        }
+      }
       if (plpReduceMotion(context)) {
-        _scroll.jumpTo(target);
+        _panel.value = 1;
       } else {
-        unawaited(_scroll.animateTo(target,
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic));
+        unawaited(_panel.forward());
       }
     });
+  }
+
+  void _openHandoff() {
+    setState(() {
+      _handoffOpen = true;
+      _cancelOpen = false;
+      _panelKind = _PanelKind.handoff;
+      _handoffPlan = _selectedPlan;
+    });
+    _raisePanel(lift: true);
+  }
+
+  void _openCancel() {
+    setState(() {
+      _cancelOpen = true;
+      _handoffOpen = false;
+      _panelKind = _PanelKind.cancel;
+    });
+    _raisePanel(lift: false);
+  }
+
+  /// Slides the open panel back down (same curve and duration it rose with).
+  void _closePanel() {
+    if (_panelKind == _PanelKind.none) return;
+    setState(() {
+      _handoffOpen = false;
+      _cancelOpen = false;
+    });
+    void finish() {
+      if (!mounted || _panel.value != 0) return;
+      setState(() {
+        _panelKind = _PanelKind.none;
+        _liftDelta = 0;
+      });
+    }
+
+    if (plpReduceMotion(context)) {
+      _panel.value = 0;
+      finish();
+    } else {
+      _panel.reverse().whenCompleteOrCancel(finish);
+    }
   }
 
   Future<void> _continueHandoff(_BillingView view) async {
@@ -511,17 +610,28 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
       await _checkout(code);
     }
     if (mounted) {
-      setState(() {
-        _handoffOpen = false;
-        _selectedPlan = null;
-      });
+      setState(() => _selectedPlan = null);
+      _closePanel();
     }
   }
 
   Future<void> _holdConfirmed() async {
     await _cancel();
-    if (mounted) setState(() => _cancelOpen = false);
+    if (mounted) _closePanel();
   }
+
+  static const _identity = <double>[
+    1, 0, 0, 0, 0, //
+    0, 1, 0, 0, 0, //
+    0, 0, 1, 0, 0, //
+    0, 0, 0, 1, 0,
+  ];
+  static const _grey = <double>[
+    .2126, .7152, .0722, 0, 0, //
+    .2126, .7152, .0722, 0, 0, //
+    .2126, .7152, .0722, 0, 0, //
+    0, 0, 0, 1, 0,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -529,81 +639,126 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     final view = snapshot == null ? null : _BillingView(snapshot, _now);
     final locked = view?.locked ?? false;
     final open = (_handoffOpen || _cancelOpen) && view != null && !locked;
-    final content = _content(context, view, locked: locked, open: open);
-
-    final Widget page;
-    if (locked) {
-      page = Column(
-        children: [
-          PlpBillingWaitingBand(
-            onOpenNavigation: widget.onOpenNavigation,
-            onBack: widget.onBack,
-            checking: _checking,
-            onOpenPaypal:
-                _busy ? null : () => _reopenApproval(view!.waitingUrl!),
-            onCheckAgain: _busy ? null : _check,
-            problem: _problem?.title,
-          ),
-          Expanded(
-            child: IgnorePointer(
-              child: ExcludeSemantics(
-                child: Opacity(
-                  opacity: .34,
-                  child: ColorFiltered(
-                    colorFilter: const ColorFilter.matrix(<double>[
-                      .2126, .7152, .0722, 0, 0, //
-                      .2126, .7152, .0722, 0, 0, //
-                      .2126, .7152, .0722, 0, 0, //
-                      0, 0, 0, 1, 0,
-                    ]),
-                    child: content,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    } else {
-      page = SafeArea(bottom: false, child: content);
-    }
 
     return Material(
       key: const ValueKey('plp-paypal-billing'),
       color: plpCanvas,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_lock, _panel]),
+        builder: (context, _) {
+          final t = _lockCurve.value;
+          final p = _panelCurve.value;
+          final panelShown =
+              view != null && _panelKind != _PanelKind.none && _panel.value > 0;
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: Column(
+                  children: [
+                    // Fixed: never scrolls or lifts with the content.
+                    _topBar(view, locked, t),
+                    Expanded(
+                      child: IgnorePointer(
+                        ignoring: locked,
+                        child: ExcludeSemantics(
+                          excluding: locked,
+                          child: Opacity(
+                            opacity: 1 - .66 * t,
+                            child: ColorFiltered(
+                              colorFilter: ColorFilter.matrix(<double>[
+                                for (var i = 0; i < 20; i++)
+                                  _identity[i] + (_grey[i] - _identity[i]) * t,
+                              ]),
+                              child: _content(context, view,
+                                  locked: locked, open: open, lockT: t),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (panelShown) ...[
+                Positioned.fill(
+                  child: GestureDetector(
+                    key: const ValueKey('plp-billing-scrim'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _busy || !open ? null : _closePanel,
+                    child: ColoredBox(
+                      color: Color.fromRGBO(0x17, 0x15, 0x12, .22 * p),
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: FractionalTranslation(
+                    translation: Offset(0, 1 - p),
+                    child: _panelKind == _PanelKind.handoff
+                        ? _handoffPanel(context, view)
+                        : _cancelPanel(view),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Light header, with the black waiting header easing down over it from
+  /// the top while a checkout or plan change waits for PayPal.
+  Widget _topBar(_BillingView? view, bool locked, double t) {
+    final back = widget.onBack;
+    final url = locked ? view!.waitingUrl : null;
+    return SizedBox(
+      width: double.infinity,
       child: Stack(
         children: [
-          Positioned.fill(child: page),
-          if (open) ...[
-            Positioned.fill(
-              child: GestureDetector(
-                key: const ValueKey('plp-billing-scrim'),
-                behavior: HitTestBehavior.opaque,
-                onTap: _busy
-                    ? null
-                    : () => setState(() {
-                          _handoffOpen = false;
-                          _cancelOpen = false;
-                        }),
-                child: const ColoredBox(color: Color(0x38171512)),
+          if (t < 1)
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+                child: PlpEditorialHeader(
+                  title: 'Subscription',
+                  onOpenNavigation: widget.onOpenNavigation,
+                  trailing: back == null
+                      ? null
+                      : IconButton(
+                          key: const ValueKey('plp-billing-back'),
+                          onPressed: back,
+                          tooltip: 'Back',
+                          color: plpInk,
+                          icon: const Icon(Icons.arrow_back_rounded),
+                        ),
+                ),
               ),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: _Rise(
-                child: _handoffOpen
-                    ? _handoffPanel(context, view)
-                    : _cancelPanel(view),
+          if (t > 0)
+            ClipRect(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                heightFactor: t,
+                child: PlpBillingWaitingBand(
+                  onOpenNavigation: widget.onOpenNavigation,
+                  onBack: back,
+                  checking: locked && _checking,
+                  onOpenPaypal:
+                      _busy || url == null ? null : () => _reopenApproval(url),
+                  onCheckAgain: _busy || !locked ? null : _check,
+                  problem: locked ? _problem?.title : null,
+                ),
               ),
             ),
-          ],
         ],
       ),
     );
   }
 
   Widget _handoffPanel(BuildContext context, _BillingView view) {
-    final plan = view.snapshot.plan(_selectedPlan);
+    final plan = view.snapshot.plan(_handoffPlan);
     return PlpBillingBlackPanel(
       height: _panelHeight(context),
       child: PlpBillingHandoffContent(
@@ -611,7 +766,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         price: plan?.priceLabel ?? '',
         busy: _busy,
         onContinue: () => _continueHandoff(view),
-        onNotNow: () => setState(() => _handoffOpen = false),
+        onNotNow: _closePanel,
       ),
     );
   }
@@ -625,7 +780,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
             : 'Access continues until ${plpBillingDateLong(end)}.',
         busy: _busy,
         onConfirmed: _holdConfirmed,
-        onKeep: () => setState(() => _cancelOpen = false),
+        onKeep: _closePanel,
       ),
     );
   }
@@ -635,30 +790,23 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     _BillingView? view, {
     required bool locked,
     required bool open,
+    required double lockT,
   }) {
     final children = <Widget>[
-      if (!locked)
-        PlpEditorialHeader(
-          title: 'Subscription',
-          onOpenNavigation: widget.onOpenNavigation,
-          trailing: widget.onBack == null
-              ? null
-              : IconButton(
-                  key: const ValueKey('plp-billing-back'),
-                  onPressed: widget.onBack,
-                  tooltip: 'Back',
-                  color: plpInk,
-                  icon: const Icon(Icons.arrow_back_rounded),
-                ),
-        ),
-      SizedBox(height: locked ? 50 : 34),
+      SizedBox(height: 34 + 16 * lockT),
       const PlpBillingTitle('Pandora billing'),
     ];
 
     if (view != null) {
+      final sub = view.sub;
       children
         ..add(const SizedBox(height: 14))
-        ..add(_statusLine(view));
+        ..add(PlpMorph(
+          key: const ValueKey('m-status'),
+          signature: '${view.holds}|${view.ghost}|${sub?.state}|'
+              '${view.plan?.code}|${view.cancelRequested}',
+          child: _statusLine(view),
+        ));
       if (view.snapshot.sandbox) {
         children.add(const Padding(
           padding: EdgeInsets.only(top: 8),
@@ -671,24 +819,30 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
       }
     }
 
-    final problem = _problem;
-    if (problem != null && !locked) {
-      final identity =
-          problem.needsIdentity && _identityRetry != _PendingAction.none;
-      children
-        ..add(const SizedBox(height: 18))
-        ..add(PlpBillingNotice(
-          key: const ValueKey('plp-billing-problem'),
-          title: problem.title,
-          body: problem.body,
-          action: identity
-              ? 'Verify identity'
-              : _api == null
-                  ? null
-                  : 'Try again',
-          onAction: identity ? _verifyIdentity : (_busy ? null : _retry),
-        ));
-    }
+    final problem = locked ? null : _problem;
+    final identity = problem != null &&
+        problem.needsIdentity &&
+        _identityRetry != _PendingAction.none;
+    children.add(PlpMorph(
+      key: const ValueKey('m-problem'),
+      signature: problem?.title ?? 'none',
+      child: problem == null
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.only(top: 18),
+              child: PlpBillingNotice(
+                key: const ValueKey('plp-billing-problem'),
+                title: problem.title,
+                body: problem.body,
+                action: identity
+                    ? 'Verify identity'
+                    : _api == null
+                        ? null
+                        : 'Try again',
+                onAction: identity ? _verifyIdentity : (_busy ? null : _retry),
+              ),
+            ),
+    ));
 
     if (_loading) {
       children.add(const Padding(
@@ -702,8 +856,8 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
 
     return ListView(
       controller: _scroll,
-      padding: EdgeInsets.fromLTRB(
-          18, locked ? 0 : 14, 18, open ? _panelHeight(context) + 40 : 140),
+      padding: EdgeInsets.fromLTRB(18, 0, 18,
+          _panelKind != _PanelKind.none ? _panelHeight(context) + 40 : 140),
       children: children,
     );
   }
@@ -773,78 +927,100 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
     final sub = view.sub;
     final widgets = <Widget>[];
 
-    if (sub != null && (sub.state == 'past_due' || sub.state == 'suspended')) {
-      widgets.add(const Padding(
-        padding: EdgeInsets.only(top: 14),
-        child: PlpBillingNotice(title: 'Payment needs attention in PayPal.'),
-      ));
-    }
-    if (view.cancelRequested) {
-      widgets.add(const Padding(
-        padding: EdgeInsets.only(top: 14),
-        child: PlpBillingNotice(
+    // Attention notices.
+    final notices = <PlpBillingNotice>[
+      if (sub != null && (sub.state == 'past_due' || sub.state == 'suspended'))
+        const PlpBillingNotice(title: 'Payment needs attention in PayPal.'),
+      if (view.cancelRequested)
+        const PlpBillingNotice(
           key: ValueKey('plp-billing-cancel-sent'),
           title: 'Cancellation sent \u00b7 waiting for PayPal',
         ),
-      ));
-    }
-    if (sub == null && view.snapshot.checkout?.status == 'failed') {
-      widgets.add(const Padding(
-        padding: EdgeInsets.only(top: 14),
-        child: PlpBillingNotice(
+      if (sub == null && view.snapshot.checkout?.status == 'failed')
+        const PlpBillingNotice(
             title: 'Last checkout did not start \u00b7 nothing charged'),
-      ));
-    }
+    ];
+    widgets.add(PlpMorph(
+      key: const ValueKey('m-notices'),
+      signature: notices.map((n) => n.title).join('|'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final notice in notices)
+            Padding(padding: const EdgeInsets.only(top: 14), child: notice),
+        ],
+      ),
+    ));
 
-    // Temporal hero.
+    // Temporal hero. The number itself rolls when it changes.
     final days = view.daysLeft;
     final end = view.cycleEnd;
+    var heroSignature = 'none';
+    Widget hero = const SizedBox.shrink();
     if (view.holds) {
       final known = days != null && days >= 0;
-      widgets
-        ..add(const SizedBox(height: 42))
-        ..add(PlpBillingTemporalHero(
+      heroSignature = 'renews';
+      hero = Padding(
+        padding: const EdgeInsets.only(top: 42),
+        child: PlpBillingTemporalHero(
           value: known ? '$days' : '\u2014',
           unit: known ? (days == 1 ? 'day' : 'days') : '',
           caption: 'renews',
           date: end == null ? null : plpBillingDateLong(end),
-        ));
+        ),
+      );
     } else if (view.ghostWithAccess) {
-      widgets
-        ..add(const SizedBox(height: 42))
-        ..add(PlpBillingTemporalHero(
+      heroSignature = 'access';
+      hero = Padding(
+        padding: const EdgeInsets.only(top: 42),
+        child: PlpBillingTemporalHero(
           value: '$days',
           unit: days == 1 ? 'day left' : 'days left',
           caption: 'access until',
           date: view.hasPlayhead ? null : plpBillingDateLong(end!),
-        ));
+        ),
+      );
     }
+    widgets.add(PlpMorph(
+      key: const ValueKey('m-hero'),
+      signature: heroSignature,
+      child: hero,
+    ));
 
-    // Billing playhead (or the seal alone when dates are incomplete).
-    if (sub != null && (view.holds || view.ghostWithAccess)) {
-      if (view.hasPlayhead) {
-        widgets
-          ..add(const SizedBox(height: 38))
-          ..add(PlpBillingPlayhead(
-            today: view.todayPos,
-            sealAt: view.sealPos,
-            startLabel: plpBillingDateShort(view.cycleStart!),
-            endLabel: view.ghost
-                ? 'Access until ${plpBillingDateShort(end!)}'
-                : plpBillingDateShort(end!),
-            ghost: view.ghost,
-            seal: _seal(view),
-          ));
-      } else {
-        widgets
-          ..add(const SizedBox(height: 18))
-          ..add(Align(alignment: Alignment.centerLeft, child: _seal(view)));
-      }
+    // Billing playhead (or the seal alone when dates are incomplete). The
+    // playhead stays in place across active -> cancelled so its dashed
+    // remainder can draw in.
+    var cycleSignature = 'none';
+    Widget cycle = const SizedBox.shrink();
+    if (sub != null &&
+        (view.holds || view.ghostWithAccess) &&
+        view.hasPlayhead) {
+      cycleSignature = 'playhead';
+      cycle = Padding(
+        padding: const EdgeInsets.only(top: 38),
+        child: PlpBillingPlayhead(
+          today: view.todayPos,
+          sealAt: view.sealPos,
+          startLabel: plpBillingDateShort(view.cycleStart!),
+          endLabel: view.ghost
+              ? 'Access until ${plpBillingDateShort(end!)}'
+              : plpBillingDateShort(end!),
+          ghost: view.ghost,
+          seal: _seal(view),
+        ),
+      );
     } else if (sub != null) {
-      widgets
-        ..add(const SizedBox(height: 18))
-        ..add(Align(alignment: Alignment.centerLeft, child: _seal(view)));
+      cycleSignature = 'seal';
+      cycle = Padding(
+        padding: const EdgeInsets.only(top: 18),
+        child: Align(alignment: Alignment.centerLeft, child: _seal(view)),
+      );
     }
+    widgets.add(PlpMorph(
+      key: const ValueKey('m-cycle'),
+      signature: cycleSignature,
+      child: cycle,
+    ));
 
     // Spatial plan axis.
     final axisEnabled = !_busy &&
@@ -852,25 +1028,31 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
         !open &&
         !view.cancelRequested &&
         (!view.holds || sub!.state == 'active');
-    final hero = !view.holds && !view.ghost;
+    final heroAxis = !view.holds && !view.ghost;
     final label = view.ghost
         ? 'Restart'
         : view.holds
             ? 'Plan'
             : 'Choose a plan';
-    widgets
-      ..add(SizedBox(height: hero ? 92 : 50))
-      ..add(PlpBillingLabel(
-        label,
-        icon: view.ghost ? PlpLineGlyph.rotateCcw : null,
-      ))
-      ..add(SizedBox(height: hero ? 30 : 22));
+    widgets.add(PlpMorph(
+      key: const ValueKey('m-axis-label'),
+      signature: label,
+      child: Padding(
+        padding: EdgeInsets.only(
+            top: heroAxis ? 92 : 50, bottom: heroAxis ? 30 : 22),
+        child: PlpBillingLabel(
+          label,
+          icon: view.ghost ? PlpLineGlyph.rotateCcw : null,
+        ),
+      ),
+    ));
     if (view.snapshot.plans.isEmpty) {
-      widgets.add(const PlpBillingNotice(title: 'No plans available'));
+      widgets.add(const PlpBillingNotice(
+          key: ValueKey('plp-billing-no-plans'), title: 'No plans available'));
     } else {
       widgets.add(PlpPlanAxis(
         key: const ValueKey('plp-billing-axis'),
-        hero: hero,
+        hero: heroAxis,
         nodes: [
           for (final plan in view.snapshot.plans)
             PlpPlanNode(
@@ -883,7 +1065,10 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
       ));
     }
 
+    // Difference line (or the billing hint when not subscribed).
     final selected = view.snapshot.plan(_selectedPlan);
+    var tailSignature = 'none';
+    Widget tail = const SizedBox.shrink();
     if (selected != null && !view.locked) {
       final current = view.holds ? view.plan : null;
       String lead = selected.priceLabel;
@@ -895,21 +1080,24 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
             ? '+ ${selected.currency} ${_money(delta)}/mo'
             : '\u2212 ${selected.currency} ${_money(-delta)}/mo';
       }
-      widgets
-        ..add(const SizedBox(height: 20))
-        ..add(PlpBillingRuledLine(
-          key: _diffKey,
+      tailSignature = 'diff';
+      tail = Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: PlpBillingRuledLine(
+          key: const ValueKey('plp-billing-diff'),
           lead: lead,
           rest: ' \u00b7 starts after PayPal approval',
           chevron: true,
           semanticsLabel:
               '${selected.name}, $lead, starts after PayPal approval. Continue.',
           onTap: _busy || open ? null : _openHandoff,
-        ));
-    } else if (hero && !view.locked) {
-      widgets
-        ..add(const SizedBox(height: 32))
-        ..add(Container(
+        ),
+      );
+    } else if (heroAxis && !view.locked) {
+      tailSignature = 'hint';
+      tail = Padding(
+        padding: const EdgeInsets.only(top: 32),
+        child: Container(
           padding: const EdgeInsets.only(top: 16),
           decoration: const BoxDecoration(
             border: Border(top: BorderSide(color: plpLine)),
@@ -918,47 +1106,36 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
             'Billed monthly through PayPal.',
             style: TextStyle(color: plpMuted, fontSize: 12),
           ),
-        ));
+        ),
+      );
     }
+    widgets.add(KeyedSubtree(
+      key: _diffKey,
+      child: PlpMorph(signature: tailSignature, child: tail),
+    ));
 
-    if (view.holds &&
+    final showCancel = view.holds &&
         sub!.state == 'active' &&
         !view.cancelRequested &&
-        _selectedPlan == null) {
-      widgets
-        ..add(const SizedBox(height: 40))
-        ..add(PlpBillingRuledLine(
-          key: const ValueKey('plp-billing-cancel'),
-          lead: 'Cancel subscription',
-          bottomRule: false,
-          chevron: true,
-          onTap: _busy || open || view.locked
-              ? null
-              : () => setState(() => _cancelOpen = true),
-        ));
-    }
+        _selectedPlan == null;
+    widgets.add(PlpMorph(
+      key: const ValueKey('m-cancel'),
+      signature: showCancel,
+      child: showCancel
+          ? Padding(
+              padding: const EdgeInsets.only(top: 40),
+              child: PlpBillingRuledLine(
+                key: const ValueKey('plp-billing-cancel'),
+                lead: 'Cancel subscription',
+                bottomRule: false,
+                chevron: true,
+                onTap: _busy || open || view.locked ? null : _openCancel,
+              ),
+            )
+          : const SizedBox.shrink(),
+    ));
     return widgets;
   }
-}
-
-/// Rises from the bottom on insertion (instant with reduced motion).
-class _Rise extends StatelessWidget {
-  const _Rise({required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween(begin: 1, end: 0),
-        duration: plpReduceMotion(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-        builder: (context, value, child) => FractionalTranslation(
-          translation: Offset(0, value),
-          child: child,
-        ),
-        child: child,
-      );
 }
 
 /// Revenue entry: one thin-ruled ledger line read from the billing status.

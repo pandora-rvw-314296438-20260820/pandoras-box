@@ -27,6 +27,86 @@ const _actionStyle = TextStyle(
 bool plpReduceMotion(BuildContext context) =>
     MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
+/// Motion tokens. Every billing animation is instant with reduced motion.
+const plpMotionPanel = Duration(milliseconds: 280);
+const plpMotionFade = Duration(milliseconds: 220);
+const plpMotionDraw = Duration(milliseconds: 400);
+const plpMotionIn = Curves.easeOutCubic;
+const plpMotionOut = Curves.easeInCubic;
+
+/// Cross-fades a block when its [signature] changes and eases its height,
+/// so state changes never hard-cut. Same signature updates in place.
+class PlpMorph extends StatelessWidget {
+  const PlpMorph({super.key, required this.signature, required this.child});
+
+  final Object signature;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (plpReduceMotion(context)) return child;
+    return AnimatedSize(
+      duration: plpMotionFade,
+      curve: plpMotionIn,
+      alignment: Alignment.topLeft,
+      child: AnimatedSwitcher(
+        duration: plpMotionFade,
+        switchInCurve: plpMotionIn,
+        switchOutCurve: plpMotionOut,
+        layoutBuilder: (current, previous) => Stack(
+          alignment: Alignment.topLeft,
+          clipBehavior: Clip.none,
+          children: [
+            for (final old in previous)
+              Positioned(top: 0, left: 0, right: 0, child: old),
+            if (current != null) current,
+          ],
+        ),
+        child: KeyedSubtree(key: ValueKey(signature), child: child),
+      ),
+    );
+  }
+}
+
+/// Text that rolls (slides + fades) to a new value.
+class _RollingText extends StatelessWidget {
+  const _RollingText(this.text, {required this.style, this.textKey});
+
+  final String text;
+  final TextStyle style;
+  final Key? textKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = Text(text, key: textKey, style: style);
+    if (plpReduceMotion(context)) return label;
+    return AnimatedSwitcher(
+      duration: plpMotionFade,
+      switchInCurve: plpMotionIn,
+      switchOutCurve: plpMotionOut,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: Alignment.bottomLeft,
+        clipBehavior: Clip.none,
+        children: [...previous, if (current != null) current],
+      ),
+      transitionBuilder: (child, animation) {
+        final incoming = child.key == ValueKey(text);
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween(
+              begin: Offset(0, incoming ? .28 : -.28),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(key: ValueKey(text), child: label),
+    );
+  }
+}
+
 class PlpBillingTitle extends StatelessWidget {
   const PlpBillingTitle(this.text, {super.key});
   final String text;
@@ -156,9 +236,9 @@ class PlpBillingTemporalHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(
+                    _RollingText(
                       value,
-                      key: const ValueKey('plp-billing-hero-value'),
+                      textKey: const ValueKey('plp-billing-hero-value'),
                       style: const TextStyle(
                         color: plpInk,
                         fontSize: 104,
@@ -309,7 +389,7 @@ class _PlpBillingSealState extends State<PlpBillingSeal>
 
 /// Horizontal timeline of the current cycle with a today marker and the
 /// PayPal seal pinned at the last verification point.
-class PlpBillingPlayhead extends StatelessWidget {
+class PlpBillingPlayhead extends StatefulWidget {
   const PlpBillingPlayhead({
     super.key,
     required this.today,
@@ -331,60 +411,107 @@ class PlpBillingPlayhead extends StatelessWidget {
   final PlpBillingSeal seal;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          final x = (today.clamp(0.0, 1.0)) * w;
-          final sx = (sealAt.clamp(0.0, 1.0)) * w;
-          final right = sx > w * .55;
-          final pinned = PlpBillingSeal(
-            label: seal.label,
-            verified: seal.verified,
-            checking: seal.checking,
-            onTap: seal.onTap,
-            labelFirst: right,
-          );
-          return SizedBox(
-            key: const ValueKey('plp-billing-playhead'),
-            height: 66,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned(
-                  top: -13,
-                  left: right ? null : sx - 9,
-                  right: right ? w - sx - 9 : null,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: math.max(120, w - 4)),
-                    child: pinned,
+  State<PlpBillingPlayhead> createState() => _PlpBillingPlayheadState();
+}
+
+class _PlpBillingPlayheadState extends State<PlpBillingPlayhead>
+    with SingleTickerProviderStateMixin {
+  // Progress of the dashed "access left" segment, drawn from today to the
+  // end when the cycle turns into the cancelled (ghost) state.
+  late final AnimationController _draw =
+      AnimationController(vsync: this, duration: plpMotionDraw, value: 1);
+  late final Animation<double> _drawn =
+      CurvedAnimation(parent: _draw, curve: plpMotionIn);
+
+  @override
+  void didUpdateWidget(PlpBillingPlayhead oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.ghost && widget.ghost && !plpReduceMotion(context)) {
+      _draw.forward(from: 0);
+    } else if (!widget.ghost) {
+      _draw.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _draw.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final today = widget.today;
+    final sealAt = widget.sealAt;
+    final seal = widget.seal;
+    final ghost = widget.ghost;
+    final startLabel = widget.startLabel;
+    final endLabel = widget.endLabel;
+    final reduce = plpReduceMotion(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final x = (today.clamp(0.0, 1.0)) * w;
+        final sx = (sealAt.clamp(0.0, 1.0)) * w;
+        final right = sx > w * .55;
+        final pinned = PlpBillingSeal(
+          label: seal.label,
+          verified: seal.verified,
+          checking: seal.checking,
+          onTap: seal.onTap,
+          labelFirst: right,
+        );
+        return SizedBox(
+          key: const ValueKey('plp-billing-playhead'),
+          height: 66,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: -13,
+                left: right ? null : sx - 9,
+                right: right ? w - sx - 9 : null,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: math.max(120, w - 4)),
+                  child: pinned,
+                ),
+              ),
+              Positioned(
+                left: sx - .5,
+                top: 19,
+                child: Container(width: 1, height: 8, color: plpInk),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 26,
+                height: 9,
+                child: AnimatedBuilder(
+                  animation: _drawn,
+                  builder: (context, _) => CustomPaint(
+                    painter: _PlayheadPainter(
+                      x / (w == 0 ? 1 : w),
+                      ghost,
+                      ghost ? _drawn.value : 1,
+                    ),
                   ),
                 ),
-                Positioned(
-                  left: sx - .5,
-                  top: 19,
-                  child: Container(width: 1, height: 8, color: plpInk),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 26,
-                  height: 9,
-                  child: CustomPaint(
-                    painter: _PlayheadPainter(x / (w == 0 ? 1 : w), ghost),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 44,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        startLabel,
-                        style: const TextStyle(color: plpMuted, fontSize: 11),
-                      ),
-                      Text(
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 44,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      startLabel,
+                      style: const TextStyle(color: plpMuted, fontSize: 11),
+                    ),
+                    _FadeSwap(
+                      reduce: reduce,
+                      signature: '$endLabel$ghost',
+                      child: Text(
                         endLabel,
                         key: const ValueKey('plp-billing-playhead-end'),
                         style: TextStyle(
@@ -392,20 +519,51 @@ class PlpBillingPlayhead extends StatelessWidget {
                           fontSize: 11,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
-      );
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Plain cross-fade between two small pieces of text.
+class _FadeSwap extends StatelessWidget {
+  const _FadeSwap({
+    required this.reduce,
+    required this.signature,
+    required this.child,
+  });
+  final bool reduce;
+  final Object signature;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => reduce
+      ? child
+      : AnimatedSwitcher(
+          duration: plpMotionFade,
+          switchInCurve: plpMotionIn,
+          switchOutCurve: plpMotionOut,
+          layoutBuilder: (current, previous) => Stack(
+            alignment: Alignment.centerRight,
+            children: [...previous, if (current != null) current],
+          ),
+          child: KeyedSubtree(key: ValueKey(signature), child: child),
+        );
 }
 
 class _PlayheadPainter extends CustomPainter {
-  const _PlayheadPainter(this.today, this.ghost);
+  const _PlayheadPainter(this.today, this.ghost, this.drawn);
   final double today;
   final bool ghost;
+
+  /// 0..1: how much of the dashed remainder is drawn (ghost only).
+  final double drawn;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -416,12 +574,22 @@ class _PlayheadPainter extends CustomPainter {
       ..strokeWidth = 1;
     canvas.drawLine(Offset(0, y), Offset(x, y), ink);
     if (ghost) {
+      final head = x + (size.width - x) * drawn.clamp(0.0, 1.0);
+      if (head < size.width) {
+        // Not yet drawn: the old solid remainder, being replaced.
+        canvas.drawLine(
+          Offset(head, y),
+          Offset(size.width, y),
+          Paint()
+            ..color = plpBillingRule
+            ..strokeWidth = 1,
+        );
+      }
       final dash = Paint()
         ..color = plpMuted
         ..strokeWidth = 1;
-      for (var d = x + 4; d < size.width; d += 8) {
-        canvas.drawLine(
-            Offset(d, y), Offset(math.min(d + 4, size.width), y), dash);
+      for (var d = x + 4; d < head; d += 8) {
+        canvas.drawLine(Offset(d, y), Offset(math.min(d + 4, head), y), dash);
       }
     } else {
       canvas.drawLine(
@@ -445,7 +613,7 @@ class _PlayheadPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PlayheadPainter old) =>
-      old.today != today || old.ghost != ghost;
+      old.today != today || old.ghost != ghost || old.drawn != drawn;
 }
 
 class PlpPlanNode {

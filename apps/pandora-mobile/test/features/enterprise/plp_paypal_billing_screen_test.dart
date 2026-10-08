@@ -98,27 +98,35 @@ Future<List<Uri>> _mount(
   String environment = 'live',
   VoidCallback? onBack,
   double height = 2200,
+  bool motion = false,
 }) async {
   await setTestSurface(tester, logicalSize: Size(430, height));
   final launched = <Uri>[];
   await tester.pumpWidget(testApp(
-    child: PlpPaypalBillingScreen(
-      organizationId: organizationId,
-      onOpenNavigation: () {},
-      onBack: onBack,
-      api: organizationId == null
-          ? null
-          : PlpPaypalBillingApi.forOrganization(
-              organizationId,
-              tokenProvider: const _Token(),
-              httpClient: backend.client,
-              environment: environment,
-            ),
-      launchApproval: (uri) async {
-        launched.add(uri);
-        return launchSucceeds;
-      },
-      clock: () => DateTime.utc(2026, 10, 8, 14, 5),
+    // testApp turns animations off (reduced motion); motion tests turn
+    // them back on for this screen only.
+    child: Builder(
+      builder: (context) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(disableAnimations: !motion),
+        child: PlpPaypalBillingScreen(
+          organizationId: organizationId,
+          onOpenNavigation: () {},
+          onBack: onBack,
+          api: organizationId == null
+              ? null
+              : PlpPaypalBillingApi.forOrganization(
+                  organizationId,
+                  tokenProvider: const _Token(),
+                  httpClient: backend.client,
+                  environment: environment,
+                ),
+          launchApproval: (uri) async {
+            launched.add(uri);
+            return launchSucceeds;
+          },
+          clock: () => DateTime.utc(2026, 10, 8, 14, 5),
+        ),
+      ),
     ),
   ));
   await tester.pumpAndSettle();
@@ -431,6 +439,214 @@ void main() {
     });
     await _mount(tester, backend);
     expect(find.byKey(const ValueKey('plp-billing-waiting')), findsNothing);
+  });
+
+  group('motion (animations on)', () {
+    double bandHeight(WidgetTester tester) => tester
+        .getSize(find
+            .ancestor(
+                of: find.byKey(const ValueKey('plp-billing-waiting')),
+                matching: find.byType(ClipRect))
+            .first)
+        .height;
+
+    Future<void> pumpUntilFound(WidgetTester tester, Finder finder) async {
+      for (var i = 0; i < 40 && finder.evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(finder, findsWidgets);
+    }
+
+    testWidgets(
+        'waiting header eases down from the top, then eases away on resolve',
+        (tester) async {
+      const approval =
+          'https://www.paypal.com/webapps/billing/subscriptions/update?ba_token=BA-3';
+      final backend = _Backend({
+        'GET /billing/paypal/status': () => [
+              _json(_status(subscription: _active)),
+              _json(_status(subscription: _active, planChange: {
+                'status': 'approval_pending',
+                'to_plan_code': 'professional',
+                'approval_url': approval,
+              })),
+              _json(_status(
+                  subscription: {..._active, 'plan_code': 'professional'})),
+            ],
+        'POST /billing/paypal/change-plan': () => [
+              _json({'approvalUrl': approval, 'status': 'approval_pending'})
+            ],
+        'POST /billing/paypal/reconcile': () => [
+              _json({'verified': true})
+            ],
+      });
+      await _mount(tester, backend, height: 932, motion: true, onBack: () {});
+      await _openPlan(tester, 'professional');
+      await _openHandoff(tester);
+      await tester.tap(find.byKey(const ValueKey('plp-billing-continue')));
+      final band = find.byKey(const ValueKey('plp-billing-waiting'));
+      await pumpUntilFound(tester, band);
+      await tester.pump(const Duration(milliseconds: 60));
+      final early = bandHeight(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      final full = bandHeight(tester);
+      expect(early, greaterThan(0));
+      expect(early, lessThan(full), reason: 'header eases in, no hard cut');
+      expect(find.byKey(const ValueKey('plp-billing-handoff')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('plp-billing-check-again')));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(band, findsOneWidget, reason: 'header eases away, no hard cut');
+      expect(bandHeight(tester), lessThan(full));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(band, findsNothing);
+      await tester.pumpAndSettle();
+      expect(_rich('Active \u00b7 Professional \u00b7 USD 151/mo'),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('plp-billing-back')), findsOneWidget);
+    });
+
+    testWidgets('cancel panel slides up, and slides down on Keep plan',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () =>
+            [_json(_status(subscription: _active))],
+      });
+      await _mount(tester, backend, height: 932, motion: true, onBack: () {});
+      final panel = find.byKey(const ValueKey('plp-billing-cancel-panel'));
+      await tester.tap(find.text('Cancel subscription'));
+      await pumpUntilFound(tester, panel);
+      await tester.pump(const Duration(milliseconds: 60));
+      final rising = tester.getTopLeft(panel).dy;
+      await tester.pumpAndSettle();
+      final settled = tester.getTopLeft(panel).dy;
+      expect(rising, greaterThan(settled), reason: 'slides up, no snap');
+
+      await tester.tap(find.byKey(const ValueKey('plp-billing-keep')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(panel, findsOneWidget, reason: 'slides down, no snap');
+      expect(tester.getTopLeft(panel).dy, greaterThan(settled));
+      await tester.pumpAndSettle();
+      expect(panel, findsNothing);
+      expect(backend.paths.where((p) => p.startsWith('POST')), isEmpty);
+    });
+
+    testWidgets('top bar stays fixed while the handoff lifts the content',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () =>
+            [_json(_status(subscription: _active))],
+      });
+      await _mount(tester, backend, height: 932, motion: true, onBack: () {});
+      final back = find.byKey(const ValueKey('plp-billing-back'));
+      final menuTop = tester.getTopLeft(back).dy;
+      await _openPlan(tester, 'professional');
+      final diff = find.byKey(const ValueKey('plp-billing-diff'));
+      final before = tester.getTopLeft(diff).dy;
+      await tester.tap(diff);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 100));
+      final mid = tester.getTopLeft(diff).dy;
+      expect(tester.getTopLeft(back).dy, menuTop);
+      await tester.pumpAndSettle();
+      final after = tester.getTopLeft(diff).dy;
+      expect(after, lessThan(before), reason: 'content lifts above the panel');
+      expect(mid, lessThan(before));
+      expect(mid, greaterThan(after), reason: 'lifts with the panel, no jump');
+      expect(tester.getTopLeft(back).dy, menuTop);
+      expect(find.text('SUBSCRIPTION'), findsOneWidget);
+      final panelTop = tester
+          .getTopLeft(find.byKey(const ValueKey('plp-billing-handoff')))
+          .dy;
+      expect(tester.getBottomLeft(diff).dy, lessThanOrEqualTo(panelTop));
+    });
+
+    testWidgets('cancelled: the dashed remainder draws in from today',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () => [
+              _json(_status(subscription: _active)),
+              _json(_status(subscription: {
+                ..._active,
+                'state': 'cancelled',
+                'ends_on': '2026-11-08',
+                'renews_on': null
+              })),
+            ],
+        'POST /billing/paypal/cancel': () => [
+              _json({'status': 'cancel_requested'})
+            ],
+        'POST /billing/paypal/reconcile': () => [
+              _json({'verified': true})
+            ],
+      });
+      await _mount(tester, backend, motion: true);
+      await tester.tap(find.text('Cancel subscription'));
+      await tester.pumpAndSettle();
+      final gesture = await tester.startGesture(
+          tester.getCenter(find.byKey(const ValueKey('plp-billing-hold'))));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1600));
+      await gesture.up();
+      double drawn() {
+        final paints = tester.widgetList<CustomPaint>(find.descendant(
+            of: find.byKey(const ValueKey('plp-billing-playhead')),
+            matching: find.byType(CustomPaint)));
+        for (final paint in paints) {
+          final painter = paint.painter;
+          if (painter.runtimeType.toString() == '_PlayheadPainter' &&
+              (painter as dynamic).ghost == true) {
+            return (painter as dynamic).drawn as double;
+          }
+        }
+        return -1;
+      }
+
+      for (var i = 0; i < 40 && drawn() < 0; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 120));
+      final partway = drawn();
+      expect(partway, greaterThan(0));
+      expect(partway, lessThan(1), reason: 'draws in, no hard cut');
+      await tester.pumpAndSettle();
+      expect(drawn(), 1);
+      expect(_count(backend, 'POST /billing/paypal/cancel'), 1);
+      expect(find.text('Access until 8 Nov'), findsOneWidget);
+    });
+
+    testWidgets('reduced motion: header and panels are instant',
+        (tester) async {
+      final backend = _Backend({
+        'GET /billing/paypal/status': () =>
+            [_json(_status(subscription: _active))],
+      });
+      await _mount(tester, backend, height: 932);
+      await tester.tap(find.text('Cancel subscription'));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('plp-billing-cancel-panel')),
+          findsOneWidget);
+      final settled = tester
+          .getTopLeft(find.byKey(const ValueKey('plp-billing-cancel-panel')))
+          .dy;
+      await tester.pumpAndSettle();
+      expect(
+          tester
+              .getTopLeft(
+                  find.byKey(const ValueKey('plp-billing-cancel-panel')))
+              .dy,
+          settled);
+      await tester.tap(find.byKey(const ValueKey('plp-billing-keep')));
+      await tester.pump();
+      expect(
+          find.byKey(const ValueKey('plp-billing-cancel-panel')), findsNothing);
+    });
   });
 
   group('hold to cancel', () {
