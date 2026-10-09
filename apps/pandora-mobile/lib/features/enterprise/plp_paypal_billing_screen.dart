@@ -56,6 +56,7 @@ class PlpPaypalBillingScreen extends StatefulWidget {
     this.urlLauncher,
     this.isWeb,
     this.appBaseUri,
+    this.onStatus,
   });
 
   final String organizationId;
@@ -66,6 +67,10 @@ class PlpPaypalBillingScreen extends StatefulWidget {
   /// Test seams; default to the running platform and [Uri.base].
   final bool? isWeb;
   final Uri? appBaseUri;
+
+  /// Every successful status read, so the PLP subscription gate follows the
+  /// same confirmed state the owner sees here (never a PayPal return alone).
+  final ValueChanged<Map<String, dynamic>>? onStatus;
 
   @override
   State<PlpPaypalBillingScreen> createState() => _PlpPaypalBillingScreenState();
@@ -153,6 +158,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
         _cancelRequested = false;
       }
     });
+    widget.onStatus?.call(result);
   }
 
   Future<void> _initialLoad() async {

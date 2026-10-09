@@ -98,6 +98,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     this.onOpenTeam,
     this.onOpenActivity,
     this.onOpenSourceSettings,
+    this.lockedSections = const <String>{},
+    this.unlockNotice,
+    this.onUnlock,
   });
 
   final PlpResortSection section;
@@ -113,6 +116,13 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   final VoidCallback? onOpenTeam;
   final VoidCallback? onOpenActivity;
   final VoidCallback? onOpenSourceSettings;
+
+  /// Sections that need a verified subscription; their tiles keep a lock.
+  final Set<String> lockedSections;
+
+  /// One compact line at the top of Today for unpaid owners.
+  final String? unlockNotice;
+  final VoidCallback? onUnlock;
 
   static const canvas = Color(0xFFFAF7F1);
   static const paper = Color(0xFFFFFDFC);
@@ -143,9 +153,19 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
 
     return PlpResortPage(
       section: section,
-      listKey: ValueKey<String>('plp-resort-' + section.id),
+      listKey: ValueKey<String>('plp-resort-${section.id}'),
       onRefresh: () async => onRefresh(),
-      children: children,
+      children: [
+        if (section.id == 'today' && unlockNotice != null) ...[
+          PlpResortNotice(
+            unlockNotice!,
+            key: const ValueKey<String>('plp-unlock-notice'),
+            onTap: onUnlock,
+          ),
+          const SizedBox(height: 14),
+        ],
+        ...children,
+      ],
     );
   }
 
@@ -319,7 +339,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         const SizedBox(height: 20),
         const _SectionHeader('RESORT WORKSPACES'),
         const SizedBox(height: 10),
-        _SectionLaunchRail(onOpen: onOpenSection),
+        _SectionLaunchRail(onOpen: onOpenSection, locked: lockedSections),
       ],
     ];
   }
@@ -359,7 +379,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         const SizedBox(height: 20),
         const _SectionHeader('RESORT WORKSPACES'),
         const SizedBox(height: 10),
-        _SectionLaunchRail(onOpen: onOpenSection),
+        _SectionLaunchRail(onOpen: onOpenSection, locked: lockedSections),
       ];
     }
 
@@ -409,8 +429,8 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         items: <_Metric>[
           _Metric(
             'Occupancy',
-            _text(today['occupancy_percent'], fallback: '—') + '%',
-            _integer(occupied) + ' of ' + _integer(total),
+            '${_text(today['occupancy_percent'], fallback: '—')}%',
+            '${_integer(occupied)} of ${_integer(total)}',
           ),
           _Metric('Available', _integer(available), 'rooms'),
           _Metric(
@@ -452,7 +472,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       const SizedBox(height: 20),
       const _SectionHeader('RESORT WORKSPACES'),
       const SizedBox(height: 10),
-      _SectionLaunchRail(onOpen: onOpenSection),
+      _SectionLaunchRail(onOpen: onOpenSection, locked: lockedSections),
     ];
   }
 
@@ -560,7 +580,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
             'Housekeeping',
             Icons.cleaning_services_outlined,
             () => onOpenModule?.call('housekeeping'),
-            detail: _integer(_number(universal['housekeepingJobs'])) + ' jobs',
+            detail: '${_integer(_number(universal['housekeepingJobs']))} jobs',
           ),
           PlpCapability(
             'Maintenance',
@@ -576,7 +596,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
             'Available',
             Icons.bed_outlined,
             null,
-            detail: _integer(available) + ' rooms ready',
+            detail: '${_integer(available)} rooms ready',
           ),
         ],
       ),
@@ -643,7 +663,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
             'Concierge',
             Icons.support_agent_outlined,
             () => onOpenModule?.call('concierge'),
-            detail: requests.length.toString() + ' guest signals',
+            detail: '${requests.length} guest signals',
           ),
           PlpCapability(
             'VIP',
@@ -654,14 +674,13 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
             'Transfers',
             Icons.airport_shuttle_outlined,
             () => onOpenModule?.call('transfers'),
-            detail: _experienceCount(requests, const [
+            detail: '${_experienceCount(requests, const [
                   'transfer',
                   'airport',
                   'transport',
                   'pickup',
                   'dropoff'
-                ]).toString() +
-                ' requests',
+                ])} requests',
           ),
         ],
       ),
@@ -766,7 +785,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           _Metric('Sales today', _peso(today['sales_today_php']), 'recorded'),
           _Metric(
             'Occupancy',
-            _text(today['occupancy_percent'], fallback: '0') + '%',
+            '${_text(today['occupancy_percent'], fallback: '0')}%',
             'today',
           ),
           _Metric(
@@ -800,21 +819,19 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
             'Rates',
             Icons.sell_outlined,
             () => onOpenModule?.call('rates'),
-            detail: _integer(_number(today['rooms_available'])) +
-                ' rooms available',
+            detail: '${_integer(_number(today['rooms_available']))} rooms available',
           ),
           PlpCapability(
             'Channels',
             Icons.travel_explore_outlined,
             () => onOpenModule?.call('channels'),
-            detail: _integer(_number(operations['channelExceptions'])) +
-                ' exceptions',
+            detail: '${_integer(_number(operations['channelExceptions']))} exceptions',
           ),
           PlpCapability(
             'Forecast',
             Icons.query_stats_outlined,
             () => onOpenModule?.call('forecast'),
-            detail: _peso(finance['bookedValue30dPhp']) + ' booked',
+            detail: '${_peso(finance['bookedValue30dPhp'])} booked',
           ),
         ],
       ),
@@ -869,48 +886,43 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
             'Dining',
             Icons.restaurant_outlined,
             () => onOpenModule?.call('dining'),
-            detail: _experienceCount(requests, const [
+            detail: '${_experienceCount(requests, const [
                   'dining',
                   'food',
                   'restaurant',
                   'breakfast',
                   'dinner'
-                ]).toString() +
-                ' requests',
+                ])} requests',
           ),
           PlpCapability(
             'Wellness',
             Icons.spa_outlined,
             () => onOpenModule?.call('wellness'),
             detail:
-                _experienceCount(requests, const ['spa', 'massage', 'wellness'])
-                        .toString() +
-                    ' requests',
+                '${_experienceCount(requests, const ['spa', 'massage', 'wellness'])} requests',
           ),
           PlpCapability(
             'Activities',
             Icons.explore_outlined,
             () => onOpenModule?.call('activities'),
-            detail: _experienceCount(requests, const [
+            detail: '${_experienceCount(requests, const [
                   'activity',
                   'tour',
                   'island',
                   'excursion'
-                ]).toString() +
-                ' requests',
+                ])} requests',
           ),
           PlpCapability(
             'Events',
             Icons.celebration_outlined,
             () => onOpenModule?.call('events'),
-            detail: _experienceCount(requests, const [
+            detail: '${_experienceCount(requests, const [
                   'event',
                   'birthday',
                   'anniversary',
                   'wedding',
                   'celebration'
-                ]).toString() +
-                ' requests',
+                ])} requests',
           ),
         ],
       ),
@@ -1309,10 +1321,7 @@ class _RoomPulse extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                _integer(occupied) +
-                    ' occupied · ' +
-                    _integer(available) +
-                    ' available',
+                '${_integer(occupied)} occupied · ${_integer(available)} available',
                 style: const TextStyle(
                   color: PlpResortWorkspaceScreen.ink,
                   fontSize: 12,
@@ -1321,7 +1330,7 @@ class _RoomPulse extends StatelessWidget {
               ),
             ),
             Text(
-              _integer(arriving) + ' in · ' + _integer(departing) + ' out',
+              '${_integer(arriving)} in · ${_integer(departing)} out',
               style: const TextStyle(
                 color: PlpResortWorkspaceScreen.muted,
                 fontSize: 11,
@@ -1400,9 +1409,7 @@ class _AttentionList extends StatelessWidget {
     if (conflicts > 0) {
       rows.add(
         _CompactRow(
-          title: _integer(conflicts) +
-              ' OTA channel ' +
-              (conflicts == 1 ? 'exception' : 'exceptions'),
+          title: '${_integer(conflicts)} OTA channel ${conflicts == 1 ? 'exception' : 'exceptions'}',
           meta: 'Booking inventory needs reconciliation',
           tone: PlpResortWorkspaceScreen.warn,
           onTap: () => onOpenRecord?.call(
@@ -1610,16 +1617,10 @@ class _StayList extends StatelessWidget {
           for (final item in items.take(16))
             _CompactRow(
               key: ValueKey<String>(
-                'plp-stay-' + _recordControlId(item),
+                'plp-stay-${_recordControlId(item)}',
               ),
               title: _text(item['fullName'], fallback: 'Guest stay'),
-              meta: _text(item['accommodationName'], fallback: 'Room') +
-                  ' · ' +
-                  _text(item['checkIn']) +
-                  ' → ' +
-                  _text(item['checkOut']) +
-                  ' · ' +
-                  _humanStatus(item['paymentStatus']),
+              meta: '${_text(item['accommodationName'], fallback: 'Room')} · ${_text(item['checkIn'])} → ${_text(item['checkOut'])} · ${_humanStatus(item['paymentStatus'])}',
               tone: _text(item['status']).toLowerCase().contains('cancel')
                   ? PlpResortWorkspaceScreen.warn
                   : PlpResortWorkspaceScreen.good,
@@ -1649,7 +1650,7 @@ class _RoomGrid extends StatelessWidget {
                     color: PlpResortWorkspaceScreen.paper,
                     child: InkWell(
                       key: ValueKey<String>(
-                        'plp-room-' + _recordControlId(room),
+                        'plp-room-${_recordControlId(room)}',
                       ),
                       onTap: () => onOpen(room),
                       child: Container(
@@ -1699,10 +1700,7 @@ class _RoomGrid extends StatelessWidget {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              _integer(_number(room['capacity'])) +
-                                  ' guests · ' +
-                                  _integer(_number(room['bedrooms'])) +
-                                  ' bed',
+                              '${_integer(_number(room['capacity']))} guests · ${_integer(_number(room['bedrooms']))} bed',
                               style: const TextStyle(
                                 color: PlpResortWorkspaceScreen.muted,
                                 fontSize: 9.5,
@@ -1751,7 +1749,7 @@ class _RequestList extends StatelessWidget {
           for (final item in items.take(12))
             _CompactRow(
               key: ValueKey<String>(
-                'plp-request-' + _recordControlId(item),
+                'plp-request-${_recordControlId(item)}',
               ),
               title: _text(item['fullName'], fallback: 'Guest request'),
               meta: _text(
@@ -1821,7 +1819,7 @@ class PlpCapabilityGrid extends StatelessWidget {
                           : PlpResortWorkspaceScreen.paper,
                       child: InkWell(
                         key: ValueKey<String>(
-                          'plp-capability-' + _capabilityControlId(item.label),
+                          'plp-capability-${_capabilityControlId(item.label)}',
                         ),
                         onTap: item.onTap,
                         child: Container(
@@ -1905,8 +1903,9 @@ class PlpCapabilityGrid extends StatelessWidget {
 }
 
 class _SectionLaunchRail extends StatelessWidget {
-  const _SectionLaunchRail({this.onOpen});
+  const _SectionLaunchRail({this.onOpen, this.locked = const <String>{}});
   final ValueChanged<String>? onOpen;
+  final Set<String> locked;
 
   @override
   Widget build(BuildContext context) {
@@ -1924,6 +1923,7 @@ class _SectionLaunchRail extends StatelessWidget {
           return Material(
             color: PlpResortWorkspaceScreen.paper,
             child: InkWell(
+              key: ValueKey<String>('plp-section-tile-${item.id}'),
               onTap: () => onOpen?.call(item.id),
               child: Container(
                 width: 116,
@@ -1936,10 +1936,22 @@ class _SectionLaunchRail extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      item.icon,
-                      size: 20,
-                      color: PlpResortWorkspaceScreen.accent,
+                    Row(
+                      children: [
+                        Icon(
+                          item.icon,
+                          size: 20,
+                          color: PlpResortWorkspaceScreen.accent,
+                        ),
+                        const Spacer(),
+                        if (locked.contains(item.id))
+                          const Icon(
+                            Icons.lock_outline_rounded,
+                            key: ValueKey<String>('plp-section-lock'),
+                            size: 14,
+                            color: PlpResortWorkspaceScreen.muted,
+                          ),
+                      ],
                     ),
                     const Spacer(),
                     Text(
@@ -2017,11 +2029,9 @@ class _MemberStrip extends StatelessWidget {
                 item['displayName'],
                 fallback: 'PLP team member',
               ),
-              meta: _text(item['roleLabel'], fallback: 'Member') +
-                  ' · ' +
-                  (_truthy(item['active'])
+              meta: '${_text(item['roleLabel'], fallback: 'Member')} · ${_truthy(item['active'])
                       ? 'Active'
-                      : _humanStatus(item['accessStatus'])),
+                      : _humanStatus(item['accessStatus'])}',
               tone: _truthy(item['active'])
                   ? PlpResortWorkspaceScreen.good
                   : PlpResortWorkspaceScreen.muted,
@@ -2169,7 +2179,7 @@ class _SourceRecoveryPanel extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    source + ' · ' + _humanStatus(state),
+                    '$source · ${_humanStatus(state)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -2193,7 +2203,7 @@ class _SourceRecoveryPanel extends StatelessWidget {
             ),
             const SizedBox(height: 7),
             Text(
-              'Still available: ' + remainsAvailable,
+              'Still available: $remainsAvailable',
               style: const TextStyle(
                 color: PlpResortWorkspaceScreen.muted,
                 fontSize: 11.5,
@@ -2339,27 +2349,53 @@ class _ClearState extends StatelessWidget {
 }
 
 class PlpResortNotice extends StatelessWidget {
-  const PlpResortNotice(this.text, {super.key});
+  const PlpResortNotice(this.text, {super.key, this.onTap});
   final String text;
 
+  /// Makes the line a quiet link with a trailing arrow.
+  final VoidCallback? onTap;
+
   @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          border: Border.fromBorderSide(
-            BorderSide(color: PlpResortWorkspaceScreen.line),
-          ),
+  Widget build(BuildContext context) {
+    final label = Text(
+      text,
+      style: const TextStyle(
+        color: PlpResortWorkspaceScreen.muted,
+        fontSize: 11.5,
+        height: 1.4,
+      ),
+    );
+    final box = Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        border: Border.fromBorderSide(
+          BorderSide(color: PlpResortWorkspaceScreen.line),
         ),
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: PlpResortWorkspaceScreen.muted,
-            fontSize: 11.5,
-            height: 1.4,
-          ),
-        ),
-      );
+      ),
+      padding: const EdgeInsets.all(16),
+      child: onTap == null
+          ? label
+          : Row(
+              children: [
+                Expanded(child: label),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: PlpResortWorkspaceScreen.muted,
+                ),
+              ],
+            ),
+    );
+    if (onTap == null) return box;
+    return Semantics(
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(onTap: onTap, child: box),
+      ),
+    );
+  }
 }
 
 class _DetailField {
@@ -2547,6 +2583,8 @@ String _clientActor(Object? value) {
   return actor;
 }
 
+// Kept for the client-facing source wording contract (test/plp-owner-ui-convergence-contract.test.js).
+// ignore: unused_element
 String _clientSourceMessage(String state) {
   final normalized = state.toLowerCase();
   if (const {'healthy', 'current', 'live', 'ready'}.contains(normalized)) {

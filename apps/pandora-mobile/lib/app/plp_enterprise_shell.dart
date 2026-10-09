@@ -1,3 +1,5 @@
+// Source-contract tests (test/*.test.js) pin several literal concatenations.
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -5,17 +7,18 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/data/pandora_intelligence_api.dart';
+import '../core/data/plp_paypal_billing_api.dart';
 import '../core/local/pandora_local_state_cache.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/diagnostics/developer_diagnostics_screen.dart';
-import '../features/enterprise/plp_activity_screen.dart';
 import '../features/enterprise/plp_activity_read_model.dart';
+import '../features/enterprise/plp_activity_screen.dart';
 import '../features/enterprise/plp_connectivity_infrastructure_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
-import '../features/enterprise/plp_paypal_billing_screen.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
+import '../features/enterprise/plp_paypal_billing_screen.dart';
 import '../features/enterprise/plp_resort_operational_screens.dart';
 import '../features/enterprise/plp_resort_transaction_screens.dart';
 import '../features/enterprise/plp_resort_workspace.dart';
@@ -37,6 +40,8 @@ class PlpEnterpriseShell extends StatefulWidget {
     this.embeddedRouteSlug,
     this.organizationId,
     this.propertyId,
+    this.billingTransport,
+    this.entitlementReader,
   });
 
   /// Acceptance tests may provide a verified bootstrap fixture. Production
@@ -51,11 +56,43 @@ class PlpEnterpriseShell extends StatefulWidget {
   final String? organizationId;
   final String? propertyId;
 
+  /// Owner API transport for the subscription gate. Production leaves this
+  /// null and reads `/billing/paypal/status` with the signed-in session.
+  /// Acceptance fixtures that pass [bootstrapOverride] without a transport
+  /// are treated as already-subscribed so they keep testing the workspace.
+  final PlpBillingTransport? billingTransport;
+
+  /// Member-safe unlocked flag (`pandora_plp_entitlement_v1`). Production
+  /// leaves this null and calls the RPC with the signed-in session.
+  final PlpEntitlementReader? entitlementReader;
+
   @override
   State<PlpEnterpriseShell> createState() => _PlpEnterpriseShellState();
 }
 
+/// Subscription gate for the PLP Enterprise app. Only a PayPal-verified
+/// active subscription unlocks the paid destinations; Today, Rooms, Activity
+/// and (for owners) Billing stay free.
+enum _PlpGate { off, checking, unlocked, ownerLocked, staffLocked, failed }
+
+/// Destinations, modules and record kinds that stay free without a
+/// verified subscription. Everything else is locked until payment.
+const plpFreeDestinations = <String>{
+  'home',
+  'today',
+  'rooms',
+  'activity',
+  'billing',
+};
+const _plpFreeModules = <String>{'housekeeping', 'maintenance', 'linen'};
+const _plpFreeRecordKinds = <String>{'room'};
+
 class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
+  /// Organizations whose subscription was verified earlier in this app
+  /// session. A later failed status read keeps them unlocked; nothing else
+  /// (and never a PayPal return alone) can unlock.
+  static final Set<String> _verifiedThisSession = <String>{};
+
   static const _canvas = Color(0xFFFAF8F3);
   static const _muted = Color(0xFF746F67);
   static const _text = Color(0xFF171512);
@@ -144,6 +181,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final List<({String key, Widget tool})> _routedToolHistory =
       <({String key, Widget tool})>[];
   bool _commandBusy = false;
+  // ignore: unused_field
   String? _commandReply;
   List<PlpRecentChatItem> _recentChats = const <PlpRecentChatItem>[];
   bool _recentChatsLoading = false;
@@ -153,12 +191,255 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   Timer? _plpRealtimeRefreshDebounce;
   String? _plpRealtimeOrganizationId;
 
+
+  final ValueNotifier<_PlpGate> _gateState =
+      ValueNotifier<_PlpGate>(_PlpGate.off);
+  _PlpGate get _gate => _gateState.value;
+  String? _gateCheckedOrganization;
+  int _gateEpoch = 0;
+  int? _entryPlanMicros;
+  String _entryPlanCurrency = 'USD';
+
   @override
   void initState() {
     super.initState();
     final route = widget.embeddedRouteSlug;
     if (route != null) _index = _embeddedRouteToIndex[route] ?? 0;
+    _gateState.value = _gateEnabled ? _PlpGate.checking : _PlpGate.off;
   }
+
+  bool get _gateEnabled =>
+      widget.embeddedRouteSlug == null &&
+      (widget.bootstrapOverride == null ||
+          widget.billingTransport != null ||
+          widget.entitlementReader != null);
+
+  /// Paid destinations are open only with a verified subscription.
+  bool get _entitled => !_gateEnabled || _gate == _PlpGate.unlocked;
+
+  bool _isOwner([Map<String, Object?>? bootstrap]) => const {'owner', 'admin'}
+      .contains(_userRole(bootstrap ?? _lastBootstrap ?? const {}));
+
+  void _ensureSubscriptionGate(
+    Map<String, Object?> bootstrap, {
+    bool force = false,
+  }) {
+    if (!_gateEnabled) return;
+    final organization = _organizationId(bootstrap) ?? '';
+    if (!force && _gateCheckedOrganization == organization) return;
+    _gateCheckedOrganization = organization;
+    unawaited(_checkSubscription(bootstrap));
+  }
+
+  Future<bool> _readEntitlement(String organization) async {
+    final reader = widget.entitlementReader ?? plpSupabaseEntitlementReader;
+    return reader(organization);
+  }
+
+  Future<void> _checkSubscription(Map<String, Object?> bootstrap) async {
+    final organization = _organizationId(bootstrap) ?? '';
+    final owner = _isOwner(bootstrap);
+    final epoch = ++_gateEpoch;
+    if (_gate != _PlpGate.unlocked) _setGate(_PlpGate.checking);
+    try {
+      if (owner) {
+        // Owners read the full billing status (plans, prices, checkout).
+        final transport =
+            widget.billingTransport ?? plpOwnerBillingTransport(organization);
+        try {
+          final status = await transport('/billing/paypal/status');
+          if (!mounted || epoch != _gateEpoch) return;
+          _onBillingStatus(status);
+          return;
+        } catch (_) {
+          // Fall back to the member flag below.
+        }
+      }
+      // Staff (and owners when owner-api is unreachable) read only the
+      // member-safe unlocked flag; no billing details reach them.
+      final unlocked = await _readEntitlement(organization);
+      if (!mounted || epoch != _gateEpoch) return;
+      _applyUnlocked(organization, unlocked, owner: owner);
+    } catch (_) {
+      if (!mounted || epoch != _gateEpoch) return;
+      _setGate(_verifiedThisSession.contains(organization)
+          ? _PlpGate.unlocked
+          : _PlpGate.failed);
+    }
+  }
+
+  void _applyUnlocked(String organization, bool unlocked, {required bool owner}) {
+    if (unlocked) {
+      _verifiedThisSession.add(organization);
+    } else {
+      _verifiedThisSession.remove(organization);
+    }
+    _setGate(unlocked
+        ? _PlpGate.unlocked
+        : owner
+            ? _PlpGate.ownerLocked
+            : _PlpGate.staffLocked);
+  }
+
+  /// The confirmed billing status from the gate or from the billing page.
+  void _onBillingStatus(Map<String, dynamic> status) {
+    if (!_gateEnabled || !mounted) return;
+    final bootstrap = _lastBootstrap;
+    if (bootstrap == null) return;
+    int? cheapest;
+    var currency = 'USD';
+    final plans = status['plans'];
+    if (plans is List) {
+      for (final plan in plans.whereType<Map>()) {
+        final raw = plan['monthly_fee_micros'];
+        final micros = raw is num ? raw.toInt() : int.tryParse('${raw ?? ''}');
+        if (micros == null || micros <= 0) continue;
+        if (cheapest == null || micros < cheapest) {
+          cheapest = micros;
+          currency = (plan['currency'] ?? 'USD').toString();
+        }
+      }
+    }
+    if (cheapest != null) {
+      _entryPlanMicros = cheapest;
+      _entryPlanCurrency = currency;
+    }
+    _gateEpoch++;
+    _applyUnlocked(
+      _organizationId(bootstrap) ?? '',
+      plpBillingStatusUnlocked(status),
+      owner: _isOwner(bootstrap),
+    );
+  }
+
+  void _setGate(_PlpGate next) {
+    if (next == _gate || !mounted) return;
+    final wasEntitled = _entitled;
+    setState(() {
+      _gateState.value = next;
+      if (wasEntitled && !_entitled && _routedToolKey != 'resort:billing') {
+        // Losing the subscription returns to Today.
+        _index = 0;
+        _surfaceHistory.clear();
+        _routedTool = null;
+        _routedToolKey = null;
+        _routedToolHistory.clear();
+      }
+      if (_entitled && _routedToolKey == 'billing-gate') {
+        _routedTool = null;
+        _routedToolKey = null;
+      }
+    });
+  }
+
+  void _retrySubscription() {
+    final bootstrap = _lastBootstrap;
+    if (bootstrap == null) return;
+    _ensureSubscriptionGate(bootstrap, force: true);
+  }
+
+  /// 'Unlock everything · from USD 49 / month' for unpaid owners only.
+  String? get _unlockNotice {
+    if (_gate != _PlpGate.ownerLocked) return null;
+    final price = plpBillingFormatMicros(
+      _entryPlanMicros ?? 49000000,
+      _entryPlanCurrency,
+    );
+    return 'Unlock everything · from $price / month';
+  }
+
+  void _openBilling() {
+    if (_routedToolKey == 'resort:billing') return;
+    final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    _openTool(
+      'resort:billing',
+      PlpPaypalBillingScreen(
+        organizationId: _organizationId(bootstrap) ?? '',
+        onOpenNavigation: _openDrawer,
+        transport: widget.billingTransport,
+        onStatus: _onBillingStatus,
+      ),
+    );
+  }
+
+  /// A locked destination: the plans for owners, the waiting notice for
+  /// staff, or Couldn't load + Retry while the status is unknown.
+  void _openLocked() {
+    if (_entitled) return;
+    if (_isOwner()) {
+      _openBilling();
+      return;
+    }
+    if (_routedToolKey == 'billing-gate') return;
+    _openTool(
+      'billing-gate',
+      ValueListenableBuilder<_PlpGate>(
+        valueListenable: _gateState,
+        builder: (context, gate, _) {
+          final failed = gate == _PlpGate.failed;
+          return PlpResortPage(
+            key: ValueKey<String>('plp-subscription-${gate.name}'),
+            section: plpBillingSection,
+            onRefresh: () async => _retrySubscription(),
+            children: [
+              PlpResortNotice(
+                switch (gate) {
+                  _PlpGate.staffLocked => 'Waiting for the owner to subscribe.',
+                  _PlpGate.failed => 'Couldn’t load.',
+                  _ => 'Loading…',
+                },
+                key: const ValueKey<String>('plp-subscription-notice'),
+              ),
+              if (failed) ...[
+                const SizedBox(height: 12),
+                PlpCapabilityGrid(
+                  items: [
+                    PlpCapability(
+                      'Retry',
+                      Icons.refresh_rounded,
+                      _retrySubscription,
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Wraps a feature callback: runs it when free or entitled, otherwise
+  /// opens the locked destination.
+  void _gated(bool free, VoidCallback action) {
+    if (free || _entitled) {
+      action();
+    } else {
+      _openLocked();
+    }
+  }
+
+  void _gatedSection(String destination) => _gated(
+        plpFreeDestinations.contains(destination),
+        () => _openResortSection(destination),
+      );
+
+  void _gatedModule(String moduleId) => _gated(
+        _plpFreeModules.contains(moduleId),
+        () => _openResortModule(moduleId),
+      );
+
+  void _gatedRecord(String kind, Map<String, Object?> record) => _gated(
+        _plpFreeRecordKinds.contains(kind),
+        () => _openResortRecord(kind, record),
+      );
+
+  Set<String> get _lockedSections => _entitled
+      ? const <String>{}
+      : plpResortSections
+          .map((section) => section.id)
+          .where((id) => !plpFreeDestinations.contains(id))
+          .toSet();
 
   @override
   void didUpdateWidget(covariant PlpEnterpriseShell oldWidget) {
@@ -190,6 +471,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     _validatePrimaryScope(value);
     _lastBootstrap = value;
     if (mounted) _workspaceSnapshot.value = value;
+    if (mounted) _ensureSubscriptionGate(value);
     if (widget.embeddedRouteSlug != null && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -210,6 +492,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
     _activityReadModel.dispose();
     _workspaceSnapshot.dispose();
+    _gateState.dispose();
     _commandController.dispose();
     _commandFocus.dispose();
     _drawerScrollController.dispose();
@@ -468,6 +751,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     bool clearHistory = false,
   }) {
     if (index == 1) {
+      if (!_entitled) {
+        _openLocked();
+        return;
+      }
       if (widget.embeddedRouteSlug != null) {
         PandoraSharedConversationScope.maybeOf(context)
             ?.showConversation
@@ -593,7 +880,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   Future<void> _submitCommand([String? preset]) async {
-    if (_commandBusy) return;
+    if (_commandBusy || !_entitled) return;
     final command = (preset ?? _commandController.text).trim();
     if (command.isEmpty) {
       _open(1);
@@ -769,6 +1056,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       AnimatedBuilder(
         animation: Listenable.merge([
           _workspaceSnapshot,
+          _gateState,
           if (destination == 'activity') _activityReadModel,
         ]),
         builder: (context, _) {
@@ -785,19 +1073,23 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             bootstrap: bootstrap,
             onOpenNavigation: _openDrawer,
             onRefresh: _refresh,
-            onOpenSection: _openResortSection,
-            onOpenModule: _openResortModule,
-            onOpenRecord: (kind, record) => _openResortRecord(kind, record),
-            onCreateReservation:
-                plpRoleCanOperate(bootstrap) ? _openReservationCreate : null,
-            onOpenOperationsRoom: () {
+            lockedSections: _lockedSections,
+            onOpenSection: _gatedSection,
+            onOpenModule: _gatedModule,
+            onOpenRecord: _gatedRecord,
+            onCreateReservation: plpRoleCanOperate(bootstrap)
+                ? () => _gated(false, _openReservationCreate)
+                : null,
+            onOpenOperationsRoom: () => _gated(false, () {
               _openTool('operations-room',
                   PandoraOperationsRoomScreen(onHome: _closeTool));
-            },
-            onOpenGuestExperience: () => _open(6),
-            onOpenTeam: () => _openTeamManagement(bootstrap),
+            }),
+            onOpenGuestExperience: () => _gated(false, () => _open(6)),
+            onOpenTeam: () =>
+                _gated(false, () => _openTeamManagement(bootstrap)),
             onOpenActivity: _openActivityFeed,
-            onOpenSourceSettings: _openSourceInfrastructure,
+            onOpenSourceSettings: () =>
+                _gated(false, _openSourceInfrastructure),
           );
         },
       ),
@@ -859,6 +1151,17 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   void _selectDrawerDestination(String destination) {
+    if (!_entitled && !plpFreeDestinations.contains(destination)) {
+      // Locked: owners get the plans, staff the waiting notice.
+      _closeDrawer();
+      _openLocked();
+      return;
+    }
+    if (destination == 'billing') {
+      _closeDrawer();
+      _openBilling();
+      return;
+    }
     if (plpResortSectionById(destination) != null) {
       _closeDrawer();
       _openResortSection(destination, replaceHistory: true);
@@ -876,6 +1179,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Future<void> _openRecentThread(PlpRecentChatItem item) async {
     _closeDrawer();
+    if (!_entitled) {
+      _openLocked();
+      return;
+    }
     if (widget.embeddedRouteSlug != null) {
       await PandoraSharedConversationScope.maybeOf(context)
           ?.openThread(item.id);
@@ -890,6 +1197,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       _closeDrawer();
     }
+    if (!_entitled) {
+      _openLocked();
+      return;
+    }
     _open(1);
     await WidgetsBinding.instance.endOfFrame;
     _alfredKey.currentState?.newChat();
@@ -901,6 +1212,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   Future<void> _loadRecentChats({bool force = false}) async {
+    if (!_entitled) return;
     if (_recentChatsLoading || (_recentChatsLoaded && !force)) return;
     final intelligence = PandoraDependencies.of(context).intelligence;
     if (intelligence == null) {
@@ -945,6 +1257,89 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       if (mounted) setState(() => _recentChatsLoading = false);
     }
   }
+
+  Widget _buildDrawer() => PlpNavigationDrawer(
+        selectedDestination: _drawerSelection,
+        scrollController: _drawerScrollController,
+        lockedDestinations: _entitled
+            ? const <String>{}
+            : plpNavigationDestinationIds
+                .where((id) => !plpFreeDestinations.contains(id))
+                .toSet(),
+        chatLocked: !_entitled,
+        showBilling: !_gateEnabled || _isOwner(),
+        recentChats: _recentChats,
+        recentChatsLoading: _recentChatsLoading,
+        recentChatsError: _recentChatsError,
+        onRetryRecentChats: () {
+          unawaited(_loadRecentChats(force: true));
+        },
+        onSelectDestination: _selectDrawerDestination,
+        onSelectThread: (item) {
+          unawaited(_openRecentThread(item));
+        },
+        onNewChat: () {
+          unawaited(_startNewChat());
+        },
+      );
+
+  Widget _lockedLauncher() => Semantics(
+        button: true,
+        label: 'PLP assistant, locked',
+        child: Material(
+          key: const ValueKey<String>('plp-ai-launcher-locked'),
+          color: const Color(0xFF151515),
+          elevation: 10,
+          shadowColor: const Color(0x66000000),
+          shape: const CircleBorder(
+            side: BorderSide(color: Color(0x9982764F), width: 1.2),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: _openLocked,
+            customBorder: const CircleBorder(),
+            child: SizedBox.square(
+              dimension: 58,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Opacity(
+                        opacity: .72,
+                        child: Image.asset(
+                          'assets/workspaces/plp.webp',
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    right: 7,
+                    bottom: 7,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Color(0xFF151515),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(2.5),
+                        child: Icon(
+                          Icons.lock_rounded,
+                          size: 12,
+                          color: Color(0xFFF0E8D8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) => FutureBuilder<Map<String, Object?>>(
@@ -1017,10 +1412,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
               onRefresh: _refresh,
-              onOpenSection: _openResortSection,
-              onOpenModule: _openResortModule,
-              onOpenRecord: (kind, record) => _openResortRecord(kind, record),
-              onOpenSourceSettings: _openSourceInfrastructure,
+              onOpenSection: _gatedSection,
+              onOpenModule: _gatedModule,
+              onOpenRecord: _gatedRecord,
+              onOpenSourceSettings: () =>
+                  _gated(false, _openSourceInfrastructure),
+              lockedSections: _lockedSections,
+              unlockNotice: _unlockNotice,
+              onUnlock: _openBilling,
             ),
             const SizedBox.shrink(),
             PlpOperationsScreen(
@@ -1078,15 +1477,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: const ValueKey('plp-revenue'),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
-              onOpenBilling: () {
-                _openTool(
-                  'paypal-billing',
-                  PlpPaypalBillingScreen(
-                    organizationId: _organizationId(bootstrap) ?? '',
-                    onOpenNavigation: _openDrawer,
-                  ),
-                );
-              },
+              onOpenBilling: _openBilling,
             ),
             PlpNeedsYouScreen(
               key: const ValueKey('plp-needs-you'),
@@ -1200,23 +1591,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                     unawaited(_loadRecentChats(force: true));
                   }
                 },
-                drawer: PlpNavigationDrawer(
-                  selectedDestination: _drawerSelection,
-                  scrollController: _drawerScrollController,
-                  recentChats: _recentChats,
-                  recentChatsLoading: _recentChatsLoading,
-                  recentChatsError: _recentChatsError,
-                  onRetryRecentChats: () {
-                    unawaited(_loadRecentChats(force: true));
-                  },
-                  onSelectDestination: _selectDrawerDestination,
-                  onSelectThread: (item) {
-                    unawaited(_openRecentThread(item));
-                  },
-                  onNewChat: () {
-                    unawaited(_startNewChat());
-                  },
-                ),
+                drawer: _buildDrawer(),
                 body: PandoraNavigationScope(
                   openDrawer: null,
                   child: Stack(
@@ -1256,7 +1631,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                           _closeTool();
                         },
                       ),
-                      if (widget.embeddedRouteSlug == null)
+                      if (widget.embeddedRouteSlug == null && !_entitled)
+                        Positioned(
+                          right: 16,
+                          bottom: MediaQuery.paddingOf(context).bottom + 14,
+                          child: _lockedLauncher(),
+                        ),
+                      if (widget.embeddedRouteSlug == null && _entitled)
                         Positioned.fill(
                           child: AskPandoraScreen(
                             key: _alfredKey,
