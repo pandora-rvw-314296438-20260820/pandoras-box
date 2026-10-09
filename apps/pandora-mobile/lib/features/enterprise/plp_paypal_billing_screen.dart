@@ -29,6 +29,8 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
   };
 
   bool _busy = false;
+  bool _statusLoaded = false;
+  String _selectedPlanCode = 'launch';
   String? _error;
   Map<String, dynamic> _status = const <String, dynamic>{};
 
@@ -75,11 +77,15 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
       if (!mounted) return;
       setState(() {
         _status = result;
+        _statusLoaded = true;
         _error = null;
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _error = _clean(error));
+      setState(() {
+        _statusLoaded = true;
+        _error = _clean(error);
+      });
     }
   }
 
@@ -163,26 +169,223 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
   }
 
   Future<void> _confirmCancel() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel PayPal subscription?'),
-        content: const Text(
-          'PayPal will receive the cancellation request. Pandora will then reconcile the provider state.',
+      backgroundColor: plpCanvas,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Cancel subscription',
+                style: TextStyle(
+                  color: plpInk,
+                  fontFamily: 'serif',
+                  fontSize: 30,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'This sends a cancellation request to PayPal. Pandora will refresh the provider record before presenting the final status.',
+                style: TextStyle(color: plpMuted, fontSize: 13, height: 1.5),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'The effective date and any change to access will be shown only when confirmed by the subscription terms. Until then, the current status is not treated as cancelled.',
+                style: TextStyle(color: plpInk, fontSize: 13, height: 1.5),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(sheetContext, false),
+                  child: const Text('Keep subscription'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _busy ? null : () => Navigator.pop(sheetContext, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: plpInk,
+                    foregroundColor: plpPaper,
+                  ),
+                  child: const Text('Request cancellation'),
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep subscription'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cancel subscription'),
-          ),
-        ],
       ),
     );
     if (confirmed == true) await _cancel();
+  }
+
+  Future<void> _confirmPlanChange(String code) async {
+    final plan = _plans[code];
+    if (plan == null || code == _currentPlanCode()) return;
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: plpCanvas,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Review plan change',
+                style: TextStyle(
+                  color: plpInk,
+                  fontFamily: 'serif',
+                  fontSize: 30,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 18),
+              PlpEditorialRow(
+                title: 'Current plan',
+                detail: 'The plan currently displayed by Pandora.',
+                value: _plans[_currentPlanCode()]?.$2 ?? 'Price unavailable',
+              ),
+              PlpEditorialRow(
+                title: plan.$1,
+                detail: 'Proposed recurring price · monthly',
+                value: plan.$2,
+                tone: plpAccent,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'PayPal will show any required authorization and its applicable timing. Pandora will keep the current plan displayed until the updated provider state is confirmed.',
+                style: TextStyle(color: plpMuted, fontSize: 13, height: 1.5),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(sheetContext, false),
+                  child: const Text('Keep current plan'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _busy ? null : () => Navigator.pop(sheetContext, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: plpInk,
+                    foregroundColor: plpPaper,
+                  ),
+                  child: const Text('Continue to PayPal'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed == true) await _changePlan(code);
+  }
+
+  String _currentPlanCode() {
+    final subscription = _map(_status['subscription']);
+    final checkout = _map(_status['checkout']);
+    final code = (subscription['plan_code'] ?? checkout['plan_code'] ?? '').toString();
+    return _plans.containsKey(code) ? code : '';
+  }
+
+  Widget _safeActionRow({
+    required String title,
+    required String detail,
+    VoidCallback? onTap,
+    Color? tone,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.only(right: 56),
+        child: PlpEditorialRow(
+          title: title,
+          detail: detail,
+          onTap: onTap,
+          tone: tone,
+        ),
+      );
+
+  Widget _planOption(String code) {
+    final plan = _plans[code]!;
+    final selected = _selectedPlanCode == code;
+    return Padding(
+      padding: const EdgeInsets.only(right: 56),
+      child: Material(
+        color: selected ? plpPaper : Colors.transparent,
+        child: InkWell(
+          onTap: _busy ? null : () => setState(() => _selectedPlanCode = code),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: selected ? plpInk : plpLine),
+            ),
+            padding: const EdgeInsets.fromLTRB(15, 17, 13, 17),
+            child: Row(
+              children: [
+                Icon(
+                  selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                  color: selected ? plpInk : plpMuted,
+                  size: 19,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        plan.$1,
+                        style: const TextStyle(
+                          color: plpInk,
+                          fontFamily: 'serif',
+                          fontSize: 22,
+                          height: 1.05,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        selected ? 'Selected · recurring monthly plan' : 'Select this recurring monthly plan',
+                        style: const TextStyle(
+                          color: plpMuted,
+                          fontSize: 11.5,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    plan.$2,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      color: plpInk,
+                      fontFamily: 'serif',
+                      fontSize: 18,
+                      height: 1.15,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -198,56 +401,140 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
     final currentCode =
         (subscription['plan_code'] ?? checkout['plan_code'] ?? '').toString();
     final currentPlan = _planName(currentCode);
-    final currentPrice = subscription['net_monthly_fee']?.toString().isNotEmpty == true
-        ? 'USD ' + subscription['net_monthly_fee'].toString() + ' / month'
-        : 'USD ' + (subscription['monthly_fee'] ?? '').toString() + ' / month';
+    final fee = subscription['net_monthly_fee'] ?? subscription['monthly_fee'];
+    final currentPrice = fee?.toString().trim().isNotEmpty == true
+        ? 'USD ' + fee.toString() + ' / month'
+        : 'Price unavailable';
     final approvalUrl =
         (pending['approval_url'] ?? checkout['approval_url'] ?? '').toString();
+    final providerConfigured = provider['configured'] == true;
+    final providerLabel = verified
+        ? 'Verified'
+        : active
+            ? 'Unconfirmed'
+            : providerConfigured
+                ? 'Configured'
+                : 'Unavailable';
+    final renewalDate = (subscription['renews_on'] ?? '').toString().trim();
+    final readableState = state.isEmpty
+        ? 'Unknown'
+        : state[0].toUpperCase() + state.substring(1);
 
     Future<void> showPlanChooser() async {
-      await showModalBottomSheet<void>(
+      String selectedCode = currentCode;
+      final selection = await showModalBottomSheet<String>(
         context: context,
         backgroundColor: plpCanvas,
         showDragHandle: true,
-        builder: (sheetContext) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Change plan',
-                  style: TextStyle(
-                    color: plpInk,
-                    fontFamily: 'serif',
-                    fontSize: 30,
-                    height: 1,
+        isScrollControlled: true,
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (sheetContext, setSheetState) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Change plan',
+                    style: TextStyle(
+                      color: plpInk,
+                      fontFamily: 'serif',
+                      fontSize: 30,
+                      height: 1,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'The new price takes effect on the next billing cycle after PayPal confirms the change.',
-                  style: TextStyle(color: plpMuted, fontSize: 12.5, height: 1.45),
-                ),
-                const SizedBox(height: 18),
-                for (final entry in _plans.entries)
-                  PlpEditorialRow(
-                    title: entry.value.$1,
-                    detail: entry.value.$2 +
-                        (entry.key == currentCode ? ' · Current plan.' : ''),
-                    onTap: entry.key == currentCode || _busy
-                        ? null
-                        : () {
-                            Navigator.pop(sheetContext);
-                            _changePlan(entry.key);
-                          },
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Choose a destination plan, then review the change before proceeding.',
+                    style: TextStyle(color: plpMuted, fontSize: 12.5, height: 1.45),
                   ),
-              ],
+                  const SizedBox(height: 18),
+                  for (final entry in _plans.entries)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Material(
+                        color: selectedCode == entry.key ? plpPaper : Colors.transparent,
+                        child: InkWell(
+                          onTap: _busy ? null : () => setSheetState(() => selectedCode = entry.key),
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: selectedCode == entry.key ? plpInk : plpLine,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  selectedCode == entry.key
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_unchecked,
+                                  color: selectedCode == entry.key ? plpInk : plpMuted,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        entry.value.$1,
+                                        style: const TextStyle(
+                                          color: plpInk,
+                                          fontFamily: 'serif',
+                                          fontSize: 21,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        entry.key == currentCode ? 'Current plan' : 'Recurring monthly plan',
+                                        style: const TextStyle(color: plpMuted, fontSize: 11.5),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    entry.value.$2,
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                      color: plpInk,
+                                      fontFamily: 'serif',
+                                      fontSize: 17,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _busy || selectedCode == currentCode
+                          ? null
+                          : () => Navigator.pop(sheetContext, selectedCode),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: plpInk,
+                        foregroundColor: plpPaper,
+                      ),
+                      child: const Text('Review plan change'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       );
+      if (selection != null && selection != currentCode) {
+        await _confirmPlanChange(selection);
+      }
     }
 
     return PlpEditorialPage(
@@ -255,11 +542,20 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
       eyebrow: 'Billing',
       title: active ? 'Your subscription.' : 'Start your subscription.',
       intro: active
-          ? 'One billing workspace for your plan, PayPal, renewal, payment history, and the few actions that matter.'
-          : 'Choose a Pandora plan and complete secure recurring payment with PayPal.',
+          ? 'Review the plan and billing information returned for this subscription, then manage it in one place.'
+          : 'Choose Launch or Professional, review the recurring amount, then authorize payment through PayPal.',
       onOpenNavigation: widget.onOpenNavigation,
       children: [
-        const SizedBox(height: 22),
+        const SizedBox(height: 14),
+        if (!_statusLoaded && _error == null)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 16),
+            child: LinearProgressIndicator(
+              minHeight: 2,
+              backgroundColor: plpLine,
+              color: plpAccent,
+            ),
+          ),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 18),
@@ -310,22 +606,18 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
                     ),
                     SizedBox(height: 3),
                     Text(
-                      'Secure recurring billing',
+                      'Payment authorization and recurring charges',
                       style: TextStyle(color: plpMuted, fontSize: 11.5),
                     ),
                   ],
                 ),
               ),
               Text(
-                verified
-                    ? 'Connected'
-                    : provider['configured'] == true
-                        ? 'Ready'
-                        : 'Unavailable',
+                providerLabel,
                 style: TextStyle(
                   color: verified
                       ? plpGood
-                      : provider['configured'] == true
+                      : providerConfigured
                           ? plpAccent
                           : plpWarn,
                   fontSize: 10.5,
@@ -389,11 +681,13 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
                 ),
                 const SizedBox(height: 17),
                 Text(
-                  'Renews ' +
-                      (subscription['renews_on'] ?? 'pending').toString(),
+                  renewalDate.isNotEmpty
+                      ? 'Next renewal · $renewalDate'
+                      : 'Renewal date has not been confirmed by the provider.',
                   style: const TextStyle(
                     color: Color(0xFFBDB7AE),
                     fontSize: 11,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -411,37 +705,59 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
             ),
           ],
           const PlpSectionTitle(
-            'Manage',
-            detail: 'Stay on this page. Selection and confirmation open in context.',
+            'Billing details',
+            detail: 'What the provider does and what Pandora has actually confirmed.',
+          ),
+          const PlpEditorialRow(
+            title: 'Payment processing',
+            detail: 'PayPal handles payment authorization and recurring charges for the selected plan.',
           ),
           PlpEditorialRow(
+            title: 'Subscription record',
+            detail: verified
+                ? 'The displayed subscription is marked provider-verified by the billing service.'
+                : 'Provider verification is not confirmed. This workspace will not label the subscription as verified until the billing service returns that evidence.',
+            value: readableState,
+            tone: verified ? plpGood : plpAccent,
+          ),
+          const PlpSectionTitle(
+            'Manage',
+            detail: 'Review changes before proceeding. The displayed plan updates only after provider confirmation.',
+          ),
+          _safeActionRow(
             title: 'Change plan',
-            detail: 'Switch Launch or Professional for the next billing cycle.',
+            detail: 'Compare the destination price, then review the change before opening PayPal.',
             onTap: _busy ? null : showPlanChooser,
           ),
-          PlpEditorialRow(
+          _safeActionRow(
             title: 'Refresh PayPal state',
-            detail: 'Reconcile this workspace against the live provider subscription.',
+            detail: 'Request reconciliation with the provider; the result may remain pending or unresolved.',
             onTap: _busy ? null : _reconcile,
           ),
-          PlpEditorialRow(
+          _safeActionRow(
             title: 'Cancel subscription',
-            detail: 'Stop recurring PayPal billing after confirmation.',
+            detail: 'Review the cancellation request and its confirmed outcome.',
             tone: plpWarn,
             onTap: _busy ? null : _confirmCancel,
           ),
         ] else ...[
           const PlpSectionTitle(
-            'Plans',
-            detail:
-                'Pick a plan. PayPal handles secure approval; Pandora never receives the PayPal secret.',
+            'Choose a plan',
+            detail: 'Select an option to review its recurring monthly price before you proceed.',
           ),
-          for (final entry in _plans.entries)
-            PlpEditorialRow(
-              title: entry.value.$1,
-              detail: entry.value.$2,
-              onTap: _busy ? null : () => _checkout(entry.key),
+          for (final entry in _plans.entries) _planOption(entry.key),
+          const SizedBox(height: 18),
+          Padding(
+            padding: const EdgeInsets.only(right: 56),
+            child: PlpBlackPanel(
+              eyebrow: 'Your billing commitment',
+              title: _plans[_selectedPlanCode]?.$1 ?? 'Choose a plan',
+              body: (_plans[_selectedPlanCode]?.$2 ?? 'Price unavailable') +
+                  '. Recurring monthly subscription. PayPal will present the authorization terms; returning to Pandora alone does not confirm activation.',
+              action: 'Continue with PayPal',
+              onTap: _busy ? null : () => _checkout(_selectedPlanCode),
             ),
+          ),
           if (approvalUrl.isNotEmpty)
             PlpBlackPanel(
               eyebrow: 'PayPal',
@@ -468,10 +784,12 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
         const SizedBox(height: 24),
         Text(
           verified
-              ? 'PayPal · provider verified'
-              : provider['configured'] == true
-                  ? 'PayPal · ready'
-                  : 'PayPal · configuration needs attention',
+              ? 'PayPal · subscription provider-verified'
+              : active
+                  ? 'PayPal · subscription not yet verified'
+                  : providerConfigured
+                      ? 'PayPal · configured; subscription not yet verified'
+                      : 'PayPal · configuration needs attention',
           style: const TextStyle(color: plpMuted, fontSize: 11),
         ),
       ],
