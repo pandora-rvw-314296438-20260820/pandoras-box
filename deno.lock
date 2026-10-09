@@ -1919,7 +1919,7 @@
         "npm:@slack/web-api@^8.1.1",
         "npm:@types/cors@^2.8.19",
         "npm:@types/express@^5.0.6",
-        "npm:@types/node@^26.5.1",
+        "npm:@types/node@^26.6.4",
         "npm:@types/three@~0.158.3",
         "npm:@types/ws@^8.5.10",
         "npm:@vercel/node@13.0.0",
