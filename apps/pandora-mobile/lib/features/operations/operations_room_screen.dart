@@ -87,7 +87,6 @@ Set<String> operationsRoomMentions(String message) {
       .toSet();
 }
 
-
 bool operationsRoomRequestsTeam(String message) => RegExp(
       r'(^|\s)@room\b',
       caseSensitive: false,
@@ -495,7 +494,6 @@ class _PandoraOperationsRoomScreenState
           'operations.room.read',
           'operations.room.coordinate',
         ],
-
         'selectedObject': <String, Object?>{
           'roomMode': _mode.name,
           'mentions': mentions.isNotEmpty
@@ -508,9 +506,8 @@ class _PandoraOperationsRoomScreenState
           'roomRosterVersion': 'operations-room-v2-14',
           'architecturePolicy':
               'phone-local-first-cloud-escalation;github-supabase-vercel-only;'
-              'physical-device-verification-required;no-rdp-aws-bedrock-desktop-llm',
-          'localModel':
-              'Qwen3-4B-Instruct-2507-Q4_K_M.gguf@'
+                  'physical-device-verification-required;no-rdp-aws-bedrock-desktop-llm',
+          'localModel': 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf@'
               '1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6',
           'localRuntimeEvidence': _localRuntimeEvidence,
         },
@@ -748,9 +745,12 @@ class _PandoraOperationsRoomScreenState
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: pandoraOwnerColor(context, PandoraV2Colors.surface),
+                      color:
+                          pandoraOwnerColor(context, PandoraV2Colors.surface),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.line)),
+                      border: Border.all(
+                          color:
+                              pandoraOwnerColor(context, PandoraV2Colors.line)),
                     ),
                     child: PandoraActivityTimelineView(
                       events: <PandoraActivityProjection>[latest!],
@@ -760,7 +760,7 @@ class _PandoraOperationsRoomScreenState
               ),
             ),
             if (_restoring)
-               Padding(
+              Padding(
                 padding: EdgeInsets.only(bottom: 4),
                 child: Text(
                   'Restoring room history…',
@@ -779,15 +779,17 @@ class _PandoraOperationsRoomScreenState
                   margin: const EdgeInsets.fromLTRB(14, 0, 14, 6),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: pandoraOwnerColor(context, PandoraV2Colors.danger).withValues(alpha: .08),
+                    color: pandoraOwnerColor(context, PandoraV2Colors.danger)
+                        .withValues(alpha: .08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: pandoraOwnerColor(context, PandoraV2Colors.danger).withValues(alpha: .25),
+                      color: pandoraOwnerColor(context, PandoraV2Colors.danger)
+                          .withValues(alpha: .25),
                     ),
                   ),
                   child: Text(
                     _error!,
-                    style:  TextStyle(
+                    style: TextStyle(
                       color: pandoraOwnerColor(context, PandoraV2Colors.danger),
                       fontSize: 12.5,
                     ),
@@ -861,7 +863,8 @@ class _RoomHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: pandoraOwnerColor(context, PandoraV2Colors.surface),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.line)),
+        border:
+            Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.line)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -874,14 +877,14 @@ class _RoomHeader extends StatelessWidget {
                   tooltip: 'Home',
                   visualDensity: VisualDensity.compact,
                   onPressed: onHome,
-                  icon:  Icon(
+                  icon: Icon(
                     Icons.home_rounded,
                     size: 19,
                     color: pandoraOwnerColor(context, PandoraV2Colors.ink),
                   ),
                 )
               else
-                 Icon(
+                Icon(
                   Icons.hub_rounded,
                   size: 18,
                   color: pandoraOwnerColor(context, PandoraV2Colors.ink),
@@ -979,9 +982,12 @@ class _ModeButton extends StatelessWidget {
           height: 38,
           padding: const EdgeInsets.symmetric(horizontal: 6),
           decoration: BoxDecoration(
-            color: selected ? pandoraOwnerColor(context, PandoraV2Colors.ink) : pandoraOwnerColor(context, PandoraV2Colors.soft),
+            color: selected
+                ? pandoraOwnerColor(context, PandoraV2Colors.ink)
+                : pandoraOwnerColor(context, PandoraV2Colors.soft),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.line)),
+            border: Border.all(
+                color: pandoraOwnerColor(context, PandoraV2Colors.line)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -989,7 +995,9 @@ class _ModeButton extends StatelessWidget {
               Icon(
                 icon,
                 size: 17,
-                color: selected ? pandoraOwnerColor(context, const Color(0xFF000000)) : pandoraOwnerColor(context, PandoraV2Colors.ink),
+                color: selected
+                    ? pandoraOwnerColor(context, const Color(0xFF000000))
+                    : pandoraOwnerColor(context, PandoraV2Colors.ink),
               ),
               const SizedBox(width: 5),
               Flexible(
@@ -999,7 +1007,9 @@ class _ModeButton extends StatelessWidget {
                   overflow: TextOverflow.fade,
                   softWrap: false,
                   style: TextStyle(
-                    color: selected ? pandoraOwnerColor(context, const Color(0xFF000000)) : pandoraOwnerColor(context, PandoraV2Colors.ink),
+                    color: selected
+                        ? pandoraOwnerColor(context, const Color(0xFF000000))
+                        : pandoraOwnerColor(context, PandoraV2Colors.ink),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1034,21 +1044,26 @@ class _RoleChip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
             decoration: BoxDecoration(
               color: active
-                  ? pandoraOwnerColor(context, PandoraV2Colors.ink).withValues(alpha: .12)
+                  ? pandoraOwnerColor(context, PandoraV2Colors.ink)
+                      .withValues(alpha: .12)
                   : pandoraOwnerColor(context, PandoraV2Colors.soft),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: active ? pandoraOwnerColor(context, PandoraV2Colors.ink) : pandoraOwnerColor(context, PandoraV2Colors.line),
+                color: active
+                    ? pandoraOwnerColor(context, PandoraV2Colors.ink)
+                    : pandoraOwnerColor(context, PandoraV2Colors.line),
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(role.icon, size: 13, color: pandoraOwnerColor(context, PandoraV2Colors.ink)),
+                Icon(role.icon,
+                    size: 13,
+                    color: pandoraOwnerColor(context, PandoraV2Colors.ink)),
                 const SizedBox(width: 5),
                 Text(
                   role.name,
-                  style:  TextStyle(
+                  style: TextStyle(
                     color: pandoraOwnerColor(context, PandoraV2Colors.ink),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
@@ -1080,11 +1095,12 @@ class _RosterToggleChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: pandoraOwnerColor(context, PandoraV2Colors.canvas),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.line)),
+            border: Border.all(
+                color: pandoraOwnerColor(context, PandoraV2Colors.line)),
           ),
           child: Text(
             label,
-            style:  TextStyle(
+            style: TextStyle(
               color: pandoraOwnerColor(context, PandoraV2Colors.muted),
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
@@ -1100,8 +1116,8 @@ class _RoomMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final time = TimeOfDay.fromDateTime(message.createdAt.toLocal())
-        .format(context);
+    final time =
+        TimeOfDay.fromDateTime(message.createdAt.toLocal()).format(context);
     if (message.isOwner) {
       return Align(
         alignment: Alignment.centerRight,
@@ -1149,7 +1165,8 @@ class _RoomMessageBubble extends StatelessWidget {
         decoration: BoxDecoration(
           color: pandoraOwnerColor(context, PandoraV2Colors.surface),
           borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.line)),
+          border: Border.all(
+              color: pandoraOwnerColor(context, PandoraV2Colors.line)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1160,9 +1177,12 @@ class _RoomMessageBubble extends StatelessWidget {
               decoration: BoxDecoration(
                 color: pandoraOwnerColor(context, PandoraV2Colors.soft),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.line)),
+                border: Border.all(
+                    color: pandoraOwnerColor(context, PandoraV2Colors.line)),
               ),
-              child: Icon(role.icon, size: 16, color: pandoraOwnerColor(context, PandoraV2Colors.ink)),
+              child: Icon(role.icon,
+                  size: 16,
+                  color: pandoraOwnerColor(context, PandoraV2Colors.ink)),
             ),
             const SizedBox(width: 9),
             Expanded(
@@ -1173,8 +1193,9 @@ class _RoomMessageBubble extends StatelessWidget {
                     children: [
                       Text(
                         role.name,
-                        style:  TextStyle(
-                          color: pandoraOwnerColor(context, PandoraV2Colors.ink),
+                        style: TextStyle(
+                          color:
+                              pandoraOwnerColor(context, PandoraV2Colors.ink),
                           fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                           letterSpacing: .25,
@@ -1185,8 +1206,9 @@ class _RoomMessageBubble extends StatelessWidget {
                         child: Text(
                           '${role.title} · $time',
                           overflow: TextOverflow.ellipsis,
-                          style:  TextStyle(
-                            color: pandoraOwnerColor(context, PandoraV2Colors.muted),
+                          style: TextStyle(
+                            color: pandoraOwnerColor(
+                                context, PandoraV2Colors.muted),
                             fontSize: 10.5,
                           ),
                         ),
@@ -1196,7 +1218,7 @@ class _RoomMessageBubble extends StatelessWidget {
                   const SizedBox(height: 5),
                   SelectableText(
                     message.text,
-                    style:  TextStyle(
+                    style: TextStyle(
                       color: pandoraOwnerColor(context, PandoraV2Colors.ink),
                       fontSize: 14,
                       height: 1.43,

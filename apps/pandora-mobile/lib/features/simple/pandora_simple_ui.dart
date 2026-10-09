@@ -170,12 +170,14 @@ class PandoraOwnerHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
-                    fontFamily: PandoraEditorialScope.active(context) ? 'serif' : null,
+                    fontFamily:
+                        PandoraEditorialScope.active(context) ? 'serif' : null,
                     fontSize: PandoraEditorialScope.active(context) ? 16 : 26,
                     fontWeight: PandoraEditorialScope.active(context)
                         ? FontWeight.w400
                         : FontWeight.w700,
-                    letterSpacing: PandoraEditorialScope.active(context) ? 2.6 : -.5,
+                    letterSpacing:
+                        PandoraEditorialScope.active(context) ? 2.6 : -.5,
                     height: 1.04,
                   ),
                 ),
@@ -185,7 +187,8 @@ class PandoraOwnerHeader extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
+                    color:
+                        pandoraOwnerColor(context, PandoraSimpleColors.muted),
                     fontSize: 15,
                     height: 1.2,
                   ),
@@ -472,7 +475,8 @@ class PandoraIconBadge extends StatelessWidget {
           color: pandoraOwnerColor(context, background),
           borderRadius: BorderRadius.circular(size * .32),
           border: Border.all(
-            color: pandoraOwnerColor(context, foreground).withValues(alpha: .08),
+            color:
+                pandoraOwnerColor(context, foreground).withValues(alpha: .08),
           ),
         ),
         alignment: Alignment.center,
@@ -549,8 +553,7 @@ class PandoraPrimaryButton extends StatelessWidget {
     final button = FilledButton.icon(
       onPressed: loading ? null : onPressed,
       style: FilledButton.styleFrom(
-        backgroundColor:
-            pandoraOwnerColor(context, PandoraSimpleColors.red),
+        backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.red),
         foregroundColor: PandoraEditorialScope.active(context)
             ? PandoraEditorialPalette.canvas
             : Colors.white,

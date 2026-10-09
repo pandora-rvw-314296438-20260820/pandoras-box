@@ -91,8 +91,8 @@ const _ownerDrawerDestinations = <PlpDrawerDestination>[
   PlpDrawerDestination(
       'capabilities', 'Capabilities & Providers', Icons.account_tree_outlined),
   PlpDrawerDestination('business', 'Business', Icons.receipt_long_outlined),
-  PlpDrawerDestination('administration', 'Administration',
-      Icons.admin_panel_settings_outlined),
+  PlpDrawerDestination(
+      'administration', 'Administration', Icons.admin_panel_settings_outlined),
   PlpDrawerDestination(
       'evidence', 'Saved Evidence', Icons.offline_pin_outlined),
   PlpDrawerDestination('safety', 'Verify & Safety', Icons.shield_outlined),
@@ -1682,210 +1682,206 @@ class _PandoraChatShellState extends State<PandoraChatShell>
       );
     }
     return Theme(
-        data: _theme(Theme.of(context)),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (_scopeInitializationFailure != null) {
-              return Scaffold(
-                  body: SafeArea(
-                      child: Center(
-                          child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text(_scopeInitializationFailure!.message),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                      onPressed: widget.onLeaveMemberWorkspace,
-                      child: const Text('My workspaces')),
-                ]),
-              ))));
-            }
-            final body = IndexedStack(
-              index: _index,
-              children: [
-                for (var i = 0; i < _destinations.length; i++)
-                  _visited.contains(i) || i == _index
-                      ? _presentRoot(i)
-                      : const SizedBox.shrink(),
-              ],
-            );
+      data: _theme(Theme.of(context)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (_scopeInitializationFailure != null) {
+            return Scaffold(
+                body: SafeArea(
+                    child: Center(
+                        child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(_scopeInitializationFailure!.message),
+                const SizedBox(height: 12),
+                FilledButton(
+                    onPressed: widget.onLeaveMemberWorkspace,
+                    child: const Text('My workspaces')),
+              ]),
+            ))));
+          }
+          final body = IndexedStack(
+            index: _index,
+            children: [
+              for (var i = 0; i < _destinations.length; i++)
+                _visited.contains(i) || i == _index
+                    ? _presentRoot(i)
+                    : const SizedBox.shrink(),
+            ],
+          );
 
-            Widget businessBody = body;
-            if (!_inClientWorkspace) {
-              final canPopOwnerContent =
-                  !_chatVisible && !_drawerVisible && !_recentChatsVisible;
-              businessBody = NavigatorPopHandler(
-                key: const ValueKey('pandora-owner-content-navigator'),
-                enabled: canPopOwnerContent,
-                onPopWithResult: (_) {
-                  if (!canPopOwnerContent) return;
-                  unawaited(_ownerNavigatorKey.currentState?.maybePop() ??
-                      Future<bool>.value(false));
-                },
-                child: Navigator(
-                  key: _ownerNavigatorKey,
-                  pages: [
-                    MaterialPage<void>(
-                      key: ValueKey('owner-surface-$_scopeEpoch'),
-                      child: body,
-                    ),
-                  ],
-                  onDidRemovePage: (_) {},
-                ),
-              );
-            }
-            if (widget.mirrorPlpNavigation && !_inClientWorkspace) {
-              businessBody = PandoraOwnerTheme(child: businessBody);
-            }
-            final chatScopeEpoch = _scopeEpoch;
-            final plpAssistant =
-                _activeWorkspaceSelection?.workspace.key == 'plp-boracay';
-            Widget activeChat = PandoraConversationLayer(
-              key: const ValueKey<String>('pandora-global-active-chat-shell'),
-              reserveComposerLane: !plpAssistant,
-              businessWorkspace: Offstage(
-                offstage: _chatVisible && !plpAssistant,
-                child: PandoraSharedConversationScope(
-                  submitPrompt: _submitSharedPrompt,
-                  openThread: _openSharedThread,
-                  showConversation: _showSharedConversation,
-                  bindEnterpriseContext: _bindEnterpriseContext,
-                  bindSelectedObject: _bindSelectedObject,
-                  reportFailure: _reportSharedFailure,
-                  child: businessBody,
-                ),
-              ),
-              conversation: AskPandoraScreen(
-                key: _chatKey,
-                onSearchChats: _openRecentChats,
-                onMore: () => _select(3),
-                onHome: () => _select(9),
-                enterpriseContext: _conversationContextForCurrentSurface(),
-                shellOverlay: true,
-                initialHistoryExpanded: _chatVisible,
-                onCoreNavigate: (handoff) {
-                  if (mounted && chatScopeEpoch == _scopeEpoch) {
-                    _handleCoreNavigation(handoff);
-                  }
-                },
-                onHistoryVisibilityChanged: (visible) {
-                  if (mounted &&
-                      chatScopeEpoch == _scopeEpoch &&
-                      _chatVisible != visible) {
-                    setState(() => _chatVisible = visible);
-                  }
-                },
-              ),
-            );
-
-            final canMinimizePlpAssistant = plpAssistant &&
-                _chatVisible &&
-                !_drawerVisible &&
-                !_recentChatsVisible;
-            final canReturnFromOwnerChat = !_inClientWorkspace &&
-                _index != 0 &&
-                _chatVisible &&
-                !_drawerVisible &&
-                !_recentChatsVisible;
-            final interceptChatBack =
-                canMinimizePlpAssistant || canReturnFromOwnerChat;
-            activeChat = PopScope<void>(
-              canPop: !interceptChatBack,
-              onPopInvokedWithResult: (didPop, _) {
-                if (didPop || !interceptChatBack) return;
-                FocusManager.instance.primaryFocus?.unfocus();
-                _chatKey.currentState?.minimizeHistory();
+          Widget businessBody = body;
+          if (!_inClientWorkspace) {
+            final canPopOwnerContent =
+                !_chatVisible && !_drawerVisible && !_recentChatsVisible;
+            businessBody = NavigatorPopHandler(
+              key: const ValueKey('pandora-owner-content-navigator'),
+              enabled: canPopOwnerContent,
+              onPopWithResult: (_) {
+                if (!canPopOwnerContent) return;
+                unawaited(_ownerNavigatorKey.currentState?.maybePop() ??
+                    Future<bool>.value(false));
               },
-              child: activeChat,
-            );
-
-            final clientRuntime = _clientRuntime;
-            if (clientRuntime != null) {
-              activeChat = clientRuntime.wrap(NavigatorPopHandler(
-                onPopWithResult: (_) => unawaited(
-                    _clientNavigatorKey.currentState?.maybePop() ??
-                        Future<bool>.value(false)),
-                child: Navigator(
-                  key: _clientNavigatorKey,
-                  pages: [
-                    MaterialPage<void>(
-                        key: ValueKey('client-surface-$_scopeEpoch'),
-                        child: activeChat)
-                  ],
-                  onDidRemovePage: (_) {},
-                ),
-              ));
-            }
-            if (_inClientWorkspace) {
-              activeChat = Column(children: [
-                _clientBanner(),
-                Expanded(
-                    child: AbsorbPointer(
-                        absorbing: _switchingScope, child: activeChat)),
-              ]);
-            }
-
-            if (constraints.maxWidth >= 900) {
-              return Scaffold(
-                key: _scaffoldKey,
-                backgroundColor: widget.mirrorPlpNavigation
-                    ? const Color(0xFFFAF8F3)
-                    : PandoraV2Colors.canvas,
-                resizeToAvoidBottomInset: !plpAssistant || !_chatVisible,
-                onEndDrawerChanged: (open) {
-                  setState(() => _recentChatsVisible = open);
-                },
-                drawerScrimColor: const Color(0xD9000000),
-                endDrawer: Drawer(
-                  key: const ValueKey<String>('pandora-recent-chats-drawer'),
-                  width: 340,
-                  backgroundColor: const Color(0xFA000000),
-                  surfaceTintColor: Colors.transparent,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      bottomLeft: Radius.circular(24),
-                    ),
+              child: Navigator(
+                key: _ownerNavigatorKey,
+                pages: [
+                  MaterialPage<void>(
+                    key: ValueKey('owner-surface-$_scopeEpoch'),
+                    child: body,
                   ),
-                  child: SafeArea(child: _recentChatsPanel()),
-                ),
-                body: Row(
-                  children: [
-                    SizedBox(
-                      width: widget.mirrorPlpNavigation && !_inClientWorkspace
-                          ? 420
-                          : 264,
-                      child: widget.mirrorPlpNavigation && !_inClientWorkspace
-                          ? _plpOwnerDrawer()
-                          : SafeArea(child: _sidePanel()),
-                    ),
-                    const VerticalDivider(
-                        width: 1, color: PandoraV2Colors.line),
-                    Expanded(
-                      child: PandoraNavigationScope(
-                        openDrawer: null,
-                        child: activeChat,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
+                ],
+                onDidRemovePage: (_) {},
+              ),
+            );
+          }
+          if (widget.mirrorPlpNavigation && !_inClientWorkspace) {
+            businessBody = PandoraOwnerTheme(child: businessBody);
+          }
+          final chatScopeEpoch = _scopeEpoch;
+          final plpAssistant =
+              _activeWorkspaceSelection?.workspace.key == 'plp-boracay';
+          Widget activeChat = PandoraConversationLayer(
+            key: const ValueKey<String>('pandora-global-active-chat-shell'),
+            reserveComposerLane: !plpAssistant,
+            businessWorkspace: Offstage(
+              offstage: _chatVisible && !plpAssistant,
+              child: PandoraSharedConversationScope(
+                submitPrompt: _submitSharedPrompt,
+                openThread: _openSharedThread,
+                showConversation: _showSharedConversation,
+                bindEnterpriseContext: _bindEnterpriseContext,
+                bindSelectedObject: _bindSelectedObject,
+                reportFailure: _reportSharedFailure,
+                child: businessBody,
+              ),
+            ),
+            conversation: AskPandoraScreen(
+              key: _chatKey,
+              onSearchChats: _openRecentChats,
+              onMore: () => _select(3),
+              onHome: () => _select(9),
+              enterpriseContext: _conversationContextForCurrentSurface(),
+              shellOverlay: true,
+              initialHistoryExpanded: _chatVisible,
+              onCoreNavigate: (handoff) {
+                if (mounted && chatScopeEpoch == _scopeEpoch) {
+                  _handleCoreNavigation(handoff);
+                }
+              },
+              onHistoryVisibilityChanged: (visible) {
+                if (mounted &&
+                    chatScopeEpoch == _scopeEpoch &&
+                    _chatVisible != visible) {
+                  setState(() => _chatVisible = visible);
+                }
+              },
+            ),
+          );
 
+          final canMinimizePlpAssistant = plpAssistant &&
+              _chatVisible &&
+              !_drawerVisible &&
+              !_recentChatsVisible;
+          final canReturnFromOwnerChat = !_inClientWorkspace &&
+              _index != 0 &&
+              _chatVisible &&
+              !_drawerVisible &&
+              !_recentChatsVisible;
+          final interceptChatBack =
+              canMinimizePlpAssistant || canReturnFromOwnerChat;
+          activeChat = PopScope<void>(
+            canPop: !interceptChatBack,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop || !interceptChatBack) return;
+              FocusManager.instance.primaryFocus?.unfocus();
+              _chatKey.currentState?.minimizeHistory();
+            },
+            child: activeChat,
+          );
+
+          final clientRuntime = _clientRuntime;
+          if (clientRuntime != null) {
+            activeChat = clientRuntime.wrap(NavigatorPopHandler(
+              onPopWithResult: (_) => unawaited(
+                  _clientNavigatorKey.currentState?.maybePop() ??
+                      Future<bool>.value(false)),
+              child: Navigator(
+                key: _clientNavigatorKey,
+                pages: [
+                  MaterialPage<void>(
+                      key: ValueKey('client-surface-$_scopeEpoch'),
+                      child: activeChat)
+                ],
+                onDidRemovePage: (_) {},
+              ),
+            ));
+          }
+          if (_inClientWorkspace) {
+            activeChat = Column(children: [
+              _clientBanner(),
+              Expanded(
+                  child: AbsorbPointer(
+                      absorbing: _switchingScope, child: activeChat)),
+            ]);
+          }
+
+          if (constraints.maxWidth >= 900) {
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: widget.mirrorPlpNavigation
                   ? const Color(0xFFFAF8F3)
                   : PandoraV2Colors.canvas,
               resizeToAvoidBottomInset: !plpAssistant || !_chatVisible,
+              onEndDrawerChanged: (open) {
+                setState(() => _recentChatsVisible = open);
+              },
+              drawerScrimColor: const Color(0xD9000000),
+              endDrawer: Drawer(
+                key: const ValueKey<String>('pandora-recent-chats-drawer'),
+                width: 340,
+                backgroundColor: const Color(0xFA000000),
+                surfaceTintColor: Colors.transparent,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    bottomLeft: Radius.circular(24),
+                  ),
+                ),
+                child: SafeArea(child: _recentChatsPanel()),
+              ),
+              body: Row(
+                children: [
+                  SizedBox(
+                    width: widget.mirrorPlpNavigation && !_inClientWorkspace
+                        ? 420
+                        : 264,
+                    child: widget.mirrorPlpNavigation && !_inClientWorkspace
+                        ? _plpOwnerDrawer()
+                        : SafeArea(child: _sidePanel()),
+                  ),
+                  const VerticalDivider(width: 1, color: PandoraV2Colors.line),
+                  Expanded(
+                    child: PandoraNavigationScope(
+                      openDrawer: null,
+                      child: activeChat,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (widget.mirrorPlpNavigation && !_inClientWorkspace) {
+            return Scaffold(
+              key: _scaffoldKey,
+              backgroundColor: const Color(0xFFFAF8F3),
+              resizeToAvoidBottomInset: !(_chatVisible && plpAssistant),
               onDrawerChanged: (open) {
                 setState(() => _drawerVisible = open);
                 if (open) {
                   FocusManager.instance.primaryFocus?.unfocus();
                   _resetDrawerScroll();
-                  if (widget.mirrorPlpNavigation) {
-                    unawaited(_refreshHistory());
-                  }
+                  unawaited(_refreshHistory());
                 }
               },
               onEndDrawerChanged: (open) {
@@ -1901,29 +1897,8 @@ class _PandoraChatShellState extends State<PandoraChatShell>
               drawerEnableOpenDragGesture: true,
               endDrawerEnableOpenDragGesture: false,
               drawerEdgeDragWidth: 32,
-              drawerScrimColor: widget.mirrorPlpNavigation
-                  ? const Color(0x99000000)
-                  : const Color(0xD9000000),
-              drawer: widget.mirrorPlpNavigation && !_inClientWorkspace
-                  ? _plpOwnerDrawer()
-                  : Drawer(
-                key:
-                    const ValueKey<String>('pandora-primary-navigation-drawer'),
-                width: _ownerDrawerWidth(context),
-                backgroundColor: const Color(0xFA000000),
-                surfaceTintColor: Colors.transparent,
-                shape: widget.mirrorPlpNavigation
-                    ? const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                      )
-                    : const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(24),
-                          bottomRight: Radius.circular(24),
-                        ),
-                      ),
-                child: SafeArea(child: _sidePanel()),
-              ),
+              drawerScrimColor: const Color(0x99000000),
+              drawer: _plpOwnerDrawer(),
               endDrawer: Drawer(
                 key: const ValueKey<String>('pandora-recent-chats-drawer'),
                 width: 340,
@@ -1942,9 +1917,76 @@ class _PandoraChatShellState extends State<PandoraChatShell>
                 child: activeChat,
               ),
             );
-          },
-        ),
-      );
+          }
+
+          return Scaffold(
+            key: _scaffoldKey,
+            backgroundColor: widget.mirrorPlpNavigation
+                ? const Color(0xFFFAF8F3)
+                : PandoraV2Colors.canvas,
+            resizeToAvoidBottomInset: !plpAssistant || !_chatVisible,
+            onDrawerChanged: (open) {
+              setState(() => _drawerVisible = open);
+              if (open) {
+                FocusManager.instance.primaryFocus?.unfocus();
+                _resetDrawerScroll();
+                if (widget.mirrorPlpNavigation) {
+                  unawaited(_refreshHistory());
+                }
+              }
+            },
+            onEndDrawerChanged: (open) {
+              setState(() => _recentChatsVisible = open);
+              if (open) {
+                FocusManager.instance.primaryFocus?.unfocus();
+                if (_recentChatsScrollController.hasClients) {
+                  _recentChatsScrollController.jumpTo(0);
+                }
+                unawaited(_refreshHistory());
+              }
+            },
+            drawerEnableOpenDragGesture: true,
+            endDrawerEnableOpenDragGesture: false,
+            drawerEdgeDragWidth: 32,
+            drawerScrimColor: const Color(0xD9000000),
+            drawer: Drawer(
+              key: const ValueKey<String>('pandora-primary-navigation-drawer'),
+              width: _ownerDrawerWidth(context),
+              backgroundColor: const Color(0xFA000000),
+              surfaceTintColor: Colors.transparent,
+              shape: widget.mirrorPlpNavigation
+                  ? const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero,
+                    )
+                  : const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
+                      ),
+                    ),
+              child: SafeArea(child: _sidePanel()),
+            ),
+            endDrawer: Drawer(
+              key: const ValueKey<String>('pandora-recent-chats-drawer'),
+              width: 340,
+              backgroundColor: const Color(0xFA000000),
+              surfaceTintColor: Colors.transparent,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  bottomLeft: Radius.circular(24),
+                ),
+              ),
+              child: SafeArea(child: _recentChatsPanel()),
+            ),
+            body: PandoraNavigationScope(
+              openDrawer: _openDrawer,
+              child: activeChat,
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -1966,124 +2008,124 @@ class _PandoraSidePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final panel = Material(
-        color: const Color(0xFA000000),
-        child: PandoraNavigationLayout(
-          controller: scrollController,
-          scrollKey: const ValueKey<String>('pandora-side-panel-scroll'),
-          bodyPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          header: Padding(
-            key: const ValueKey<String>('pandora-side-panel-top-overlay'),
-            padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
-            child: Row(
-              children: [
-                const PandoraMark(size: 28),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Text(
-                    plpMirror ? 'Pandora' : 'Pandora\'s Box',
-                    style: TextStyle(
-                      color: plpMirror
-                          ? const Color(0xFFF2EEE7)
-                          : PandoraV2Colors.ink,
-                      fontSize: plpMirror ? 24 : 19,
-                      height: 1,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: plpMirror ? -.5 : -.35,
-                    ),
+      color: const Color(0xFA000000),
+      child: PandoraNavigationLayout(
+        controller: scrollController,
+        scrollKey: const ValueKey<String>('pandora-side-panel-scroll'),
+        bodyPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        header: Padding(
+          key: const ValueKey<String>('pandora-side-panel-top-overlay'),
+          padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
+          child: Row(
+            children: [
+              const PandoraMark(size: 28),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  plpMirror ? 'Pandora' : 'Pandora\'s Box',
+                  style: TextStyle(
+                    color: plpMirror
+                        ? const Color(0xFFF2EEE7)
+                        : PandoraV2Colors.ink,
+                    fontSize: plpMirror ? 24 : 19,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: plpMirror ? -.5 : -.35,
                   ),
                 ),
-              ],
-            ),
-          ),
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _DrawerSection(
-                label: 'Home',
-                indices: const <int>[9, 0],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-              ),
-              _DrawerSection(
-                label: 'Needs You',
-                indices: const <int>[2],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-              ),
-              _DrawerSection(
-                label: 'Clients',
-                indices: const <int>[12],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-              ),
-              _DrawerSection(
-                label: 'Operations Room',
-                indices: const <int>[8],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-              ),
-              _DrawerSection(
-                label: 'Activity',
-                indices: const <int>[4],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-              ),
-              _DrawerSection(
-                label: 'Platform',
-                indices: const <int>[14, 5, 1, 10],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-              ),
-              _DrawerSection(
-                label: 'Capabilities',
-                indices: const <int>[11],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-              ),
-              _DrawerSection(
-                label: 'Business',
-                indices: const <int>[13],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-              ),
-              _DrawerSection(
-                label: 'Administration',
-                indices: const <int>[15, 3],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-              ),
-              _DrawerSection(
-                label: 'Safety & Evidence',
-                indices: const <int>[7, 6],
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-                plpMirror: plpMirror,
-                showDivider: false,
               ),
             ],
           ),
-          footer: const SizedBox.shrink(),
         ),
-      );
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _DrawerSection(
+              label: 'Home',
+              indices: const <int>[9, 0],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+            ),
+            _DrawerSection(
+              label: 'Needs You',
+              indices: const <int>[2],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+            ),
+            _DrawerSection(
+              label: 'Clients',
+              indices: const <int>[12],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+            ),
+            _DrawerSection(
+              label: 'Operations Room',
+              indices: const <int>[8],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+            ),
+            _DrawerSection(
+              label: 'Activity',
+              indices: const <int>[4],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+            ),
+            _DrawerSection(
+              label: 'Platform',
+              indices: const <int>[14, 5, 1, 10],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+            ),
+            _DrawerSection(
+              label: 'Capabilities',
+              indices: const <int>[11],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+            ),
+            _DrawerSection(
+              label: 'Business',
+              indices: const <int>[13],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+            ),
+            _DrawerSection(
+              label: 'Administration',
+              indices: const <int>[15, 3],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+            ),
+            _DrawerSection(
+              label: 'Safety & Evidence',
+              indices: const <int>[7, 6],
+              destinations: destinations,
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
+              plpMirror: plpMirror,
+              showDivider: false,
+            ),
+          ],
+        ),
+        footer: const SizedBox.shrink(),
+      ),
+    );
     if (!plpMirror) return panel;
     return Theme(
       data: Theme.of(context).copyWith(
@@ -2135,8 +2177,7 @@ class _DrawerSection extends StatelessWidget {
             ),
           ),
           for (final index in indices)
-            if (indices.length == 1 &&
-                destinations[index].label == label)
+            if (indices.length == 1 && destinations[index].label == label)
               const SizedBox.shrink()
             else
               Padding(
@@ -2169,8 +2210,7 @@ class _DrawerSection extends StatelessWidget {
                   onTap: () => onSelected(index),
                 ),
               ),
-          if (indices.length == 1 &&
-              destinations[indices.first].label == label)
+          if (indices.length == 1 && destinations[indices.first].label == label)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: ListTile(

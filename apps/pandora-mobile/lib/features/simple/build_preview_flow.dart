@@ -883,7 +883,8 @@ class _CapabilityLine extends StatelessWidget {
               size: 19,
             ),
             const SizedBox(width: 9),
-            Expanded(child: Text(label, style: pandoraSimpleText.owner(context))),
+            Expanded(
+                child: Text(label, style: pandoraSimpleText.owner(context))),
           ],
         ),
       );

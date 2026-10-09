@@ -12,7 +12,8 @@ import '../enterprise/plp_editorial_surfaces.dart';
 import '../team/team_screen.dart';
 import 'pandora_core_memory_panel.dart';
 
-PandoraChromePalette _palette(BuildContext context) => PandoraChrome.of(context);
+PandoraChromePalette _palette(BuildContext context) =>
+    PandoraChrome.of(context);
 
 Color _toneInk(BuildContext context) => _palette(context).ink;
 Color _toneMuted(BuildContext context) => _palette(context).muted;
@@ -1234,7 +1235,8 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
         Row(children: [
           Expanded(
               child: Text('Auto routing',
-                  style: TextStyle(color: _toneInk(context), fontWeight: FontWeight.w700))),
+                  style: TextStyle(
+                      color: _toneInk(context), fontWeight: FontWeight.w700))),
           _StatePill(routing['enabled'] == true
               ? 'Enabled'
               : routing['enabled'] == false
@@ -1271,7 +1273,14 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   }
 
   List<Widget> _administrationBody() {
-    const tabs = ['Team', 'Access', 'Security', 'Incidents', 'Audit', 'Policies'];
+    const tabs = [
+      'Team',
+      'Access',
+      'Security',
+      'Incidents',
+      'Audit',
+      'Policies'
+    ];
     final tab = tabs.contains(_tab) ? _tab : tabs.first;
     return [
       _tabs(tabs, tab),
@@ -1746,7 +1755,8 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
               style: TextStyle(color: _toneMuted(context), height: 1.4)),
         if (coverage is String && coverage.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text(coverage, style: TextStyle(color: _toneMuted(context), fontSize: 12)),
+          Text(coverage,
+              style: TextStyle(color: _toneMuted(context), fontSize: 12)),
         ],
       ]),
     );
@@ -1839,7 +1849,9 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           children: [
             Text(title ?? _recordTitle(row, 'Record'),
                 style: TextStyle(
-                    color: _toneInk(context), fontSize: 20, fontWeight: FontWeight.w700)),
+                    color: _toneInk(context),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
             for (final entry in _recordFields.entries)
               if ((row[entry.key] != null ||
@@ -2180,12 +2192,14 @@ class _PandoraCoreOperationFormState extends State<PandoraCoreOperationForm> {
                 if (widget.financial) ...[
                   const SizedBox(height: 8),
                   Text('Manual record · identity verification required',
-                      style: TextStyle(color: _toneMuted(context), fontSize: 12)),
+                      style:
+                          TextStyle(color: _toneMuted(context), fontSize: 12)),
                 ],
                 if (widget.notice != null) ...[
                   const SizedBox(height: 8),
                   Text(widget.notice!,
-                      style: TextStyle(color: _toneMuted(context), fontSize: 12)),
+                      style:
+                          TextStyle(color: _toneMuted(context), fontSize: 12)),
                 ],
                 const SizedBox(height: 16),
                 for (final field in widget.fields)
@@ -2765,7 +2779,9 @@ class _RecordTile extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-              color: _toneInk(context), fontSize: 14, fontWeight: FontWeight.w600)),
+              color: _toneInk(context),
+              fontSize: 14,
+              fontWeight: FontWeight.w600)),
       subtitle: subtitle.isEmpty
           ? null
           : Text(subtitle,
@@ -2849,8 +2865,7 @@ class _Heading extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 22, bottom: 9),
         child: Row(children: [
-          Expanded(
-              child: Text(title, style: _palette(context).sectionTitle)),
+          Expanded(child: Text(title, style: _palette(context).sectionTitle)),
           if (action != null)
             TextButton(
                 onPressed: onAction,
@@ -2869,8 +2884,11 @@ class _Signal extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(coreText(value),
               style: TextStyle(
-                  color: _toneInk(context), fontSize: 19, fontWeight: FontWeight.w700)),
-          Text(label, style: TextStyle(color: _toneMuted(context), fontSize: 11.5)),
+                  color: _toneInk(context),
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700)),
+          Text(label,
+              style: TextStyle(color: _toneMuted(context), fontSize: 11.5)),
         ]),
       );
 }
@@ -2886,8 +2904,7 @@ class _StatePill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-            color: _tonePill(context),
-            borderRadius: BorderRadius.circular(8)),
+            color: _tonePill(context), borderRadius: BorderRadius.circular(8)),
         child: Text(text,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -2954,7 +2971,8 @@ class _Empty extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Text(message,
-            style: TextStyle(color: _toneMuted(context), height: 1.45, fontSize: 13)),
+            style: TextStyle(
+                color: _toneMuted(context), height: 1.45, fontSize: 13)),
       );
 }
 
@@ -2970,9 +2988,11 @@ class _Notice extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title,
-              style: TextStyle(color: _toneInk(context), fontWeight: FontWeight.w600)),
+              style: TextStyle(
+                  color: _toneInk(context), fontWeight: FontWeight.w600)),
           const SizedBox(height: 5),
-          Text(message, style: TextStyle(color: _toneMuted(context), height: 1.4)),
+          Text(message,
+              style: TextStyle(color: _toneMuted(context), height: 1.4)),
           if (action != null)
             TextButton(onPressed: onAction, child: Text(action!)),
         ]),

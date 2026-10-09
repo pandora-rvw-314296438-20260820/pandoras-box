@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation_layout.dart';
 
-
 class PlpRecentChatItem {
   const PlpRecentChatItem({
     required this.id,
@@ -87,11 +86,14 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
 
   static const _systemItems = <_PlpDrawerDestination>[
     _PlpDrawerDestination('settings', 'Settings', Icons.settings_outlined),
-    _PlpDrawerDestination('connectivity', 'Infrastructure', Icons.router_outlined),
+    _PlpDrawerDestination(
+        'connectivity', 'Infrastructure', Icons.router_outlined),
     _PlpDrawerDestination('vision', 'Vision', Icons.visibility_outlined),
-    _PlpDrawerDestination('tax-compliance', 'Tax & Compliance', Icons.account_balance_outlined),
+    _PlpDrawerDestination(
+        'tax-compliance', 'Tax & Compliance', Icons.account_balance_outlined),
     _PlpDrawerDestination('local-ai', 'Local AI', Icons.memory_outlined),
-    _PlpDrawerDestination('developer', 'Developer diagnostics', Icons.developer_mode_outlined),
+    _PlpDrawerDestination(
+        'developer', 'Developer diagnostics', Icons.developer_mode_outlined),
   ];
 
   /// Always reachable, before and after subscribing.
@@ -155,111 +157,208 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
           ];
     final visibleBusiness =
         source.where((item) => _matches(item.label)).toList();
-    final visibleSystem = _systemItems.where((item) => _matches(item.label)).toList();
-    final visibleChats = widget.recentChats.where((item) => _matches(item.title)).toList();
+    final visibleSystem =
+        _systemItems.where((item) => _matches(item.label)).toList();
+    final visibleChats =
+        widget.recentChats.where((item) => _matches(item.title)).toList();
     final searching = _query.isNotEmpty;
     return Drawer(
-      key: const ValueKey<String>('plp-navigation-drawer'), width: drawerWidth,
-      elevation: 0, shadowColor: Colors.transparent, backgroundColor: Colors.transparent,
+      key: const ValueKey<String>('plp-navigation-drawer'),
+      width: drawerWidth,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: DecoratedBox(
         decoration: const BoxDecoration(color: Color(0xFF000000)),
-        child: SafeArea(child: Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: SafeArea(
+            child: Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
           child: PandoraNavigationLayout(
             controller: widget.scrollController,
             scrollKey: const ValueKey<String>('plp-drawer-scroll'),
             bodyPadding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
             header: Column(
               key: const ValueKey<String>('plp-drawer-header-overlay'),
-              mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(padding: const EdgeInsets.fromLTRB(18, 10, 10, 8), child: Row(children: [
-                  const PandoraMark(size: 34), const SizedBox(width: 10),
-                  const Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-                    child: Text('Pandora', style: TextStyle(color: Color(0xFFF2EEE7), fontSize: 24,
-                        height: 1, fontWeight: FontWeight.w700, letterSpacing: -.5)))),
-                  IconButton(
-                    key: const ValueKey<String>('plp-drawer-search'),
-                    tooltip: _searchOpen ? 'Close navigation search' : 'Search navigation and chats',
-                    onPressed: _toggleSearch,
-                    icon: Icon(_searchOpen ? Icons.close_rounded : Icons.search_rounded, size: 22, color: const Color(0xFFD4CDC3)),
-                  ),
-                ])),
+                Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 10, 10, 8),
+                    child: Row(children: [
+                      const PandoraMark(size: 34),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                          child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text('Pandora',
+                                  style: TextStyle(
+                                      color: Color(0xFFF2EEE7),
+                                      fontSize: 24,
+                                      height: 1,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -.5)))),
+                      IconButton(
+                        key: const ValueKey<String>('plp-drawer-search'),
+                        tooltip: _searchOpen
+                            ? 'Close navigation search'
+                            : 'Search navigation and chats',
+                        onPressed: _toggleSearch,
+                        icon: Icon(
+                            _searchOpen
+                                ? Icons.close_rounded
+                                : Icons.search_rounded,
+                            size: 22,
+                            color: const Color(0xFFD4CDC3)),
+                      ),
+                    ])),
                 if (_searchOpen)
-                  Padding(padding: const EdgeInsets.fromLTRB(16, 2, 16, 10), child: TextField(
-                    key: const ValueKey<String>('plp-drawer-search-field'),
-                    controller: _searchController, focusNode: _searchFocus, autofocus: true,
-                    textInputAction: TextInputAction.search,
-                    onChanged: (value) => setState(() => _query = value.trim()),
-                    style: const TextStyle(color: Color(0xFFF2EEE7), fontSize: 15),
-                    decoration: InputDecoration(
-                      hintText: 'Search navigation and chats', hintStyle: const TextStyle(color: Color(0xFFAAA39A)),
-                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFA9A198), size: 21),
-                      filled: true, fillColor: const Color(0x730E0E0F), isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                  )),
+                  Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+                      child: TextField(
+                        key: const ValueKey<String>('plp-drawer-search-field'),
+                        controller: _searchController,
+                        focusNode: _searchFocus,
+                        autofocus: true,
+                        textInputAction: TextInputAction.search,
+                        onChanged: (value) =>
+                            setState(() => _query = value.trim()),
+                        style: const TextStyle(
+                            color: Color(0xFFF2EEE7), fontSize: 15),
+                        decoration: InputDecoration(
+                          hintText: 'Search navigation and chats',
+                          hintStyle: const TextStyle(color: Color(0xFFAAA39A)),
+                          prefixIcon: const Icon(Icons.search_rounded,
+                              color: Color(0xFFA9A198), size: 21),
+                          filled: true,
+                          fillColor: const Color(0x730E0E0F),
+                          isDense: true,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                      )),
               ],
             ),
-            body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              if (!searching) ...[
-                _workspaceIdentityRow(),
-              ],
-              if (_workspaceExpanded || searching)
-                for (final item in visibleBusiness) _navigationRow(item),
-              if (widget.showBilling && _matches(_billingItem.label))
-                _navigationRow(_billingItem),
-              const SizedBox(height: 8),
-              if (!searching)
-                _expandableRow(semanticTitle: 'Recent chats', title: 'Recent chats', expanded: _recentExpanded,
-                    leading: const Icon(Icons.chat_bubble_outline_rounded, size: 23, color: Color(0xFFC9C2B8)),
-                    locked: widget.chatLocked,
-                    onTap: widget.chatLocked
-                        ? () => widget.onSelectDestination('recent-chats')
-                        : () => setState(() => _recentExpanded = !_recentExpanded)),
-              if (!widget.chatLocked && (_recentExpanded || searching))
-                if (widget.recentChatsLoading)
-                  const Padding(padding: EdgeInsets.all(10), child: Row(children: [
-                    SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 10),
-                    Expanded(child: Text('Loading recent chats…', style: TextStyle(color: Color(0xFFAAA39A), fontSize: 13))),
-                  ]))
-                else if (widget.recentChatsError != null)
-                  Padding(padding: const EdgeInsets.all(8), child: Row(children: [
-                    const Expanded(child: Text('Recent chats unavailable', style: TextStyle(color: Color(0xFFAAA39A), fontSize: 13))),
-                    TextButton(onPressed: widget.onRetryRecentChats, child: const Text('Retry')),
-                  ]))
-                else if (visibleChats.isEmpty && !searching)
-                  const Padding(padding: EdgeInsets.all(10), child: Text('No recent chats', style: TextStyle(color: Color(0xFFAAA39A), fontSize: 13)))
-                else
-                  for (final chat in visibleChats) _chatRow(chat),
-              if (searching && visibleBusiness.isEmpty && visibleSystem.isEmpty && visibleChats.isEmpty &&
-                  !(widget.showBilling && _matches(_billingItem.label)) &&
-                  !widget.recentChatsLoading && widget.recentChatsError == null)
-                const Padding(padding: EdgeInsets.all(10), child: Text('No matching navigation or chats', style: TextStyle(color: Color(0xFFAAA39A)))),
-              if (!searching || visibleSystem.isNotEmpty) ...[
-                if (widget.includeSystem) ...[
-                _divider(),
-                _expandableRow(semanticTitle: 'System / Developer', title: 'System / Developer', subtitle: 'Privileged technical surfaces',
-                    expanded: _systemExpanded || searching,
-                    leading: const Icon(Icons.code_rounded, size: 23, color: Color(0xFFB7B0A7)),
-                    onTap: () => setState(() => _systemExpanded = !_systemExpanded)),
-                if (_systemExpanded || searching)
-                  for (final item in visibleSystem) _navigationRow(item),
-                ],
-              ],
-            ]),
+            body: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!searching) ...[
+                    _workspaceIdentityRow(),
+                  ],
+                  if (_workspaceExpanded || searching)
+                    for (final item in visibleBusiness) _navigationRow(item),
+                  if (widget.showBilling && _matches(_billingItem.label))
+                    _navigationRow(_billingItem),
+                  const SizedBox(height: 8),
+                  if (!searching)
+                    _expandableRow(
+                        semanticTitle: 'Recent chats',
+                        title: 'Recent chats',
+                        expanded: _recentExpanded,
+                        leading: const Icon(Icons.chat_bubble_outline_rounded,
+                            size: 23, color: Color(0xFFC9C2B8)),
+                        locked: widget.chatLocked,
+                        onTap: widget.chatLocked
+                            ? () => widget.onSelectDestination('recent-chats')
+                            : () => setState(
+                                () => _recentExpanded = !_recentExpanded)),
+                  if (!widget.chatLocked && (_recentExpanded || searching))
+                    if (widget.recentChatsLoading)
+                      const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Row(children: [
+                            SizedBox.square(
+                                dimension: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2)),
+                            SizedBox(width: 10),
+                            Expanded(
+                                child: Text('Loading recent chats…',
+                                    style: TextStyle(
+                                        color: Color(0xFFAAA39A),
+                                        fontSize: 13))),
+                          ]))
+                    else if (widget.recentChatsError != null)
+                      Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Row(children: [
+                            const Expanded(
+                                child: Text('Recent chats unavailable',
+                                    style: TextStyle(
+                                        color: Color(0xFFAAA39A),
+                                        fontSize: 13))),
+                            TextButton(
+                                onPressed: widget.onRetryRecentChats,
+                                child: const Text('Retry')),
+                          ]))
+                    else if (visibleChats.isEmpty && !searching)
+                      const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Text('No recent chats',
+                              style: TextStyle(
+                                  color: Color(0xFFAAA39A), fontSize: 13)))
+                    else
+                      for (final chat in visibleChats) _chatRow(chat),
+                  if (searching &&
+                      visibleBusiness.isEmpty &&
+                      visibleSystem.isEmpty &&
+                      visibleChats.isEmpty &&
+                      !(widget.showBilling && _matches(_billingItem.label)) &&
+                      !widget.recentChatsLoading &&
+                      widget.recentChatsError == null)
+                    const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Text('No matching navigation or chats',
+                            style: TextStyle(color: Color(0xFFAAA39A)))),
+                  if (!searching || visibleSystem.isNotEmpty) ...[
+                    if (widget.includeSystem) ...[
+                      _divider(),
+                      _expandableRow(
+                          semanticTitle: 'System / Developer',
+                          title: 'System / Developer',
+                          subtitle: 'Privileged technical surfaces',
+                          expanded: _systemExpanded || searching,
+                          leading: const Icon(Icons.code_rounded,
+                              size: 23, color: Color(0xFFB7B0A7)),
+                          onTap: () => setState(
+                              () => _systemExpanded = !_systemExpanded)),
+                      if (_systemExpanded || searching)
+                        for (final item in visibleSystem) _navigationRow(item),
+                    ],
+                  ],
+                ]),
             footer: Padding(
-              key: const ValueKey<String>('plp-drawer-bottom-overlay'), padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-              child: Material(color: const Color(0xE00E0E0F), surfaceTintColor: Colors.transparent, borderRadius: BorderRadius.circular(18),
-                child: InkWell(key: const ValueKey<String>('plp-drawer-new-chat'),
-                  onTap: () { _searchFocus.unfocus(); widget.onNewChat(); }, borderRadius: BorderRadius.circular(18),
-                  child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13), child: Row(children: [
-                    const Icon(Icons.edit_square, size: 21, color: Color(0xFFF2EEE7)), const SizedBox(width: 12),
-                    const Expanded(child: Text('New chat', style: TextStyle(color: Color(0xFFF2EEE7), fontSize: 15, fontWeight: FontWeight.w700))),
-                    if (widget.chatLocked) _lockIcon(),
-                  ])),
+              key: const ValueKey<String>('plp-drawer-bottom-overlay'),
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+              child: Material(
+                color: const Color(0xE00E0E0F),
+                surfaceTintColor: Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
+                child: InkWell(
+                  key: const ValueKey<String>('plp-drawer-new-chat'),
+                  onTap: () {
+                    _searchFocus.unfocus();
+                    widget.onNewChat();
+                  },
+                  borderRadius: BorderRadius.circular(18),
+                  child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 13),
+                      child: Row(children: [
+                        const Icon(Icons.edit_square,
+                            size: 21, color: Color(0xFFF2EEE7)),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                            child: Text('New chat',
+                                style: TextStyle(
+                                    color: Color(0xFFF2EEE7),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700))),
+                        if (widget.chatLocked) _lockIcon(),
+                      ])),
                 ),
               ),
             ),
@@ -302,8 +401,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
           '${widget.workspaceTitle}, ${widget.workspaceSubtitle}, ${expanded ? 'expanded' : 'collapsed'}',
       child: InkWell(
         key: const ValueKey<String>('plp-workspace-identity'),
-        onTap: () =>
-            setState(() => _workspaceExpanded = !_workspaceExpanded),
+        onTap: () => setState(() => _workspaceExpanded = !_workspaceExpanded),
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),

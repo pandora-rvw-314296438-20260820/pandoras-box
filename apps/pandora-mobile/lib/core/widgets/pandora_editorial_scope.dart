@@ -17,7 +17,9 @@ class PandoraEditorialScope extends InheritedWidget {
               .dependOnInheritedWidgetOfExactType<PandoraEditorialScope>()
               ?.editorial ==
           true ||
-      (context.dependOnInheritedWidgetOfExactType<PandoraChrome>()?.palette
+      (context
+              .dependOnInheritedWidgetOfExactType<PandoraChrome>()
+              ?.palette
               .editorial ??
           false);
 

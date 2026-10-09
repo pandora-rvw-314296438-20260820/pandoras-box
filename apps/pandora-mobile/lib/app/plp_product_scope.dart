@@ -23,6 +23,8 @@ PlpProductScope plpProductScopeFromSnapshot(PandoraCoreRecord? snapshot) {
 
 /// Failures that mean this session is not a Pandora operator. The resort
 /// workspace stays available. Transport failures are not an access decision.
-bool plpCoreFailureIsCustomerScope(PandoraCoreFailure failure) =>
-    const {'ACCESS_DENIED', 'SIGN_IN_REQUIRED', 'SCOPE_MISMATCH'}
-        .contains(failure.code);
+bool plpCoreFailureIsCustomerScope(PandoraCoreFailure failure) => const {
+      'ACCESS_DENIED',
+      'SIGN_IN_REQUIRED',
+      'SCOPE_MISMATCH'
+    }.contains(failure.code);

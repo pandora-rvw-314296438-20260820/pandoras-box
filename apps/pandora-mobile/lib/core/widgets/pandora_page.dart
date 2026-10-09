@@ -55,27 +55,27 @@ class PandoraPage extends StatelessWidget {
                   children: [
                     if (!editorial)
                       Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if (showProductMark) ...[
-                          const PandoraMark(size: 36),
-                          const SizedBox(width: PandoraSpacing.sm),
-                        ],
-                        Expanded(
-                          child: Text(
-                            title,
-                            key: const ValueKey<String>('pandora-page-title'),
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -.45,
-                                ),
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (showProductMark) ...[
+                            const PandoraMark(size: 36),
+                            const SizedBox(width: PandoraSpacing.sm),
+                          ],
+                          Expanded(
+                            child: Text(
+                              title,
+                              key: const ValueKey<String>('pandora-page-title'),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -.45,
+                                  ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
                     if (!editorial && subtitle != null) ...[
                       const SizedBox(height: PandoraSpacing.sm),
                       Text(
@@ -116,60 +116,61 @@ class PandoraPage extends StatelessWidget {
     return ColoredBox(
       color: editorial ? palette.canvas : Colors.transparent,
       child: PandoraRouteBoundary(
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: SafeArea(
-              top: false,
-              child: scrollable,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: SafeArea(
+                top: false,
+                child: scrollable,
+              ),
             ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: Row(
-                  children: [
-                    if (isSecondaryRoute)
-                      const SizedBox.square(
-                        dimension: 44,
-                        child: BackButton(),
-                      ),
-                    if (openDrawer != null)
-                      PandoraMenuButton(
-                        key: const ValueKey<String>('pandora-side-panel-open'),
-                        onPressed: openDrawer,
-                      )
-                    else if (!isSecondaryRoute &&
-                        Navigator.of(context).canPop())
-                      const SizedBox.square(
-                        dimension: 44,
-                        child: BackButton(),
-                      )
-                    else if (!isSecondaryRoute)
-                      const SizedBox.square(dimension: 44),
-                    if (editorial) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: PandoraEditorialTitle(
-                          title,
-                          key: const ValueKey<String>('pandora-page-title'),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  child: Row(
+                    children: [
+                      if (isSecondaryRoute)
+                        const SizedBox.square(
+                          dimension: 44,
+                          child: BackButton(),
                         ),
-                      ),
-                    ] else
-                      const Spacer(),
-                    ...actions,
-                  ],
+                      if (openDrawer != null)
+                        PandoraMenuButton(
+                          key:
+                              const ValueKey<String>('pandora-side-panel-open'),
+                          onPressed: openDrawer,
+                        )
+                      else if (!isSecondaryRoute &&
+                          Navigator.of(context).canPop())
+                        const SizedBox.square(
+                          dimension: 44,
+                          child: BackButton(),
+                        )
+                      else if (!isSecondaryRoute)
+                        const SizedBox.square(dimension: 44),
+                      if (editorial) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: PandoraEditorialTitle(
+                            title,
+                            key: const ValueKey<String>('pandora-page-title'),
+                          ),
+                        ),
+                      ] else
+                        const Spacer(),
+                      ...actions,
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

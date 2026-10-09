@@ -4,8 +4,8 @@ import 'package:pandora_mobile/core/data/pandora_core_api.dart';
 
 void main() {
   test('missing snapshot stays in the customer workspace', () {
-    expect(plpProductScopeFromSnapshot(null),
-        PlpProductScope.customerWorkspace);
+    expect(
+        plpProductScopeFromSnapshot(null), PlpProductScope.customerWorkspace);
     expect(plpProductScopeFromSnapshot(<String, dynamic>{}),
         PlpProductScope.customerWorkspace);
     expect(

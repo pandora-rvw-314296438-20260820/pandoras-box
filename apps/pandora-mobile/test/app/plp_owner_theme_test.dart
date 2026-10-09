@@ -32,7 +32,8 @@ void main() {
     expect(theme.colorScheme.onSurface, const Color(0xFF171512));
     expect(
       find.byWidgetPredicate(
-        (widget) => widget is ColoredBox && widget.color == const Color(0xFF000000),
+        (widget) =>
+            widget is ColoredBox && widget.color == const Color(0xFF000000),
       ),
       findsNothing,
     );
@@ -76,7 +77,8 @@ void main() {
     );
     final boxes = tester.widgetList<ColoredBox>(find.byType(ColoredBox));
     expect(boxes.map((box) => box.color), contains(const Color(0xFFFAF8F3)));
-    expect(boxes.map((box) => box.color), isNot(contains(const Color(0xFF000000))));
+    expect(boxes.map((box) => box.color),
+        isNot(contains(const Color(0xFF000000))));
     expect(find.text('Clients'), findsOneWidget);
   });
 }

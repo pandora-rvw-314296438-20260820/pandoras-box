@@ -48,7 +48,8 @@ void main() {
     return scroll;
   }
 
-  testWidgets('PLP navigation leads with resort work, not system pages', (tester) async {
+  testWidgets('PLP navigation leads with resort work, not system pages',
+      (tester) async {
     String? selected;
     await mountDrawer(tester, onSelect: (value) => selected = value);
 
@@ -87,7 +88,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('PLP search still reaches technical System destinations', (tester) async {
+  testWidgets('PLP search still reaches technical System destinations',
+      (tester) async {
     String? selected;
     await mountDrawer(tester, onSelect: (value) => selected = value);
 
@@ -107,7 +109,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('PLP full-width mobile drawer remains scrollable with keyboard', (tester) async {
+  testWidgets('PLP full-width mobile drawer remains scrollable with keyboard',
+      (tester) async {
     await mountDrawer(
       tester,
       width: 320,
@@ -188,7 +191,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('PLP command dock remains the universal Pandora composer', (tester) async {
+  testWidgets('PLP command dock remains the universal Pandora composer',
+      (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
     var submitted = false;

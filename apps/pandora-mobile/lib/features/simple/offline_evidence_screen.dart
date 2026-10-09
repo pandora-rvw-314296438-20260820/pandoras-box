@@ -229,15 +229,17 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
               )
             : _packet == null
                 ? PandoraSimpleCard(
-                    backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
+                    backgroundColor: pandoraOwnerColor(
+                        context, PandoraSimpleColors.amberWash),
                     shadow: false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                         Text(
+                        Text(
                           'Evidence unavailable',
                           style: TextStyle(
-                            color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
+                            color: pandoraOwnerColor(
+                                context, PandoraSimpleColors.ink),
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                           ),
@@ -271,11 +273,12 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
           ],
           if (_error != null) ...[
             PandoraSimpleCard(
-              backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
+              backgroundColor:
+                  pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
               shadow: false,
               child: Text(
                 _error!,
-                style:  TextStyle(
+                style: TextStyle(
                   color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                   height: 1.35,
                 ),
@@ -284,12 +287,13 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
             const SizedBox(height: 12),
           ],
           PandoraSimpleCard(
-            backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.blueWash),
+            backgroundColor:
+                pandoraOwnerColor(context, PandoraSimpleColors.blueWash),
             shadow: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                 Text(
+                Text(
                   'Saved evidence',
                   style: TextStyle(
                     color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
@@ -304,15 +308,18 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
                       : p.cached
                           ? 'Showing earlier observations held in this session. They may be out of date.'
                           : 'Read-only observations from the latest successful refresh.',
-                  style:  TextStyle(
-                    color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
+                  style: TextStyle(
+                    color:
+                        pandoraOwnerColor(context, PandoraSimpleColors.muted),
                     height: 1.35,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Oldest observation: ${_observationTime(p.oldestObservation)}',
-                  style:  TextStyle(color: pandoraOwnerColor(context, PandoraSimpleColors.muted)),
+                  style: TextStyle(
+                      color: pandoraOwnerColor(
+                          context, PandoraSimpleColors.muted)),
                 ),
               ],
             ),
@@ -323,28 +330,36 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
             child: Column(
               children: [
                 _row('Systems', p.projects),
-                 Divider(color: pandoraOwnerColor(context, PandoraSimpleColors.line)),
+                Divider(
+                    color:
+                        pandoraOwnerColor(context, PandoraSimpleColors.line)),
                 _row('Connections', p.connections),
-                 Divider(color: pandoraOwnerColor(context, PandoraSimpleColors.line)),
+                Divider(
+                    color:
+                        pandoraOwnerColor(context, PandoraSimpleColors.line)),
                 _row('Activity records', p.activity),
               ],
             ),
           ),
           const SizedBox(height: 14),
           PandoraSimpleCard(
-            backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
+            backgroundColor:
+                pandoraOwnerColor(context, PandoraSimpleColors.amberWash),
             shadow: false,
-            child:  Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(Icons.lock_clock_outlined,
-                    color: pandoraOwnerColor(context, PandoraSimpleColors.amber)),
+                    color:
+                        pandoraOwnerColor(context, PandoraSimpleColors.amber)),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Saved evidence is for reference only. Refresh the current system status before approving, releasing, or changing anything.',
-                    style:
-                        TextStyle(color: pandoraOwnerColor(context, PandoraSimpleColors.ink), height: 1.35),
+                    style: TextStyle(
+                        color:
+                            pandoraOwnerColor(context, PandoraSimpleColors.ink),
+                        height: 1.35),
                   ),
                 ),
               ],
@@ -360,7 +375,7 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
             Expanded(
               child: Text(
                 label,
-                style:  TextStyle(
+                style: TextStyle(
                   color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                   fontWeight: FontWeight.w600,
                 ),
@@ -410,8 +425,7 @@ class _EvidencePacket {
 class _EvidenceRead {
   const _EvidenceRead(this.count, this.cached, this.fetchedAt);
 
-  static _EvidenceRead fromSnapshot<T>(
-          RepositorySnapshot<List<T>> snapshot) =>
+  static _EvidenceRead fromSnapshot<T>(RepositorySnapshot<List<T>> snapshot) =>
       _EvidenceRead(
           snapshot.data.length, snapshot.isCached, snapshot.fetchedAt);
 
@@ -437,6 +451,7 @@ class _EvidenceOutcome {
   final _EvidenceRead? read;
   final Object? error;
 }
+
 String _observationTime(DateTime value) {
   final utc = value.toUtc();
   String two(int number) => number.toString().padLeft(2, '0');

@@ -35,7 +35,8 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
     final query = _query.toLowerCase();
     if (query.isEmpty) return _capabilityFamilies;
     return _capabilityFamilies.where((family) {
-      final haystack = '${family.name} ${family.providers.join(' ')}'.toLowerCase();
+      final haystack =
+          '${family.name} ${family.providers.join(' ')}'.toLowerCase();
       return haystack.contains(query);
     }).toList(growable: false);
   }
@@ -89,9 +90,10 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
               decoration: BoxDecoration(
                 color: pandoraOwnerColor(context, PandoraV2Colors.surface),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: pandoraOwnerColor(context, PandoraV2Colors.line)),
+                border: Border.all(
+                    color: pandoraOwnerColor(context, PandoraV2Colors.line)),
               ),
-              child:  Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -175,7 +177,7 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
               ),
             ),
             const SizedBox(height: 5),
-             Text(
+            Text(
               'Tap a capability to inspect its provider catalog.',
               style: TextStyle(
                 color: pandoraOwnerColor(context, PandoraV2Colors.muted),
@@ -184,7 +186,7 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
             ),
             const SizedBox(height: 12),
             if (families.isEmpty)
-               Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 28),
                 child: Column(
                   children: [
@@ -276,7 +278,7 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
               ],
             ),
             const SizedBox(height: 14),
-             Text(
+            Text(
               'These are provider candidates under this capability. Pandora verifies authorization, account scope, jurisdiction, provider health and availability before execution.',
               style: TextStyle(
                 color: pandoraOwnerColor(context, PandoraV2Colors.muted),
@@ -291,7 +293,7 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.apartment_rounded, size: 19),
                 title: Text(provider),
-                trailing:  Text(
+                trailing: Text(
                   'Catalog',
                   style: TextStyle(
                     color: pandoraOwnerColor(context, PandoraV2Colors.muted),

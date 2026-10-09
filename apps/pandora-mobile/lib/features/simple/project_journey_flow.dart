@@ -1163,7 +1163,8 @@ class _ProjectJourneyWorkspaceScreenState
                                     _snapshot!.domain!.verified
                                         ? 'Domain connected'
                                         : 'Domain verification required',
-                                    style: pandoraSimpleMutedText.owner(context),
+                                    style:
+                                        pandoraSimpleMutedText.owner(context),
                                   ),
                                 ],
                               ),

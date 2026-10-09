@@ -199,7 +199,8 @@ class _MoreTile extends StatelessWidget {
             title,
             style: TextStyle(
               color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
-              fontFamily: PandoraEditorialScope.active(context) ? 'serif' : null,
+              fontFamily:
+                  PandoraEditorialScope.active(context) ? 'serif' : null,
               fontSize: 20,
               fontWeight: PandoraEditorialScope.active(context)
                   ? FontWeight.w400

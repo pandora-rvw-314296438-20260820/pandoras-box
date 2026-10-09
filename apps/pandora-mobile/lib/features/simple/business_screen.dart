@@ -225,7 +225,8 @@ class _SimpleBusinessScreenState extends State<SimpleBusinessScreen> {
                                         project.purpose,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: pandoraSimpleMutedText.owner(context),
+                                        style: pandoraSimpleMutedText
+                                            .owner(context),
                                       ),
                                     ],
                                   ),
