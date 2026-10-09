@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "strict": true
+  },
+  "imports": {
+    "https://raw.githubusercontent.com/pandora-rvw-314296438-20260820/pandoras-box/33f37ef9dea651ff5cc78fa8bff5a1158099dc01/ops/supabase/runtime-patches/pandora-owner-api-v98-plp-billing-sandbox/contract.ts": "./contract.ts"
+  }
+}
