@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/analytics/owner_analytics.dart';
 import '../../core/data/plp_paypal_billing_api.dart';
+import 'plp_checkout_analytics.dart';
 import 'plp_resort_workspace.dart';
 
 /// Billing renders through the same resort page frame, title, notice and
@@ -35,15 +40,19 @@ const _plpPaypalDefaultReturnOrigin = 'https://mcpmaster.vercel.app';
 ({String returnUrl, String cancelUrl}) plpPaypalReturnUrls({
   required bool isWeb,
   required Uri base,
+  String? origin,
 }) {
-  var origin = _plpPaypalDefaultReturnOrigin;
+  var targetOrigin = _plpPaypalDefaultReturnOrigin;
   if (isWeb && base.scheme == 'https' && base.host.isNotEmpty) {
     final candidate = base.origin;
-    if (plpPaypalReturnOrigins.contains(candidate)) origin = candidate;
+    if (plpPaypalReturnOrigins.contains(candidate)) targetOrigin = candidate;
   }
+  final query = (origin != null && plpCheckoutOrigins.contains(origin))
+      ? '?from=$origin'
+      : '';
   return (
-    returnUrl: '$origin/#/enterprise/paypal-return',
-    cancelUrl: '$origin/#/enterprise/paypal-cancel',
+    returnUrl: '$targetOrigin/#/enterprise/paypal-return$query',
+    cancelUrl: '$targetOrigin/#/enterprise/paypal-cancel$query',
   );
 }
 
@@ -57,6 +66,15 @@ class PlpPaypalBillingScreen extends StatefulWidget {
     this.isWeb,
     this.appBaseUri,
     this.onStatus,
+    this.origin,
+    this.originLabel,
+    this.initialStatus,
+    this.paypalReturn,
+    this.onEvent,
+    this.onActivated,
+    this.confirmPollInterval = const Duration(seconds: 4),
+    this.confirmPollAttempts = 5,
+    this.successHold = const Duration(milliseconds: 1600),
   });
 
   final String organizationId;
@@ -72,11 +90,33 @@ class PlpPaypalBillingScreen extends StatefulWidget {
   /// same confirmed state the owner sees here (never a PayPal return alone).
   final ValueChanged<Map<String, dynamic>>? onStatus;
 
+  final String? origin;
+  final String? originLabel;
+  final Map<String, dynamic>? initialStatus;
+  final PlpCheckoutReturn? paypalReturn;
+  final PlpCheckoutEventSink? onEvent;
+  final VoidCallback? onActivated;
+  final Duration confirmPollInterval;
+  final int confirmPollAttempts;
+  final Duration successHold;
+
   @override
   State<PlpPaypalBillingScreen> createState() => _PlpPaypalBillingScreenState();
 }
 
-enum _BillingView { main, select, changeConfirm, cancelConfirm, history }
+enum _BillingView {
+  landing,
+  review,
+  handedOff,
+  confirming,
+  pending,
+  success,
+  cancelledReturn,
+  failed,
+  changeConfirm,
+  cancelConfirm,
+  history,
+}
 
 class _PlanOption {
   const _PlanOption(this.code, this.name, this.icon, this.fallbackMicros);
@@ -93,7 +133,15 @@ class _HistoryRow {
   final String status;
 }
 
-class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
+class _UnlockRow {
+  const _UnlockRow(this.icon, this.label, this.originKey);
+  final IconData icon;
+  final String label;
+  final String originKey;
+}
+
+class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen>
+    with WidgetsBindingObserver {
   static const _plans = <_PlanOption>[
     _PlanOption('launch', 'Launch', Icons.rocket_launch_outlined, 49000000),
     _PlanOption(
@@ -111,19 +159,81 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
   Future<void> Function()? _retry;
   bool _unresolved = false;
   bool _cancelRequested = false;
-  _BillingView _view = _BillingView.main;
+  _BillingView _view = _BillingView.landing;
   String? _target;
+  String? _errorMessage;
 
   /// Plan the owner picked (or the plan of an unfinished checkout). Kept when
   /// going back so the selection is never lost.
-  String? _selectedPlanCode;
+  String _selectedPlanCode = 'launch';
   final Map<String, String> _idempotencyKeys = <String, String>{};
   Map<String, dynamic> _status = const <String, dynamic>{};
+
+  DateTime? _viewStartTime;
+  bool _paywallViewedEmitted = false;
+  bool _activationVerifiedEmitted = false;
+  bool _onActivatedCalled = false;
+  Timer? _successTimer;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _viewStartTime = DateTime.now();
+
+    final ret = widget.paypalReturn;
+    if (ret != null) {
+      if (ret.cancelled) {
+        _view = _BillingView.cancelledReturn;
+        _emitEvent(
+          OwnerAnalyticsEvent.checkoutAbandoned,
+          reason: 'paypal_cancel',
+        );
+      } else {
+        _view = _BillingView.confirming;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _startConfirming();
+        });
+      }
+    } else {
+      _view = _BillingView.landing;
+    }
+
     _initialLoad();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _successTimer?.cancel();
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _view == _BillingView.handedOff) {
+      _startConfirming();
+    }
+  }
+
+  void _emitEvent(
+    OwnerAnalyticsEvent event, {
+    String? plan,
+    String? reason,
+    int? attempt,
+    Duration? sinceView,
+  }) {
+    final sink = widget.onEvent ?? plpCheckoutAnalytics;
+    sink(
+      event,
+      origin: widget.origin,
+      plan: plan ?? _selectedPlanCode,
+      reason: reason,
+      attempt: attempt,
+      sinceView: sinceView,
+    );
   }
 
   Future<Map<String, dynamic>> _request(
@@ -137,40 +247,219 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
         body: body,
       );
 
-  /// Replaces the shown state only with a successful backend read, so a
-  /// failed read never overwrites the last confirmed state.
+  void _applyStatus(Map<String, dynamic> result) {
+    _status = result;
+    final state = _state(_map(result['subscription']));
+    final loadedSubscription = _map(result['subscription']);
+    final loadedCheckout = _map(result['checkout']);
+    final loadedPlanCode =
+        (loadedSubscription['plan_code'] ?? loadedCheckout['plan_code'] ?? '')
+            .toString();
+    if (state != 'active' && _option(loadedPlanCode) != null) {
+      _selectedPlanCode = loadedPlanCode;
+    }
+    if (state == 'cancelled' || state == 'canceled') {
+      _cancelRequested = false;
+    }
+  }
+
   Future<void> _fetchStatus() async {
     final result = await _request('/billing/paypal/status');
     if (!mounted) return;
-    final state = _state(_map(result['subscription']));
     setState(() {
-      _status = result;
+      _applyStatus(result);
       _loaded = true;
-      final loadedSubscription = _map(result['subscription']);
-      final loadedCheckout = _map(result['checkout']);
-      final loadedPlanCode =
-          (loadedSubscription['plan_code'] ?? loadedCheckout['plan_code'] ?? '')
-              .toString();
-      if (state != 'active' && _option(loadedPlanCode) != null) {
-        _selectedPlanCode = loadedPlanCode;
-      }
-      if (state == 'cancelled' || state == 'canceled') {
-        _cancelRequested = false;
-      }
     });
     widget.onStatus?.call(result);
   }
 
   Future<void> _initialLoad() async {
-    try {
-      await _fetchStatus();
-    } catch (error) {
-      if (!mounted) return;
+    if (widget.initialStatus != null) {
       setState(() {
-        _error = _short(error);
-        _retry = () => _run('Loading…', _fetchStatus);
+        _applyStatus(widget.initialStatus!);
+        _loaded = true;
+      });
+      widget.onStatus?.call(widget.initialStatus!);
+      // Refresh status silently in background; failed silent refresh changes nothing.
+      try {
+        final result = await _request('/billing/paypal/status');
+        if (mounted) {
+          setState(() {
+            _applyStatus(result);
+          });
+          widget.onStatus?.call(result);
+        }
+      } catch (_) {}
+      return;
+    }
+
+    var attempts = 0;
+    while (true) {
+      attempts++;
+      try {
+        await _fetchStatus();
+        return;
+      } catch (error) {
+        if (!mounted) return;
+        if (plpBillingTransientError(error) && attempts < 3) {
+          final delay = attempts == 1
+              ? const Duration(milliseconds: 600)
+              : const Duration(milliseconds: 1500);
+          await Future<void>.delayed(delay);
+          if (!mounted) return;
+          continue;
+        }
+        setState(() {
+          _error = 'Couldn’t load billing.';
+          _retry = () => _run('Loading…', _initialLoad);
+        });
+        return;
+      }
+    }
+  }
+
+  Future<void> _startConfirming() async {
+    if (!mounted) return;
+    setState(() {
+      _view = _BillingView.confirming;
+      _error = null;
+      _retry = null;
+    });
+
+    for (var attempt = 0; attempt < widget.confirmPollAttempts; attempt++) {
+      try {
+        await _request('/billing/paypal/reconcile', method: 'POST');
+      } catch (_) {}
+      try {
+        final result = await _request('/billing/paypal/status');
+        if (!mounted) return;
+        setState(() {
+          _applyStatus(result);
+          _loaded = true;
+        });
+        widget.onStatus?.call(result);
+
+        if (plpBillingStatusUnlocked(result)) {
+          _goToSuccess();
+          return;
+        }
+      } catch (_) {}
+
+      if (attempt < widget.confirmPollAttempts - 1) {
+        final completer = Completer<void>();
+        _pollTimer = Timer(widget.confirmPollInterval, () {
+          if (!completer.isCompleted) completer.complete();
+        });
+        await completer.future;
+        _pollTimer = null;
+        if (!mounted) return;
+      }
+    }
+
+    if (!mounted) return;
+    final checkout = _map(_status['checkout']);
+    final checkoutStatus = (checkout['status'] ?? '').toString().toLowerCase();
+    if (checkoutStatus == 'failed' || checkoutStatus == 'expired') {
+      _showFailed(
+        'Checkout couldn’t start. Nothing was charged.',
+        'server_error',
+      );
+    } else {
+      setState(() {
+        _view = _BillingView.pending;
+      });
+      _emitEvent(
+        OwnerAnalyticsEvent.checkoutAbandoned,
+        reason: 'pending_timeout',
+      );
+    }
+  }
+
+  void _goToSuccess() {
+    if (!mounted) return;
+    setState(() {
+      _view = _BillingView.success;
+      _error = null;
+      _retry = null;
+    });
+    if (!_activationVerifiedEmitted) {
+      _activationVerifiedEmitted = true;
+      _emitEvent(
+        OwnerAnalyticsEvent.activationVerified,
+        sinceView: _viewStartTime != null
+            ? DateTime.now().difference(_viewStartTime!)
+            : null,
+      );
+    }
+    if (widget.originLabel != null && !_onActivatedCalled) {
+      _successTimer?.cancel();
+      _successTimer = Timer(widget.successHold, () {
+        if (mounted) _triggerActivated();
       });
     }
+  }
+
+  void _triggerActivated() {
+    if (_onActivatedCalled) return;
+    _onActivatedCalled = true;
+    _successTimer?.cancel();
+    widget.onActivated?.call();
+  }
+
+  void _showFailed(String message, String reason) {
+    if (!mounted) return;
+    setState(() {
+      _view = _BillingView.failed;
+      _errorMessage = message;
+    });
+    _emitEvent(
+      OwnerAnalyticsEvent.checkoutFailed,
+      reason: reason,
+    );
+  }
+
+  void _handleCheckoutError(Object error) {
+    final raw = error.toString();
+    if (raw.contains('SUBSCRIPTION_ALREADY_ACTIVE') ||
+        raw.contains('ACTIVE_SUBSCRIPTION_EXISTS')) {
+      _startConfirming();
+      return;
+    }
+    String message;
+    String reason;
+    final isPlpReq = error is PlpBillingRequestException;
+    final isPaypalCheckoutFailed =
+        (isPlpReq && error.code == 'PAYPAL_CHECKOUT_FAILED') ||
+        raw.contains('PAYPAL_CHECKOUT_FAILED');
+    final is503 = isPlpReq && error.statusCode == 503;
+    final is429 = (isPlpReq && error.statusCode == 429) || raw.contains('429');
+
+    if (isPaypalCheckoutFailed) {
+      message = 'PayPal didn’t start checkout. Nothing was charged.';
+      reason = 'paypal_unavailable';
+    } else if (raw.contains('PAYPAL_NOT_CONFIGURED') ||
+        raw.contains('PAYPAL_AUTH_FAILED') ||
+        is503) {
+      message = 'PayPal is unavailable right now. Nothing was charged.';
+      reason = 'paypal_unavailable';
+    } else if (raw.contains('AAL2_REQUIRED')) {
+      message = 'Checkout needs an extra sign-in check on this account.';
+      reason = 'identity_required';
+    } else if (raw.contains('could not be opened')) {
+      message = 'PayPal didn’t open. Nothing was charged.';
+      reason = 'open_failed';
+    } else if (is429) {
+      message = 'Too many attempts. Wait a moment, then try again.';
+      reason = 'server_error';
+    } else if (error is TimeoutException || error is http.ClientException) {
+      message = 'No connection to PLP. Nothing was charged.';
+      reason = 'network';
+    } else {
+      message = 'Checkout couldn’t start. Nothing was charged.';
+      reason = 'server_error';
+    }
+
+    _showFailed(message, reason);
   }
 
   Future<void> _run(String pending, Future<void> Function() work) async {
@@ -185,10 +474,16 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
       await work();
     } catch (error) {
       if (mounted) {
-        setState(() {
-          _error = _short(error);
-          _retry = () => _run(pending, work);
-        });
+        final active = _state(_map(_status['subscription'])) == 'active';
+        if (!active &&
+            (_view == _BillingView.review || _view == _BillingView.landing)) {
+          _handleCheckoutError(error);
+        } else {
+          setState(() {
+            _error = _short(error);
+            _retry = () => _run(pending, work);
+          });
+        }
       }
     } finally {
       if (mounted) {
@@ -257,6 +552,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
         final returnUrls = plpPaypalReturnUrls(
           isWeb: widget.isWeb ?? kIsWeb,
           base: widget.appBaseUri ?? Uri.base,
+          origin: widget.origin,
         );
         final result = await _request(
           '/billing/paypal/checkout',
@@ -269,7 +565,6 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
           },
         );
         _idempotencyKeys.remove(intent);
-        _show(_BillingView.main);
         await _openApproval(result['approvalUrl']?.toString());
         await _fetchStatus();
       });
@@ -285,7 +580,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
           },
         );
         _idempotencyKeys.remove(intent);
-        _show(_BillingView.main);
+        _show(_BillingView.landing);
         await _openApproval(result['approvalUrl']?.toString());
         await _fetchStatus();
       });
@@ -310,7 +605,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
           body: const {'reason': 'Cancelled by Pandora owner'},
         );
         final outcome = _map(result['cancellation']);
-        _show(_BillingView.main);
+        _show(_BillingView.landing);
         await _fetchStatus();
         final state = _state(_map(_status['subscription']));
         if (mounted && state != 'cancelled' && state != 'canceled') {
@@ -326,6 +621,20 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
     if (uri == null || !await launcher(uri)) {
       throw Exception('PayPal approval could not be opened.');
     }
+    final active = _state(_map(_status['subscription'])) == 'active';
+    if (!active &&
+        (_view == _BillingView.landing ||
+            _view == _BillingView.review ||
+            _view == _BillingView.failed)) {
+      _emitEvent(
+        OwnerAnalyticsEvent.paypalHandoff,
+        plan: _selectedPlanCode,
+        sinceView: _viewStartTime != null
+            ? DateTime.now().difference(_viewStartTime!)
+            : null,
+      );
+      _show(_BillingView.handedOff);
+    }
   }
 
   void _show(_BillingView view, [String? target]) {
@@ -335,13 +644,65 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
       _retry = null;
       _view = view;
       _target = target;
-      if (view == _BillingView.select && target != null) {
-        _selectedPlanCode = target;
-      }
     });
   }
 
   VoidCallback? _tap(VoidCallback action) => _busy ? null : action;
+
+  Widget _primaryCta({
+    required Key key,
+    required String label,
+    VoidCallback? onTap,
+    bool disabled = false,
+    IconData? icon,
+  }) {
+    final enabled = !disabled && onTap != null && !_busy;
+    return Material(
+      color: enabled ? const Color(0xFF151515) : const Color(0xFFE4DCCF),
+      borderRadius: BorderRadius.circular(2),
+      child: InkWell(
+        key: key,
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(2),
+        child: SizedBox(
+          height: 48,
+          width: double.infinity,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: enabled ? Colors.white : const Color(0xFF756F67),
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: .3,
+                      ),
+                    ),
+                  ),
+                  if (icon != null) ...[
+                    const SizedBox(width: 8),
+                    Icon(
+                      icon,
+                      size: 16,
+                      color: enabled ? Colors.white : const Color(0xFF756F67),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -361,10 +722,6 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
         pending.isNotEmpty && !_terminalApprovalStates.contains(pendingStatus);
     final pendingApproval =
         pendingChange ? (pending['approval_url'] ?? '').toString().trim() : '';
-    final checkoutStatus = (checkout['status'] ?? '').toString().toLowerCase();
-    final checkoutApproval = _terminalApprovalStates.contains(checkoutStatus)
-        ? ''
-        : (checkout['approval_url'] ?? '').toString().trim();
     // Verified only with provider evidence; a failed refresh keeps the last
     // confirmed data on screen but no longer calls it verified.
     final verified = !_unresolved &&
@@ -372,7 +729,6 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
         subscription['verified_at'] != null;
     final provider = _map(_status['provider']);
     final providerConfigured = provider['configured'] == true;
-    final providerUnavailable = provider['configured'] == false;
     final providerLabel = verified
         ? 'Verified'
         : active
@@ -380,202 +736,189 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
             : providerConfigured
                 ? 'Configured'
                 : 'Unavailable';
+
     // Renewal is shown only when the provider returned a date; never guessed.
     final renewalDate = plpBillingShortDate(subscription['renews_on']);
     final currentPrice = _monthlyPrice(subscription);
     final target = _option(_target);
 
-    var notice = '';
-    var tiles = <PlpCapability>[];
+    // Active management views
+    if (active &&
+        (_view == _BillingView.landing ||
+            _view == _BillingView.changeConfirm ||
+            _view == _BillingView.cancelConfirm ||
+            _view == _BillingView.history)) {
+      var notice = '';
+      var tiles = <PlpCapability>[];
 
-    final refreshTile = PlpCapability(
-      'Refresh',
-      Icons.sync_rounded,
-      _tap(_reconcile),
-      detail: active ? providerLabel : null,
-      semanticLabel: active
-          ? 'Refresh PayPal status, ${providerLabel.toLowerCase()}'
-          : 'Check PayPal status',
-    );
-    final backTile = PlpCapability(
-      'Back',
-      Icons.arrow_back_rounded,
-      _tap(() => _show(_BillingView.main)),
-      showArrow: false,
-    );
-    final keepTile = PlpCapability(
-      'Keep',
-      Icons.check_circle_outline_rounded,
-      _tap(() => _show(_BillingView.main)),
-      showArrow: false,
-    );
-    PlpCapability openPaypal(String url) => PlpCapability(
-          'Open PayPal',
-          Icons.open_in_new_rounded,
-          _tap(() => _run('Opening PayPal…', () => _openApproval(url))),
-        );
+      final refreshTile = PlpCapability(
+        'Refresh',
+        Icons.sync_rounded,
+        _tap(_reconcile),
+        detail: active ? providerLabel : null,
+        semanticLabel: active
+            ? 'Refresh PayPal status, ${providerLabel.toLowerCase()}'
+            : 'Check PayPal status',
+      );
+      final backTile = PlpCapability(
+        'Back',
+        Icons.arrow_back_rounded,
+        _tap(() => _show(_BillingView.landing)),
+        showArrow: false,
+      );
+      final keepTile = PlpCapability(
+        'Keep',
+        Icons.check_circle_outline_rounded,
+        _tap(() => _show(_BillingView.landing)),
+        showArrow: false,
+      );
+      PlpCapability openPaypal(String url) => PlpCapability(
+            'Open PayPal',
+            Icons.open_in_new_rounded,
+            _tap(() => _run('Opening PayPal…', () => _openApproval(url))),
+          );
 
-    if (!_loaded) {
-      notice = _error ?? 'Loading…';
-      if (_error != null && _retry != null) {
-        tiles = [PlpCapability('Retry', Icons.refresh_rounded, _tap(_retry!))];
-      }
-    } else if (!active && checkoutApproval.isNotEmpty) {
-      notice = 'Finish in PayPal · not active yet';
-      tiles = [openPaypal(checkoutApproval), refreshTile];
-    } else if (active && pendingChange) {
-      final to = _option((pending['to_plan_code'] ?? '').toString());
-      notice =
-          to == null ? 'Plan change pending' : 'Switch to ${to.name} pending';
-      tiles = [
-        if (pendingApproval.isNotEmpty) openPaypal(pendingApproval),
-        refreshTile,
-      ];
-    } else if (active && cancelPending) {
-      notice = 'Cancellation pending';
-      tiles = [refreshTile];
-    } else if (active &&
-        _view == _BillingView.changeConfirm &&
-        target != null) {
-      final from = _option(currentCode)?.name ?? _planName(currentCode);
-      final price = _planPrice(target);
-      // Effective date only when the provider returned the renewal date.
-      final when = renewalDate.isEmpty ? '' : ' from $renewalDate';
-      notice = '$from to ${target.name} · $price$when';
-      tiles = [
-        PlpCapability(
-          'Switch to ${target.name}',
-          Icons.swap_horiz_rounded,
-          _tap(() => _changePlan(target.code)),
-          semanticLabel: 'Switch to ${target.name}, $price$when',
-        ),
-        keepTile,
-      ];
-    } else if (active && _view == _BillingView.cancelConfirm) {
-      final plan = _option(currentCode)?.name ?? _planName(currentCode);
-      notice = renewalDate.isEmpty
-          ? 'Cancel $plan? No further charges.'
-          : 'Cancel $plan? No charge on $renewalDate.';
-      tiles = [
-        keepTile,
-        PlpCapability(
-          'Cancel',
-          Icons.do_not_disturb_on_outlined,
-          _tap(_cancel),
-          emphasis: true,
-          semanticLabel: 'Cancel $plan subscription',
-        ),
-      ];
-    } else if (active && _view == _BillingView.history) {
-      final activity = _status['activity'];
-      if (activity is! List) {
-        notice = 'History unavailable.';
+      if (pendingChange) {
+        final to = _option((pending['to_plan_code'] ?? '').toString());
+        notice =
+            to == null ? 'Plan change pending' : 'Switch to ${to.name} pending';
         tiles = [
-          PlpCapability('Retry', Icons.refresh_rounded,
-              _tap(() => _run('Loading…', _fetchStatus))),
-          backTile,
+          if (pendingApproval.isNotEmpty) openPaypal(pendingApproval),
+          refreshTile,
         ];
-      } else {
-        final rows = _history(activity);
-        notice = rows.isEmpty ? 'No payments yet.' : 'Recent payments';
+      } else if (cancelPending) {
+        notice = 'Cancellation pending';
+        tiles = [refreshTile];
+      } else if (_view == _BillingView.changeConfirm && target != null) {
+        final from = _option(currentCode)?.name ?? _planName(currentCode);
+        final price = _planPrice(target);
+        // Effective date only when the provider returned the renewal date.
+        final when = renewalDate.isEmpty ? '' : ' from $renewalDate';
+        notice = '$from to ${target.name} · $price$when';
         tiles = [
-          // Two most recent real records keep the page to ~6 text items.
-          for (final row in rows.take(2))
-            PlpCapability(
-              row.amount,
-              Icons.receipt_long_outlined,
-              null,
-              detail: [row.date, row.status]
-                  .where((part) => part.isNotEmpty)
-                  .join(' · '),
-            ),
-          backTile,
-        ];
-      }
-    } else if (active) {
-      notice =
-          _activeLine(subscription, currentCode, currentPrice, renewalDate);
-      final others = _plans.where((plan) => plan.code != currentCode);
-      tiles = [
-        PlpCapability(
-          'Change plan',
-          Icons.swap_horiz_rounded,
-          others.isEmpty
-              ? null
-              : _tap(
-                  () => _show(_BillingView.changeConfirm, others.first.code)),
-        ),
-        refreshTile,
-        PlpCapability(
-          'History',
-          Icons.receipt_long_outlined,
-          _tap(() => _show(_BillingView.history)),
-          semanticLabel: 'Payment history',
-        ),
-        PlpCapability(
-          'Cancel',
-          Icons.do_not_disturb_on_outlined,
-          _tap(() => _show(_BillingView.cancelConfirm)),
-          semanticLabel: 'Cancel subscription',
-        ),
-      ];
-    } else if (_view == _BillingView.select && target != null) {
-      notice = '${target.name} · ${_planPrice(target)}';
-      tiles = [
-        PlpCapability(
-          'Pay with PayPal',
-          Icons.open_in_new_rounded,
-          _tap(() => _checkout(target.code)),
-          semanticLabel:
-              'Pay ${_planPrice(target)} for ${target.name} with PayPal',
-        ),
-        backTile,
-      ];
-    } else {
-      final ends = plpBillingShortDate(subscription['ends_on']);
-      // A cancelled subscription always says so; the end date only when known.
-      notice = cancelled
-          ? (ends.isEmpty ? 'Cancelled' : 'Cancelled · ends $ends')
-          : providerUnavailable
-              ? 'PayPal is unavailable.'
-              : 'Pay monthly with PayPal.';
-      tiles = [
-        for (final plan in _plans)
           PlpCapability(
-            plan.name,
-            plan.icon,
-            providerUnavailable
-                ? null
-                : _tap(() => _show(_BillingView.select, plan.code)),
-            detail: _planPrice(plan),
-            selected: !cancelled && _selectedPlanCode == plan.code,
-            semanticLabel: '${plan.name}, ${_planPrice(plan)}'
-                '${_selectedPlanCode == plan.code ? ', selected' : ''}',
+            'Switch to ${target.name}',
+            Icons.swap_horiz_rounded,
+            _tap(() => _changePlan(target.code)),
+            semanticLabel: 'Switch to ${target.name}, $price$when',
           ),
-      ];
+          keepTile,
+        ];
+      } else if (_view == _BillingView.cancelConfirm) {
+        final plan = _option(currentCode)?.name ?? _planName(currentCode);
+        notice = renewalDate.isEmpty
+            ? 'Cancel $plan? No further charges.'
+            : 'Cancel $plan? No charge on $renewalDate.';
+        tiles = [
+          keepTile,
+          PlpCapability(
+            'Cancel',
+            Icons.do_not_disturb_on_outlined,
+            _tap(_cancel),
+            emphasis: true,
+            semanticLabel: 'Cancel $plan subscription',
+          ),
+        ];
+      } else if (_view == _BillingView.history) {
+        final activity = _status['activity'];
+        if (activity is! List) {
+          notice = 'History unavailable.';
+          tiles = [
+            PlpCapability('Retry', Icons.refresh_rounded,
+                _tap(() => _run('Loading…', _fetchStatus))),
+            backTile,
+          ];
+        } else {
+          final rows = _history(activity);
+          notice = rows.isEmpty ? 'No payments yet.' : 'Recent payments';
+          tiles = [
+            for (final row in rows.take(2))
+              PlpCapability(
+                row.amount,
+                Icons.receipt_long_outlined,
+                null,
+                detail: [row.date, row.status]
+                    .where((part) => part.isNotEmpty)
+                    .join(' · '),
+              ),
+            backTile,
+          ];
+        }
+      } else {
+        notice =
+            _activeLine(subscription, currentCode, currentPrice, renewalDate);
+        final others = _plans.where((plan) => plan.code != currentCode);
+        tiles = [
+          PlpCapability(
+            'Change plan',
+            Icons.swap_horiz_rounded,
+            others.isEmpty
+                ? null
+                : _tap(
+                    () => _show(_BillingView.changeConfirm, others.first.code)),
+          ),
+          refreshTile,
+          PlpCapability(
+            'History',
+            Icons.receipt_long_outlined,
+            _tap(() => _show(_BillingView.history)),
+            semanticLabel: 'Payment history',
+          ),
+          PlpCapability(
+            'Cancel',
+            Icons.do_not_disturb_on_outlined,
+            _tap(() => _show(_BillingView.cancelConfirm)),
+            semanticLabel: 'Cancel subscription',
+          ),
+        ];
+      }
+
+      if (_pending != null) notice = _pending!;
+      if (_error != null) {
+        notice = _error!;
+        tiles = [
+          if (_retry != null)
+            PlpCapability('Retry', Icons.refresh_rounded, _tap(_retry!)),
+          backTile,
+        ];
+      }
+
+      return PlpResortPage(
+        key: const ValueKey('plp-paypal-billing'),
+        listKey: const ValueKey('plp-paypal-billing-list'),
+        section: plpBillingSection,
+        onRefresh: () {
+          if (!_loaded) return _run('Loading…', _fetchStatus);
+          return _reconcile();
+        },
+        children: [
+          if (notice.isNotEmpty) ...[
+            Semantics(
+              liveRegion: true,
+              container: true,
+              child: PlpResortNotice(
+                notice,
+                key: const ValueKey('plp-billing-notice'),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (tiles.isNotEmpty) PlpCapabilityGrid(items: tiles),
+          // Keeps the last tile clear of the floating PLP launcher.
+          const SizedBox(height: 72),
+        ],
+      );
     }
 
-    if (_loaded && _pending != null) notice = _pending!;
-    if (_loaded && _error != null) {
-      notice = _error!;
-      tiles = [
-        if (_retry != null)
-          PlpCapability('Retry', Icons.refresh_rounded, _tap(_retry!)),
-        backTile,
-      ];
-    }
-
-    return PlpResortPage(
-      key: const ValueKey('plp-paypal-billing'),
-      listKey: const ValueKey('plp-paypal-billing-list'),
-      section: plpBillingSection,
-      onRefresh: () {
-        if (!_loaded) return _run('Loading…', _fetchStatus);
-        if (active || checkoutApproval.isNotEmpty) return _reconcile();
-        return _run('Loading…', _fetchStatus);
-      },
-      children: [
-        if (notice.isNotEmpty) ...[
+    // Loading / error state if not loaded yet
+    if (!_loaded) {
+      final notice = _error ?? 'Loading…';
+      return PlpResortPage(
+        key: const ValueKey('plp-paypal-billing'),
+        listKey: const ValueKey('plp-paypal-billing-list'),
+        section: plpBillingSection,
+        onRefresh: () => _run('Loading…', _fetchStatus),
+        children: [
           Semantics(
             liveRegion: true,
             container: true,
@@ -584,14 +927,745 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
               key: const ValueKey('plp-billing-notice'),
             ),
           ),
+          if (_error != null && _retry != null) ...[
+            const SizedBox(height: 12),
+            PlpCapabilityGrid(
+              items: [
+                PlpCapability('Retry', Icons.refresh_rounded, _tap(_retry!)),
+              ],
+            ),
+          ],
+          // Keeps the last tile clear of the floating PLP launcher.
+          const SizedBox(height: 72),
+        ],
+      );
+    }
+
+    // Unpaid journeys
+    switch (_view) {
+      case _BillingView.review:
+        return _buildReview(context);
+      case _BillingView.handedOff:
+        return _buildHandedOff(context);
+      case _BillingView.confirming:
+        return _buildConfirming(context);
+      case _BillingView.pending:
+        return _buildPending(context);
+      case _BillingView.success:
+        return _buildSuccess(context);
+      case _BillingView.cancelledReturn:
+        return _buildCancelledReturn(context);
+      case _BillingView.failed:
+        return _buildFailed(context);
+      default:
+        return _buildLanding(context, state: state, cancelled: cancelled);
+    }
+  }
+
+  Widget _buildLanding(
+    BuildContext context, {
+    required String state,
+    required bool cancelled,
+  }) {
+    if (!_paywallViewedEmitted) {
+      _paywallViewedEmitted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _emitEvent(OwnerAnalyticsEvent.paywallViewed);
+      });
+    }
+
+    final selectedCode = _selectedPlanCode;
+    final selectedOption = _option(selectedCode) ?? _plans.first;
+    final selectedPrice = _planPriceText(selectedCode, selectedOption.fallbackMicros);
+
+    final provider = _map(_status['provider']);
+    final providerUnavailable = provider['configured'] == false;
+
+    final checkout = _map(_status['checkout']);
+    final checkoutStatus = (checkout['status'] ?? '').toString().toLowerCase();
+    final openCheckout = checkout.isNotEmpty &&
+        !_terminalApprovalStates.contains(checkoutStatus) &&
+        (checkout['approval_url'] ?? '').toString().trim().isNotEmpty;
+    final openPlanCode = (checkout['plan_code'] ?? '').toString();
+    final openPlanName = _option(openPlanCode)?.name ?? 'Launch';
+
+    final ends = plpBillingShortDate(_map(_status['subscription'])['ends_on']);
+    final endedLine = cancelled
+        ? (ends.isEmpty ? 'Cancelled' : 'Cancelled · ends $ends')
+        : '';
+
+    // Unlock items ordering
+    final unlockRows = <_UnlockRow>[
+      const _UnlockRow(
+        Icons.event_available_outlined,
+        'Stays & Guests',
+        'stays_guests',
+      ),
+      const _UnlockRow(
+        Icons.room_service_outlined,
+        'Operations & Experiences',
+        'ops_exp',
+      ),
+      const _UnlockRow(
+        Icons.insights_outlined,
+        'Revenue',
+        'revenue',
+      ),
+      const _UnlockRow(
+        Icons.groups_outlined,
+        'Team & the PLP assistant',
+        'team_assistant',
+      ),
+    ];
+
+    String? matchKey;
+    final orig = widget.origin;
+    if (orig == 'stays' || orig == 'guests') {
+      matchKey = 'stays_guests';
+    } else if (orig == 'operations' || orig == 'experiences') {
+      matchKey = 'ops_exp';
+    } else if (orig == 'revenue') {
+      matchKey = 'revenue';
+    } else if (orig == 'team' || orig == 'assistant') {
+      matchKey = 'team_assistant';
+    }
+
+    if (matchKey != null) {
+      final index = unlockRows.indexWhere((r) => r.originKey == matchKey);
+      if (index > 0) {
+        final row = unlockRows.removeAt(index);
+        unlockRows.insert(0, row);
+      }
+    }
+
+    return PlpResortPage(
+      key: const ValueKey('plp-paypal-billing'),
+      listKey: const ValueKey('plp-paypal-billing-list'),
+      section: plpBillingSection,
+      onRefresh: () => _run('Loading…', _fetchStatus),
+      children: [
+        if (openCheckout) ...[
+          PlpResortNotice(
+            'You started checkout for $openPlanName. Finish in PayPal or choose again.',
+            key: const ValueKey('plp-billing-open-checkout-notice'),
+          ),
+          const SizedBox(height: 12),
+        ] else if (providerUnavailable) ...[
+          const PlpResortNotice(
+            'PayPal is unavailable right now. Nothing was charged.',
+            key: ValueKey('plp-billing-notice'),
+          ),
           const SizedBox(height: 12),
         ],
-        if (tiles.isNotEmpty) PlpCapabilityGrid(items: tiles),
+        if (endedLine.isNotEmpty) ...[
+          Text(
+            endedLine,
+            style: const TextStyle(
+              fontSize: 12,
+              color: PlpResortWorkspaceScreen.muted,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        Text(
+          widget.originLabel != null
+              ? '${widget.originLabel} is part of PLP Enterprise'
+              : 'Run the whole resort from PLP',
+          style: const TextStyle(
+            fontFamily: 'serif',
+            fontSize: 24,
+            color: PlpResortWorkspaceScreen.ink,
+            height: 1.15,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'One subscription unlocks every workspace for your team.',
+          style: TextStyle(
+            fontSize: 13,
+            color: PlpResortWorkspaceScreen.muted,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'WHAT UNLOCKS',
+          style: TextStyle(
+            color: PlpResortWorkspaceScreen.accent,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.4,
+          ),
+        ),
+        const SizedBox(height: 6),
+        for (final row in unlockRows) ...[
+          Row(
+            children: [
+              Icon(
+                row.icon,
+                size: 18,
+                color: PlpResortWorkspaceScreen.accent,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  row.label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: PlpResortWorkspaceScreen.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+        ],
+        const SizedBox(height: 4),
+        _buildPlanCard(
+          code: 'launch',
+          name: 'Launch',
+          detail: 'Everything in PLP · 1,000 assistant requests/mo',
+          isLaunch: true,
+          isSelected: selectedCode == 'launch',
+          priceText: _planPriceText('launch', 49000000),
+        ),
+        const SizedBox(height: 6),
+        _buildPlanCard(
+          code: 'professional',
+          name: 'Professional',
+          detail: '5,000 assistant requests/mo · priority support',
+          isLaunch: false,
+          isSelected: selectedCode == 'professional',
+          priceText: _planPriceText('professional', 149000000),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Billed monthly by PayPal. Renews until you cancel — cancel anytime in Billing.',
+          style: TextStyle(
+            fontSize: 11.5,
+            color: PlpResortWorkspaceScreen.muted,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (providerUnavailable) ...[
+          _primaryCta(
+            key: const ValueKey('plp-checkout-continue'),
+            label: 'Continue with ${selectedOption.name} · $selectedPrice/mo',
+            disabled: true,
+          ),
+          const SizedBox(height: 12),
+          PlpCapabilityGrid(
+            items: [
+              PlpCapability(
+                'Retry',
+                Icons.refresh_rounded,
+                _tap(() => _run('Loading…', _fetchStatus)),
+              ),
+            ],
+          ),
+        ] else if (openCheckout) ...[
+          _primaryCta(
+            key: const ValueKey('plp-checkout-continue'),
+            label: 'Finish in PayPal',
+            onTap: () => _checkout(selectedCode),
+          ),
+        ] else ...[
+          _primaryCta(
+            key: const ValueKey('plp-checkout-continue'),
+            label: 'Continue with ${selectedOption.name} · $selectedPrice/mo',
+            onTap: () {
+              _emitEvent(
+                OwnerAnalyticsEvent.checkoutStarted,
+                plan: selectedCode,
+              );
+              _show(_BillingView.review);
+            },
+          ),
+        ],
+        const SizedBox(height: 12),
+        const Text(
+          'Free without a plan: Today, Rooms & Housekeeping, Activity.',
+          style: TextStyle(
+            fontSize: 11.5,
+            color: PlpResortWorkspaceScreen.muted,
+          ),
+        ),
         // Keeps the last tile clear of the floating PLP launcher.
         const SizedBox(height: 72),
       ],
     );
   }
+
+  Widget _buildPlanCard({
+    required String code,
+    required String name,
+    required String detail,
+    required bool isLaunch,
+    required bool isSelected,
+    required String priceText,
+  }) {
+    final semanticLabel =
+        '$name, $priceText per month${isLaunch ? ', recommended' : ''}${isSelected ? ', selected' : ''}';
+    return Semantics(
+      selected: isSelected,
+      button: true,
+      label: semanticLabel,
+      child: Material(
+        color: PlpResortWorkspaceScreen.paper,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(
+            color: isSelected
+                ? PlpResortWorkspaceScreen.accent
+                : PlpResortWorkspaceScreen.line,
+            width: isSelected ? 1.4 : 1.0,
+          ),
+        ),
+        child: InkWell(
+          key: ValueKey('plp-plan-$code'),
+          onTap: () {
+            setState(() {
+              _selectedPlanCode = code;
+            });
+            _emitEvent(OwnerAnalyticsEvent.planSelected, plan: code);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isLaunch) ...[
+                  const Text(
+                    'RECOMMENDED',
+                    style: TextStyle(
+                      color: PlpResortWorkspaceScreen.accent,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: 19,
+                          color: PlpResortWorkspaceScreen.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      priceText,
+                      style: const TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 22,
+                        color: PlpResortWorkspaceScreen.ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Text(
+                      ' / month',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: PlpResortWorkspaceScreen.muted,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: PlpResortWorkspaceScreen.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReview(BuildContext context) {
+    final selectedCode = _selectedPlanCode;
+    final selectedOption = _option(selectedCode) ?? _plans.first;
+    final selectedPrice = _planPriceText(selectedCode, selectedOption.fallbackMicros);
+
+    return PlpResortPage(
+      key: const ValueKey('plp-paypal-billing'),
+      listKey: const ValueKey('plp-paypal-billing-list'),
+      section: plpBillingSection,
+      onRefresh: () => _run('Loading…', _fetchStatus),
+      children: [
+        const Text(
+          'REVIEW',
+          style: TextStyle(
+            color: PlpResortWorkspaceScreen.accent,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.4,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          selectedOption.name,
+          style: const TextStyle(
+            fontFamily: 'serif',
+            fontSize: 24,
+            color: PlpResortWorkspaceScreen.ink,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '$selectedPrice per month',
+          style: const TextStyle(
+            fontSize: 15,
+            color: PlpResortWorkspaceScreen.ink,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _reviewStepRow(
+          Icons.open_in_new_rounded,
+          'PayPal opens so you can approve the subscription.',
+        ),
+        const SizedBox(height: 12),
+        _reviewStepRow(
+          Icons.verified_outlined,
+          'Come back here — PLP checks with PayPal.',
+        ),
+        const SizedBox(height: 12),
+        _reviewStepRow(
+          Icons.lock_open_outlined,
+          widget.originLabel != null
+              ? 'Everything unlocks once PayPal confirms, then we take you back to ${widget.originLabel}.'
+              : 'Everything unlocks once PayPal confirms.',
+        ),
+        const SizedBox(height: 22),
+        Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: PlpResortWorkspaceScreen.paper,
+            border: Border.fromBorderSide(
+              BorderSide(color: PlpResortWorkspaceScreen.line),
+            ),
+          ),
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$selectedPrice every month until you cancel.',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: PlpResortWorkspaceScreen.ink,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Cancel anytime in Billing — no further charges. Access ends when the cancellation is confirmed.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: PlpResortWorkspaceScreen.ink,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Charges and receipts come from PayPal.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: PlpResortWorkspaceScreen.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        _primaryCta(
+          key: const ValueKey('plp-checkout-paypal'),
+          label: 'Continue to PayPal',
+          icon: Icons.open_in_new_rounded,
+          onTap: () => _checkout(selectedCode),
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: TextButton(
+            onPressed: () => _show(_BillingView.landing),
+            child: const Text(
+              'Back',
+              style: TextStyle(color: PlpResortWorkspaceScreen.muted),
+            ),
+          ),
+        ),
+        // Keeps the last tile clear of the floating PLP launcher.
+        const SizedBox(height: 72),
+      ],
+    );
+  }
+
+  Widget _reviewStepRow(IconData icon, String text) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: PlpResortWorkspaceScreen.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: PlpResortWorkspaceScreen.ink,
+              ),
+            ),
+          ),
+        ],
+      );
+
+  Widget _buildHandedOff(BuildContext context) {
+    final approvalUrl = _existingApprovalUrl();
+    return PlpResortPage(
+      key: const ValueKey('plp-paypal-billing'),
+      listKey: const ValueKey('plp-paypal-billing-list'),
+      section: plpBillingSection,
+      onRefresh: _reconcile,
+      children: [
+        const PlpResortNotice(
+          'Approve in PayPal, then come back here.',
+          key: ValueKey('plp-billing-notice'),
+        ),
+        const SizedBox(height: 12),
+        PlpCapabilityGrid(
+          items: [
+            PlpCapability(
+              'I’ve approved',
+              Icons.check_circle_outline_rounded,
+              _startConfirming,
+            ),
+            PlpCapability(
+              'Open PayPal again',
+              Icons.open_in_new_rounded,
+              approvalUrl.isNotEmpty ? () => _openApproval(approvalUrl) : null,
+            ),
+            PlpCapability(
+              'Choose another plan',
+              Icons.arrow_back_rounded,
+              () => _show(_BillingView.landing),
+              showArrow: false,
+            ),
+          ],
+        ),
+        // Keeps the last tile clear of the floating PLP launcher.
+        const SizedBox(height: 72),
+      ],
+    );
+  }
+
+  Widget _buildConfirming(BuildContext context) => PlpResortPage(
+        key: const ValueKey('plp-paypal-billing'),
+        listKey: const ValueKey('plp-paypal-billing-list'),
+        section: plpBillingSection,
+        onRefresh: _reconcile,
+        children: [
+          const PlpResortNotice(
+            'Confirming with PayPal…',
+            key: ValueKey('plp-billing-notice'),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'This usually takes a few seconds.',
+            style: TextStyle(
+              fontSize: 13,
+              color: PlpResortWorkspaceScreen.muted,
+            ),
+          ),
+          const SizedBox(height: 14),
+          const LinearProgressIndicator(
+            minHeight: 2,
+            color: PlpResortWorkspaceScreen.accent,
+            backgroundColor: PlpResortWorkspaceScreen.line,
+          ),
+          // Keeps the last tile clear of the floating PLP launcher.
+          const SizedBox(height: 72),
+        ],
+      );
+
+  Widget _buildPending(BuildContext context) {
+    final approvalUrl = _existingApprovalUrl();
+    return PlpResortPage(
+      key: const ValueKey('plp-paypal-billing'),
+      listKey: const ValueKey('plp-paypal-billing-list'),
+      section: plpBillingSection,
+      onRefresh: _reconcile,
+      children: [
+        const PlpResortNotice(
+          'PayPal hasn’t confirmed yet.',
+          key: ValueKey('plp-billing-notice'),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'If you approved, it can take a minute. Nothing unlocks until PayPal confirms.',
+          style: TextStyle(
+            fontSize: 13,
+            color: PlpResortWorkspaceScreen.muted,
+          ),
+        ),
+        const SizedBox(height: 14),
+        PlpCapabilityGrid(
+          items: [
+            PlpCapability(
+              'Check again',
+              Icons.refresh_rounded,
+              _startConfirming,
+            ),
+            if (approvalUrl.isNotEmpty)
+              PlpCapability(
+                'Open PayPal',
+                Icons.open_in_new_rounded,
+                () => _openApproval(approvalUrl),
+              ),
+            PlpCapability(
+              'Choose another plan',
+              Icons.arrow_back_rounded,
+              () => _show(_BillingView.landing),
+              showArrow: false,
+            ),
+          ],
+        ),
+        // Keeps the last tile clear of the floating PLP launcher.
+        const SizedBox(height: 72),
+      ],
+    );
+  }
+
+  Widget _buildSuccess(BuildContext context) {
+    final selectedCode = _selectedPlanCode;
+    final selectedOption = _option(selectedCode) ?? _plans.first;
+    final selectedPrice = _planPriceText(selectedCode, selectedOption.fallbackMicros);
+
+    final subscription = _map(_status['subscription']);
+    final renewalDate = plpBillingShortDate(subscription['renews_on']);
+    final renewsPart = renewalDate.isNotEmpty ? ' · renews $renewalDate' : '';
+
+    final ctaLabel = widget.originLabel != null
+        ? 'Open ${widget.originLabel}'
+        : 'Go to Today';
+
+    return PlpResortPage(
+      key: const ValueKey('plp-paypal-billing'),
+      listKey: const ValueKey('plp-paypal-billing-list'),
+      section: plpBillingSection,
+      onRefresh: _reconcile,
+      children: [
+        const Text(
+          'PLP Enterprise is unlocked',
+          style: TextStyle(
+            fontFamily: 'serif',
+            fontSize: 26,
+            color: PlpResortWorkspaceScreen.ink,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '${selectedOption.name} · $selectedPrice / month$renewsPart',
+          style: const TextStyle(
+            fontSize: 14,
+            color: PlpResortWorkspaceScreen.ink,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Verified with PayPal.',
+          style: TextStyle(
+            fontSize: 12,
+            color: PlpResortWorkspaceScreen.muted,
+          ),
+        ),
+        const SizedBox(height: 24),
+        _primaryCta(
+          key: const ValueKey('plp-checkout-done'),
+          label: ctaLabel,
+          onTap: _triggerActivated,
+        ),
+        // Keeps the last tile clear of the floating PLP launcher.
+        const SizedBox(height: 72),
+      ],
+    );
+  }
+
+  Widget _buildCancelledReturn(BuildContext context) => PlpResortPage(
+        key: const ValueKey('plp-paypal-billing'),
+        listKey: const ValueKey('plp-paypal-billing-list'),
+        section: plpBillingSection,
+        onRefresh: () => _run('Loading…', _fetchStatus),
+        children: [
+          const PlpResortNotice(
+            'You left PayPal before approving. Nothing was charged.',
+            key: ValueKey('plp-billing-notice'),
+          ),
+          const SizedBox(height: 18),
+          _primaryCta(
+            key: const ValueKey('plp-checkout-retry'),
+            label: 'Try again',
+            onTap: () => _show(_BillingView.review),
+          ),
+          const SizedBox(height: 12),
+          PlpCapabilityGrid(
+            items: [
+              PlpCapability(
+                'Choose another plan',
+                Icons.arrow_back_rounded,
+                () => _show(_BillingView.landing),
+                showArrow: false,
+              ),
+            ],
+          ),
+          // Keeps the last tile clear of the floating PLP launcher.
+          const SizedBox(height: 72),
+        ],
+      );
+
+  Widget _buildFailed(BuildContext context) => PlpResortPage(
+        key: const ValueKey('plp-paypal-billing'),
+        listKey: const ValueKey('plp-paypal-billing-list'),
+        section: plpBillingSection,
+        onRefresh: () => _run('Loading…', _fetchStatus),
+        children: [
+          PlpResortNotice(
+            _errorMessage ?? 'Checkout couldn’t start. Nothing was charged.',
+            key: const ValueKey('plp-billing-notice'),
+          ),
+          const SizedBox(height: 14),
+          PlpCapabilityGrid(
+            items: [
+              PlpCapability(
+                'Try again',
+                Icons.refresh_rounded,
+                () => _checkout(_selectedPlanCode),
+              ),
+              PlpCapability(
+                'Back',
+                Icons.arrow_back_rounded,
+                () => _show(_BillingView.landing),
+                showArrow: false,
+              ),
+            ],
+          ),
+          // Keeps the last tile clear of the floating PLP launcher.
+          const SizedBox(height: 72),
+        ],
+      );
 
   List<_HistoryRow> _history(List<dynamic> activity) {
     final rows = <_HistoryRow>[];
@@ -633,6 +1707,34 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
       if (price != _priceUnavailable) return price;
     }
     return '${plpBillingFormatMicros(plan.fallbackMicros, 'USD')} / month';
+  }
+
+  String _planPriceText(String code, int fallbackMicros) {
+    for (final row
+        in (_status['plans'] as List? ?? const []).whereType<Map>()) {
+      if (row['code']?.toString() != code) continue;
+      final micros = _monthlyPriceMicros(Map<String, dynamic>.from(row));
+      if (micros != null) {
+        final currency = (row['currency'] ?? 'USD').toString();
+        return plpBillingFormatMicros(micros, currency);
+      }
+    }
+    return plpBillingFormatMicros(fallbackMicros, 'USD');
+  }
+
+  static num? _monthlyPriceMicros(Map<String, dynamic> row) {
+    final netMicros = _plpNum(row['net_monthly_fee_micros']);
+    final feeMicros = _plpNum(row['monthly_fee_micros']);
+    if (netMicros != null) return netMicros;
+    if (feeMicros != null) {
+      final discountMicros = _plpNum(row['discount_micros']) ?? 0;
+      return feeMicros - discountMicros;
+    }
+    final decimal = _plpNum(row['monthlyAmount']) ??
+        _plpNum(row['net_monthly_fee']) ??
+        _plpNum(row['monthly_fee']);
+    if (decimal != null) return decimal * 1000000;
+    return null;
   }
 
   String _activeLine(
