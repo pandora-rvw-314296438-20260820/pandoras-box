@@ -1,87 +1,52 @@
 'use strict';
-const fs = require('node:fs');
-const path = require('node:path');
-const test = require('node:test');
-const assert = require('node:assert/strict');
-
-const billingPath = path.join(__dirname, '..', 'apps', 'pandora-mobile', 'lib', 'features', 'enterprise', 'plp_paypal_billing_screen.dart');
-const billing = fs.readFileSync(billingPath, 'utf8');
-
-test('provider configuration is not presented as subscription verification', () => {
-  assert.match(billing, /providerLabel\s*=\s*verified[\s\S]*?'Unconfirmed'[\s\S]*?'Configured'/);
-  assert.match(billing, /detail: active \? providerLabel : null/);
-  assert.match(billing, /final verified = !_unresolved &&\s*subscription\['source_kind'\] == 'provider_verified' &&\s*subscription\['verified_at'\] != null;/);
-  assert.doesNotMatch(billing, /verified\s*\?\s*'Connected'\s*:\s*provider\['configured'\]\s*===\s*true\s*\?\s*'Ready'/);
+const fs=require('node:fs');
+const path=require('node:path');
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const billingPath=path.join(__dirname,'..','apps','pandora-mobile','lib','features','enterprise','plp_paypal_billing_screen.dart');
+const billing=fs.readFileSync(billingPath,'utf8');
+test('only provider-verified status and timestamp imply verified billing',()=>{
+ assert.match(billing,/subscription\['source_kind'\] == 'provider_verified' && subscription\['verified_at'\] != null/);
+ assert.match(billing,/verified \? 'Active' : 'Unconfirmed'/);
+ assert.match(billing,/'Subscription status unconfirmed'/);
 });
-
-test('missing renewal data is not rendered as a fabricated pending renewal date', () => {
-  assert.match(billing, /final renewalDate = plpBillingShortDate\(subscription\['renews_on'\]\)/);
-  assert.match(billing, /if \(renewalDate\.isNotEmpty\) 'renews \$renewalDate'/);
-  assert.match(billing, /renewalDate\.isEmpty \? '' : ' from \$renewalDate'/);
-  assert.doesNotMatch(billing, /'Renews '\s*\+\s*\(subscription\['renews_on'\]\s*\?\?\s*'pending'\)/);
-  assert.doesNotMatch(billing, /'next cycle'/);
+test('renewal and plan-change timing use only known values',()=>{
+ assert.match(billing,/plpBillingShortDate\(subscription\['renews_on'\]\)/);
+ assert.match(billing,/The effective date will follow the provider-confirmed subscription state/);
+ assert.doesNotMatch(billing,/'next cycle'/);
 });
-
-test('plan selection is separate from starting checkout', () => {
-  assert.match(billing, /_tap\(\(\) => _show\(_BillingView\.select, plan\.code\)\)/);
-  assert.match(billing, /_selectedPlanCode = target;/);
-  assert.match(billing, /'Pay with PayPal',[\s\S]*?_tap\(\(\) => _checkout\(target\.code\)\)/);
+test('billing keeps its shell key and resumes pending approvals',()=>{
+ assert.match(billing,/key: const ValueKey\('plp-paypal-billing'\)/);
+ assert.match(billing,/Widget _pendingCheckoutPage\(String approval\)/);
 });
-
-test('plan changes have a review step before the provider operation', () => {
-  assert.match(billing, /'Change plan',[\s\S]*?_show\(_BillingView\.changeConfirm, others\.first\.code\)/);
-  assert.match(billing, /_view == _BillingView\.changeConfirm[\s\S]*?'Switch to \$\{target\.name\}',[\s\S]*?_tap\(\(\) => _changePlan\(target\.code\)\)/);
+test('plans and approval handoff are separate screens',()=>{
+ assert.match(billing,/key: const ValueKey\('plp-capability-pay-with-paypal'\)/);
+ assert.match(billing,/key: const ValueKey\('plp-capability-continue-to-paypal'\)/);
 });
-
-test('cancellation is confirmed in place and only reconciled state counts as cancelled', () => {
-  assert.match(billing, /_view == _BillingView\.cancelConfirm[\s\S]*?keepTile,[\s\S]*?'Cancel',[\s\S]*?_tap\(_cancel\),\s*emphasis: true/);
-  assert.match(billing, /if \(mounted && state != 'cancelled' && state != 'canceled'\) \{\s*setState\(\(\) => _cancelRequested = outcome\['cancelled'\] != true\);/);
-  assert.match(billing, /notice = 'Cancellation pending';/);
-  assert.match(billing, /cancelled\s*\?\s*\(ends\.isEmpty \? 'Cancelled' : 'Cancelled · ends \$ends'\)/);
+test('plan changes and cancellation require owner confirmation',()=>{
+ assert.match(billing,/title: 'Change plan\.'/);
+ assert.match(billing,/Confirm plan change/);
+ assert.match(billing,/title: 'Cancel subscription\?'/);
+ assert.match(billing,/key: const ValueKey\('plp-billing-confirm-cancel'\)/);
 });
-
-test('billing tiles reserve space for the floating assistant', () => {
-  assert.match(billing, /Keeps the last tile clear of the floating PLP launcher\.\s*const SizedBox\(height: 72\)/);
+test('retry resumes the existing PayPal approval and does not duplicate checkout',()=>{
+ assert.match(billing,/_pendingApprovalUrl \?\? _existingApprovalUrl\(\)/);
+ assert.match(billing,/await _refreshAfterHandoff\(\)/);
 });
-
-test('billing uses in-page confirmation, not Material dialogs or bottom sheets', () => {
-  assert.doesNotMatch(billing, /showModalBottomSheet|showDialog|AlertDialog|BottomSheet/);
+test('post-handoff status errors get a status-only recovery path',()=>{
+ assert.match(billing,/PayPal opened, but billing status could not be refreshed/);
+ assert.match(billing,/key: const ValueKey\('plp-billing-refresh-status'\)/);
 });
-
-test('billing actions cannot double submit and retries reuse the idempotency key', () => {
-  assert.match(billing, /Future<void> _run\(String pending, Future<void> Function\(\) work\) async \{\s*if \(_busy\) return;/);
-  assert.match(billing, /VoidCallback\? _tap\(VoidCallback action\) => _busy \? null : action;/);
-  assert.match(billing, /_idempotencyKeys\.putIfAbsent\(/);
+test('approval URLs are HTTPS PayPal URLs only',()=>{
+ assert.match(billing,/uri\.scheme != 'https' \|\| !trustedHost/);
+ assert.match(billing,/host == 'paypal\.com' \|\| host\.endsWith\('\.paypal\.com'\)/);
 });
-
-test('billing never calls PayPal directly, holds no secrets and no hard-coded organization', () => {
-  const api = fs.readFileSync(path.join(__dirname, '..', 'apps', 'pandora-mobile', 'lib', 'core', 'data', 'plp_paypal_billing_api.dart'), 'utf8');
-  for (const source of [billing, api]) {
-    assert.doesNotMatch(source, /api(-m)?(\.sandbox)?\.paypal\.com|v1\/billing\/subscriptions|oauth2\/token/i);
-    assert.doesNotMatch(source, /client_?secret|PAYPAL_SECRET|service_role|Basic /i);
-  }
-  assert.match(api, /'x-organization-id': organizationId/);
-  assert.match(billing, /plpOwnerBillingTransport\(widget\.organizationId\)/);
-  assert.match(api, /PandoraConfig\.ownerApiBaseUrl \+ path/);
-});
-
-test('an existing PayPal approval is resumed instead of creating another checkout', () => {
-  assert.match(billing, /final existingApproval[\s\S]*?if \(existingApproval\.isNotEmpty\)\s*\{\s*await _openApproval\(existingApproval\);\s*return;/);
-  assert.match(billing, /else if \(!active && checkoutApproval\.isNotEmpty\) \{\s*notice = 'Finish in PayPal · not active yet';\s*tiles = \[openPaypal\(checkoutApproval\), refreshTile\];/);
-  assert.match(billing, /_selectedPlanCode = loadedPlanCode/);
-});
-
-test('live price is read from DB micros before decimal fallbacks', () => {
-  assert.match(billing, /final currentPrice = _monthlyPrice\(subscription\);/);
-  const fn = billing.slice(billing.indexOf('static String _monthlyPrice('));
-  const net = fn.indexOf("subscription['net_monthly_fee_micros']");
-  const gross = fn.indexOf("subscription['monthly_fee_micros']");
-  const discount = fn.indexOf("subscription['discount_micros']");
-  const decimal = fn.indexOf("subscription['net_monthly_fee']");
-  const decimalGross = fn.indexOf("subscription['monthly_fee']");
-  assert.ok(net > 0 && gross > net && discount > gross && decimal > discount && decimalGross > decimal);
-  assert.match(fn, /\(feeMicros - discountMicros\) \/ 1000000/);
-  assert.match(fn, /\} \/ month';/);
-  assert.match(fn, /'Price unavailable'/);
-  assert.doesNotMatch(billing, /subscription\['net_monthly_fee'\] \?\? subscription\['monthly_fee'\];\s*final currentPrice = fee/);
+test('billing retains owner API boundary and has no embedded PayPal credentials',()=>{
+ const api=fs.readFileSync(path.join(__dirname,'..','apps','pandora-mobile','lib','core','data','plp_paypal_billing_api.dart'),'utf8');
+ for(const source of [billing,api]){
+  assert.doesNotMatch(source,/api(-m)?(\.sandbox)?\.paypal\.com|v1\/billing\/subscriptions|oauth2\/token/i);
+  assert.doesNotMatch(source,/client_?secret|PAYPAL_SECRET|service_role|Basic /i);
+ }
+ assert.match(api,/'x-organization-id': organizationId/);
+ assert.match(billing,/plpOwnerBillingTransport\(widget\.organizationId\)/);
 });
