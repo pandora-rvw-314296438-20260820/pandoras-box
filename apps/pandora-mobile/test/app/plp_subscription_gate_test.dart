@@ -174,8 +174,13 @@ void main() {
     await tester.tap(_notice());
     await _settle(tester);
     expect(_billing(), findsOneWidget);
-    expect(find.text('Pay monthly with PayPal.'), findsOneWidget);
-    expect(find.text('Launch'), findsOneWidget);
+    expect(find.text('Grow\nwhat’s next.'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('plp-billing-choose-plan')));
+     await _settle(tester);
+     await tester.tap(find.byKey(const ValueKey('plp-billing-choose-plan')));
+    await _settle(tester);
+    expect(find.text('Choose your plan.'), findsOneWidget);
+    expect(find.text('Launch'), findsWidgets);
     expect(find.text('Professional'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -218,7 +223,14 @@ void main() {
     await _tapDrawer(tester, 'stays');
     expect(find.byKey(const ValueKey('plp-resort-stays')), findsNothing);
     expect(_billing(), findsOneWidget);
-    expect(find.text('Pay monthly with PayPal.'), findsOneWidget);
+    expect(find.text('Grow\nwhat’s next.'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('plp-billing-choose-plan')));
+     await _settle(tester);
+     await tester.tap(find.byKey(const ValueKey('plp-billing-choose-plan')));
+    await _settle(tester);
+    expect(find.text('Choose your plan.'), findsOneWidget);
+    expect(find.text('Launch'), findsWidgets);
+    expect(find.text('Professional'), findsOneWidget);
 
     await _openDrawer(tester);
     await _tapDrawer(tester, 'home');
