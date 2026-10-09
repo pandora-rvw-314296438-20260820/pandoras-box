@@ -37,10 +37,54 @@ PlpBillingTransport plpOwnerBillingTransport(String organizationId) => (
           ? <String, dynamic>{}
           : jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception(
-          (decoded['error'] ?? decoded['message'] ?? 'Billing request failed')
+        throw PlpBillingRequestException(
+          statusCode: response.statusCode,
+          code: (decoded['code'] ?? decoded['error'] ?? '').toString(),
+          message: (decoded['error'] ??
+                  decoded['message'] ??
+                  decoded['plainMessage'] ??
+                  'Billing request failed')
               .toString(),
         );
       }
       return decoded;
     };
+
+/// A non-2xx owner API reply. Owner API failures carry a machine `code`
+/// (e.g. OWNER_ROLE_REQUIRED, PAYPAL_NOT_CONFIGURED) beside a plain message.
+class PlpBillingRequestException implements Exception {
+  const PlpBillingRequestException({
+    required this.statusCode,
+    required this.code,
+    required this.message,
+  });
+
+  final int statusCode;
+  final String code;
+  final String message;
+
+  /// The caller's membership may not read billing (owner/admin only).
+  bool get isRoleDenied =>
+      code == 'OWNER_ROLE_REQUIRED' ||
+      code == 'ORGANIZATION_ACCESS_REQUIRED' ||
+      (code.isEmpty && statusCode == 403);
+
+  @override
+  String toString() =>
+      'Exception: ${code.isEmpty ? '' : '$code: '}$message';
+}
+
+/// The single truthful unlock rule, shared by the billing screen and the PLP
+/// subscription gate: the subscription is active AND PayPal-verified
+/// (provider-sourced, with a verification time). A PayPal return, a pending
+/// checkout or an unconfirmed active row never unlocks.
+bool plpBillingStatusUnlocked(Map<String, dynamic> status) {
+  final raw = status['subscription'];
+  if (raw is! Map) return false;
+  final state = (raw['state'] ?? '').toString().toLowerCase();
+  final verifiedAt = raw['verified_at'];
+  return state == 'active' &&
+      raw['source_kind'] == 'provider_verified' &&
+      verifiedAt != null &&
+      verifiedAt.toString().trim().isNotEmpty;
+}
