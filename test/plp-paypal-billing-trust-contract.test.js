@@ -40,3 +40,11 @@ test('billing actions reserve space for the floating assistant', () => {
   assert.match(billing, /padding: const EdgeInsets\.only\(right: 56\)/);
   assert.match(billing, /_safeActionRow\(\s*title: 'Refresh PayPal state'/);
 });
+
+
+test('an existing PayPal approval is resumed instead of creating another checkout', () => {
+  assert.match(billing, /final existingApproval[\s\S]*?if \(existingApproval\.isNotEmpty\)\s*\{\s*await _openApproval\(existingApproval\);\s*return;/);
+  assert.match(billing, /else if \(approvalUrl\.isNotEmpty\) \.\.\.\[/);
+  assert.match(billing, /Continue your existing approval/);
+  assert.match(billing, /_selectedPlanCode = loadedPlanCode/);
+});

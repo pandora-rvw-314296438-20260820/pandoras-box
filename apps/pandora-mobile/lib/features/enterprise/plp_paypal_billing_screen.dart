@@ -78,6 +78,16 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
       setState(() {
         _status = result;
         _statusLoaded = true;
+        final loadedSubscription = _map(result['subscription']);
+        final loadedCheckout = _map(result['checkout']);
+        final loadedPlanCode = (loadedSubscription['plan_code'] ??
+                loadedCheckout['plan_code'] ??
+                '')
+            .toString();
+        if (loadedSubscription['state']?.toString().toLowerCase() != 'active' &&
+            _plans.containsKey(loadedPlanCode)) {
+          _selectedPlanCode = loadedPlanCode;
+        }
         _error = null;
       });
     } catch (error) {
@@ -110,6 +120,14 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
       prefix + '-' + DateTime.now().microsecondsSinceEpoch.toString();
 
   Future<void> _checkout(String code) async {
+    final checkout = _map(_status['checkout']);
+    final pending = _map(_status['pendingPlanChange']);
+    final existingApproval =
+        (pending['approval_url'] ?? checkout['approval_url'] ?? '').toString().trim();
+    if (existingApproval.isNotEmpty) {
+      await _openApproval(existingApproval);
+      return;
+    }
     await _run(() async {
       final result = await _request(
         '/billing/paypal/checkout',
@@ -740,6 +758,21 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
             tone: plpWarn,
             onTap: _busy ? null : _confirmCancel,
           ),
+        ] else if (approvalUrl.isNotEmpty) ...[
+          const PlpSectionTitle(
+            'Payment authorization',
+            detail: 'An approval session already exists for this workspace. Finish it before starting another checkout.',
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 56),
+            child: PlpBlackPanel(
+              eyebrow: 'PayPal approval',
+              title: 'Continue your existing approval.',
+              body: 'Open the existing PayPal session. Pandora will confirm the subscription from the provider response; returning here alone does not activate a plan.',
+              action: 'Open PayPal',
+              onTap: _busy ? null : () => _openApproval(approvalUrl),
+            ),
+          ),
         ] else ...[
           const PlpSectionTitle(
             'Choose a plan',
@@ -758,14 +791,6 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
               onTap: _busy ? null : () => _checkout(_selectedPlanCode),
             ),
           ),
-          if (approvalUrl.isNotEmpty)
-            PlpBlackPanel(
-              eyebrow: 'PayPal',
-              title: 'Continue your payment.',
-              body: 'A PayPal approval session already exists for this workspace.',
-              action: 'Open PayPal',
-              onTap: _busy ? null : () => _openApproval(approvalUrl),
-            ),
         ],
         if ((_status['activity'] as List?)?.isNotEmpty == true) ...[
           const PlpSectionTitle(
