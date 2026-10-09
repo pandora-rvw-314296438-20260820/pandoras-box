@@ -187,7 +187,12 @@ export class AresHost {
       const args=['-avd',c.profile.avdName,'-port',String(portForSerial(job.target.serial)),'-read-only','-no-snapshot','-no-boot-anim','-camera-front','none','-camera-back','none'];
       if(c.profile.headless)args.push('-no-window');
       await this.checkpoint(c);
-      const handle=await within(this.runner.startManaged('emulator',args,{signal:c.signal,onSpawn:e=>{c.mutationPossible=true;this.journal.dispatched(c.id,{mutating:true,tool:'emulator',toolSha256:e.toolSha256});}}),c.signal);
+      // From dispatch until spawn/readback is resolved, startup may have taken effect.
+      // Mark the attempt ambiguous before awaiting the spawn event: the outer deadline can
+      // expire while startManaged is still waiting for that event, so a late spawn must not
+      // be reported as a clean failure or release the exclusive resource hold.
+      c.mutationPossible=true;
+      const handle=await within(this.runner.startManaged('emulator',args,{signal:c.signal,onSpawn:e=>{this.journal.dispatched(c.id,{mutating:true,tool:'emulator',toolSha256:e.toolSha256});}}),c.signal);
       this.handles.set(job.target.serial,handle);this.journal.recordManaged(job,c.id,this.bootSession,handle.pid);
       let observation;
       await this.poll(c,async()=>{demand(handle.isAlive(),'ARES_EMULATOR_EXITED');observation=await this.probe(c);return observation.ready;});
