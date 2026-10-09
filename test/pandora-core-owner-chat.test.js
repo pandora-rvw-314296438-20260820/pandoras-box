@@ -585,7 +585,7 @@ test("implicit PLP bootstrap results cannot be relabeled into another organizati
 
 test("chat validates entry before hydrators and routes Core before team or model dispatch", () => {
   const source = readFileSync("supabase/functions/pandora-intelligence-chat/index.ts", "utf8");
-  const handle = source.slice(source.indexOf("async function handle(req:Request)"));
+  const handle = source.slice(source.indexOf("async function handle("));
   const authorityGuard = handle.indexOf("authorizeCoreChatRequest(c.user,c.organizationId,c.role,i.enterpriseContext,i.projectId)");
   assert.ok(authorityGuard >= 0 && authorityGuard < handle.indexOf("hydratePlpBusinessContext(c.user,c.organizationId,i.enterpriseContext)"));
   assert.ok(authorityGuard < handle.indexOf("claimActivityExecution("));

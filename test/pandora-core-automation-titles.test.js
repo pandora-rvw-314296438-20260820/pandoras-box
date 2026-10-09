@@ -55,6 +55,8 @@ async function metadata() {
 }
 test.before(async () => {
   db = new PGlite({ extensions: { pgcrypto } });
+  // These fixtures assert UTC JSON timestamps, independent of the runner's zone.
+  await db.exec("set time zone 'UTC'");
   for (const p of ["fixtures/pandora-core-owner-schema.sql", "fixtures/pandora-core-composer-provider-schema.sql", "fixtures/pandora-chat-request-admission-schema.sql"]) await db.exec(read(p));
   await db.query("insert into auth.users(id,email,email_confirmed_at) values($1,'owner@example.invalid',now()),($2,'customer@example.invalid',now())",[owner,customer]);
   await db.query("insert into auth.sessions(id,user_id,aal,not_after) values($1,$2,'aal2',now()+interval '1 hour')",[session,owner]);

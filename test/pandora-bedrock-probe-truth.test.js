@@ -8,7 +8,7 @@ const projection=fs.readFileSync("supabase/migrations/20261003024500_pandora_bed
 
 test("Bedrock runtime signs raw model IDs and canonicalizes the URI exactly once",()=>{
   assert.match(runtime,/const rawModelId = String\(modelId \|\| ""\)/);
-  assert.match(runtime,/const wirePath = modelPath\(rawModelId\)/);
+  assert.match(runtime,/const wirePath = modelPath\(rawModelId(?:, stream)?\)/);
   assert.match(runtime,/const canonicalPath = canonicalAwsPath\(wirePath\)/);
   assert.match(runtime,/url: `https:\/\/\$\{host\}\$\{wirePath\}`/);
   assert.match(runtime,/temperature = null/);

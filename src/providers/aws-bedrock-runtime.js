@@ -131,8 +131,8 @@ function canonicalAwsPath(path) {
     .join("/");
 }
 
-function modelPath(modelId) {
-  return `/model/${String(modelId)}/converse`;
+function modelPath(modelId, stream = false) {
+  return `/model/${String(modelId)}/${stream ? "converse-stream" : "converse"}`;
 }
 
 function runtimeConfig(environment = process.env) {
@@ -151,6 +151,7 @@ async function assumeRoleWithVercelOidc({
   fetchFn = globalThis.fetch,
   sessionName = "pandora-vercel-bedrock",
   durationSeconds = 900,
+  signal,
 }) {
   if (roleArn !== BEDROCK_ROLE_ARN || !webIdentityToken) {
     throw new Error("AWS_WORKLOAD_IDENTITY_UNAVAILABLE");
@@ -167,6 +168,8 @@ async function assumeRoleWithVercelOidc({
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded; charset=utf-8" },
     body: body.toString(),
+    signal,
+    redirect: "error",
   });
   const raw = await response.text();
   if (!response.ok) {
@@ -192,6 +195,7 @@ function signBedrockRequest({
   body,
   credentials,
   now = new Date(),
+  stream = false,
 }) {
   if (region !== BEDROCK_REGION) throw new Error("AWS_BEDROCK_REGION_DENIED");
   const service = "bedrock";
@@ -203,7 +207,7 @@ function signBedrockRequest({
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/.test(rawModelId)) {
     throw new Error("AWS_BEDROCK_MODEL_DENIED");
   }
-  const wirePath = modelPath(rawModelId);
+  const wirePath = modelPath(rawModelId, stream);
   const canonicalPath = canonicalAwsPath(wirePath);
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
   const dateStamp = amzDate.slice(0, 8);
@@ -275,12 +279,283 @@ function normalizeParts({ prompt, parts }) {
   return [{ text: prompt }];
 }
 
+function normalizeMessages({ messages, prompt, parts }) {
+  if (messages === undefined || messages === null) {
+    return [{ role: "user", content: normalizeParts({ prompt, parts }) }];
+  }
+  // Native history is a separate contract. Never silently flatten it or choose
+  // between two competing representations of the same conversation.
+  if ((parts !== undefined && parts !== null) || prompt !== undefined ||
+      !Array.isArray(messages) || messages.length < 1 || messages.length > 128) {
+    throw new Error("AWS_BEDROCK_INPUT_INVALID");
+  }
+  return messages.map((message) => {
+    if (!message || !["user", "assistant"].includes(message.role) ||
+        !Array.isArray(message.content) || !message.content.length || message.content.length > 64) {
+      throw new Error("AWS_BEDROCK_INPUT_INVALID");
+    }
+    const content = message.content.map((block) => {
+      if (!block || typeof block !== "object" || Array.isArray(block) || Object.keys(block).length !== 1) {
+        throw new Error("AWS_BEDROCK_INPUT_INVALID");
+      }
+      if (typeof block.text === "string" && block.text.trim()) return { text: block.text };
+      const image = block.image;
+      if (message.role === "user" && image && ["png", "jpeg", "webp"].includes(image.format) &&
+          typeof image.source?.bytes === "string" && image.source.bytes.length > 0 &&
+          /^[A-Za-z0-9+/]+={0,2}$/.test(image.source.bytes)) {
+        return { image: { format: image.format, source: { bytes: image.source.bytes } } };
+      }
+      throw new Error("AWS_BEDROCK_INPUT_INVALID");
+    });
+    return { role: message.role, content };
+  });
+}
+
+function normalizeSystem(system) {
+  if (system === undefined || system === null || system === "") return undefined;
+  if (typeof system === "string") return system.trim() ? [{ text: system.trim() }] : undefined;
+  if (!Array.isArray(system) || system.length > 64 || system.some((part) =>
+    !part || typeof part.text !== "string" || !part.text.trim() || Object.keys(part).length !== 1)) {
+    throw new Error("AWS_BEDROCK_INPUT_INVALID");
+  }
+  return system.length ? system.map((part) => ({ text: part.text })) : undefined;
+}
+
+function abortError(signal) {
+  const timeout = signal?.reason?.name === "TimeoutError";
+  return Object.assign(new Error(timeout ? "AWS_BEDROCK_TIMEOUT" : "AWS_BEDROCK_CANCELLED"), {
+    name: timeout ? "TimeoutError" : "AbortError", status: timeout ? 504 : 499,
+  });
+}
+
+function checkActive(signal) {
+  if (signal?.aborted) throw abortError(signal);
+}
+
+function waitWithSignal(promise, signal) {
+  return new Promise((resolve, reject) => {
+    const abort = () => { cleanup(); reject(abortError(signal)); };
+    const cleanup = () => signal?.removeEventListener("abort", abort);
+    signal?.addEventListener("abort", abort, { once: true });
+    Promise.resolve(promise).then((value) => { cleanup(); resolve(value); }, (error) => { cleanup(); reject(error); });
+    if (signal?.aborted) abort();
+  });
+}
+
+function requestLifetime(parentSignal, timeoutMs) {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 180000) {
+    throw new Error("AWS_BEDROCK_TIMEOUT_INVALID");
+  }
+  const controller = new AbortController();
+  const abort = () => controller.abort(parentSignal?.reason);
+  parentSignal?.addEventListener("abort", abort, { once: true });
+  if (parentSignal?.aborted) abort();
+  const timer = setTimeout(() => controller.abort(
+    Object.assign(new Error("AWS_BEDROCK_TIMEOUT"), { name: "TimeoutError" }),
+  ), timeoutMs);
+  timer.unref?.();
+  return {
+    signal: controller.signal,
+    abort: () => controller.abort(),
+    dispose: () => { clearTimeout(timer); parentSignal?.removeEventListener("abort", abort); },
+  };
+}
+
+function safeProviderRequestId(value) {
+  return typeof value === "string" && /^[A-Za-z0-9._:-]{1,200}$/.test(value) &&
+    !/^(?:Bearer|Basic|sk[-_]|sb_(?:secret|publishable)_|gh[pousr]_|github_pat_|eyJ|(?:AKIA|ASIA)[A-Z0-9]{16})/i.test(value) ? value : null;
+}
+
+function safeAwsCode(value) {
+  if (typeof value !== "string") return undefined;
+  const code = value.split("#").pop().split(":")[0];
+  return /^[A-Za-z][A-Za-z0-9]{0,100}$/.test(code) ? code : undefined;
+}
+
+function safeUsage(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const usage = {};
+  for (const key of ["inputTokens", "outputTokens", "totalTokens", "cacheReadInputTokens", "cacheWriteInputTokens"]) {
+    if (Number.isSafeInteger(value[key]) && value[key] >= 0) usage[key] = value[key];
+  }
+  return Object.keys(usage).length ? usage : null;
+}
+
+function measuredMs(value) {
+  return Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
+}
+
+// Application resource budgets, not AWS protocol size limits. Validate the
+// prelude CRC before trusting its lengths or allocating a complete frame.
+const MAX_STREAM_FRAME_BYTES = 32 * 1024 * 1024;
+const MAX_STREAM_BYTES = 64 * 1024 * 1024;
+const MAX_STREAM_TEXT_BYTES = 2 * 1024 * 1024;
+const crcTable = Uint32Array.from({ length: 256 }, (_, n) => {
+  let crc = n;
+  for (let bit = 0; bit < 8; bit++) crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+  return crc >>> 0;
+});
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = crcTable[(crc ^ byte) & 255] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function streamHeaders(bytes) {
+  const headers = new Map(), decoder = new TextDecoder("utf-8", { fatal: true });
+  let offset = 0;
+  const take = (length) => {
+    if (offset + length > bytes.length) throw new Error("AWS_BEDROCK_STREAM_HEADERS_INVALID");
+    const value = bytes.subarray(offset, offset + length); offset += length; return value;
+  };
+  while (offset < bytes.length) {
+    const length = take(1)[0];
+    if (!length) throw new Error("AWS_BEDROCK_STREAM_HEADERS_INVALID");
+    const name = decoder.decode(take(length)), type = take(1)[0];
+    if (headers.has(name)) throw new Error("AWS_BEDROCK_STREAM_HEADERS_INVALID");
+    let value;
+    if (type === 0 || type === 1) value = type === 0;
+    else if (type === 2) value = take(1).readInt8();
+    else if (type === 3) value = take(2).readInt16BE();
+    else if (type === 4) value = take(4).readInt32BE();
+    else if (type === 5 || type === 8) value = take(8).readBigInt64BE();
+    else if (type === 6 || type === 7) {
+      const data = take(take(2).readUInt16BE());
+      value = type === 7 ? decoder.decode(data) : data;
+    } else if (type === 9) value = take(16);
+    else throw new Error("AWS_BEDROCK_STREAM_HEADERS_INVALID");
+    headers.set(name, value);
+  }
+  return headers;
+}
+
+async function* readAwsEventStream(body, signal) {
+  if (!body || typeof body.getReader !== "function") throw new Error("AWS_BEDROCK_STREAM_BODY_INVALID");
+  const reader = body.getReader(), prelude = Buffer.alloc(12);
+  let preludeOffset = 0, frame = null, frameOffset = 0, headersLength = 0, bytesRead = 0, complete = false;
+  const cancel = () => { reader.cancel().catch(() => {}); };
+  signal?.addEventListener("abort", cancel, { once: true });
+  try {
+    checkActive(signal);
+    while (true) {
+      const { value, done } = await waitWithSignal(reader.read(), signal);
+      checkActive(signal);
+      if (done) break;
+      if (!(value instanceof Uint8Array)) throw new Error("AWS_BEDROCK_STREAM_BODY_INVALID");
+      const chunk = Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+      bytesRead += chunk.length;
+      if (bytesRead > MAX_STREAM_BYTES) throw new Error("AWS_BEDROCK_STREAM_LIMIT");
+      let offset = 0;
+      while (offset < chunk.length) {
+        if (!frame) {
+          const length = Math.min(12 - preludeOffset, chunk.length - offset);
+          chunk.copy(prelude, preludeOffset, offset, offset + length);
+          preludeOffset += length; offset += length;
+          if (preludeOffset !== 12) continue;
+          if (crc32(prelude.subarray(0, 8)) !== prelude.readUInt32BE(8)) throw new Error("AWS_BEDROCK_STREAM_CRC_INVALID");
+          const totalLength = prelude.readUInt32BE(0);
+          headersLength = prelude.readUInt32BE(4);
+          if (totalLength < 16 || headersLength > totalLength - 16) throw new Error("AWS_BEDROCK_STREAM_FRAME_INVALID");
+          if (totalLength > MAX_STREAM_FRAME_BYTES) throw new Error("AWS_BEDROCK_STREAM_LIMIT");
+          frame = Buffer.alloc(totalLength); prelude.copy(frame); frameOffset = 12;
+        }
+        const length = Math.min(frame.length - frameOffset, chunk.length - offset);
+        chunk.copy(frame, frameOffset, offset, offset + length);
+        frameOffset += length; offset += length;
+        if (frameOffset !== frame.length) continue;
+        if (crc32(frame.subarray(0, -4)) !== frame.readUInt32BE(frame.length - 4)) throw new Error("AWS_BEDROCK_STREAM_CRC_INVALID");
+        const event = { headers: streamHeaders(frame.subarray(12, 12 + headersLength)), payload: frame.subarray(12 + headersLength, -4) };
+        frame = null; frameOffset = 0; preludeOffset = 0;
+        checkActive(signal);
+        yield event;
+      }
+    }
+    if (frame || preludeOffset) throw new Error("AWS_BEDROCK_STREAM_TRUNCATED");
+    complete = true;
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+    if (!complete) await waitWithSignal(reader.cancel(), signal).catch(() => {});
+    reader.releaseLock();
+  }
+}
+
+function streamException(headers) {
+  const code = safeAwsCode(headers.get(":exception-type") || headers.get(":error-code"));
+  const statusByCode = { accessdeniedexception: 403, throttlingexception: 429, validationexception: 400,
+    resourcenotfoundexception: 404, modeltimeoutexception: 408, modelstreamerrorexception: 424,
+    internalserverexception: 500, internalerror: 500, serviceunavailableexception: 503 };
+  return Object.assign(new Error("AWS_BEDROCK_STREAM_FAILED"), { status: statusByCode[code?.toLowerCase()] || 502, awsCode: code });
+}
+
+async function consumeConverseStream(body, { signal, onDelta, onFirstToken }) {
+  const text = [], blocks = new Map(), decoder = new TextDecoder("utf-8", { fatal: true });
+  let started = false, stopped = false, metadataSeen = false, stopReason = null, usage = null;
+  let textBytes = 0, providerReportedLatencyMs = null;
+  const badOrder = () => { throw new Error("AWS_BEDROCK_STREAM_SEQUENCE_INVALID"); };
+  for await (const event of readAwsEventStream(body, signal)) {
+    const messageType = event.headers.get(":message-type"), type = event.headers.get(":event-type");
+    if (messageType === "exception" || messageType === "error") throw streamException(event.headers);
+    if (messageType !== "event" || typeof type !== "string" ||
+        (event.headers.has(":content-type") && event.headers.get(":content-type") !== "application/json")) badOrder();
+    let payload;
+    try { payload = JSON.parse(decoder.decode(event.payload)); } catch { throw new Error("AWS_BEDROCK_STREAM_JSON_INVALID"); }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) badOrder();
+    if (type === "messageStart") {
+      if (started || stopped || payload.role !== "assistant") badOrder();
+      started = true;
+    } else if (["contentBlockStart", "contentBlockDelta", "contentBlockStop"].includes(type)) {
+      if (!started || stopped) badOrder();
+      const index = payload.contentBlockIndex;
+      if (!Number.isSafeInteger(index) || index < 0) badOrder();
+      if (!blocks.has(index) && blocks.size >= 256) throw new Error("AWS_BEDROCK_STREAM_LIMIT");
+      if (type === "contentBlockStart") {
+        if (blocks.has(index)) badOrder();
+        blocks.set(index, "open");
+        if (payload.start?.toolUse) throw new Error("AWS_BEDROCK_STREAM_UNSUPPORTED_CONTENT");
+      } else if (type === "contentBlockStop") {
+        if (blocks.get(index) !== "open") badOrder();
+        blocks.set(index, "closed");
+      } else {
+        if (blocks.get(index) === "closed") badOrder();
+        // Bedrock may omit contentBlockStart for a plain text block.
+        blocks.set(index, "open");
+        if (!payload.delta || typeof payload.delta !== "object" || Array.isArray(payload.delta)) badOrder();
+        if (payload.delta.toolUse) throw new Error("AWS_BEDROCK_STREAM_UNSUPPORTED_CONTENT");
+        if (typeof payload.delta.text === "string" && payload.delta.text) {
+          const delta = payload.delta.text;
+          textBytes += Buffer.byteLength(delta);
+          if (textBytes > MAX_STREAM_TEXT_BYTES) throw new Error("AWS_BEDROCK_STREAM_LIMIT");
+          if (!text.length) onFirstToken();
+          text.push(delta);
+          checkActive(signal);
+          if (onDelta) await waitWithSignal(onDelta(delta), signal);
+          checkActive(signal);
+        }
+        // reasoningContent and other non-text blocks never enter the visible stream.
+      }
+    } else if (type === "messageStop") {
+      if (!started || stopped || [...blocks.values()].some((state) => state !== "closed") ||
+          typeof payload.stopReason !== "string" || !/^[a-z_]{1,80}$/.test(payload.stopReason)) badOrder();
+      stopped = true; stopReason = payload.stopReason;
+    } else if (type === "metadata") {
+      if (!stopped || metadataSeen) badOrder();
+      metadataSeen = true; usage = safeUsage(payload.usage);
+      providerReportedLatencyMs = measuredMs(payload.metrics?.latencyMs);
+    } else badOrder();
+  }
+  checkActive(signal);
+  if (!started || !stopped || !metadataSeen) throw new Error("AWS_BEDROCK_STREAM_TRUNCATED");
+  if (!text.join("").trim()) throw new Error("AWS_BEDROCK_RESPONSE_INVALID");
+  return { text: text.join(""), usage, stopReason, providerReportedLatencyMs };
+}
+
 async function converseWithBedrockTarget({
   modelId,
   invocationTarget,
   providerName = null,
   prompt,
   parts,
+  messages,
   system,
   environment = process.env,
   fetchFn = globalThis.fetch,
@@ -290,6 +565,10 @@ async function converseWithBedrockTarget({
   temperature = null,
   credentials = null,
   timeoutMs = 30000,
+  stream = false,
+  signal,
+  onDelta,
+  clock = () => performance.now(),
 }) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/.test(String(modelId || "")) ||
       !/^[A-Za-z0-9][A-Za-z0-9._:-]{1,199}$/.test(String(invocationTarget || ""))) {
@@ -301,57 +580,89 @@ async function converseWithBedrockTarget({
   if (temperature !== null && (!Number.isFinite(temperature) || temperature < 0 || temperature > 1)) {
     throw new Error("AWS_BEDROCK_TEMPERATURE_INVALID");
   }
-  const { roleArn, region } = runtimeConfig(environment);
-  let activeCredentials = credentials;
-  if (!activeCredentials) {
-    const workloadToken = await resolveWorkloadToken();
-    if (!workloadToken) throw new Error("AWS_WORKLOAD_IDENTITY_UNAVAILABLE");
-    activeCredentials = await assumeRoleWithVercelOidc({
-      roleArn,
-      webIdentityToken: workloadToken,
-      fetchFn,
-    });
+  if (typeof stream !== "boolean" || (onDelta !== undefined && (typeof onDelta !== "function" || !stream))) {
+    throw new Error("AWS_BEDROCK_STREAM_OPTIONS_INVALID");
   }
+  const { roleArn, region } = runtimeConfig(environment);
   const inferenceConfig = { maxTokens };
   if (temperature !== null) inferenceConfig.temperature = temperature;
-  const requestBody = {
-    messages: [{ role: "user", content: normalizeParts({ prompt, parts }) }],
-    inferenceConfig,
-  };
-  if (typeof system === "string" && system.trim()) requestBody.system = [{ text: system.trim() }];
-  const signed = signBedrockRequest({
-    region,
-    modelId: invocationTarget,
-    body: requestBody,
-    credentials: activeCredentials,
-    now,
+  const requestBody = { messages: normalizeMessages({ messages, prompt, parts }), inferenceConfig };
+  const systemBlocks = normalizeSystem(system);
+  if (systemBlocks) requestBody.system = systemBlocks;
+  const lifetime = requestLifetime(signal, timeoutMs);
+  let startedAt = null, providerRequestId = null, timeToFirstTokenMs = null, providerHttpStatus = null, streaming = false;
+  const receipt = () => ({
+    providerRequestId,
+    providerHttpStatus,
+    providerLatencyMs: startedAt === null ? null : measuredMs(clock() - startedAt),
+    timeToFirstTokenMs,
+    streaming,
+    streamMode: streaming ? "converse_stream_v1" : "buffered_v1",
   });
-  const response = await fetchFn(signed.url, {
-    ...signed,
-    signal: typeof AbortSignal?.timeout === "function" ? AbortSignal.timeout(timeoutMs) : undefined,
-  });
-  const raw = await response.text();
-  let payload;
-  try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = {}; }
-  if (!response.ok) {
-    const error = new Error("AWS_BEDROCK_CONVERSE_FAILED");
-    error.status = response.status;
-    error.awsCode = typeof payload?.message === "string" ? payload.message.slice(0, 240) : undefined;
-    throw error;
+  try {
+    checkActive(lifetime.signal);
+    let activeCredentials = credentials;
+    if (!activeCredentials) {
+      const workloadToken = await waitWithSignal(resolveWorkloadToken(), lifetime.signal);
+      checkActive(lifetime.signal);
+      if (!workloadToken) throw new Error("AWS_WORKLOAD_IDENTITY_UNAVAILABLE");
+      activeCredentials = await waitWithSignal(assumeRoleWithVercelOidc({
+        roleArn, webIdentityToken: workloadToken, fetchFn, signal: lifetime.signal,
+      }), lifetime.signal);
+    }
+    checkActive(lifetime.signal);
+    const signed = signBedrockRequest({ region, modelId: invocationTarget, body: requestBody,
+      credentials: activeCredentials, now, stream });
+    startedAt = clock();
+    const response = await waitWithSignal(fetchFn(signed.url, {
+      ...signed,
+      headers: { ...signed.headers, accept: stream ? "application/vnd.amazon.eventstream" : "application/json" },
+      signal: lifetime.signal,
+      redirect: "error",
+    }), lifetime.signal);
+    checkActive(lifetime.signal);
+    providerRequestId = safeProviderRequestId(response.headers?.get?.("x-amzn-requestid"));
+    providerHttpStatus = Number.isSafeInteger(response.status) ? response.status : null;
+    let result;
+    if (stream && response.ok) {
+      if (response.headers?.get?.("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/vnd.amazon.eventstream") {
+        response.body?.cancel?.().catch(() => {});
+        throw new Error("AWS_BEDROCK_STREAM_CONTENT_TYPE_INVALID");
+      }
+      streaming = true;
+      result = await consumeConverseStream(response.body, {
+        signal: lifetime.signal, onDelta,
+        onFirstToken: () => { timeToFirstTokenMs = measuredMs(clock() - startedAt); },
+      });
+    } else {
+      const raw = await waitWithSignal(response.text(), lifetime.signal);
+      checkActive(lifetime.signal);
+      let payload;
+      try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = {}; }
+      if (!response.ok) {
+        throw Object.assign(new Error("AWS_BEDROCK_CONVERSE_FAILED"), {
+          status: response.status,
+          awsCode: safeAwsCode(response.headers?.get?.("x-amzn-errortype") || payload?.__type),
+        });
+      }
+      const content = Array.isArray(payload?.output?.message?.content) ? payload.output.message.content : [];
+      const text = content.map((item) => (typeof item?.text === "string" ? item.text : "")).join("").trim();
+      if (!text) throw new Error("AWS_BEDROCK_RESPONSE_INVALID");
+      result = { text, usage: safeUsage(payload?.usage), stopReason: payload?.stopReason || null,
+        providerReportedLatencyMs: measuredMs(payload?.metrics?.latencyMs) };
+    }
+    checkActive(lifetime.signal);
+    return { ...result, modelId, invocationTarget, providerName, region, ...receipt() };
+  } catch (error) {
+    const safeError = lifetime.signal.aborted ? abortError(lifetime.signal)
+      : error instanceof Error && /^AWS_[A-Z0-9_]+$/.test(error.message) ? error
+      : new Error("AWS_BEDROCK_TRANSPORT_FAILED");
+    Object.assign(safeError, receipt());
+    lifetime.abort();
+    throw safeError;
+  } finally {
+    lifetime.dispose();
   }
-  const content = Array.isArray(payload?.output?.message?.content) ? payload.output.message.content : [];
-  const text = content.map((item) => (typeof item?.text === "string" ? item.text : "")).join("").trim();
-  if (!text) throw new Error("AWS_BEDROCK_RESPONSE_INVALID");
-  return {
-    text,
-    modelId,
-    invocationTarget,
-    providerName,
-    region,
-    usage: payload?.usage || null,
-    stopReason: payload?.stopReason || null,
-    providerRequestId: response.headers?.get?.("x-amzn-requestid") || null,
-  };
 }
 
 async function converseWithBedrockModel({
@@ -482,6 +793,7 @@ module.exports = {
   signBedrockRequest,
   signBedrockControlRequest,
   bedrockControlJson,
+  safeProviderRequestId,
   converseWithBedrockTarget,
   converseWithBedrock,
   converseWithBedrockModel,

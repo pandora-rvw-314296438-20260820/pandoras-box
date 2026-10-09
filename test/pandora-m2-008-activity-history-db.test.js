@@ -66,6 +66,7 @@ async function makeDb(t) {
   const db = new PGlite();
   t.after(() => db.close());
   await db.exec(`
+    set time zone 'UTC';
     create role anon nologin;
     create role authenticated nologin;
     create role service_role nologin;
