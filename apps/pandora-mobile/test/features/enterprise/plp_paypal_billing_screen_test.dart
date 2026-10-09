@@ -34,6 +34,7 @@ class _Fake {
   Map<String, dynamic> Function() status;
   final calls = <String>[];
   final opened = <Uri>[];
+  final bodies = <String, Map<String, dynamic>>{};
   Object? failOn;
   Map<String, dynamic> cancelResult = const {};
   Completer<void>? gate;
@@ -45,6 +46,7 @@ class _Fake {
   }) async {
     final code = body?['planCode'];
     calls.add('$method $path${code != null ? ' $code' : ''}');
+    if (body != null) bodies[path] = body;
     if (gate != null) await gate!.future;
     if (failOn != null && path.endsWith(failOn.toString())) {
       throw Exception('PAYPAL_TIMEOUT');
@@ -57,14 +59,16 @@ class _Fake {
   }
 }
 
-Future<_Fake> _pump(
-    WidgetTester tester, Map<String, dynamic> Function() s) async {
+Future<_Fake> _pump(WidgetTester tester, Map<String, dynamic> Function() s,
+    {bool? isWeb, Uri? appBaseUri}) async {
   final fake = _Fake(s);
   await tester.pumpWidget(MaterialApp(
     home: PlpPaypalBillingScreen(
       organizationId: 'org-1',
       onOpenNavigation: () {},
       transport: fake.call,
+      isWeb: isWeb,
+      appBaseUri: appBaseUri,
       urlLauncher: (uri) async {
         fake.opened.add(uri);
         return true;
@@ -130,6 +134,61 @@ void main() {
     await _tap(tester, 'pay-with-paypal');
     expect(fake.calls, contains('POST /billing/paypal/checkout professional'));
     expect(fake.opened.single.host, 'www.paypal.com');
+  });
+
+  test('PayPal returns web owners to the allowed site they started on', () {
+    final omega = plpPaypalReturnUrls(
+      isWeb: true,
+      base: Uri.parse('https://enterprise-omega-five.vercel.app/#/enterprise'),
+    );
+    expect(omega.returnUrl,
+        'https://enterprise-omega-five.vercel.app/#/enterprise/paypal-return');
+    expect(omega.cancelUrl,
+        'https://enterprise-omega-five.vercel.app/#/enterprise/paypal-cancel');
+    expect(
+      plpPaypalReturnUrls(
+        isWeb: true,
+        base: Uri.parse('https://pandoras-box-system.vercel.app/'),
+      ).returnUrl,
+      'https://pandoras-box-system.vercel.app/#/enterprise/paypal-return',
+    );
+    for (final base in [
+      'https://evil.example.com/',
+      'https://enterprise-omega-five.vercel.app.evil.com/',
+      'http://enterprise-omega-five.vercel.app/',
+      'http://localhost:8080/',
+    ]) {
+      expect(
+        plpPaypalReturnUrls(isWeb: true, base: Uri.parse(base)).returnUrl,
+        'https://mcpmaster.vercel.app/#/enterprise/paypal-return',
+        reason: base,
+      );
+    }
+    final android = plpPaypalReturnUrls(
+      isWeb: false,
+      base: Uri.parse('https://enterprise-omega-five.vercel.app/'),
+    );
+    expect(android.returnUrl,
+        'https://mcpmaster.vercel.app/#/enterprise/paypal-return');
+    expect(android.cancelUrl,
+        'https://mcpmaster.vercel.app/#/enterprise/paypal-cancel');
+  });
+
+  testWidgets('web checkout sends return URLs for the current site',
+      (tester) async {
+    final fake = await _pump(
+      tester,
+      () => {'subscription': null, 'plans': _plans},
+      isWeb: true,
+      appBaseUri: Uri.parse('https://enterprise-omega-five.vercel.app/'),
+    );
+    await _tap(tester, 'launch');
+    await _tap(tester, 'pay-with-paypal');
+    final body = fake.bodies['/billing/paypal/checkout']!;
+    expect(body['returnUrl'],
+        'https://enterprise-omega-five.vercel.app/#/enterprise/paypal-return');
+    expect(body['cancelUrl'],
+        'https://enterprise-omega-five.vercel.app/#/enterprise/paypal-cancel');
   });
 
   testWidgets('rapid taps submit checkout once', (tester) async {

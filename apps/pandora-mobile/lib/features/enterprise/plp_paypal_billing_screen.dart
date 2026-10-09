@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -16,6 +17,36 @@ const plpBillingSection = PlpResortSection(
 
 typedef PlpBillingUrlLauncher = Future<bool> Function(Uri uri);
 
+/// Web origins PayPal may send the owner back to. Keep in sync with the
+/// pandora-owner-api CORS allowlist (DEFAULT_ALLOWED_ORIGINS in contract.ts).
+const plpPaypalReturnOrigins = <String>{
+  'https://mcpmaster.vercel.app',
+  'https://pandoras-box-system.vercel.app',
+  'https://mcpmaster-hazel.vercel.app',
+  'https://mcpmaster-mbanatao-dc676069.vercel.app',
+  'https://enterprise-omega-five.vercel.app',
+};
+
+const _plpPaypalDefaultReturnOrigin = 'https://mcpmaster.vercel.app';
+
+/// PayPal return/cancel URLs. On web the owner comes back to the site they
+/// started on when it is an allowed origin; everywhere else (Android, or an
+/// unknown web origin) keeps the mcpmaster return page.
+({String returnUrl, String cancelUrl}) plpPaypalReturnUrls({
+  required bool isWeb,
+  required Uri base,
+}) {
+  var origin = _plpPaypalDefaultReturnOrigin;
+  if (isWeb && base.scheme == 'https' && base.host.isNotEmpty) {
+    final candidate = base.origin;
+    if (plpPaypalReturnOrigins.contains(candidate)) origin = candidate;
+  }
+  return (
+    returnUrl: '$origin/#/enterprise/paypal-return',
+    cancelUrl: '$origin/#/enterprise/paypal-cancel',
+  );
+}
+
 class PlpPaypalBillingScreen extends StatefulWidget {
   const PlpPaypalBillingScreen({
     super.key,
@@ -23,12 +54,18 @@ class PlpPaypalBillingScreen extends StatefulWidget {
     required this.onOpenNavigation,
     this.transport,
     this.urlLauncher,
+    this.isWeb,
+    this.appBaseUri,
   });
 
   final String organizationId;
   final VoidCallback onOpenNavigation;
   final PlpBillingTransport? transport;
   final PlpBillingUrlLauncher? urlLauncher;
+
+  /// Test seams; default to the running platform and [Uri.base].
+  final bool? isWeb;
+  final Uri? appBaseUri;
 
   @override
   State<PlpPaypalBillingScreen> createState() => _PlpPaypalBillingScreenState();
@@ -211,16 +248,18 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
           return;
         }
         final intent = 'checkout:$code';
+        final returnUrls = plpPaypalReturnUrls(
+          isWeb: widget.isWeb ?? kIsWeb,
+          base: widget.appBaseUri ?? Uri.base,
+        );
         final result = await _request(
           '/billing/paypal/checkout',
           method: 'POST',
           body: {
             'planCode': code,
             'idempotencyKey': _idempotency(intent, 'plp-checkout'),
-            'returnUrl':
-                'https://mcpmaster.vercel.app/#/enterprise/paypal-return',
-            'cancelUrl':
-                'https://mcpmaster.vercel.app/#/enterprise/paypal-cancel',
+            'returnUrl': returnUrls.returnUrl,
+            'cancelUrl': returnUrls.cancelUrl,
           },
         );
         _idempotencyKeys.remove(intent);
