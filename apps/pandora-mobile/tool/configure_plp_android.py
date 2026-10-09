@@ -10,6 +10,16 @@ _GENERIC_PACKAGE = "com.banataosystems.pandora_mobile"
 _PLP_PACKAGE = "com.banataosystems.pandora.plp"
 _GENERIC_LABEL = 'android:label="Pandora"'
 _PLP_LABEL = 'android:label="PLP Pandora Enterprise"'
+_HOME_CATEGORY = "android.intent.category.HOME"
+# configure_validation_android.py adds this filter so the generic validation
+# build can act as a device home app. PLP Enterprise is a normal app: keeping
+# it would make Android offer PLP in the "choose a Home app" chooser.
+_VALIDATION_HOME_FILTER = """            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.HOME"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+"""
 
 
 def _replace_exact(text: str, old: str, new: str, label: str) -> str:
@@ -52,6 +62,14 @@ def configure(gradle: Path, manifest: Path, kotlin_root: Path) -> int:
             _PLP_LABEL,
             "Pandora validation application label",
         )
+        home_filters = manifest_text.count(_VALIDATION_HOME_FILTER)
+        if home_filters > 1:
+            raise ValueError(
+                f"Expected at most one validation HOME intent filter; found {home_filters}."
+            )
+        manifest_text = manifest_text.replace(_VALIDATION_HOME_FILTER, "", 1)
+        if _HOME_CATEGORY in manifest_text:
+            raise ValueError("PLP Android manifest still declares android.intent.category.HOME.")
         manifest.write_text(manifest_text, encoding="utf-8")
     except ValueError as error:
         print(str(error), file=sys.stderr)
@@ -93,6 +111,7 @@ def configure(gradle: Path, manifest: Path, kotlin_root: Path) -> int:
 
     print(f"Configured dedicated PLP Android package: {_PLP_PACKAGE}")
     print("Configured dedicated PLP Android label: PLP Pandora Enterprise")
+    print("Removed validation HOME launcher routing (MAIN/LAUNCHER kept).")
     print(f"Retargeted {len(pandora_files)} Pandora Kotlin source files.")
     return 0
 

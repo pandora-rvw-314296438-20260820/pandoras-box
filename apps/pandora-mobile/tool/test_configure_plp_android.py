@@ -63,6 +63,52 @@ class ConfigurePlpAndroidTest(unittest.TestCase):
                 source.read_text(),
             )
 
+    def test_strips_validation_home_filter_and_keeps_launcher(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            gradle = root / "build.gradle.kts"
+            manifest = root / "AndroidManifest.xml"
+            kotlin = root / "kotlin"
+            kotlin.mkdir()
+            (kotlin / "MainActivity.kt").write_text(
+                "package com.banataosystems.pandora_mobile\n",
+                encoding="utf-8",
+            )
+            gradle.write_text(
+                'namespace = "com.banataosystems.pandora_mobile"\n'
+                'applicationId = "com.banataosystems.pandora_mobile"\n',
+                encoding="utf-8",
+            )
+            manifest.write_text(
+                '<manifest><application android:label="Pandora">\n'
+                '        <activity android:name=".MainActivity">\n'
+                '            <intent-filter>\n'
+                '                <action android:name="android.intent.action.MAIN"/>\n'
+                '                <category android:name="android.intent.category.LAUNCHER"/>\n'
+                '            </intent-filter>\n'
+                '            <intent-filter>\n'
+                '                <action android:name="android.intent.action.MAIN"/>\n'
+                '                <category android:name="android.intent.category.HOME"/>\n'
+                '                <category android:name="android.intent.category.DEFAULT"/>\n'
+                '            </intent-filter>\n'
+                '        </activity>\n'
+                '</application></manifest>\n',
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [sys.executable, str(_SCRIPT), str(gradle), str(manifest), str(kotlin)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            text = manifest.read_text()
+            self.assertNotIn("android.intent.category.HOME", text)
+            self.assertIn("android.intent.category.LAUNCHER", text)
+            self.assertEqual(text.count("android.intent.action.MAIN"), 1)
+
     def test_fails_closed_when_generated_identity_is_ambiguous(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
