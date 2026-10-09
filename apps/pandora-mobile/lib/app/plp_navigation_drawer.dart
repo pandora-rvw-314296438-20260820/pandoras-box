@@ -27,6 +27,9 @@ class PlpNavigationDrawer extends StatefulWidget {
     required this.onSelectDestination,
     required this.onSelectThread,
     required this.onNewChat,
+    this.lockedDestinations = const <String>{},
+    this.chatLocked = false,
+    this.showBilling = true,
   });
 
   final String? selectedDestination;
@@ -38,6 +41,16 @@ class PlpNavigationDrawer extends StatefulWidget {
   final ValueChanged<String> onSelectDestination;
   final ValueChanged<PlpRecentChatItem> onSelectThread;
   final VoidCallback onNewChat;
+
+  /// Destinations that need a verified subscription. They keep a small lock
+  /// and the shell routes them to Billing (owners) or the waiting notice.
+  final Set<String> lockedDestinations;
+
+  /// Recent chats and New chat need a verified subscription.
+  final bool chatLocked;
+
+  /// Billing is for owners/admins; staff never see it.
+  final bool showBilling;
 
   @override
   State<PlpNavigationDrawer> createState() => _PlpNavigationDrawerState();
@@ -64,6 +77,10 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     _PlpDrawerDestination('local-ai', 'Local AI', Icons.memory_outlined),
     _PlpDrawerDestination('developer', 'Developer diagnostics', Icons.developer_mode_outlined),
   ];
+
+  /// Always reachable, before and after subscribing.
+  static const _billingItem =
+      _PlpDrawerDestination('billing', 'Billing', Icons.credit_card_outlined);
 
   final TextEditingController _searchController = TextEditingController();
   bool _workspaceExpanded = true;
@@ -169,12 +186,17 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
               ],
               if (_workspaceExpanded || searching)
                 for (final item in visibleBusiness) _navigationRow(item),
+              if (widget.showBilling && _matches(_billingItem.label))
+                _navigationRow(_billingItem),
               const SizedBox(height: 8),
               if (!searching)
                 _expandableRow(semanticTitle: 'Recent chats', title: 'Recent chats', expanded: _recentExpanded,
                     leading: const Icon(Icons.chat_bubble_outline_rounded, size: 23, color: Color(0xFFC9C2B8)),
-                    onTap: () => setState(() => _recentExpanded = !_recentExpanded)),
-              if (_recentExpanded || searching)
+                    locked: widget.chatLocked,
+                    onTap: widget.chatLocked
+                        ? () => widget.onSelectDestination('recent-chats')
+                        : () => setState(() => _recentExpanded = !_recentExpanded)),
+              if (!widget.chatLocked && (_recentExpanded || searching))
                 if (widget.recentChatsLoading)
                   const Padding(padding: EdgeInsets.all(10), child: Row(children: [
                     SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 10),
@@ -190,6 +212,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                 else
                   for (final chat in visibleChats) _chatRow(chat),
               if (searching && visibleBusiness.isEmpty && visibleSystem.isEmpty && visibleChats.isEmpty &&
+                  !(widget.showBilling && _matches(_billingItem.label)) &&
                   !widget.recentChatsLoading && widget.recentChatsError == null)
                 const Padding(padding: EdgeInsets.all(10), child: Text('No matching navigation or chats', style: TextStyle(color: Color(0xFFAAA39A)))),
               if (!searching || visibleSystem.isNotEmpty) ...[
@@ -207,9 +230,10 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
               child: Material(color: const Color(0xE00E0E0F), surfaceTintColor: Colors.transparent, borderRadius: BorderRadius.circular(18),
                 child: InkWell(key: const ValueKey<String>('plp-drawer-new-chat'),
                   onTap: () { _searchFocus.unfocus(); widget.onNewChat(); }, borderRadius: BorderRadius.circular(18),
-                  child: const Padding(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13), child: Row(children: [
-                    Icon(Icons.edit_square, size: 21, color: Color(0xFFF2EEE7)), SizedBox(width: 12),
-                    Expanded(child: Text('New chat', style: TextStyle(color: Color(0xFFF2EEE7), fontSize: 15, fontWeight: FontWeight.w700))),
+                  child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13), child: Row(children: [
+                    const Icon(Icons.edit_square, size: 21, color: Color(0xFFF2EEE7)), const SizedBox(width: 12),
+                    const Expanded(child: Text('New chat', style: TextStyle(color: Color(0xFFF2EEE7), fontSize: 15, fontWeight: FontWeight.w700))),
+                    if (widget.chatLocked) _lockIcon(),
                   ])),
                 ),
               ),
@@ -319,6 +343,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     required Widget leading,
     required VoidCallback onTap,
     String? subtitle,
+    bool locked = false,
   }) {
     return Semantics(
       button: true,
@@ -366,15 +391,18 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  AnimatedRotation(
-                    turns: expanded ? .5 : 0,
-                    duration: const Duration(milliseconds: 150),
-                    child: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: Color(0xFF989188),
-                      size: 22,
+                  if (locked)
+                    _lockIcon()
+                  else
+                    AnimatedRotation(
+                      turns: expanded ? .5 : 0,
+                      duration: const Duration(milliseconds: 150),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Color(0xFF989188),
+                        size: 22,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -389,13 +417,18 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     bool nested = false,
   }) {
     final selected = widget.selectedDestination == item.id;
+    final locked = widget.lockedDestinations.contains(item.id);
     return Padding(
       padding: EdgeInsets.only(left: nested ? 36 : 0, bottom: 2),
       child: Semantics(
         button: true,
         selected: selected,
         excludeSemantics: true,
-        label: selected ? '${item.label}, selected' : item.label,
+        label: [
+          item.label,
+          if (selected) 'selected',
+          if (locked) 'locked',
+        ].join(', '),
         child: Material(
           color: selected ? const Color(0xCC1B1711) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
@@ -433,6 +466,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                         ),
                       ),
                     ),
+                    if (locked) _lockIcon(),
                   ],
                 ),
               ),
@@ -442,6 +476,13 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
       ),
     );
   }
+
+  Widget _lockIcon() => const Icon(
+        Icons.lock_outline_rounded,
+        key: ValueKey<String>('plp-drawer-lock'),
+        size: 16,
+        color: Color(0xFF8C867E),
+      );
 
   Widget _chatRow(PlpRecentChatItem chat) => Padding(
         padding: const EdgeInsets.only(left: 42),
@@ -475,6 +516,13 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
         ),
       );
 }
+
+/// Every destination id the PLP drawer can show.
+final plpNavigationDestinationIds = <String>{
+  for (final item in _PlpNavigationDrawerState._businessItems) item.id,
+  for (final item in _PlpNavigationDrawerState._systemItems) item.id,
+  _PlpNavigationDrawerState._billingItem.id,
+};
 
 class _PlpDrawerDestination {
   const _PlpDrawerDestination(this.id, this.label, this.icon);
