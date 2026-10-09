@@ -12,6 +12,9 @@ class PlpEnterpriseHome extends StatelessWidget {
     this.onOpenModule,
     this.onOpenRecord,
     this.onOpenSourceSettings,
+    this.lockedSections = const <String>{},
+    this.unlockNotice,
+    this.onUnlock,
   });
 
   final Map<String, Object?> bootstrap;
@@ -21,6 +24,9 @@ class PlpEnterpriseHome extends StatelessWidget {
   final ValueChanged<String>? onOpenModule;
   final void Function(String kind, Map<String, Object?> record)? onOpenRecord;
   final VoidCallback? onOpenSourceSettings;
+  final Set<String> lockedSections;
+  final String? unlockNotice;
+  final VoidCallback? onUnlock;
 
   @override
   Widget build(BuildContext context) => PlpResortWorkspaceScreen(
@@ -33,5 +39,8 @@ class PlpEnterpriseHome extends StatelessWidget {
         onOpenModule: onOpenModule,
         onOpenRecord: onOpenRecord,
         onOpenSourceSettings: onOpenSourceSettings,
+        lockedSections: lockedSections,
+        unlockNotice: unlockNotice,
+        onUnlock: onUnlock,
       );
 }

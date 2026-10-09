@@ -2966,6 +2966,83 @@ async function terminalOutcomeSmoke(db) {
   };
 }
 
+async function plpEntitlementSmoke(db) {
+  // Runs after authorizationSmoke, reusing its organization and members.
+  // Everything happens inside a transaction that is rolled back.
+  const organizationId = '2270b266-59da-4c39-bfd9-9f8d08352af0';
+  const owner = '11111111-1111-4111-8111-111111111111';
+  const member = '33333333-3333-4333-8333-333333333333';
+  const outsider = '55555555-5555-4555-8555-555555555555';
+  const setClaims = (userId) => db.query(`select set_config('request.jwt.claims', $1, false)`, [
+    JSON.stringify(userId ? { sub: userId, role: 'authenticated' } : { role: 'anon' }),
+  ]);
+  const entitled = async (userId) => {
+    await setClaims(userId);
+    const result = await db.query(`select public.pandora_plp_entitlement_v1($1) as unlocked`, [organizationId]);
+    return result.rows[0].unlocked;
+  };
+  await db.exec('begin');
+  try {
+    await db.exec(`
+      insert into auth.users(id, raw_user_meta_data, is_anonymous) values ('${outsider}', '{}'::jsonb, false);
+      insert into public.pandora_enterprise_accounts(organization_id, industry, workspace_type, created_by)
+        values ('${organizationId}', 'hospitality', 'plp', '${owner}') on conflict (organization_id) do nothing;
+      insert into public.pandora_service_plans(id, code, name, state, currency, monthly_fee_micros, created_by)
+        values ('6a000000-0000-4000-8000-000000000001', 'replay-launch', 'Replay Launch', 'active', 'USD', 49000000, '${owner}');
+    `);
+    const exposed = await db.query(`
+      select p.prorettype::regtype::text as returns, p.prosecdef as definer,
+             has_function_privilege('anon', p.oid, 'execute') as anon_execute,
+             has_function_privilege('authenticated', p.oid, 'execute') as member_execute
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'pandora_plp_entitlement_v1'
+    `);
+    assert.deepEqual(exposed.rows, [{ returns: 'boolean', definer: true, anon_execute: false, member_execute: true }]);
+
+    const mustDeny = async (userId) => {
+      await db.exec('savepoint plp_entitlement_denied');
+      await setClaims(userId);
+      await assert.rejects(db.query(`select public.pandora_plp_entitlement_v1($1)`, [organizationId]));
+      await db.exec('rollback to savepoint plp_entitlement_denied');
+    };
+    await mustDeny(null);
+    await mustDeny(outsider);
+    assert.equal(await entitled(member), false, 'no subscription must stay locked');
+
+    await setClaims(null);
+    await db.exec(`
+      insert into public.pandora_customer_subscriptions(organization_id, plan_id, state, currency, monthly_fee_micros, source_kind, updated_by)
+        values ('${organizationId}', '6a000000-0000-4000-8000-000000000001', 'active', 'USD', 49000000, 'manual', '${owner}');
+    `);
+    assert.equal(await entitled(member), false, 'active but unverified must stay locked');
+
+    await setClaims(null);
+    await db.exec(`
+      update public.pandora_customer_subscriptions
+         set source_kind = 'provider_verified', provider_reference = 'I-REPLAY', verified_at = now()
+       where organization_id = '${organizationId}';
+    `);
+    assert.equal(await entitled(member), true, 'active provider-verified must unlock for members');
+    assert.equal(await entitled(owner), true);
+
+    await setClaims(null);
+    await db.exec(`update public.pandora_customer_subscriptions set state = 'cancelled' where organization_id = '${organizationId}'`);
+    assert.equal(await entitled(member), false, 'cancelled must lock');
+  } finally {
+    await db.exec('rollback');
+    await setClaims(null);
+  }
+  return {
+    returns: 'boolean only',
+    anon: 'denied',
+    non_member: 'denied',
+    no_subscription: 'locked',
+    active_unverified: 'locked',
+    active_provider_verified: 'unlocked',
+    cancelled: 'locked',
+  };
+}
+
 async function catalogAssertions(db, migrationFiles) {
   const server = await db.query('show server_version_num');
   const count = async (sql, params = []) => Number((await db.query(sql, params)).rows[0].count);
@@ -3158,6 +3235,7 @@ async function catalogAssertions(db, migrationFiles) {
   const canonicalReleaseRollback = await canonicalReleaseRollbackSmoke(db);
   const terminalOutcome = await terminalOutcomeSmoke(db);
   const rollback = await rollbackSmoke(db);
+  const plpEntitlement = await plpEntitlementSmoke(db);
   return {
     schema_version: '1.0.0',
     engine: { name: 'pglite', package_version: JSON.parse(await readFile(join(repositoryRoot, 'node_modules/@electric-sql/pglite/package.json'), 'utf8')).version, postgres_server_version_num: server.rows[0].server_version_num },
@@ -3189,6 +3267,7 @@ async function catalogAssertions(db, migrationFiles) {
       terminal_outcome_smoke: terminalOutcome,
       database_rollback_smoke: rollback,
       worker_authority_rollback_smoke: workerAuthorityRollback,
+      plp_entitlement_smoke: plpEntitlement,
     },
   };
 }

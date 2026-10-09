@@ -8,6 +8,7 @@ WORK_ROOT="${PWD}/.pandora-vercel-web"
 FLUTTER_ROOT="${WORK_ROOT}/flutter"
 BUILD_ROOT="${WORK_ROOT}/app"
 OUTPUT_ROOT="${PWD}/public/pandora-web"
+WEB_TARGET="$(bash scripts/pandora-web-target.sh)"
 
 if [[ -z "$SOURCE_SHA" || ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
   echo 'Exact 40-character source SHA is required for Pandora web production build.' >&2
@@ -50,6 +51,7 @@ cp pubspec.lock pubspec.lock.expected
 flutter pub get --enforce-lockfile >/dev/null
 node -e 'const fs=require("fs"); if(!fs.readFileSync("pubspec.lock.expected").equals(fs.readFileSync("pubspec.lock"))) process.exit(1);'
 flutter build web --release \
+  --target="$WEB_TARGET" \
   --base-href /pandora-web/ \
   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
   --dart-define=PANDORA_APP_VERSION="$APP_VERSION"
@@ -59,6 +61,7 @@ web_tree_sha256="$(find "$OUTPUT_ROOT" -type f -print0 | sort -z | xargs -0 sha2
 cat > "${OUTPUT_ROOT}/pandora-web-release-manifest.txt" <<EOF
 source_sha=${SOURCE_SHA}
 app_version=${APP_VERSION}
+web_target=${WEB_TARGET}
 flutter_version=${FLUTTER_VERSION}
 web_tree_sha256=${web_tree_sha256}
 artifact_class=production-candidate
@@ -68,5 +71,5 @@ EOF
 test -s "${OUTPUT_ROOT}/index.html"
 test -s "${OUTPUT_ROOT}/main.dart.js"
 grep -Fq '<base href="/pandora-web/">' "${OUTPUT_ROOT}/index.html"
-printf 'PANDORA_WEB_RELEASE source_sha=%s app_version=%s flutter_version=%s web_tree_sha256=%s\n' \
-  "$SOURCE_SHA" "$APP_VERSION" "$FLUTTER_VERSION" "$web_tree_sha256"
+printf 'PANDORA_WEB_RELEASE source_sha=%s app_version=%s web_target=%s flutter_version=%s web_tree_sha256=%s\n' \
+  "$SOURCE_SHA" "$APP_VERSION" "$WEB_TARGET" "$FLUTTER_VERSION" "$web_tree_sha256"
