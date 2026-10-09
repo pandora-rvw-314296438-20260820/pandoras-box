@@ -1922,7 +1922,7 @@
         "npm:@types/node@^26.6.4",
         "npm:@types/three@~0.158.3",
         "npm:@types/ws@^8.5.10",
-        "npm:@vercel/node@13.0.0",
+        "npm:@vercel/node@20.0.0",
         "npm:@vercel/oidc@^3.8.7",
         "npm:cors@^2.8.6",
         "npm:express@^5.2.1",
