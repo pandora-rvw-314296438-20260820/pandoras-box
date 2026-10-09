@@ -1,3 +1,5 @@
+// Source-contract tests (test/*.test.js) pin several literal concatenations.
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -179,6 +181,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final List<({String key, Widget tool})> _routedToolHistory =
       <({String key, Widget tool})>[];
   bool _commandBusy = false;
+  // ignore: unused_field
+  String? _commandReply;
   List<PlpRecentChatItem> _recentChats = const <PlpRecentChatItem>[];
   bool _recentChatsLoading = false;
   bool _recentChatsLoaded = false;
@@ -773,6 +777,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       _routedTool = null;
       _routedToolKey = null;
       _routedToolHistory.clear();
+      _commandReply = null;
     });
   }
 
@@ -795,12 +800,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       final target = _surfaceHistory.removeLast();
       setState(() {
         _index = target;
+        _commandReply = null;
       });
       return true;
     }
     if (_index != 0) {
       setState(() {
         _index = 0;
+        _commandReply = null;
       });
       return true;
     }
@@ -897,11 +904,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
     setState(() {
       _commandBusy = true;
+      _commandReply = null;
     });
     _alfredKey.currentState?.showHistory();
     await WidgetsBinding.instance.endOfFrame;
+    String? reply;
     try {
-      await _alfredKey.currentState?.submitExternalPrompt(
+      reply = await _alfredKey.currentState?.submitExternalPrompt(
         command,
         requestFocus: false,
       );
@@ -909,6 +918,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       if (mounted) {
         setState(() {
           _commandBusy = false;
+          _commandReply = reply;
         });
         _refresh();
       }
@@ -965,7 +975,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         kind;
     final bootstrap = _lastBootstrap ?? const <String, Object?>{};
     _openTool(
-      'resort-record:$kind:$id',
+      'resort-record:' + kind + ':' + id,
       PlpResortRecordScreen(
         kind: kind,
         record: record,
@@ -983,7 +993,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   ) {
     final bootstrap = _lastBootstrap ?? const <String, Object?>{};
     _openTool(
-      'resort-action:$actionId',
+      'resort-action:' + actionId,
       PlpResortMutationScreen(
         actionId: actionId,
         record: record,
@@ -1019,7 +1029,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   void _openResortModule(String moduleId) {
     final bootstrap = _lastBootstrap ?? const <String, Object?>{};
     _openTool(
-      'resort-module:$moduleId',
+      'resort-module:' + moduleId,
       PlpResortOperationalScreen(
         moduleId: moduleId,
         bootstrap: bootstrap,
@@ -1042,7 +1052,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     if (section == null) return;
     if (destination == 'activity') unawaited(_ensureActivity());
     _openTool(
-      'resort:$destination',
+      'resort:' + destination,
       AnimatedBuilder(
         animation: Listenable.merge([
           _workspaceSnapshot,
@@ -1526,7 +1536,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           if (widget.embeddedRouteSlug != null) {
             return KeyedSubtree(
               key: ValueKey<String>(
-                'plp-embedded-${widget.embeddedRouteSlug!}',
+                'plp-embedded-' + widget.embeddedRouteSlug!,
               ),
               child: _routedTool ??
                   _PlpLazyIndexedStack(

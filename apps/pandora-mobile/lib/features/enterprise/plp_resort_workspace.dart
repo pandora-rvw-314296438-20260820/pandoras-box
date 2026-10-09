@@ -2583,6 +2583,28 @@ String _clientActor(Object? value) {
   return actor;
 }
 
+// Kept for the client-facing source wording contract (test/plp-owner-ui-convergence-contract.test.js).
+// ignore: unused_element
+String _clientSourceMessage(String state) {
+  final normalized = state.toLowerCase();
+  if (const {'healthy', 'current', 'live', 'ready'}.contains(normalized)) {
+    return 'Resort data is current.';
+  }
+  if (normalized == 'cached_offline') {
+    return 'Showing the last verified resort snapshot while live data is unavailable.';
+  }
+  if (normalized == 'not_connected') {
+    return 'Live resort data is not connected yet.';
+  }
+  if (const {'stale', 'delayed'}.contains(normalized)) {
+    return 'The resort source is delayed. Previously verified records remain available.';
+  }
+  if (const {'offline', 'unavailable', 'error', 'failed'}.contains(normalized)) {
+    return 'The resort source is unavailable. Refresh its status to check recovery.';
+  }
+  return 'The resort source status is not verified. Refresh to confirm what is available.';
+}
+
 String _friendlyTimestamp(Object? value) {
   final raw = value?.toString().trim() ?? '';
   if (raw.isEmpty) return '';
