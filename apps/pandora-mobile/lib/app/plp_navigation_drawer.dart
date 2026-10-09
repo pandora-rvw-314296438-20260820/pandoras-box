@@ -27,7 +27,9 @@ class PlpNavigationDrawer extends StatefulWidget {
     required this.onSelectDestination,
     required this.onSelectThread,
     required this.onNewChat,
-    this.locked = false,
+    this.lockedDestinations = const <String>{},
+    this.chatLocked = false,
+    this.showBilling = true,
   });
 
   final String? selectedDestination;
@@ -40,9 +42,15 @@ class PlpNavigationDrawer extends StatefulWidget {
   final ValueChanged<PlpRecentChatItem> onSelectThread;
   final VoidCallback onNewChat;
 
-  /// No verified subscription: every destination except Billing carries a
-  /// small lock and the shell routes it back to the plans.
-  final bool locked;
+  /// Destinations that need a verified subscription. They keep a small lock
+  /// and the shell routes them to Billing (owners) or the waiting notice.
+  final Set<String> lockedDestinations;
+
+  /// Recent chats and New chat need a verified subscription.
+  final bool chatLocked;
+
+  /// Billing is for owners/admins; staff never see it.
+  final bool showBilling;
 
   @override
   State<PlpNavigationDrawer> createState() => _PlpNavigationDrawerState();
@@ -178,16 +186,17 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
               ],
               if (_workspaceExpanded || searching)
                 for (final item in visibleBusiness) _navigationRow(item),
-              if (_matches(_billingItem.label)) _navigationRow(_billingItem),
+              if (widget.showBilling && _matches(_billingItem.label))
+                _navigationRow(_billingItem),
               const SizedBox(height: 8),
               if (!searching)
                 _expandableRow(semanticTitle: 'Recent chats', title: 'Recent chats', expanded: _recentExpanded,
                     leading: const Icon(Icons.chat_bubble_outline_rounded, size: 23, color: Color(0xFFC9C2B8)),
-                    locked: widget.locked,
-                    onTap: widget.locked
+                    locked: widget.chatLocked,
+                    onTap: widget.chatLocked
                         ? () => widget.onSelectDestination('recent-chats')
                         : () => setState(() => _recentExpanded = !_recentExpanded)),
-              if (!widget.locked && (_recentExpanded || searching))
+              if (!widget.chatLocked && (_recentExpanded || searching))
                 if (widget.recentChatsLoading)
                   const Padding(padding: EdgeInsets.all(10), child: Row(children: [
                     SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 10),
@@ -203,7 +212,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                 else
                   for (final chat in visibleChats) _chatRow(chat),
               if (searching && visibleBusiness.isEmpty && visibleSystem.isEmpty && visibleChats.isEmpty &&
-                  !_matches(_billingItem.label) &&
+                  !(widget.showBilling && _matches(_billingItem.label)) &&
                   !widget.recentChatsLoading && widget.recentChatsError == null)
                 const Padding(padding: EdgeInsets.all(10), child: Text('No matching navigation or chats', style: TextStyle(color: Color(0xFFAAA39A)))),
               if (!searching || visibleSystem.isNotEmpty) ...[
@@ -224,7 +233,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                   child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13), child: Row(children: [
                     const Icon(Icons.edit_square, size: 21, color: Color(0xFFF2EEE7)), const SizedBox(width: 12),
                     const Expanded(child: Text('New chat', style: TextStyle(color: Color(0xFFF2EEE7), fontSize: 15, fontWeight: FontWeight.w700))),
-                    if (widget.locked) _lockIcon(),
+                    if (widget.chatLocked) _lockIcon(),
                   ])),
                 ),
               ),
@@ -408,7 +417,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     bool nested = false,
   }) {
     final selected = widget.selectedDestination == item.id;
-    final locked = widget.locked && item.id != _billingItem.id;
+    final locked = widget.lockedDestinations.contains(item.id);
     return Padding(
       padding: EdgeInsets.only(left: nested ? 36 : 0, bottom: 2),
       child: Semantics(
@@ -507,6 +516,13 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
         ),
       );
 }
+
+/// Every destination id the PLP drawer can show.
+final plpNavigationDestinationIds = <String>{
+  for (final item in _PlpNavigationDrawerState._businessItems) item.id,
+  for (final item in _PlpNavigationDrawerState._systemItems) item.id,
+  _PlpNavigationDrawerState._billingItem.id,
+};
 
 class _PlpDrawerDestination {
   const _PlpDrawerDestination(this.id, this.label, this.icon);

@@ -88,3 +88,21 @@ bool plpBillingStatusUnlocked(Map<String, dynamic> status) {
       verifiedAt != null &&
       verifiedAt.toString().trim().isNotEmpty;
 }
+
+/// Reads only whether an organization is unlocked (active + PayPal-verified)
+/// for any active member. Injectable for tests and render harnesses.
+typedef PlpEntitlementReader = Future<bool> Function(String organizationId);
+
+/// `public.pandora_plp_entitlement_v1(p_organization_id)`: a boolean, never
+/// billing details. Throws when the caller is not an active member or the
+/// function is unavailable, so callers fail closed.
+Future<bool> plpSupabaseEntitlementReader(String organizationId) async {
+  final result = await Supabase.instance.client
+      .rpc(
+        'pandora_plp_entitlement_v1',
+        params: <String, Object?>{'p_organization_id': organizationId},
+      )
+      .timeout(const Duration(seconds: 12));
+  if (result is bool) return result;
+  throw StateError('PLP entitlement returned an invalid payload.');
+}

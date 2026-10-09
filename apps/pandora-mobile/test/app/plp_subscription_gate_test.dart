@@ -67,7 +67,8 @@ PlpBillingTransport _transport(
 Future<void> _mount(
   WidgetTester tester, {
   required Map<String, Object?> bootstrap,
-  required PlpBillingTransport transport,
+  PlpBillingTransport? transport,
+  PlpEntitlementReader? entitlement,
 }) async {
   await setTestSurface(tester, logicalSize: const Size(390, 844));
   await tester.pumpWidget(
@@ -78,7 +79,11 @@ Future<void> _mount(
       child: testApp(
         child: PlpEnterpriseShell(
           bootstrapOverride: bootstrap,
-          billingTransport: transport,
+          billingTransport: transport ??
+              (path, {method = 'GET', body}) async =>
+                  throw StateError('staff must not read billing'),
+          entitlementReader: entitlement ??
+              (_) async => throw StateError('entitlement unavailable'),
         ),
       ),
     ),
@@ -99,9 +104,32 @@ Future<void> _openDrawer(WidgetTester tester) async {
   expect(find.byKey(const ValueKey('plp-navigation-drawer')), findsOneWidget);
 }
 
-Finder _gate() => find.byKey(const ValueKey('plp-subscription-gate'));
+Future<void> _tapDrawer(WidgetTester tester, String id) async {
+  final item = find.byKey(ValueKey<String>('plp-drawer-$id'));
+  await tester.ensureVisible(item);
+  await tester.tap(item);
+  await _settle(tester);
+}
+
 Finder _home() => find.byKey(const ValueKey('plp-enterprise-home'));
-Finder _plansHome() => find.byKey(const ValueKey('plp-subscription-plans'));
+Finder _billing() => find.byKey(const ValueKey('plp-paypal-billing'));
+Finder _notice() => find.byKey(const ValueKey('plp-unlock-notice'));
+Finder _chat() => find.byKey(const ValueKey('plp-ai-launcher'));
+Finder _lockedChat() => find.byKey(const ValueKey('plp-ai-launcher-locked'));
+Finder _lockIn(String id) => find.descendant(
+      of: find.byKey(ValueKey<String>('plp-drawer-$id')),
+      matching: find.byIcon(Icons.lock_outline_rounded),
+    );
+
+const _freeMenu = ['home', 'rooms', 'activity', 'billing'];
+const _lockedMenu = [
+  'stays',
+  'guests',
+  'operations',
+  'revenue',
+  'experiences',
+  'team',
+];
 
 void main() {
   test('only an active, PayPal-verified subscription unlocks', () {
@@ -123,7 +151,8 @@ void main() {
     );
   });
 
-  testWidgets('unpaid owner lands on the plans as home', (tester) async {
+  testWidgets('unpaid owner lands on Today with one unlock line',
+      (tester) async {
     final calls = <String>[];
     await _mount(
       tester,
@@ -131,22 +160,103 @@ void main() {
       transport: _transport(() => _unpaid, calls: calls),
     );
 
-    expect(_gate(), findsOneWidget);
-    expect(_plansHome(), findsOneWidget);
+    expect(_home(), findsOneWidget);
+    expect(_billing(), findsNothing);
+    expect(_notice(), findsOneWidget);
+    expect(find.text('Unlock everything · from USD 49 / month'), findsOneWidget);
+    // The assistant is locked: no live launcher, a locked one instead.
+    expect(_chat(), findsNothing);
+    expect(_lockedChat(), findsOneWidget);
+    // Locked workspace tiles on Today keep a small lock.
+    expect(find.byKey(const ValueKey('plp-section-lock')), findsWidgets);
+    expect(calls.every((call) => call == 'GET /billing/paypal/status'), isTrue);
+
+    await tester.tap(_notice());
+    await _settle(tester);
+    expect(_billing(), findsOneWidget);
     expect(find.text('Pay monthly with PayPal.'), findsOneWidget);
     expect(find.text('Launch'), findsOneWidget);
     expect(find.text('Professional'), findsOneWidget);
-    expect(find.text('USD 49 / month'), findsOneWidget);
-    expect(find.text('USD 149 / month'), findsOneWidget);
-    expect(_home(), findsNothing);
-    // Alfred is a paid feature: no assistant launcher while locked.
-    expect(find.byKey(const ValueKey('plp-ai-launcher')), findsNothing);
-    // Status reads only; the gate never starts a checkout by itself.
-    expect(calls.every((call) => call == 'GET /billing/paypal/status'), isTrue);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('verified active subscription opens the normal home',
+  testWidgets('unpaid menu: free items open, locked items keep a lock',
+      (tester) async {
+    await _mount(
+      tester,
+      bootstrap: _bootstrap('org-menu'),
+      transport: _transport(() => _unpaid),
+    );
+    await _openDrawer(tester);
+    for (final id in _freeMenu) {
+      expect(find.byKey(ValueKey<String>('plp-drawer-$id')), findsOneWidget,
+          reason: id);
+      expect(_lockIn(id), findsNothing, reason: id);
+    }
+    for (final id in _lockedMenu) {
+      expect(_lockIn(id), findsOneWidget, reason: id);
+    }
+
+    await _tapDrawer(tester, 'rooms');
+    expect(find.byKey(const ValueKey('plp-resort-rooms')), findsOneWidget);
+    expect(_billing(), findsNothing);
+
+    await _openDrawer(tester);
+    await _tapDrawer(tester, 'activity');
+    expect(find.byKey(const ValueKey('plp-resort-activity')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('locked menu item and locked tile open Billing plans',
+      (tester) async {
+    await _mount(
+      tester,
+      bootstrap: _bootstrap('org-locked-tap'),
+      transport: _transport(() => _unpaid),
+    );
+    await _openDrawer(tester);
+    await _tapDrawer(tester, 'stays');
+    expect(find.byKey(const ValueKey('plp-resort-stays')), findsNothing);
+    expect(_billing(), findsOneWidget);
+    expect(find.text('Pay monthly with PayPal.'), findsOneWidget);
+
+    await _openDrawer(tester);
+    await _tapDrawer(tester, 'home');
+    expect(_home(), findsOneWidget);
+    final guests = find.byKey(const ValueKey('plp-section-tile-guests'));
+    await tester.ensureVisible(guests);
+    await tester.tap(guests);
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('plp-resort-guests')), findsNothing);
+    expect(_billing(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('assistant, Recent chats and New chat are locked while unpaid',
+      (tester) async {
+    await _mount(
+      tester,
+      bootstrap: _bootstrap('org-chat'),
+      transport: _transport(() => _unpaid),
+    );
+    await tester.tap(_lockedChat());
+    await _settle(tester);
+    expect(_billing(), findsOneWidget);
+
+    await _openDrawer(tester);
+    final newChat = find.byKey(const ValueKey('plp-drawer-new-chat'));
+    expect(
+      find.descendant(of: newChat, matching: find.byIcon(Icons.lock_outline_rounded)),
+      findsOneWidget,
+    );
+    expect(find.text('No recent chats'), findsNothing);
+    await tester.tap(newChat);
+    await _settle(tester);
+    expect(_billing(), findsOneWidget);
+    expect(_chat(), findsNothing);
+  });
+
+  testWidgets('verified active subscription unlocks everything',
       (tester) async {
     await _mount(
       tester,
@@ -154,24 +264,37 @@ void main() {
       transport: _transport(() => _verified),
     );
 
-    expect(_gate(), findsNothing);
     expect(_home(), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-ai-launcher')), findsOneWidget);
+    expect(_notice(), findsNothing);
+    expect(_chat(), findsOneWidget);
+    expect(_lockedChat(), findsNothing);
+    expect(find.byKey(const ValueKey('plp-section-lock')), findsNothing);
+
+    await _openDrawer(tester);
+    expect(find.byKey(const ValueKey('plp-drawer-lock')), findsNothing);
+    await _tapDrawer(tester, 'stays');
+    expect(find.byKey(const ValueKey('plp-resort-stays')), findsOneWidget);
+
+    await _openDrawer(tester);
+    await _tapDrawer(tester, 'billing');
+    expect(_billing(), findsOneWidget);
+    expect(find.text('Change plan'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pending checkout stays locked on Finish in PayPal',
+  testWidgets('pending checkout stays locked and Billing shows Finish in PayPal',
       (tester) async {
     await _mount(
       tester,
       bootstrap: _bootstrap('org-pending'),
       transport: _transport(() => _pending),
     );
-
-    expect(_plansHome(), findsOneWidget);
+    expect(_home(), findsOneWidget);
+    expect(_lockedChat(), findsOneWidget);
+    await _openDrawer(tester);
+    await _tapDrawer(tester, 'revenue');
     expect(find.text('Finish in PayPal · not active yet'), findsOneWidget);
     expect(find.text('Open PayPal'), findsOneWidget);
-    expect(_home(), findsNothing);
   });
 
   testWidgets('active but unconfirmed by PayPal stays locked', (tester) async {
@@ -180,62 +303,92 @@ void main() {
       bootstrap: _bootstrap('org-unconfirmed'),
       transport: _transport(() => _unconfirmed),
     );
-
-    expect(_plansHome(), findsOneWidget);
-    expect(_home(), findsNothing);
+    expect(_lockedChat(), findsOneWidget);
+    await _openDrawer(tester);
+    expect(_lockIn('stays'), findsOneWidget);
   });
 
-  testWidgets('staff of an unpaid org see only the waiting notice',
+  testWidgets('staff of an unpaid org: free set, waiting notice on locked',
       (tester) async {
     await _mount(
       tester,
       bootstrap: _bootstrap('org-staff', role: 'operator'),
-      transport: _transport(() => _unpaid),
+      entitlement: (_) async => false,
     );
 
+    expect(_home(), findsOneWidget);
+    expect(_notice(), findsNothing);
+    expect(_lockedChat(), findsOneWidget);
+    await _openDrawer(tester);
+    expect(find.byKey(const ValueKey('plp-drawer-billing')), findsNothing);
+    expect(_lockIn('guests'), findsOneWidget);
+    expect(_lockIn('rooms'), findsNothing);
+
+    await _tapDrawer(tester, 'guests');
     expect(find.text('Waiting for the owner to subscribe.'), findsOneWidget);
-    expect(_plansHome(), findsNothing);
+    expect(_billing(), findsNothing);
     expect(find.text('Launch'), findsNothing);
-    expect(_home(), findsNothing);
+
+    await tester.tap(_lockedChat());
+    await _settle(tester);
+    expect(find.text('Waiting for the owner to subscribe.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('staff denied billing access stay on the waiting notice',
+  testWidgets('staff of a paid org are unlocked by the entitlement flag',
       (tester) async {
+    final orgs = <String>[];
     await _mount(
       tester,
-      bootstrap: _bootstrap('org-staff-denied', role: 'member'),
-      transport: (path, {method = 'GET', body}) async =>
-          throw const PlpBillingRequestException(
-            statusCode: 403,
-            code: 'OWNER_ROLE_REQUIRED',
-            message: 'You do not have permission for this yet.',
-          ),
+      bootstrap: _bootstrap('org-staff-paid', role: 'member'),
+      entitlement: (org) async {
+        orgs.add(org);
+        return true;
+      },
     );
-
-    expect(find.text('Waiting for the owner to subscribe.'), findsOneWidget);
-    expect(_home(), findsNothing);
+    expect(orgs, ['org-staff-paid']);
+    expect(_chat(), findsOneWidget);
+    expect(_lockedChat(), findsNothing);
+    await _openDrawer(tester);
+    expect(find.byKey(const ValueKey('plp-drawer-lock')), findsNothing);
+    await _tapDrawer(tester, 'guests');
+    expect(find.byKey(const ValueKey('plp-resort-guests')), findsOneWidget);
   });
 
-  testWidgets('status error shows Couldn’t load and Retry recovers',
+  testWidgets('status error: Couldn’t load + Retry on locked, Retry recovers',
       (tester) async {
     var fail = true;
     await _mount(
       tester,
-      bootstrap: _bootstrap('org-error'),
-      transport: (path, {method = 'GET', body}) async {
-        if (fail) throw Exception('BILLING_REQUEST_FAILED');
-        return _verified;
+      bootstrap: _bootstrap('org-error', role: 'operator'),
+      entitlement: (_) async {
+        if (fail) throw Exception('network down');
+        return true;
       },
     );
-
+    expect(_home(), findsOneWidget);
+    await _openDrawer(tester);
+    await _tapDrawer(tester, 'team');
     expect(find.text('Couldn’t load.'), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-capability-retry')), findsOneWidget);
-    expect(_home(), findsNothing);
 
     fail = false;
     await tester.tap(find.byKey(const ValueKey('plp-capability-retry')));
     await _settle(tester);
-    expect(_home(), findsOneWidget);
+    expect(find.text('Couldn’t load.'), findsNothing);
+    expect(_chat(), findsOneWidget);
+  });
+
+  testWidgets('owner falls back to the entitlement flag when owner-api fails',
+      (tester) async {
+    await _mount(
+      tester,
+      bootstrap: _bootstrap('org-owner-fallback'),
+      transport: (path, {method = 'GET', body}) async =>
+          throw Exception('owner-api down'),
+      entitlement: (_) async => true,
+    );
+    expect(_chat(), findsOneWidget);
   });
 
   testWidgets('a verified org stays open when a later status read fails',
@@ -245,9 +398,8 @@ void main() {
       bootstrap: _bootstrap('org-cached'),
       transport: _transport(() => _verified),
     );
-    expect(_home(), findsOneWidget);
+    expect(_chat(), findsOneWidget);
 
-    // A fresh shell in the same app session, provider now unreachable.
     await tester.pumpWidget(const SizedBox.shrink());
     await _mount(
       tester,
@@ -255,53 +407,8 @@ void main() {
       transport: (path, {method = 'GET', body}) async =>
           throw Exception('network down'),
     );
-    expect(_home(), findsOneWidget);
-    expect(find.text('Couldn’t load.'), findsNothing);
-  });
-
-  testWidgets('locked menu: Billing open, every feature locked back to plans',
-      (tester) async {
-    await _mount(
-      tester,
-      bootstrap: _bootstrap('org-menu-locked'),
-      transport: _transport(() => _unpaid),
-    );
-    await _openDrawer(tester);
-
-    final billing = find.byKey(const ValueKey('plp-drawer-billing'));
-    expect(billing, findsOneWidget);
-    expect(find.descendant(of: billing, matching: find.byIcon(Icons.lock_outline_rounded)),
-        findsNothing);
-    final rooms = find.byKey(const ValueKey('plp-drawer-rooms'));
-    expect(find.descendant(of: rooms, matching: find.byIcon(Icons.lock_outline_rounded)),
-        findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-drawer-lock')), findsWidgets);
-
-    await tester.tap(rooms);
-    await _settle(tester);
-    expect(_plansHome(), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-resort-rooms')), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('paid menu keeps Billing and opens the billing page',
-      (tester) async {
-    await _mount(
-      tester,
-      bootstrap: _bootstrap('org-menu-paid'),
-      transport: _transport(() => _verified),
-    );
-    await _openDrawer(tester);
-
-    final billing = find.byKey(const ValueKey('plp-drawer-billing'));
-    expect(billing, findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-drawer-lock')), findsNothing);
-
-    await tester.tap(billing);
-    await _settle(tester);
-    expect(find.byKey(const ValueKey('plp-paypal-billing')), findsOneWidget);
-    expect(find.text('Change plan'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    expect(_chat(), findsOneWidget);
+    expect(_lockedChat(), findsNothing);
   });
 
   testWidgets('owner confirming payment in Billing unlocks the workspace',
@@ -312,7 +419,9 @@ void main() {
       bootstrap: _bootstrap('org-unlock'),
       transport: (path, {method = 'GET', body}) async => status,
     );
-    expect(_plansHome(), findsOneWidget);
+    await tester.tap(_notice());
+    await _settle(tester);
+    expect(_billing(), findsOneWidget);
 
     // PayPal confirmed server-side; the owner pulls to refresh billing.
     status = _verified;
@@ -324,6 +433,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     await _settle(tester);
-    expect(_home(), findsOneWidget);
+    expect(find.text('Change plan'), findsOneWidget);
+    expect(_chat(), findsOneWidget);
+    await _openDrawer(tester);
+    expect(find.byKey(const ValueKey('plp-drawer-lock')), findsNothing);
   });
 }
