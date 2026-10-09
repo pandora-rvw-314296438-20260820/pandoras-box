@@ -90,4 +90,8 @@ enabled = false
 verify_jwt = false
 enabled = false
 
-
+# PayPal webhook receiver validates transmission signatures against PayPal certs;
+# user-JWT verification is disabled. Deployment is an owner-approved manual step:
+# `supabase functions deploy pandora-plp-paypal-webhook --no-verify-jwt`.
+[functions.pandora-plp-paypal-webhook]
+verify_jwt = false
