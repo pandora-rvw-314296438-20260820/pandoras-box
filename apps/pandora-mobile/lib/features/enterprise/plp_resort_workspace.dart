@@ -98,6 +98,9 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     this.onOpenTeam,
     this.onOpenActivity,
     this.onOpenSourceSettings,
+    this.lockedSections = const <String>{},
+    this.unlockNotice,
+    this.onUnlock,
   });
 
   final PlpResortSection section;
@@ -113,6 +116,13 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
   final VoidCallback? onOpenTeam;
   final VoidCallback? onOpenActivity;
   final VoidCallback? onOpenSourceSettings;
+
+  /// Sections that need a verified subscription; their tiles keep a lock.
+  final Set<String> lockedSections;
+
+  /// One compact line at the top of Today for unpaid owners.
+  final String? unlockNotice;
+  final VoidCallback? onUnlock;
 
   static const canvas = Color(0xFFFAF7F1);
   static const paper = Color(0xFFFFFDFC);
@@ -137,42 +147,25 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       'team' => _team(),
       'activity' => _activity(),
       _ => <Widget>[
-          const _EmptyState('This resort workspace is not available.')
+          const PlpResortNotice('This resort workspace is not available.')
         ],
     };
 
-    return Material(
-      color: canvas,
-      child: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          color: ink,
-          backgroundColor: paper,
-          onRefresh: () async => onRefresh(),
-          child: ListView(
-            key: ValueKey<String>('plp-resort-' + section.id),
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-              18,
-              12,
-              18,
-              48 + MediaQuery.viewPaddingOf(context).bottom,
-            ),
-            children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 44),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  heightFactor: 1,
-                  child: _ResortHeader(section: section),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...children,
-            ],
+    return PlpResortPage(
+      section: section,
+      listKey: ValueKey<String>('plp-resort-${section.id}'),
+      onRefresh: () async => onRefresh(),
+      children: [
+        if (section.id == 'today' && unlockNotice != null) ...[
+          PlpResortNotice(
+            unlockNotice!,
+            key: const ValueKey<String>('plp-unlock-notice'),
+            onTap: onUnlock,
           ),
-        ),
-      ),
+          const SizedBox(height: 14),
+        ],
+        ...children,
+      ],
     );
   }
 
@@ -219,22 +212,22 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ];
       case 'rooms':
         return <Widget>[
-          _CapabilityGrid(items: <_Capability>[
-            _Capability(
+          PlpCapabilityGrid(items: <PlpCapability>[
+            PlpCapability(
               'Housekeeping',
               Icons.cleaning_services_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('housekeeping'),
             ),
-            _Capability(
+            PlpCapability(
               'Maintenance',
               Icons.build_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('maintenance'),
             ),
-            _Capability(
+            PlpCapability(
               'Linen',
               Icons.local_laundry_service_outlined,
               onOpenModule == null ? null : () => onOpenModule!.call('linen'),
@@ -243,15 +236,15 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ];
       case 'guests':
         return <Widget>[
-          _CapabilityGrid(items: <_Capability>[
-            _Capability(
+          PlpCapabilityGrid(items: <PlpCapability>[
+            PlpCapability(
               'Concierge',
               Icons.support_agent_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('concierge'),
             ),
-            _Capability(
+            PlpCapability(
               'Transfers',
               Icons.airport_shuttle_outlined,
               onOpenModule == null
@@ -262,20 +255,20 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ];
       case 'revenue':
         return <Widget>[
-          _CapabilityGrid(items: <_Capability>[
-            _Capability(
+          PlpCapabilityGrid(items: <PlpCapability>[
+            PlpCapability(
               'Rates',
               Icons.sell_outlined,
               onOpenModule == null ? null : () => onOpenModule!.call('rates'),
             ),
-            _Capability(
+            PlpCapability(
               'Channels',
               Icons.hub_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('channels'),
             ),
-            _Capability(
+            PlpCapability(
               'Forecast',
               Icons.timeline_outlined,
               onOpenModule == null
@@ -286,20 +279,20 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         ];
       case 'experiences':
         return <Widget>[
-          _CapabilityGrid(items: <_Capability>[
-            _Capability(
+          PlpCapabilityGrid(items: <PlpCapability>[
+            PlpCapability(
               'Concierge',
               Icons.support_agent_outlined,
               onOpenModule == null
                   ? null
                   : () => onOpenModule!.call('concierge'),
             ),
-            _Capability(
+            PlpCapability(
               'Dining',
               Icons.restaurant_outlined,
               onOpenModule == null ? null : () => onOpenModule!.call('dining'),
             ),
-            _Capability(
+            PlpCapability(
               'Wellness',
               Icons.spa_outlined,
               onOpenModule == null
@@ -337,7 +330,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           onOpenSettings: onOpenSourceSettings,
         )
       else
-        _EmptyState(detail),
+        PlpResortNotice(detail),
       if (availableActions.isNotEmpty) ...[
         const SizedBox(height: 16),
         ...availableActions,
@@ -346,7 +339,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         const SizedBox(height: 20),
         const _SectionHeader('RESORT WORKSPACES'),
         const SizedBox(height: 10),
-        _SectionLaunchRail(onOpen: onOpenSection),
+        _SectionLaunchRail(onOpen: onOpenSection, locked: lockedSections),
       ],
     ];
   }
@@ -366,10 +359,10 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     final command = _map(bootstrap['resortCommandCenter']);
     final pulse = _map(command['roomPulse']);
     final source = _map(bootstrap['sourceHealth']);
-    final directSourceEmpty =
-        _text(source['sourceProvider'], fallback: '').toLowerCase() ==
-                'pandora_direct' &&
-            _number(pulse['total'], fallback: _number(today['rooms_total'])) == 0;
+    final directSourceEmpty = _text(source['sourceProvider'], fallback: '')
+                .toLowerCase() ==
+            'pandora_direct' &&
+        _number(pulse['total'], fallback: _number(today['rooms_total'])) == 0;
     if (directSourceEmpty) {
       return <Widget>[
         _SourceRecoveryPanel(
@@ -386,7 +379,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         const SizedBox(height: 20),
         const _SectionHeader('RESORT WORKSPACES'),
         const SizedBox(height: 10),
-        _SectionLaunchRail(onOpen: onOpenSection),
+        _SectionLaunchRail(onOpen: onOpenSection, locked: lockedSections),
       ];
     }
 
@@ -436,8 +429,8 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         items: <_Metric>[
           _Metric(
             'Occupancy',
-            _text(today['occupancy_percent'], fallback: '—') + '%',
-            _integer(occupied) + ' of ' + _integer(total),
+            '${_text(today['occupancy_percent'], fallback: '—')}%',
+            '${_integer(occupied)} of ${_integer(total)}',
           ),
           _Metric('Available', _integer(available), 'rooms'),
           _Metric(
@@ -479,7 +472,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       const SizedBox(height: 20),
       const _SectionHeader('RESORT WORKSPACES'),
       const SizedBox(height: 10),
-      _SectionLaunchRail(onOpen: onOpenSection),
+      _SectionLaunchRail(onOpen: onOpenSection, locked: lockedSections),
     ];
   }
 
@@ -522,7 +515,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       if (stays.isEmpty)
-        const _EmptyState('No stay records are available.')
+        const PlpResortNotice('No stay records are available.')
       else
         _StayList(
           items: stays,
@@ -572,7 +565,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ),
       const SizedBox(height: 10),
       if (rooms.isEmpty)
-        const _EmptyState(
+        const PlpResortNotice(
           'Room-level status will appear when accommodation records are connected.',
         )
       else
@@ -581,29 +574,29 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           onOpen: (room) => onOpenRecord?.call('room', room),
         ),
       const SizedBox(height: 22),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Housekeeping',
             Icons.cleaning_services_outlined,
             () => onOpenModule?.call('housekeeping'),
-            detail: _integer(_number(universal['housekeepingJobs'])) + ' jobs',
+            detail: '${_integer(_number(universal['housekeepingJobs']))} jobs',
           ),
-          _Capability(
+          PlpCapability(
             'Maintenance',
             Icons.build_outlined,
             () => onOpenModule?.call('maintenance'),
           ),
-          _Capability(
+          PlpCapability(
             'Linen',
             Icons.local_laundry_service_outlined,
             () => onOpenModule?.call('linen'),
           ),
-          _Capability(
+          PlpCapability(
             'Available',
             Icons.bed_outlined,
             null,
-            detail: _integer(available) + ' rooms ready',
+            detail: '${_integer(available)} rooms ready',
           ),
         ],
       ),
@@ -664,31 +657,30 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           onOpen: (request) => onOpenRecord?.call('request', request),
         ),
       const SizedBox(height: 22),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Concierge',
             Icons.support_agent_outlined,
             () => onOpenModule?.call('concierge'),
-            detail: requests.length.toString() + ' guest signals',
+            detail: '${requests.length} guest signals',
           ),
-          _Capability(
+          PlpCapability(
             'VIP',
             Icons.workspace_premium_outlined,
             () => onOpenModule?.call('vip'),
           ),
-          _Capability(
+          PlpCapability(
             'Transfers',
             Icons.airport_shuttle_outlined,
             () => onOpenModule?.call('transfers'),
-            detail: _experienceCount(requests, const [
+            detail: '${_experienceCount(requests, const [
                   'transfer',
                   'airport',
                   'transport',
                   'pickup',
                   'dropoff'
-                ]).toString() +
-                ' requests',
+                ])} requests',
           ),
         ],
       ),
@@ -730,7 +722,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       if (attention.isEmpty && !liveSource)
-        const _EmptyState(
+        const PlpResortNotice(
           'No manual work item is open. Channel exceptions cannot be verified '
           'until a live resort source is connected.',
         )
@@ -744,19 +736,19 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           onOpenRecord: onOpenRecord,
         ),
       const SizedBox(height: 22),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Property',
             Icons.domain_outlined,
             () => onOpenModule?.call('property'),
           ),
-          _Capability(
+          PlpCapability(
             'Security',
             Icons.shield_outlined,
             () => onOpenModule?.call('security'),
           ),
-          _Capability(
+          PlpCapability(
             'Transport',
             Icons.directions_car_outlined,
             () => onOpenModule?.call('transport'),
@@ -793,7 +785,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
           _Metric('Sales today', _peso(today['sales_today_php']), 'recorded'),
           _Metric(
             'Occupancy',
-            _text(today['occupancy_percent'], fallback: '0') + '%',
+            '${_text(today['occupancy_percent'], fallback: '0')}%',
             'today',
           ),
           _Metric(
@@ -821,27 +813,25 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
         tone: good,
       ),
       const SizedBox(height: 18),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Rates',
             Icons.sell_outlined,
             () => onOpenModule?.call('rates'),
-            detail: _integer(_number(today['rooms_available'])) +
-                ' rooms available',
+            detail: '${_integer(_number(today['rooms_available']))} rooms available',
           ),
-          _Capability(
+          PlpCapability(
             'Channels',
             Icons.travel_explore_outlined,
             () => onOpenModule?.call('channels'),
-            detail: _integer(_number(operations['channelExceptions'])) +
-                ' exceptions',
+            detail: '${_integer(_number(operations['channelExceptions']))} exceptions',
           ),
-          _Capability(
+          PlpCapability(
             'Forecast',
             Icons.query_stats_outlined,
             () => onOpenModule?.call('forecast'),
-            detail: _peso(finance['bookedValue30dPhp']) + ' booked',
+            detail: '${_peso(finance['bookedValue30dPhp'])} booked',
           ),
         ],
       ),
@@ -857,19 +847,19 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
               'verified resort source is connected.',
         ),
         const SizedBox(height: 18),
-        _CapabilityGrid(
+        PlpCapabilityGrid(
           items: [
-            _Capability('Concierge', Icons.support_agent_outlined,
+            PlpCapability('Concierge', Icons.support_agent_outlined,
                 () => onOpenModule?.call('concierge')),
-            _Capability('Transfers', Icons.airport_shuttle_outlined,
+            PlpCapability('Transfers', Icons.airport_shuttle_outlined,
                 () => onOpenModule?.call('transfers')),
-            _Capability('Dining', Icons.restaurant_outlined,
+            PlpCapability('Dining', Icons.restaurant_outlined,
                 () => onOpenModule?.call('dining')),
-            _Capability('Wellness', Icons.spa_outlined,
+            PlpCapability('Wellness', Icons.spa_outlined,
                 () => onOpenModule?.call('wellness')),
-            _Capability('Activities', Icons.explore_outlined,
+            PlpCapability('Activities', Icons.explore_outlined,
                 () => onOpenModule?.call('activities')),
-            _Capability('Events', Icons.celebration_outlined,
+            PlpCapability('Events', Icons.celebration_outlined,
                 () => onOpenModule?.call('events')),
           ],
         ),
@@ -880,64 +870,59 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
     );
     return [
       ..._sourceContextPrelude(),
-      _CapabilityGrid(
+      PlpCapabilityGrid(
         items: [
-          _Capability(
+          PlpCapability(
             'Concierge',
             Icons.support_agent_outlined,
             () => onOpenModule?.call('concierge'),
           ),
-          _Capability(
+          PlpCapability(
             'Transfers',
             Icons.airport_shuttle_outlined,
             () => onOpenModule?.call('transfers'),
           ),
-          _Capability(
+          PlpCapability(
             'Dining',
             Icons.restaurant_outlined,
             () => onOpenModule?.call('dining'),
-            detail: _experienceCount(requests, const [
+            detail: '${_experienceCount(requests, const [
                   'dining',
                   'food',
                   'restaurant',
                   'breakfast',
                   'dinner'
-                ]).toString() +
-                ' requests',
+                ])} requests',
           ),
-          _Capability(
+          PlpCapability(
             'Wellness',
             Icons.spa_outlined,
             () => onOpenModule?.call('wellness'),
             detail:
-                _experienceCount(requests, const ['spa', 'massage', 'wellness'])
-                        .toString() +
-                    ' requests',
+                '${_experienceCount(requests, const ['spa', 'massage', 'wellness'])} requests',
           ),
-          _Capability(
+          PlpCapability(
             'Activities',
             Icons.explore_outlined,
             () => onOpenModule?.call('activities'),
-            detail: _experienceCount(requests, const [
+            detail: '${_experienceCount(requests, const [
                   'activity',
                   'tour',
                   'island',
                   'excursion'
-                ]).toString() +
-                ' requests',
+                ])} requests',
           ),
-          _Capability(
+          PlpCapability(
             'Events',
             Icons.celebration_outlined,
             () => onOpenModule?.call('events'),
-            detail: _experienceCount(requests, const [
+            detail: '${_experienceCount(requests, const [
                   'event',
                   'birthday',
                   'anniversary',
                   'wedding',
                   'celebration'
-                ]).toString() +
-                ' requests',
+                ])} requests',
           ),
         ],
       ),
@@ -980,7 +965,7 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       _SectionHeader('TEAM MEMBERS', action: members.length.toString()),
       const SizedBox(height: 8),
       if (members.isEmpty)
-        const _EmptyState('No team member is available.')
+        const PlpResortNotice('No team member is available.')
       else
         _MemberStrip(items: members),
       if (activity.isNotEmpty) ...[
@@ -1025,13 +1010,13 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       if (!loaded && bootstrap['verifiedActivityLoading'] == true)
-        const _EmptyState('Loading verified activity…')
+        const PlpResortNotice('Loading verified activity…')
       else if (!loaded)
-        const _EmptyState(
+        const PlpResortNotice(
           'Verified resort activity is temporarily unavailable. Refresh or open the activity feed to try again.',
         )
       else if (rows.isEmpty)
-        const _EmptyState(
+        const PlpResortNotice(
           'No verified production activity has been recorded yet.',
         )
       else
@@ -1046,6 +1031,60 @@ class PlpResortWorkspaceScreen extends StatelessWidget {
       ],
     ];
   }
+}
+
+/// The shared resort page frame: cream canvas, pull-to-refresh, the
+/// contextual serif title beside the shell's floating menu button, then the
+/// page content. Rooms & Housekeeping and every other resort workspace render
+/// through this, so other PLP pages that adopt it align identically.
+class PlpResortPage extends StatelessWidget {
+  const PlpResortPage({
+    super.key,
+    required this.section,
+    required this.onRefresh,
+    required this.children,
+    this.listKey,
+  });
+
+  final PlpResortSection section;
+  final Future<void> Function() onRefresh;
+  final List<Widget> children;
+  final Key? listKey;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: PlpResortWorkspaceScreen.canvas,
+        child: SafeArea(
+          bottom: false,
+          child: RefreshIndicator(
+            color: PlpResortWorkspaceScreen.ink,
+            backgroundColor: PlpResortWorkspaceScreen.paper,
+            onRefresh: onRefresh,
+            child: ListView(
+              key: listKey,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                18,
+                12,
+                18,
+                48 + MediaQuery.viewPaddingOf(context).bottom,
+              ),
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    heightFactor: 1,
+                    child: _ResortHeader(section: section),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...children,
+              ],
+            ),
+          ),
+        ),
+      );
 }
 
 class _ResortHeader extends StatelessWidget {
@@ -1282,10 +1321,7 @@ class _RoomPulse extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                _integer(occupied) +
-                    ' occupied · ' +
-                    _integer(available) +
-                    ' available',
+                '${_integer(occupied)} occupied · ${_integer(available)} available',
                 style: const TextStyle(
                   color: PlpResortWorkspaceScreen.ink,
                   fontSize: 12,
@@ -1294,7 +1330,7 @@ class _RoomPulse extends StatelessWidget {
               ),
             ),
             Text(
-              _integer(arriving) + ' in · ' + _integer(departing) + ' out',
+              '${_integer(arriving)} in · ${_integer(departing)} out',
               style: const TextStyle(
                 color: PlpResortWorkspaceScreen.muted,
                 fontSize: 11,
@@ -1373,9 +1409,7 @@ class _AttentionList extends StatelessWidget {
     if (conflicts > 0) {
       rows.add(
         _CompactRow(
-          title: _integer(conflicts) +
-              ' OTA channel ' +
-              (conflicts == 1 ? 'exception' : 'exceptions'),
+          title: '${_integer(conflicts)} OTA channel ${conflicts == 1 ? 'exception' : 'exceptions'}',
           meta: 'Booking inventory needs reconciliation',
           tone: PlpResortWorkspaceScreen.warn,
           onTap: () => onOpenRecord?.call(
@@ -1583,16 +1617,10 @@ class _StayList extends StatelessWidget {
           for (final item in items.take(16))
             _CompactRow(
               key: ValueKey<String>(
-                'plp-stay-' + _recordControlId(item),
+                'plp-stay-${_recordControlId(item)}',
               ),
               title: _text(item['fullName'], fallback: 'Guest stay'),
-              meta: _text(item['accommodationName'], fallback: 'Room') +
-                  ' · ' +
-                  _text(item['checkIn']) +
-                  ' → ' +
-                  _text(item['checkOut']) +
-                  ' · ' +
-                  _humanStatus(item['paymentStatus']),
+              meta: '${_text(item['accommodationName'], fallback: 'Room')} · ${_text(item['checkIn'])} → ${_text(item['checkOut'])} · ${_humanStatus(item['paymentStatus'])}',
               tone: _text(item['status']).toLowerCase().contains('cancel')
                   ? PlpResortWorkspaceScreen.warn
                   : PlpResortWorkspaceScreen.good,
@@ -1622,7 +1650,7 @@ class _RoomGrid extends StatelessWidget {
                     color: PlpResortWorkspaceScreen.paper,
                     child: InkWell(
                       key: ValueKey<String>(
-                        'plp-room-' + _recordControlId(room),
+                        'plp-room-${_recordControlId(room)}',
                       ),
                       onTap: () => onOpen(room),
                       child: Container(
@@ -1672,10 +1700,7 @@ class _RoomGrid extends StatelessWidget {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              _integer(_number(room['capacity'])) +
-                                  ' guests · ' +
-                                  _integer(_number(room['bedrooms'])) +
-                                  ' bed',
+                              '${_integer(_number(room['capacity']))} guests · ${_integer(_number(room['bedrooms']))} bed',
                               style: const TextStyle(
                                 color: PlpResortWorkspaceScreen.muted,
                                 fontSize: 9.5,
@@ -1724,7 +1749,7 @@ class _RequestList extends StatelessWidget {
           for (final item in items.take(12))
             _CompactRow(
               key: ValueKey<String>(
-                'plp-request-' + _recordControlId(item),
+                'plp-request-${_recordControlId(item)}',
               ),
               title: _text(item['fullName'], fallback: 'Guest request'),
               meta: _text(
@@ -1737,23 +1762,39 @@ class _RequestList extends StatelessWidget {
       );
 }
 
-class _Capability {
-  const _Capability(
+class PlpCapability {
+  const PlpCapability(
     this.label,
     this.icon,
     this.onTap, {
     this.detail,
+    this.emphasis = false,
+    this.showArrow = true,
+    this.semanticLabel,
+    this.selected = false,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback? onTap;
   final String? detail;
+
+  /// Deep-black tile, reserved for a destructive confirmation.
+  final bool emphasis;
+
+  /// Trailing arrow on tappable tiles; off for back/dismiss tiles.
+  final bool showArrow;
+
+  /// Full spoken label when the visible label is abbreviated.
+  final String? semanticLabel;
+
+  /// Bronze outline marking the owner's current choice.
+  final bool selected;
 }
 
-class _CapabilityGrid extends StatelessWidget {
-  const _CapabilityGrid({required this.items});
-  final List<_Capability> items;
+class PlpCapabilityGrid extends StatelessWidget {
+  const PlpCapabilityGrid({super.key, required this.items});
+  final List<PlpCapability> items;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -1766,70 +1807,90 @@ class _CapabilityGrid extends StatelessWidget {
               for (final item in items)
                 SizedBox(
                   width: width,
-                  child: Material(
-                    color: PlpResortWorkspaceScreen.paper,
-                    child: InkWell(
-                      key: ValueKey<String>(
-                        'plp-capability-' + _capabilityControlId(item.label),
-                      ),
-                      onTap: item.onTap,
-                      child: Container(
-                        height: 88,
-                        decoration: const BoxDecoration(
-                          border: Border.fromBorderSide(
-                            BorderSide(
-                              color: PlpResortWorkspaceScreen.line,
+                  child: Semantics(
+                    button: true,
+                    enabled: item.onTap != null,
+                    selected: item.selected,
+                    label: item.semanticLabel,
+                    excludeSemantics: item.semanticLabel != null,
+                    child: Material(
+                      color: item.emphasis
+                          ? PlpResortWorkspaceScreen.ink
+                          : PlpResortWorkspaceScreen.paper,
+                      child: InkWell(
+                        key: ValueKey<String>(
+                          'plp-capability-${_capabilityControlId(item.label)}',
+                        ),
+                        onTap: item.onTap,
+                        child: Container(
+                          height: 88,
+                          decoration: BoxDecoration(
+                            border: Border.fromBorderSide(
+                              BorderSide(
+                                color: item.emphasis
+                                    ? PlpResortWorkspaceScreen.ink
+                                    : item.selected
+                                        ? PlpResortWorkspaceScreen.accent
+                                        : PlpResortWorkspaceScreen.line,
+                                width: item.selected ? 1.4 : 1,
+                              ),
                             ),
                           ),
-                        ),
-                        padding: const EdgeInsets.all(13),
-                        child: Row(
-                          children: [
-                            Icon(
-                              item.icon,
-                              size: 21,
-                              color: PlpResortWorkspaceScreen.accent,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.label,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: PlpResortWorkspaceScreen.ink,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  if (item.detail != null &&
-                                      item.detail!.trim().isNotEmpty) ...[
-                                    const SizedBox(height: 5),
+                          padding: const EdgeInsets.all(13),
+                          child: Row(
+                            children: [
+                              Icon(
+                                item.icon,
+                                size: 21,
+                                color: item.emphasis
+                                    ? PlpResortWorkspaceScreen.softGold
+                                    : PlpResortWorkspaceScreen.accent,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      item.detail!,
-                                      maxLines: 2,
+                                      item.label,
+                                      maxLines: item.detail == null ? 2 : 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: PlpResortWorkspaceScreen.muted,
-                                        fontSize: 9.5,
-                                        height: 1.25,
+                                      style: TextStyle(
+                                        color: item.emphasis
+                                            ? PlpResortWorkspaceScreen.paper
+                                            : PlpResortWorkspaceScreen.ink,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
+                                    if (item.detail != null &&
+                                        item.detail!.trim().isNotEmpty) ...[
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        item.detail!,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: PlpResortWorkspaceScreen.muted,
+                                          fontSize: 9.5,
+                                          height: 1.25,
+                                        ),
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
-                            ),
-                            if (item.onTap != null)
-                              const Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 16,
-                                color: PlpResortWorkspaceScreen.muted,
-                              ),
-                          ],
+                              if (item.onTap != null && item.showArrow)
+                                Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 16,
+                                  color: item.emphasis
+                                      ? PlpResortWorkspaceScreen.softGold
+                                      : PlpResortWorkspaceScreen.muted,
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1842,8 +1903,9 @@ class _CapabilityGrid extends StatelessWidget {
 }
 
 class _SectionLaunchRail extends StatelessWidget {
-  const _SectionLaunchRail({this.onOpen});
+  const _SectionLaunchRail({this.onOpen, this.locked = const <String>{}});
   final ValueChanged<String>? onOpen;
+  final Set<String> locked;
 
   @override
   Widget build(BuildContext context) {
@@ -1861,6 +1923,7 @@ class _SectionLaunchRail extends StatelessWidget {
           return Material(
             color: PlpResortWorkspaceScreen.paper,
             child: InkWell(
+              key: ValueKey<String>('plp-section-tile-${item.id}'),
               onTap: () => onOpen?.call(item.id),
               child: Container(
                 width: 116,
@@ -1873,10 +1936,22 @@ class _SectionLaunchRail extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      item.icon,
-                      size: 20,
-                      color: PlpResortWorkspaceScreen.accent,
+                    Row(
+                      children: [
+                        Icon(
+                          item.icon,
+                          size: 20,
+                          color: PlpResortWorkspaceScreen.accent,
+                        ),
+                        const Spacer(),
+                        if (locked.contains(item.id))
+                          const Icon(
+                            Icons.lock_outline_rounded,
+                            key: ValueKey<String>('plp-section-lock'),
+                            size: 14,
+                            color: PlpResortWorkspaceScreen.muted,
+                          ),
+                      ],
                     ),
                     const Spacer(),
                     Text(
@@ -1954,11 +2029,9 @@ class _MemberStrip extends StatelessWidget {
                 item['displayName'],
                 fallback: 'PLP team member',
               ),
-              meta: _text(item['roleLabel'], fallback: 'Member') +
-                  ' · ' +
-                  (_truthy(item['active'])
+              meta: '${_text(item['roleLabel'], fallback: 'Member')} · ${_truthy(item['active'])
                       ? 'Active'
-                      : _humanStatus(item['accessStatus'])),
+                      : _humanStatus(item['accessStatus'])}',
               tone: _truthy(item['active'])
                   ? PlpResortWorkspaceScreen.good
                   : PlpResortWorkspaceScreen.muted,
@@ -2106,7 +2179,7 @@ class _SourceRecoveryPanel extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    source + ' · ' + _humanStatus(state),
+                    '$source · ${_humanStatus(state)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -2130,7 +2203,7 @@ class _SourceRecoveryPanel extends StatelessWidget {
             ),
             const SizedBox(height: 7),
             Text(
-              'Still available: ' + remainsAvailable,
+              'Still available: $remainsAvailable',
               style: const TextStyle(
                 color: PlpResortWorkspaceScreen.muted,
                 fontSize: 11.5,
@@ -2275,28 +2348,54 @@ class _ClearState extends StatelessWidget {
       );
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState(this.text);
+class PlpResortNotice extends StatelessWidget {
+  const PlpResortNotice(this.text, {super.key, this.onTap});
   final String text;
 
+  /// Makes the line a quiet link with a trailing arrow.
+  final VoidCallback? onTap;
+
   @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          border: Border.fromBorderSide(
-            BorderSide(color: PlpResortWorkspaceScreen.line),
-          ),
+  Widget build(BuildContext context) {
+    final label = Text(
+      text,
+      style: const TextStyle(
+        color: PlpResortWorkspaceScreen.muted,
+        fontSize: 11.5,
+        height: 1.4,
+      ),
+    );
+    final box = Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        border: Border.fromBorderSide(
+          BorderSide(color: PlpResortWorkspaceScreen.line),
         ),
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: PlpResortWorkspaceScreen.muted,
-            fontSize: 11.5,
-            height: 1.4,
-          ),
-        ),
-      );
+      ),
+      padding: const EdgeInsets.all(16),
+      child: onTap == null
+          ? label
+          : Row(
+              children: [
+                Expanded(child: label),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: PlpResortWorkspaceScreen.muted,
+                ),
+              ],
+            ),
+    );
+    if (onTap == null) return box;
+    return Semantics(
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(onTap: onTap, child: box),
+      ),
+    );
+  }
 }
 
 class _DetailField {
@@ -2484,6 +2583,8 @@ String _clientActor(Object? value) {
   return actor;
 }
 
+// Kept for the client-facing source wording contract (test/plp-owner-ui-convergence-contract.test.js).
+// ignore: unused_element
 String _clientSourceMessage(String state) {
   final normalized = state.toLowerCase();
   if (const {'healthy', 'current', 'live', 'ready'}.contains(normalized)) {
