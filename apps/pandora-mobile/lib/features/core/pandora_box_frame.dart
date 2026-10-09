@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/widgets/pandora_navigation.dart';
 import '../enterprise/plp_editorial_surfaces.dart';
 
 /// Owner panel frame. Uses the PLP canvas and type, and does not add a menu.
@@ -22,32 +21,18 @@ class PandoraBoxFrame extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 18, 10),
-              child: Row(
-                children: [
-                  if (PandoraNavigationScope.maybeOf(context)?.openDrawer !=
-                      null) ...[
-                    PandoraMenuButton(
-                      onPressed: PandoraNavigationScope.maybeOf(context)!
-                          .openDrawer!,
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    child: Text(
-                      title.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: plpInk,
-                        fontFamily: 'serif',
-                        fontSize: 16,
-                        letterSpacing: 2.6,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ],
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+              child: Text(
+                title.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: plpInk,
+                  fontFamily: 'serif',
+                  fontSize: 16,
+                  letterSpacing: 2.6,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ),
             const Divider(height: 1, color: plpLine),
