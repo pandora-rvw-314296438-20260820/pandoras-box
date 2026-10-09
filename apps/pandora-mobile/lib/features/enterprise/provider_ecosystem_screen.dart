@@ -1,9 +1,10 @@
-
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_shared_conversation_scope.dart';
+import '../../core/widgets/pandora_editorial_scope.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../simple/pandora_v2_ui.dart';
+
 part 'provider_ecosystem_widgets.dart';
 part 'provider_ecosystem_catalog.dart';
 
@@ -34,7 +35,8 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
     final query = _query.toLowerCase();
     if (query.isEmpty) return _capabilityFamilies;
     return _capabilityFamilies.where((family) {
-      final haystack = '${family.name} ${family.providers.join(' ')}'.toLowerCase();
+      final haystack =
+          '${family.name} ${family.providers.join(' ')}'.toLowerCase();
       return haystack.contains(query);
     }).toList(growable: false);
   }
@@ -43,7 +45,7 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
   Widget build(BuildContext context) {
     final families = _filteredFamilies;
     return Scaffold(
-      backgroundColor: PandoraV2Colors.canvas,
+      backgroundColor: pandoraOwnerColor(context, PandoraV2Colors.canvas),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
@@ -86,11 +88,12 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: PandoraV2Colors.surface,
+                color: pandoraOwnerColor(context, PandoraV2Colors.surface),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: PandoraV2Colors.line),
+                border: Border.all(
+                    color: pandoraOwnerColor(context, PandoraV2Colors.line)),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -105,7 +108,7 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
                   Text(
                     'Providers sit underneath the capability layer. Catalog presence never means connected or executable.',
                     style: TextStyle(
-                      color: PandoraV2Colors.muted,
+                      color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                       fontSize: 12.5,
                       height: 1.4,
                     ),
@@ -174,22 +177,22 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
               ),
             ),
             const SizedBox(height: 5),
-            const Text(
+            Text(
               'Tap a capability to inspect its provider catalog.',
               style: TextStyle(
-                color: PandoraV2Colors.muted,
+                color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                 fontSize: 12.5,
               ),
             ),
             const SizedBox(height: 12),
             if (families.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 28),
                 child: Column(
                   children: [
                     Icon(
                       Icons.search_off_rounded,
-                      color: PandoraV2Colors.muted,
+                      color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                       size: 30,
                     ),
                     SizedBox(height: 10),
@@ -210,7 +213,7 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: PandoraV2Colors.soft,
+                color: pandoraOwnerColor(context, PandoraV2Colors.soft),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Row(
@@ -257,7 +260,7 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: PandoraV2Colors.soft,
+                    color: pandoraOwnerColor(context, PandoraV2Colors.soft),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(family.icon, size: 22),
@@ -275,10 +278,10 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'These are provider candidates under this capability. Pandora verifies authorization, account scope, jurisdiction, provider health and availability before execution.',
               style: TextStyle(
-                color: PandoraV2Colors.muted,
+                color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                 fontSize: 12.5,
                 height: 1.45,
               ),
@@ -290,10 +293,10 @@ class _ProviderEcosystemScreenState extends State<ProviderEcosystemScreen> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.apartment_rounded, size: 19),
                 title: Text(provider),
-                trailing: const Text(
+                trailing: Text(
                   'Catalog',
                   style: TextStyle(
-                    color: PandoraV2Colors.muted,
+                    color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                     fontSize: 11.5,
                   ),
                 ),

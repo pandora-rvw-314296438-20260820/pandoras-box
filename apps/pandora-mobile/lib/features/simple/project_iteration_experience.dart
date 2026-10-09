@@ -188,9 +188,9 @@ class _ProjectIterationExperienceScreenState
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Describe the result you want. Pandora will prepare a new understanding and a new preview version. Nothing live is replaced yet.',
-              style: pandoraSimpleMutedText,
+              style: pandoraSimpleMutedText.owner(context),
             ),
             const SizedBox(height: 20),
             TextField(
@@ -247,7 +247,7 @@ class _ProjectIterationExperienceScreenState
                   ? 'Edit the request and Pandora will prepare a new understanding.'
                   : 'This change is stored durably. You can leave and come back without changing the current live version.',
               textAlign: TextAlign.center,
-              style: pandoraSimpleMutedText,
+              style: pandoraSimpleMutedText.owner(context),
             ),
             const SizedBox(height: 20),
             PandoraSimpleCard(

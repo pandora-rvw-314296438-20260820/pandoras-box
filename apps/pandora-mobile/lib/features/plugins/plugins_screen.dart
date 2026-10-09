@@ -9,6 +9,7 @@ import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/models/pandora_models.dart';
 import '../../core/state/screen_controller.dart';
 import '../../core/widgets/owner_experience.dart';
+import '../../core/widgets/pandora_editorial_scope.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../simple/pandora_v2_ui.dart';
 import 'provider_catalog_screen.dart';
@@ -89,7 +90,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: PandoraV2Colors.canvas,
+        backgroundColor: pandoraOwnerColor(context, PandoraV2Colors.canvas),
         body: SafeArea(
           child: AnimatedBuilder(
             animation: _controller!,
@@ -236,7 +237,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
                             ? 'Connection verification is unavailable.'
                             : 'No verified connections in these records.',
                         style: TextStyle(
-                          color: PandoraV2Colors.muted,
+                          color:
+                              pandoraOwnerColor(context, PandoraV2Colors.muted),
                           fontSize: 13,
                         ),
                       )
@@ -274,8 +276,9 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       const SizedBox(height: 10),
                       Text(
                         'Runtime verified ${_relativeTime(_runtimeObservedAt!)}',
-                        style: const TextStyle(
-                          color: PandoraV2Colors.muted,
+                        style: TextStyle(
+                          color:
+                              pandoraOwnerColor(context, PandoraV2Colors.muted),
                           fontSize: 11.5,
                         ),
                       ),
@@ -291,10 +294,11 @@ class _PluginsScreenState extends State<PluginsScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
+                      Text(
                         'Only plugins that genuinely need authorization appear here.',
                         style: TextStyle(
-                          color: PandoraV2Colors.muted,
+                          color:
+                              pandoraOwnerColor(context, PandoraV2Colors.muted),
                           fontSize: 12.5,
                           height: 1.4,
                         ),
@@ -325,8 +329,9 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       _personal
                           ? 'Personal plugins appear only when Pandora has verified user-scoped account identity.'
                           : 'Availability comes from Pandora runtime truth, not a hard-coded connected list.',
-                      style: const TextStyle(
-                        color: PandoraV2Colors.muted,
+                      style: TextStyle(
+                        color:
+                            pandoraOwnerColor(context, PandoraV2Colors.muted),
                         fontSize: 12.5,
                         height: 1.4,
                       ),
@@ -397,7 +402,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: PandoraV2Colors.soft,
+                  backgroundColor:
+                      pandoraOwnerColor(context, PandoraV2Colors.soft),
                   child: Icon(providerIconFor(plugin.name)),
                 ),
                 const SizedBox(width: 12),
@@ -414,8 +420,9 @@ class _PluginsScreenState extends State<PluginsScreen> {
                       ),
                       Text(
                         plugin.state,
-                        style: const TextStyle(
-                          color: PandoraV2Colors.muted,
+                        style: TextStyle(
+                          color:
+                              pandoraOwnerColor(context, PandoraV2Colors.muted),
                           fontSize: 12.5,
                         ),
                       ),
@@ -456,9 +463,10 @@ class _PluginsScreenState extends State<PluginsScreen> {
             ),
             const SizedBox(height: 8),
             if (plugin.actions.isEmpty)
-              const Text(
+              Text(
                 'No verified actions are exposed.',
-                style: TextStyle(color: PandoraV2Colors.muted),
+                style: TextStyle(
+                    color: pandoraOwnerColor(context, PandoraV2Colors.muted)),
               )
             else
               Wrap(
@@ -472,8 +480,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
             const SizedBox(height: 14),
             Text(
               plugin.authorization,
-              style: const TextStyle(
-                color: PandoraV2Colors.muted,
+              style: TextStyle(
+                color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                 fontSize: 12.5,
                 height: 1.4,
               ),
@@ -515,10 +523,10 @@ class _PluginsScreenState extends State<PluginsScreen> {
             ),
             if (plugin.id == 'meta' && !plugin.installed) ...[
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Pandora will prepare a secure Facebook authorization link in the shared conversation.',
                 style: TextStyle(
-                  color: PandoraV2Colors.muted,
+                  color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                   fontSize: 12.5,
                 ),
               ),
@@ -685,7 +693,8 @@ class _InstalledPlugin extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: PandoraV2Colors.soft,
+                backgroundColor:
+                    pandoraOwnerColor(context, PandoraV2Colors.soft),
                 child: Icon(providerIconFor(plugin.name), size: 22),
               ),
               const SizedBox(height: 6),
@@ -711,7 +720,7 @@ class _PluginRow extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         leading: CircleAvatar(
-          backgroundColor: PandoraV2Colors.soft,
+          backgroundColor: pandoraOwnerColor(context, PandoraV2Colors.soft),
           child: Icon(providerIconFor(plugin.name), size: 21),
         ),
         title: Text(
@@ -771,8 +780,8 @@ class _DetailRow extends StatelessWidget {
               width: 112,
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: PandoraV2Colors.muted,
+                style: TextStyle(
+                  color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                   fontSize: 12.5,
                 ),
               ),
@@ -824,7 +833,7 @@ class _RuntimeNotice extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: PandoraV2Colors.soft,
+          color: pandoraOwnerColor(context, PandoraV2Colors.soft),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -865,14 +874,19 @@ class _FilterChip extends StatelessWidget {
           duration: const Duration(milliseconds: 140),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? PandoraV2Colors.ink : PandoraV2Colors.surface,
+            color: selected
+                ? pandoraOwnerColor(context, PandoraV2Colors.ink)
+                : pandoraOwnerColor(context, PandoraV2Colors.surface),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: PandoraV2Colors.line),
+            border: Border.all(
+                color: pandoraOwnerColor(context, PandoraV2Colors.line)),
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : PandoraV2Colors.ink,
+              color: selected
+                  ? Colors.white
+                  : pandoraOwnerColor(context, PandoraV2Colors.ink),
               fontWeight: FontWeight.w600,
               fontSize: 12.5,
             ),
@@ -901,15 +915,17 @@ class _InlineState extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 24),
         child: Column(
           children: [
-            Icon(icon, size: 30, color: PandoraV2Colors.muted),
+            Icon(icon,
+                size: 30,
+                color: pandoraOwnerColor(context, PandoraV2Colors.muted)),
             const SizedBox(height: 10),
             Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 5),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: PandoraV2Colors.muted,
+              style: TextStyle(
+                color: pandoraOwnerColor(context, PandoraV2Colors.muted),
                 fontSize: 12.5,
               ),
             ),

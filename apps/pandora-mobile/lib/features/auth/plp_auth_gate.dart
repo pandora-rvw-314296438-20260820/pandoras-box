@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
-import '../../app/plp_enterprise_shell.dart';
+import '../../app/plp_product_root.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_theme.dart';
 import '../../core/security/pandora_auth.dart';
@@ -81,7 +81,7 @@ class _PlpAuthGateState extends State<PlpAuthGate> {
         key: _navigatorKey,
         onGenerateRoute: (settings) => MaterialPageRoute<void>(
           settings: settings,
-          builder: (_) => const PlpEnterpriseShell(),
+          builder: (_) => const PlpProductRoot(),
         ),
       ),
     );

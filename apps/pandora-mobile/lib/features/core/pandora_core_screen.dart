@@ -5,16 +5,21 @@ import '../../core/data/pandora_core_api.dart';
 import '../../core/data/pandora_user_admin_api.dart';
 import '../../core/security/pandora_auth.dart';
 import '../../core/security/pandora_identity_verification.dart';
+import '../../core/widgets/pandora_editorial_scope.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../approvals/approvals_screen.dart';
 import '../enterprise/plp_editorial_surfaces.dart';
 import '../team/team_screen.dart';
 import 'pandora_core_memory_panel.dart';
 
-const _ink = Color(0xFFF2F2F2);
-const _muted = Color(0xFFA0A3A8);
-const _surface = Color(0xFF121519);
-const _line = Color(0xFF292D32);
+PandoraChromePalette _palette(BuildContext context) =>
+    PandoraChrome.of(context);
+
+Color _toneInk(BuildContext context) => _palette(context).ink;
+Color _toneMuted(BuildContext context) => _palette(context).muted;
+Color _toneSurface(BuildContext context) => _palette(context).paper;
+Color _toneLine(BuildContext context) => _palette(context).line;
+Color _tonePill(BuildContext context) => _palette(context).pill;
 
 /// A single operational projection of Pandora Core. The same signed-in RPC
 /// contract powers Home, client administration and the deeper owner sections.
@@ -286,7 +291,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: _surface,
+      backgroundColor: _toneSurface(context),
       builder: (_) => PandoraCoreOperationForm(
         gateway: widget.gateway,
         operation: operation,
@@ -400,15 +405,22 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             ],
           ),
         );
+    final palette = _palette(context);
+    final editorialSurface = _editorialSurface;
+    final displayTitle = _tool != null
+        ? (_tool is TeamScreen ? 'Team & Access' : _toolTitle)
+        : _title;
     return PopScope<void>(
       canPop: !navigationActive || !canGoBack,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && navigationActive && canGoBack) _back();
       },
       child: Material(
-        color: _section == 'home' && _tool == null
-            ? plpCanvas
-            : const Color(0xFF090B0E),
+        color: palette.editorial || editorialSurface
+            ? palette.editorial
+                ? palette.canvas
+                : plpCanvas
+            : palette.canvas,
         child: SafeArea(
           bottom: false,
           child: Column(
@@ -436,19 +448,18 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                       const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        _tool != null
-                            ? (_tool is TeamScreen
-                                ? 'Team & Access'
-                                : _toolTitle)
-                            : _title,
-                        maxLines: 2,
+                        palette.editorial
+                            ? displayTitle.toUpperCase()
+                            : displayTitle,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: _section == 'home' && _tool == null
-                                ? plpInk
-                                : _ink,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700),
+                        style: palette.editorial
+                            ? palette.contextTitle
+                            : TextStyle(
+                                color: editorialSurface ? plpInk : palette.ink,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
                       ),
                     ),
                     if (_tool is! TeamScreen)
@@ -458,8 +469,10 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
                         onPressed: _loading ? null : _load,
                         icon: Icon(Icons.refresh_rounded,
                             size: 21,
-                            color: _section == 'home' && _tool == null
-                                ? plpInk
+                            color: palette.editorial || editorialSurface
+                                ? palette.editorial
+                                    ? palette.ink
+                                    : plpInk
                                 : null),
                       ),
                   ],
@@ -472,6 +485,11 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       ),
     );
   }
+
+  bool get _editorialSurface =>
+      _tool == null &&
+      const {'home', 'clients', 'business', 'platform', 'administration'}
+          .contains(_section);
 
   List<Widget> _body() => switch (_section) {
         'home' => _decisionQueue ? _decisionList() : _home(),
@@ -555,7 +573,23 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             detail: coreText(row['state'], 'State not recorded'),
             onTap: () => _showRecord(row),
           ),
+      if (_snapshot?['business'] is Map) ...[
+        const PlpSectionTitle('Business'),
+        PlpEditorialRow(
+          title: 'Commercial state',
+          detail: _commercialCoverage(coreRecord(_snapshot?['business'])),
+          onTap: () => widget.onNavigate?.call('business'),
+        ),
+      ],
     ];
+  }
+
+  String _commercialCoverage(PandoraCoreRecord business) {
+    final coverage = coreText(business['coverage'], '');
+    if (coverage.isEmpty) {
+      return 'Authoritative commercial state is not in this snapshot.';
+    }
+    return coverage;
   }
 
   List<Widget> _clients() {
@@ -566,6 +600,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             .toLowerCase()
             .contains(_query));
     return [
+      const PlpSectionTitle('Clients'),
       _Action(
         key: const ValueKey('core-add-client'),
         label: 'Add Enterprise Client',
@@ -598,14 +633,13 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
         Row(children: [
           Expanded(
               child: Text(coreText(client['display_name'], 'Enterprise client'),
-                  style: const TextStyle(
-                      color: _ink, fontWeight: FontWeight.w700, fontSize: 17))),
+                  style: _palette(context).recordTitle)),
           const SizedBox(width: 8),
           _StatePill(client['lifecycle_state']),
         ]),
         const SizedBox(height: 5),
         Text(coreText(client['industry'], 'Industry not recorded'),
-            style: const TextStyle(color: _muted)),
+            style: TextStyle(color: _toneMuted(context))),
         const SizedBox(height: 12),
         Wrap(spacing: 18, runSpacing: 8, children: [
           _Signal('users', client['users']),
@@ -657,7 +691,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     final tab = tabs.contains(_tab) ? _tab : tabs.first;
     return [
       Text(coreText(client['industry'], 'Enterprise client'),
-          style: const TextStyle(color: _muted)),
+          style: TextStyle(color: _toneMuted(context))),
       const SizedBox(height: 10),
       Wrap(spacing: 8, runSpacing: 8, children: [
         _StatePill(client['lifecycle_state']),
@@ -681,11 +715,11 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           ),
       ]),
       if (client['can_enter'] != true)
-        const Padding(
-          padding: EdgeInsets.only(top: 10),
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
           child: Text(
               'Workspace entry needs verified access and a configured workspace.',
-              style: TextStyle(color: _muted, fontSize: 12)),
+              style: TextStyle(color: _toneMuted(context), fontSize: 12)),
         ),
       const SizedBox(height: 16),
       _tabs(tabs, tab),
@@ -842,6 +876,13 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   }
 
   List<Widget> _business() {
+    return [
+      const PlpSectionTitle('Business'),
+      ..._businessBody(),
+    ];
+  }
+
+  List<Widget> _businessBody() {
     const tabs = [
       'Pipeline',
       'Contracts',
@@ -1112,6 +1153,13 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       ]);
 
   List<Widget> _platform() {
+    return [
+      const PlpSectionTitle('Platform'),
+      ..._platformBody(),
+    ];
+  }
+
+  List<Widget> _platformBody() {
     const tabs = [
       'Connections',
       'Providers',
@@ -1185,9 +1233,10 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
     return _Panel(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Expanded(
+          Expanded(
               child: Text('Auto routing',
-                  style: TextStyle(color: _ink, fontWeight: FontWeight.w700))),
+                  style: TextStyle(
+                      color: _toneInk(context), fontWeight: FontWeight.w700))),
           _StatePill(routing['enabled'] == true
               ? 'Enabled'
               : routing['enabled'] == false
@@ -1217,7 +1266,21 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   }
 
   List<Widget> _administration() {
-    const tabs = ['Team', 'Security', 'Incidents', 'Audit', 'Policies'];
+    return [
+      const PlpSectionTitle('Administration'),
+      ..._administrationBody(),
+    ];
+  }
+
+  List<Widget> _administrationBody() {
+    const tabs = [
+      'Team',
+      'Access',
+      'Security',
+      'Incidents',
+      'Audit',
+      'Policies'
+    ];
     final tab = tabs.contains(_tab) ? _tab : tabs.first;
     return [
       _tabs(tabs, tab),
@@ -1236,6 +1299,15 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
             }),
         const SizedBox(height: 12),
         ..._recordList('team', 'No internal team records available.'),
+      ],
+      if (tab == 'Access') ...[
+        const _Heading('Access grants'),
+        if (coreRecord(_snapshot?['operator'])['role'] == 'owner')
+          _Action(
+              label: 'Manage operator access',
+              icon: Icons.admin_panel_settings_outlined,
+              onPressed: _operatorForm),
+        ..._recordList('operators', 'No access grants are visible.'),
       ],
       if (tab == 'Security') ...[
         _Action(
@@ -1266,6 +1338,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
   }
 
   List<Widget> _decisionList() => [
+        const PlpSectionTitle('Needs You'),
         _Action(
             label: 'Pending authorizations',
             icon: Icons.verified_user_outlined,
@@ -1678,11 +1751,12 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           for (final currency in currencies)
             _RecordTile(row: currency, onTap: () => _showRecord(currency))
         else
-          const Text('Revenue and margin need authoritative billing data.',
-              style: TextStyle(color: _muted, height: 1.4)),
+          Text('Revenue and margin need authoritative billing data.',
+              style: TextStyle(color: _toneMuted(context), height: 1.4)),
         if (coverage is String && coverage.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text(coverage, style: const TextStyle(color: _muted, fontSize: 12)),
+          Text(coverage,
+              style: TextStyle(color: _toneMuted(context), fontSize: 12)),
         ],
       ]),
     );
@@ -1765,7 +1839,7 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: _surface,
+      backgroundColor: _toneSurface(context),
       builder: (sheetContext) => ConstrainedBox(
         constraints: BoxConstraints(
             maxHeight: MediaQuery.sizeOf(sheetContext).height * .78),
@@ -1774,8 +1848,10 @@ class _PandoraCoreScreenState extends State<PandoraCoreScreen> {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           children: [
             Text(title ?? _recordTitle(row, 'Record'),
-                style: const TextStyle(
-                    color: _ink, fontSize: 20, fontWeight: FontWeight.w700)),
+                style: TextStyle(
+                    color: _toneInk(context),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
             for (final entry in _recordFields.entries)
               if ((row[entry.key] != null ||
@@ -2109,19 +2185,21 @@ class _PandoraCoreOperationFormState extends State<PandoraCoreOperationForm> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
               children: [
                 Text(widget.title,
-                    style: const TextStyle(
-                        color: _ink,
+                    style: TextStyle(
+                        color: _toneInk(context),
                         fontSize: 21,
                         fontWeight: FontWeight.w700)),
                 if (widget.financial) ...[
                   const SizedBox(height: 8),
-                  const Text('Manual record · identity verification required',
-                      style: TextStyle(color: _muted, fontSize: 12)),
+                  Text('Manual record · identity verification required',
+                      style:
+                          TextStyle(color: _toneMuted(context), fontSize: 12)),
                 ],
                 if (widget.notice != null) ...[
                   const SizedBox(height: 8),
                   Text(widget.notice!,
-                      style: const TextStyle(color: _muted, fontSize: 12)),
+                      style:
+                          TextStyle(color: _toneMuted(context), fontSize: 12)),
                 ],
                 const SizedBox(height: 16),
                 for (final field in widget.fields)
@@ -2700,14 +2778,16 @@ class _RecordTile extends StatelessWidget {
               : title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-              color: _ink, fontSize: 14, fontWeight: FontWeight.w600)),
+          style: TextStyle(
+              color: _toneInk(context),
+              fontSize: 14,
+              fontWeight: FontWeight.w600)),
       subtitle: subtitle.isEmpty
           ? null
           : Text(subtitle,
               maxLines: isUsage || isAllowance || isModel ? 5 : 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: _muted, fontSize: 12)),
+              style: TextStyle(color: _toneMuted(context), fontSize: 12)),
       trailing: isAutomation
           ? _StatePill(_humanizeRecordAction(row['state']).isEmpty
               ? 'State unavailable'
@@ -2750,15 +2830,30 @@ class _Panel extends StatelessWidget {
   const _Panel({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
+  Widget build(BuildContext context) {
+    final palette = _palette(context);
+    if (palette.editorial) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 2),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _line)),
+          border: Border(top: BorderSide(color: palette.line)),
+        ),
         child: child,
       );
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: palette.paper,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.line),
+      ),
+      child: child,
+    );
+  }
 }
 
 class _Heading extends StatelessWidget {
@@ -2770,10 +2865,7 @@ class _Heading extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 22, bottom: 9),
         child: Row(children: [
-          Expanded(
-              child: Text(title,
-                  style: const TextStyle(
-                      color: _ink, fontSize: 16, fontWeight: FontWeight.w700))),
+          Expanded(child: Text(title, style: _palette(context).sectionTitle)),
           if (action != null)
             TextButton(
                 onPressed: onAction,
@@ -2791,9 +2883,12 @@ class _Signal extends StatelessWidget {
         label: '${coreText(value)} $label',
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(coreText(value),
-              style: const TextStyle(
-                  color: _ink, fontSize: 19, fontWeight: FontWeight.w700)),
-          Text(label, style: const TextStyle(color: _muted, fontSize: 11.5)),
+              style: TextStyle(
+                  color: _toneInk(context),
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700)),
+          Text(label,
+              style: TextStyle(color: _toneMuted(context), fontSize: 11.5)),
         ]),
       );
 }
@@ -2809,12 +2904,11 @@ class _StatePill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-            color: const Color(0xFF23272D),
-            borderRadius: BorderRadius.circular(8)),
+            color: _tonePill(context), borderRadius: BorderRadius.circular(8)),
         child: Text(text,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: _muted, fontSize: 10.5)),
+            style: TextStyle(color: _toneMuted(context), fontSize: 10.5)),
       ),
     );
   }
@@ -2832,7 +2926,7 @@ class _StatusLine extends StatelessWidget {
           Expanded(
               flex: 2,
               child: Text(label,
-                  style: const TextStyle(color: _muted, fontSize: 12))),
+                  style: TextStyle(color: _toneMuted(context), fontSize: 12))),
           const SizedBox(width: 12),
           Expanded(
               flex: 3,
@@ -2841,7 +2935,7 @@ class _StatusLine extends StatelessWidget {
                       ? coreText(value)
                       : coreText(value).replaceAll('_', ' '),
                   textAlign: TextAlign.right,
-                  style: const TextStyle(color: _ink, fontSize: 12))),
+                  style: TextStyle(color: _toneInk(context), fontSize: 12))),
         ]),
       );
 }
@@ -2861,8 +2955,8 @@ class _Action extends StatelessWidget {
         icon: Icon(icon, size: 17),
         label: Text(label, style: const TextStyle(fontSize: 12)),
         style: OutlinedButton.styleFrom(
-          foregroundColor: _ink,
-          side: const BorderSide(color: _line),
+          foregroundColor: _toneInk(context),
+          side: BorderSide(color: _toneLine(context)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -2877,7 +2971,8 @@ class _Empty extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Text(message,
-            style: const TextStyle(color: _muted, height: 1.45, fontSize: 13)),
+            style: TextStyle(
+                color: _toneMuted(context), height: 1.45, fontSize: 13)),
       );
 }
 
@@ -2893,9 +2988,11 @@ class _Notice extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title,
-              style: const TextStyle(color: _ink, fontWeight: FontWeight.w600)),
+              style: TextStyle(
+                  color: _toneInk(context), fontWeight: FontWeight.w600)),
           const SizedBox(height: 5),
-          Text(message, style: const TextStyle(color: _muted, height: 1.4)),
+          Text(message,
+              style: TextStyle(color: _toneMuted(context), height: 1.4)),
           if (action != null)
             TextButton(onPressed: onAction, child: Text(action!)),
         ]),

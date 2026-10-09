@@ -30,7 +30,7 @@ class PandoraBoxFrame extends StatelessWidget {
                   color: plpInk,
                   fontFamily: 'serif',
                   fontSize: 16,
-                  letterSpacing: 2.4,
+                  letterSpacing: 2.6,
                   fontWeight: FontWeight.w400,
                 ),
               ),

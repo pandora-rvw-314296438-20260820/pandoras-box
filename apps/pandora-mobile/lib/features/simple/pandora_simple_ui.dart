@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/pandora_editorial_scope.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 
@@ -56,7 +57,7 @@ class PandoraSimplePage extends StatelessWidget {
       ],
     );
     return ColoredBox(
-      color: PandoraSimpleColors.canvas,
+      color: pandoraOwnerColor(context, PandoraSimpleColors.canvas),
       child: SafeArea(
         bottom: true,
         child: onRefresh == null
@@ -167,11 +168,16 @@ class PandoraOwnerHeader extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -.5,
+                  style: TextStyle(
+                    color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
+                    fontFamily:
+                        PandoraEditorialScope.active(context) ? 'serif' : null,
+                    fontSize: PandoraEditorialScope.active(context) ? 16 : 26,
+                    fontWeight: PandoraEditorialScope.active(context)
+                        ? FontWeight.w400
+                        : FontWeight.w700,
+                    letterSpacing:
+                        PandoraEditorialScope.active(context) ? 2.6 : -.5,
                     height: 1.04,
                   ),
                 ),
@@ -180,8 +186,9 @@ class PandoraOwnerHeader extends StatelessWidget {
                   subtitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.muted,
+                  style: TextStyle(
+                    color:
+                        pandoraOwnerColor(context, PandoraSimpleColors.muted),
                     fontSize: 15,
                     height: 1.2,
                   ),
@@ -335,10 +342,10 @@ class PandoraSimpleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
-      color: backgroundColor,
+      color: pandoraOwnerColor(context, backgroundColor),
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: borderColor),
-      boxShadow: shadow
+      border: Border.all(color: pandoraOwnerColor(context, borderColor)),
+      boxShadow: shadow && !PandoraEditorialScope.active(context)
           ? const [
               BoxShadow(
                 color: Color(0x12000000),
@@ -389,8 +396,8 @@ class PandoraSectionTitle extends StatelessWidget {
             Flexible(
               child: Text(
                 title,
-                style: const TextStyle(
-                  color: PandoraSimpleColors.ink,
+                style: TextStyle(
+                  color: pandoraOwnerColor(context, PandoraSimpleColors.ink),
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -.25,
@@ -421,8 +428,8 @@ class PandoraSectionTitle extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 meta!,
-                style: const TextStyle(
-                  color: PandoraSimpleColors.muted,
+                style: TextStyle(
+                  color: pandoraOwnerColor(context, PandoraSimpleColors.muted),
                   fontSize: 14,
                 ),
               ),
@@ -465,12 +472,19 @@ class PandoraIconBadge extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: background,
+          color: pandoraOwnerColor(context, background),
           borderRadius: BorderRadius.circular(size * .32),
-          border: Border.all(color: foreground.withValues(alpha: .08)),
+          border: Border.all(
+            color:
+                pandoraOwnerColor(context, foreground).withValues(alpha: .08),
+          ),
         ),
         alignment: Alignment.center,
-        child: Icon(icon, color: foreground, size: size * .52),
+        child: Icon(
+          icon,
+          color: pandoraOwnerColor(context, foreground),
+          size: size * .52,
+        ),
       );
 }
 
@@ -539,9 +553,13 @@ class PandoraPrimaryButton extends StatelessWidget {
     final button = FilledButton.icon(
       onPressed: loading ? null : onPressed,
       style: FilledButton.styleFrom(
-        backgroundColor: PandoraSimpleColors.red,
-        foregroundColor: Colors.white,
-        disabledBackgroundColor: PandoraSimpleColors.red.withValues(alpha: .45),
+        backgroundColor: pandoraOwnerColor(context, PandoraSimpleColors.red),
+        foregroundColor: PandoraEditorialScope.active(context)
+            ? PandoraEditorialPalette.canvas
+            : Colors.white,
+        disabledBackgroundColor:
+            pandoraOwnerColor(context, PandoraSimpleColors.red)
+                .withValues(alpha: .45),
         minimumSize: const Size(0, 54),
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1011,3 +1029,11 @@ const pandoraSimpleMutedText = TextStyle(
   fontSize: 14,
   height: 1.35,
 );
+
+extension PandoraSimpleOwnerText on TextStyle {
+  /// Inherits the owner palette installed by [PandoraOwnerTheme].
+  /// Dark console callers keep the original color.
+  TextStyle owner(BuildContext context) => copyWith(
+        color: color == null ? null : pandoraOwnerColor(context, color!),
+      );
+}

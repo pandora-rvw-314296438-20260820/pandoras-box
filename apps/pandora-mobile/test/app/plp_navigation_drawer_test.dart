@@ -48,7 +48,8 @@ void main() {
     return scroll;
   }
 
-  testWidgets('PLP navigation leads with resort work, not system pages', (tester) async {
+  testWidgets('PLP navigation leads with resort work, not system pages',
+      (tester) async {
     String? selected;
     await mountDrawer(tester, onSelect: (value) => selected = value);
 
@@ -87,7 +88,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('PLP search still reaches technical System destinations', (tester) async {
+  testWidgets('PLP search still reaches technical System destinations',
+      (tester) async {
     String? selected;
     await mountDrawer(tester, onSelect: (value) => selected = value);
 
@@ -107,7 +109,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('PLP full-width mobile drawer remains scrollable with keyboard', (tester) async {
+  testWidgets('PLP full-width mobile drawer remains scrollable with keyboard',
+      (tester) async {
     await mountDrawer(
       tester,
       width: 320,
@@ -135,7 +138,61 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('PLP command dock remains the universal Pandora composer', (tester) async {
+  testWidgets(
+      'owner destinations reuse the PLP drawer without changing resort navigation',
+      (tester) async {
+    String? selected;
+    final scroll = ScrollController();
+    addTearDown(scroll.dispose);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlpNavigationDrawer(
+            scrollController: scroll,
+            selectedDestination: 'clients',
+            recentChats: const [],
+            recentChatsLoading: false,
+            recentChatsError: null,
+            onRetryRecentChats: () {},
+            onSelectDestination: (value) => selected = value,
+            onSelectThread: (_) {},
+            onNewChat: () {},
+            workspaceTitle: 'Pandora',
+            workspaceSubtitle: 'Owner',
+            includeSystem: false,
+            primaryDestinations: const [
+              PlpDrawerDestination('home', 'Home', Icons.wb_sunny_outlined),
+              PlpDrawerDestination(
+                  'clients', 'Clients', Icons.business_outlined),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Clients'), findsOneWidget);
+    expect(find.text('Today'), findsNothing);
+    expect(find.text('Owner'), findsOneWidget);
+    expect(find.text('System / Developer'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('plp-navigation-drawer')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('plp-drawer-home')));
+    expect(selected, 'home');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('PLP command dock remains the universal Pandora composer',
+      (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
     var submitted = false;

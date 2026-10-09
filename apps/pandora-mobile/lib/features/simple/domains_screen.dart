@@ -139,7 +139,7 @@ class _DomainAcquisitionCard extends StatelessWidget {
           children: [
             const PandoraIconBadge(icon: Icons.language_rounded, size: 52),
             const SizedBox(width: 15),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -154,7 +154,7 @@ class _DomainAcquisitionCard extends StatelessWidget {
                   SizedBox(height: 5),
                   Text(
                     'Choose the address customers will use to find you.',
-                    style: pandoraSimpleMutedText,
+                    style: pandoraSimpleMutedText.owner(context),
                   ),
                 ],
               ),
@@ -205,7 +205,8 @@ class _DomainCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(domain.projectName, style: pandoraSimpleMutedText),
+                Text(domain.projectName,
+                    style: pandoraSimpleMutedText.owner(context)),
                 const SizedBox(height: 7),
                 _DomainStatus(label: domain.statusLabel, live: live),
               ],
@@ -603,9 +604,9 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Search for the name customers should use to reach your business.',
-            style: pandoraSimpleMutedText,
+            style: pandoraSimpleMutedText.owner(context),
           ),
           const SizedBox(height: 22),
           TextField(
@@ -690,7 +691,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                           const SizedBox(height: 4),
                           Text(
                             '${quote.formattedPurchasePrice} ${quote.currency} for ${quote.years} year${quote.years == 1 ? '' : 's'}',
-                            style: pandoraSimpleMutedText,
+                            style: pandoraSimpleMutedText.owner(context),
                           ),
                         ],
                       ),
@@ -710,11 +711,11 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                   ),
                 )
               else if (_projects.isEmpty)
-                const PandoraSimpleCard(
+                PandoraSimpleCard(
                   shadow: false,
                   child: Text(
                     'Create a project before buying a domain.',
-                    style: pandoraSimpleMutedText,
+                    style: pandoraSimpleMutedText.owner(context),
                   ),
                 )
               else
@@ -742,9 +743,9 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                 ),
               const SizedBox(height: 22),
               const PandoraSectionTitle(title: 'Registration details'),
-              const Text(
+              Text(
                 'These details are encrypted temporarily for checkout and deleted after registration or refund.',
-                style: pandoraSimpleMutedText,
+                style: pandoraSimpleMutedText.owner(context),
               ),
               const SizedBox(height: 14),
               _ContactField(controller: _firstName, label: 'First name'),
@@ -797,11 +798,11 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                     : (selection) => setState(() => _gateway = selection.first),
               ),
               const SizedBox(height: 12),
-              const PandoraSimpleCard(
+              PandoraSimpleCard(
                 shadow: false,
                 child: Text(
                   'Auto-renew is off for now. Pandora’s Box will ask you before renewal so there are no surprise charges.',
-                  style: pandoraSimpleMutedText,
+                  style: pandoraSimpleMutedText.owner(context),
                 ),
               ),
               const SizedBox(height: 12),
@@ -834,7 +835,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                       Text(
                         checkout.plainMessage ??
                             'Return to Pandora after payment to finish registration.',
-                        style: pandoraSimpleMutedText,
+                        style: pandoraSimpleMutedText.owner(context),
                       ),
                       if (checkout.canOpenPayment) ...[
                         const SizedBox(height: 14),
@@ -866,11 +867,11 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
             ],
           ],
           const SizedBox(height: 18),
-          const PandoraSimpleCard(
+          PandoraSimpleCard(
             shadow: false,
             child: Text(
               'Already own a domain? Add it when you publish a project. Pandora verifies ownership, DNS, routing and security before showing it as Live.',
-              style: pandoraSimpleMutedText,
+              style: pandoraSimpleMutedText.owner(context),
             ),
           ),
         ],

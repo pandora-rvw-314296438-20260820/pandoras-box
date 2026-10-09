@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../design/pandora_tokens.dart';
+import 'pandora_editorial_scope.dart';
 import 'pandora_mark.dart';
 import 'pandora_navigation.dart';
 import 'pandora_route_boundary.dart';
@@ -28,6 +29,8 @@ class PandoraPage extends StatelessWidget {
     final navigation = PandoraNavigationScope.maybeOf(context);
     final openDrawer = navigation?.openDrawer;
     final isSecondaryRoute = ModalRoute.of(context)?.isFirst == false;
+    final editorial = PandoraEditorialScope.active(context);
+    final palette = PandoraChrome.of(context);
     final topInset = MediaQuery.paddingOf(context).top;
     const chromeHeight = 60.0;
 
@@ -50,29 +53,30 @@ class PandoraPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if (showProductMark) ...[
-                          const PandoraMark(size: 36),
-                          const SizedBox(width: PandoraSpacing.sm),
-                        ],
-                        Expanded(
-                          child: Text(
-                            title,
-                            key: const ValueKey<String>('pandora-page-title'),
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -.45,
-                                ),
+                    if (!editorial)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (showProductMark) ...[
+                            const PandoraMark(size: 36),
+                            const SizedBox(width: PandoraSpacing.sm),
+                          ],
+                          Expanded(
+                            child: Text(
+                              title,
+                              key: const ValueKey<String>('pandora-page-title'),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -.45,
+                                  ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    if (subtitle != null) ...[
+                        ],
+                      ),
+                    if (!editorial && subtitle != null) ...[
                       const SizedBox(height: PandoraSpacing.sm),
                       Text(
                         subtitle!,
@@ -83,7 +87,18 @@ class PandoraPage extends StatelessWidget {
                             ),
                       ),
                     ],
-                    const SizedBox(height: PandoraSpacing.md),
+                    if (editorial && subtitle != null) ...[
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(
+                          color: PandoraEditorialPalette.muted,
+                          fontSize: 14.5,
+                          height: 1.55,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (!editorial) const SizedBox(height: PandoraSpacing.md),
                     child,
                   ],
                 ),
@@ -98,51 +113,64 @@ class PandoraPage extends StatelessWidget {
         ? content
         : RefreshIndicator(onRefresh: onRefresh!, child: content);
 
-    return PandoraRouteBoundary(
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: SafeArea(
-              top: false,
-              child: scrollable,
+    return ColoredBox(
+      color: editorial ? palette.canvas : Colors.transparent,
+      child: PandoraRouteBoundary(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: SafeArea(
+                top: false,
+                child: scrollable,
+              ),
             ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: Row(
-                  children: [
-                    if (isSecondaryRoute)
-                      const SizedBox.square(
-                        dimension: 44,
-                        child: BackButton(),
-                      ),
-                    if (openDrawer != null)
-                      PandoraMenuButton(
-                        key: const ValueKey<String>('pandora-side-panel-open'),
-                        onPressed: openDrawer,
-                      )
-                    else if (!isSecondaryRoute &&
-                        Navigator.of(context).canPop())
-                      const SizedBox.square(
-                        dimension: 44,
-                        child: BackButton(),
-                      )
-                    else if (!isSecondaryRoute)
-                      const SizedBox.square(dimension: 44),
-                    const Spacer(),
-                    ...actions,
-                  ],
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  child: Row(
+                    children: [
+                      if (isSecondaryRoute)
+                        const SizedBox.square(
+                          dimension: 44,
+                          child: BackButton(),
+                        ),
+                      if (openDrawer != null)
+                        PandoraMenuButton(
+                          key:
+                              const ValueKey<String>('pandora-side-panel-open'),
+                          onPressed: openDrawer,
+                        )
+                      else if (!isSecondaryRoute &&
+                          Navigator.of(context).canPop())
+                        const SizedBox.square(
+                          dimension: 44,
+                          child: BackButton(),
+                        )
+                      else if (!isSecondaryRoute)
+                        const SizedBox.square(dimension: 44),
+                      if (editorial) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: PandoraEditorialTitle(
+                            title,
+                            key: const ValueKey<String>('pandora-page-title'),
+                          ),
+                        ),
+                      ] else
+                        const Spacer(),
+                      ...actions,
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
