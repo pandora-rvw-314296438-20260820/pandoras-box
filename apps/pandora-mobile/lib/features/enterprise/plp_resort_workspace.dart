@@ -1912,63 +1912,67 @@ class _SectionLaunchRail extends StatelessWidget {
     final items = plpResortSections
         .where((item) => item.id != 'today')
         .toList(growable: false);
-    return SizedBox(
-      height: 92,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, index) {
-          final item = items[index];
-          return Material(
-            color: PlpResortWorkspaceScreen.paper,
-            child: InkWell(
-              key: ValueKey<String>('plp-section-tile-${item.id}'),
-              onTap: () => onOpen?.call(item.id),
-              child: Container(
-                width: 116,
-                decoration: const BoxDecoration(
-                  border: Border.fromBorderSide(
-                    BorderSide(color: PlpResortWorkspaceScreen.line),
-                  ),
-                ),
-                padding: const EdgeInsets.all(13),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          item.icon,
-                          size: 20,
-                          color: PlpResortWorkspaceScreen.accent,
-                        ),
-                        const Spacer(),
-                        if (locked.contains(item.id))
-                          const Icon(
-                            Icons.lock_outline_rounded,
-                            key: ValueKey<String>('plp-section-lock'),
-                            size: 14,
-                            color: PlpResortWorkspaceScreen.muted,
-                          ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Text(
-                      item.label,
-                      style: const TextStyle(
-                        color: PlpResortWorkspaceScreen.ink,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tileWidth = (constraints.maxWidth - 16) / 3;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final item in items)
+              Material(
+                color: PlpResortWorkspaceScreen.paper,
+                child: InkWell(
+                  key: ValueKey<String>('plp-section-tile-${item.id}'),
+                  onTap: () => onOpen?.call(item.id),
+                  child: Container(
+                    width: tileWidth,
+                    height: 84,
+                    decoration: const BoxDecoration(
+                      border: Border.fromBorderSide(
+                        BorderSide(color: PlpResortWorkspaceScreen.line),
                       ),
                     ),
-                  ],
+                    padding: const EdgeInsets.all(13),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              item.icon,
+                              size: 20,
+                              color: PlpResortWorkspaceScreen.accent,
+                            ),
+                            const Spacer(),
+                            if (locked.contains(item.id))
+                              const Icon(
+                                Icons.lock_outline_rounded,
+                                key: ValueKey<String>('plp-section-lock'),
+                                size: 14,
+                                color: PlpResortWorkspaceScreen.muted,
+                              ),
+                          ],
+                        ),
+                        const Spacer(),
+                        Text(
+                          item.label,
+                          style: const TextStyle(
+                            color: PlpResortWorkspaceScreen.ink,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-      ),
+          ],
+        );
+      },
     );
   }
 }
@@ -2192,21 +2196,12 @@ class _SourceRecoveryPanel extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 9),
-            Text(
-              unavailable,
-              style: const TextStyle(
-                color: PlpResortWorkspaceScreen.ink,
-                fontSize: 12.5,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 7),
-            Text(
-              'Still available: $remainsAvailable',
-              style: const TextStyle(
+            const SizedBox(height: 8),
+            const Text(
+              'Live occupancy and sales are paused until the source reconnects.',
+              style: TextStyle(
                 color: PlpResortWorkspaceScreen.muted,
-                fontSize: 11.5,
+                fontSize: 12,
                 height: 1.35,
               ),
             ),

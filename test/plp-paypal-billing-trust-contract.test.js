@@ -23,9 +23,12 @@ test('missing renewal data is not rendered as a fabricated pending renewal date'
 });
 
 test('plan selection is separate from starting checkout', () => {
-  assert.match(billing, /_tap\(\(\) => _show\(_BillingView\.select, plan\.code\)\)/);
-  assert.match(billing, /_selectedPlanCode = target;/);
-  assert.match(billing, /'Pay with PayPal',[\s\S]*?_tap\(\(\) => _checkout\(target\.code\)\)/);
+  const cardMethod = billing.slice(billing.indexOf('Widget _buildPlanCard('));
+  const planSelection = cardMethod.slice(0, cardMethod.indexOf('Widget _buildReview'));
+  assert.match(planSelection, /_selectedPlanCode = code;/);
+  assert.match(planSelection, /OwnerAnalyticsEvent\.planSelected/);
+  assert.doesNotMatch(planSelection, /_checkout/);
+  assert.match(billing, /'Continue to PayPal'[\s\S]*?_checkout\(/);
 });
 
 test('plan changes have a review step before the provider operation', () => {
@@ -67,7 +70,7 @@ test('billing never calls PayPal directly, holds no secrets and no hard-coded or
 
 test('an existing PayPal approval is resumed instead of creating another checkout', () => {
   assert.match(billing, /final existingApproval[\s\S]*?if \(existingApproval\.isNotEmpty\)\s*\{\s*await _openApproval\(existingApproval\);\s*return;/);
-  assert.match(billing, /else if \(!active && checkoutApproval\.isNotEmpty\) \{\s*notice = 'Finish in PayPal · not active yet';\s*tiles = \[openPaypal\(checkoutApproval\), refreshTile\];/);
+  assert.match(billing, /You started checkout for \$openPlanName\. Finish in PayPal or choose again\./);
   assert.match(billing, /_selectedPlanCode = loadedPlanCode/);
 });
 

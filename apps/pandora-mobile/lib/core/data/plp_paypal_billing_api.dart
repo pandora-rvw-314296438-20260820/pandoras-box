@@ -1,9 +1,69 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../pandora_config.dart';
+
+/// Allowed origins for PLP checkout analytics and return navigation.
+const plpCheckoutOrigins = <String>{
+  'today',
+  'stays',
+  'guests',
+  'operations',
+  'revenue',
+  'experiences',
+  'team',
+  'assistant',
+};
+
+/// A detected return from PayPal (approval or cancellation).
+class PlpCheckoutReturn {
+  const PlpCheckoutReturn({required this.cancelled, this.origin});
+  final bool cancelled;
+  final String? origin;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlpCheckoutReturn &&
+          runtimeType == other.runtimeType &&
+          cancelled == other.cancelled &&
+          origin == other.origin;
+
+  @override
+  int get hashCode => Object.hash(cancelled, origin);
+}
+
+/// Detects a PayPal return or cancellation in [uri].
+///
+/// Origin is extracted from a `from` query parameter in the fragment query or
+/// [Uri.queryParameters], retaining only values in [plpCheckoutOrigins].
+/// NEVER treat a return as payment proof — it only selects the confirming view.
+PlpCheckoutReturn? plpCheckoutReturnFromUri(Uri uri) {
+  final hasReturn = uri.path.contains('/enterprise/paypal-return') ||
+      uri.fragment.contains('/enterprise/paypal-return');
+  final hasCancel = uri.path.contains('/enterprise/paypal-cancel') ||
+      uri.fragment.contains('/enterprise/paypal-cancel');
+
+  if (!hasReturn && !hasCancel) return null;
+
+  String? fromParam = uri.queryParameters['from'];
+  if (fromParam == null && uri.fragment.contains('?')) {
+    final fragmentQuery = uri.fragment.substring(uri.fragment.indexOf('?') + 1);
+    fromParam = Uri.splitQueryString(fragmentQuery)['from'];
+  }
+
+  final origin = (fromParam != null && plpCheckoutOrigins.contains(fromParam))
+      ? fromParam
+      : null;
+
+  return PlpCheckoutReturn(
+    cancelled: hasCancel,
+    origin: origin,
+  );
+}
 
 /// Owner API transport for PLP PayPal billing. Injectable so widget tests and
 /// render harnesses can supply a fake.
@@ -12,6 +72,18 @@ typedef PlpBillingTransport = Future<Map<String, dynamic>> Function(
   String method,
   Map<String, dynamic>? body,
 });
+
+/// Returns true for transient network, timeout or rate-limit/server errors.
+/// Compiles on web without dart:io.
+bool plpBillingTransientError(Object error) {
+  if (error is TimeoutException || error is http.ClientException) {
+    return true;
+  }
+  if (error is PlpBillingRequestException) {
+    return error.statusCode == 429 || error.statusCode >= 500;
+  }
+  return false;
+}
 
 /// The authenticated owner API (`/billing/paypal/*`) for one organization.
 PlpBillingTransport plpOwnerBillingTransport(String organizationId) => (
@@ -31,8 +103,10 @@ PlpBillingTransport plpOwnerBillingTransport(String organizationId) => (
       };
       final uri = Uri.parse(PandoraConfig.ownerApiBaseUrl + path);
       final response = method == 'POST'
-          ? await http.post(uri, headers: headers, body: jsonEncode(body ?? {}))
-          : await http.get(uri, headers: headers);
+          ? await http
+              .post(uri, headers: headers, body: jsonEncode(body ?? {}))
+              .timeout(const Duration(seconds: 15))
+          : await http.get(uri, headers: headers).timeout(const Duration(seconds: 15));
       final decoded = response.body.isEmpty
           ? <String, dynamic>{}
           : jsonDecode(response.body) as Map<String, dynamic>;

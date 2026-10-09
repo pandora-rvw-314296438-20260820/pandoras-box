@@ -2,6 +2,7 @@
 // ignore_for_file: prefer_interpolation_to_compose_strings
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -42,6 +43,7 @@ class PlpEnterpriseShell extends StatefulWidget {
     this.propertyId,
     this.billingTransport,
     this.entitlementReader,
+    this.paypalReturn,
   });
 
   /// Acceptance tests may provide a verified bootstrap fixture. Production
@@ -65,6 +67,9 @@ class PlpEnterpriseShell extends StatefulWidget {
   /// Member-safe unlocked flag (`pandora_plp_entitlement_v1`). Production
   /// leaves this null and calls the RPC with the signed-in session.
   final PlpEntitlementReader? entitlementReader;
+
+  /// Optional PayPal return parameter for test seams or deep links.
+  final PlpCheckoutReturn? paypalReturn;
 
   @override
   State<PlpEnterpriseShell> createState() => _PlpEnterpriseShellState();
@@ -281,11 +286,33 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             : _PlpGate.staffLocked);
   }
 
+  Map<String, dynamic>? _lastBillingStatus;
+  String? _billingOpenOrigin;
+  PlpCheckoutReturn? _billingOpenReturn;
+  late PlpCheckoutReturn? _pendingReturn = widget.paypalReturn ??
+      (kIsWeb ? plpCheckoutReturnFromUri(Uri.base) : null);
+
+  void _checkPendingReturn() {
+    final pending = _pendingReturn;
+    if (pending == null || _lastBootstrap == null) return;
+    if (_gate == _PlpGate.ownerLocked || _gate == _PlpGate.unlocked) {
+      if (_isOwner()) {
+        _pendingReturn = null;
+        _openBilling(origin: pending.origin, paypalReturn: pending);
+      } else {
+        _pendingReturn = null;
+      }
+    } else if (_gate == _PlpGate.staffLocked) {
+      _pendingReturn = null;
+    }
+  }
+
   /// The confirmed billing status from the gate or from the billing page.
   void _onBillingStatus(Map<String, dynamic> status) {
     if (!_gateEnabled || !mounted) return;
     final bootstrap = _lastBootstrap;
     if (bootstrap == null) return;
+    _lastBillingStatus = status;
     int? cheapest;
     var currency = 'USD';
     final plans = status['plans'];
@@ -330,6 +357,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         _routedToolKey = null;
       }
     });
+    _checkPendingReturn();
   }
 
   void _retrySubscription() {
@@ -348,9 +376,21 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     return 'Unlock everything · from $price / month';
   }
 
-  void _openBilling() {
-    if (_routedToolKey == 'resort:billing') return;
+  void _openBilling({String? origin, PlpCheckoutReturn? paypalReturn}) {
+    if (_routedToolKey == 'resort:billing' &&
+        _billingOpenOrigin == origin &&
+        _billingOpenReturn == paypalReturn) {
+      return;
+    }
+    _billingOpenOrigin = origin;
+    _billingOpenReturn = paypalReturn;
     final bootstrap = _lastBootstrap ?? const <String, Object?>{};
+    String? originLabel;
+    if (origin == 'assistant') {
+      originLabel = 'The PLP assistant';
+    } else if (origin != null && origin != 'today') {
+      originLabel = plpResortSectionById(origin)?.label;
+    }
     _openTool(
       'resort:billing',
       PlpPaypalBillingScreen(
@@ -358,16 +398,33 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         onOpenNavigation: _openDrawer,
         transport: widget.billingTransport,
         onStatus: _onBillingStatus,
+        origin: origin,
+        originLabel: originLabel,
+        initialStatus: _lastBillingStatus,
+        paypalReturn: paypalReturn,
+        onActivated: () => _returnToOrigin(origin),
       ),
     );
   }
 
+  void _returnToOrigin(String? origin) {
+    if (!_entitled) return;
+    _closeTool();
+    if (origin != null && plpResortSectionById(origin) != null) {
+      _openResortSection(origin);
+    } else if (origin == 'assistant') {
+      _open(1);
+    } else {
+      _openHome();
+    }
+  }
+
   /// A locked destination: the plans for owners, the waiting notice for
   /// staff, or Couldn't load + Retry while the status is unknown.
-  void _openLocked() {
+  void _openLocked({String? origin}) {
     if (_entitled) return;
     if (_isOwner()) {
-      _openBilling();
+      _openBilling(origin: origin);
       return;
     }
     if (_routedToolKey == 'billing-gate') return;
@@ -411,27 +468,30 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   /// Wraps a feature callback: runs it when free or entitled, otherwise
   /// opens the locked destination.
-  void _gated(bool free, VoidCallback action) {
+  void _gated(bool free, VoidCallback action, {String? origin}) {
     if (free || _entitled) {
       action();
     } else {
-      _openLocked();
+      _openLocked(origin: origin);
     }
   }
 
   void _gatedSection(String destination) => _gated(
         plpFreeDestinations.contains(destination),
         () => _openResortSection(destination),
+        origin: destination,
       );
 
   void _gatedModule(String moduleId) => _gated(
         _plpFreeModules.contains(moduleId),
         () => _openResortModule(moduleId),
+        origin: 'operations',
       );
 
   void _gatedRecord(String kind, Map<String, Object?> record) => _gated(
         _plpFreeRecordKinds.contains(kind),
         () => _openResortRecord(kind, record),
+        origin: 'today',
       );
 
   Set<String> get _lockedSections => _entitled
@@ -472,6 +532,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     _lastBootstrap = value;
     if (mounted) _workspaceSnapshot.value = value;
     if (mounted) _ensureSubscriptionGate(value);
+    if (mounted) _checkPendingReturn();
     if (widget.embeddedRouteSlug != null && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -752,7 +813,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }) {
     if (index == 1) {
       if (!_entitled) {
-        _openLocked();
+        _openLocked(origin: 'assistant');
         return;
       }
       if (widget.embeddedRouteSlug != null) {
@@ -836,6 +897,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   void _closeTool() {
     if (_routedTool == null) return;
+    _billingOpenOrigin = null;
+    _billingOpenReturn = null;
     final closedKey = _routedToolKey;
     setState(() {
       if (_routedToolHistory.isNotEmpty) {
@@ -1089,7 +1152,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 _gated(false, () => _openTeamManagement(bootstrap)),
             onOpenActivity: _openActivityFeed,
             onOpenSourceSettings: () =>
-                _gated(false, _openSourceInfrastructure),
+                _gated(false, _openSourceInfrastructure, origin: null),
           );
         },
       ),
@@ -1154,7 +1217,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     if (!_entitled && !plpFreeDestinations.contains(destination)) {
       // Locked: owners get the plans, staff the waiting notice.
       _closeDrawer();
-      _openLocked();
+      _openLocked(
+        origin: plpCheckoutOrigins.contains(destination) ? destination : null,
+      );
       return;
     }
     if (destination == 'billing') {
@@ -1180,7 +1245,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   Future<void> _openRecentThread(PlpRecentChatItem item) async {
     _closeDrawer();
     if (!_entitled) {
-      _openLocked();
+      _openLocked(origin: 'assistant');
       return;
     }
     if (widget.embeddedRouteSlug != null) {
@@ -1198,7 +1263,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       _closeDrawer();
     }
     if (!_entitled) {
-      _openLocked();
+      _openLocked(origin: 'assistant');
       return;
     }
     _open(1);
@@ -1296,7 +1361,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: _openLocked,
+            onTap: () => _openLocked(origin: 'assistant'),
             customBorder: const CircleBorder(),
             child: SizedBox.square(
               dimension: 58,
@@ -1306,12 +1371,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: Opacity(
-                        opacity: .72,
-                        child: Image.asset(
-                          'assets/workspaces/plp.webp',
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.high,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        opacity: .42,
+                        child: ColorFiltered(
+                          colorFilter: const ColorFilter.matrix(<double>[
+                            0.2126, 0.7152, 0.0722, 0, 0,
+                            0.2126, 0.7152, 0.0722, 0, 0,
+                            0.2126, 0.7152, 0.0722, 0, 0,
+                            0,      0,      0,      1, 0,
+                          ]),
+                          child: Image.asset(
+                            'assets/workspaces/plp.webp',
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
+                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          ),
                         ),
                       ),
                     ),
@@ -1416,10 +1489,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenModule: _gatedModule,
               onOpenRecord: _gatedRecord,
               onOpenSourceSettings: () =>
-                  _gated(false, _openSourceInfrastructure),
+                  _gated(false, _openSourceInfrastructure, origin: null),
               lockedSections: _lockedSections,
               unlockNotice: _unlockNotice,
-              onUnlock: _openBilling,
+              onUnlock: () => _openBilling(origin: null),
             ),
             const SizedBox.shrink(),
             PlpOperationsScreen(

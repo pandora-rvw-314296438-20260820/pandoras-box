@@ -41,7 +41,14 @@ enum OwnerAnalyticsEvent {
   publishFailed('publish_failed'),
   sourcePaywallViewed('source_paywall_viewed'),
   sourceAccessGranted('source_access_granted'),
-  sourceExported('source_exported');
+  sourceExported('source_exported'),
+  paywallViewed('paywall_view'),
+  planSelected('plan_select'),
+  checkoutStarted('checkout_start'),
+  paypalHandoff('paypal_handoff'),
+  activationVerified('activation_verified'),
+  checkoutAbandoned('checkout_abandon'),
+  checkoutFailed('checkout_fail');
 
   const OwnerAnalyticsEvent(this.wireName);
   final String wireName;

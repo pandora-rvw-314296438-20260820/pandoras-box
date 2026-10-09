@@ -69,6 +69,7 @@ Future<void> _mount(
   required Map<String, Object?> bootstrap,
   PlpBillingTransport? transport,
   PlpEntitlementReader? entitlement,
+  PlpCheckoutReturn? paypalReturn,
 }) async {
   await setTestSurface(tester, logicalSize: const Size(390, 844));
   await tester.pumpWidget(
@@ -84,6 +85,7 @@ Future<void> _mount(
                   throw StateError('staff must not read billing'),
           entitlementReader: entitlement ??
               (_) async => throw StateError('entitlement unavailable'),
+          paypalReturn: paypalReturn,
         ),
       ),
     ),
@@ -174,7 +176,7 @@ void main() {
     await tester.tap(_notice());
     await _settle(tester);
     expect(_billing(), findsOneWidget);
-    expect(find.text('Pay monthly with PayPal.'), findsOneWidget);
+    expect(find.text('Run the whole resort from PLP'), findsOneWidget);
     expect(find.text('Launch'), findsOneWidget);
     expect(find.text('Professional'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -218,7 +220,7 @@ void main() {
     await _tapDrawer(tester, 'stays');
     expect(find.byKey(const ValueKey('plp-resort-stays')), findsNothing);
     expect(_billing(), findsOneWidget);
-    expect(find.text('Pay monthly with PayPal.'), findsOneWidget);
+    expect(find.text('Stays is part of PLP Enterprise'), findsOneWidget);
 
     await _openDrawer(tester);
     await _tapDrawer(tester, 'home');
@@ -229,6 +231,7 @@ void main() {
     await _settle(tester);
     expect(find.byKey(const ValueKey('plp-resort-guests')), findsNothing);
     expect(_billing(), findsOneWidget);
+    expect(find.text('Guests is part of PLP Enterprise'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -242,6 +245,7 @@ void main() {
     await tester.tap(_lockedChat());
     await _settle(tester);
     expect(_billing(), findsOneWidget);
+    expect(find.text('The PLP assistant is part of PLP Enterprise'), findsOneWidget);
 
     await _openDrawer(tester);
     final newChat = find.byKey(const ValueKey('plp-drawer-new-chat'));
@@ -282,7 +286,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pending checkout stays locked and Billing shows Finish in PayPal',
+  testWidgets('pending checkout stays locked and Billing shows open checkout notice',
       (tester) async {
     await _mount(
       tester,
@@ -293,8 +297,16 @@ void main() {
     expect(_lockedChat(), findsOneWidget);
     await _openDrawer(tester);
     await _tapDrawer(tester, 'revenue');
-    expect(find.text('Finish in PayPal · not active yet'), findsOneWidget);
-    expect(find.text('Open PayPal'), findsOneWidget);
+    expect(
+      find.text('You started checkout for Launch. Finish in PayPal or choose again.'),
+      findsOneWidget,
+    );
+    await tester.drag(
+      find.byKey(const ValueKey('plp-paypal-billing-list')),
+      const Offset(0, -600),
+    );
+    await tester.pump();
+    expect(find.text('Finish in PayPal'), findsOneWidget);
   });
 
   testWidgets('active but unconfirmed by PayPal stays locked', (tester) async {
@@ -437,5 +449,56 @@ void main() {
     expect(_chat(), findsOneWidget);
     await _openDrawer(tester);
     expect(find.byKey(const ValueKey('plp-drawer-lock')), findsNothing);
+  });
+
+  testWidgets('after a verified status the shell returns to originating section',
+      (tester) async {
+    await _mount(
+      tester,
+      bootstrap: _bootstrap('org-return-section'),
+      transport: _transport(() => _verified),
+      paypalReturn: const PlpCheckoutReturn(
+        origin: 'stays',
+        cancelled: false,
+      ),
+    );
+    expect(_billing(), findsOneWidget);
+    expect(find.text('PLP Enterprise is unlocked'), findsOneWidget);
+    expect(find.text('Open Stays'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('plp-checkout-done')));
+    await _settle(tester);
+
+    expect(_billing(), findsNothing);
+    expect(find.byKey(const ValueKey('plp-resort-stays')), findsOneWidget);
+  });
+
+  testWidgets('paypalReturn param opens confirming for owners and is ignored for staff',
+      (tester) async {
+    await _mount(
+      tester,
+      bootstrap: _bootstrap('org-owner-return'),
+      transport: _transport(() => _pending),
+      paypalReturn: const PlpCheckoutReturn(
+        origin: 'revenue',
+        cancelled: false,
+      ),
+    );
+    expect(_billing(), findsOneWidget);
+    expect(find.text('Confirming with PayPal…'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _mount(
+      tester,
+      bootstrap: _bootstrap('org-staff-return', role: 'operator'),
+      entitlement: (_) async => false,
+      paypalReturn: const PlpCheckoutReturn(
+        origin: 'revenue',
+        cancelled: false,
+      ),
+    );
+    expect(_home(), findsOneWidget);
+    expect(_billing(), findsNothing);
+    expect(find.text('Confirming with PayPal…'), findsNothing);
   });
 }
