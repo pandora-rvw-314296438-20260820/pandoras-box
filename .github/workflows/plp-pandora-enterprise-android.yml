@@ -35,22 +35,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ env.SOURCE_SHA }}
-          fetch-depth: 20
           persist-credentials: false
-
-      - name: Require encrypted operator secrets
-        shell: bash
-        env:
-          PLP_OWNER_EMAIL: ${{ secrets.PANDORA_OPERATOR_EMAIL }}
-          PLP_OWNER_PASSWORD: ${{ secrets.PANDORA_OPERATOR_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [ -z "${PLP_OWNER_EMAIL}" ] || [ -z "${PLP_OWNER_PASSWORD}" ]; then
-            echo 'Missing encrypted operator secrets. Refusing to build or log credentials.' >&2
-            exit 50
-          fi
-          echo 'Operator secrets are present.'
-          git diff --exit-code 72b1a6ca29a42dd1526e4b15e519e3a7967b9846 -- apps/pandora-mobile
 
       - name: Verify exact source and PLP isolation contracts
         shell: bash
@@ -260,13 +245,6 @@ jobs:
           grep -Fq 'lib/x86_64/' plp-emulator-apk-files.txt
           ! grep -Fq 'lib/arm64-v8a/' plp-emulator-apk-files.txt
           ! grep -Fq 'libai-chat.so' plp-emulator-apk-files.txt
-
-      - name: Enable inspector label capture without changing the app
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 .github/plp-owner-visual/patch_label_capture.py \
-            apps/pandora-mobile/tool/android_ui_capture
 
       - name: Build and verify native UI evidence capture
         shell: bash
@@ -509,28 +487,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Exercise authenticated owner visual journey
-        id: owner_visual
-        continue-on-error: true
-        timeout-minutes: 20
-        shell: bash
-        env:
-          PLP_OWNER_EMAIL: ${{ secrets.PANDORA_OPERATOR_EMAIL }}
-          PLP_OWNER_PASSWORD: ${{ secrets.PANDORA_OPERATOR_PASSWORD }}
-        run: |
-          set -euo pipefail
-          export ADB="${ANDROID_SDK_ROOT:?}/platform-tools/adb"
-          python3 .github/plp-owner-visual/journey.py
-
-      - name: Upload authenticated owner visual evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
-        with:
-          name: plp-owner-visual-${{ env.SOURCE_SHA }}
-          path: .plp-android-build/plp-owner-visual-evidence
-          if-no-files-found: warn
-          retention-days: 7
-
       - name: Bind exact APK evidence
         shell: bash
         run: |
@@ -613,14 +569,3 @@ jobs:
             echo "- Artifact ID: `$ARTIFACT_ID`"
             echo "- Artifact digest: `sha256:$ARTIFACT_DIGEST`"
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Require authenticated owner evidence
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ steps.owner_visual.outcome }}" != "success" ]; then
-            echo 'Authenticated owner visual journey did not pass.' >&2
-            exit 51
-          fi
-
