@@ -419,10 +419,7 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
     final currentCode =
         (subscription['plan_code'] ?? checkout['plan_code'] ?? '').toString();
     final currentPlan = _planName(currentCode);
-    final fee = subscription['net_monthly_fee'] ?? subscription['monthly_fee'];
-    final currentPrice = fee?.toString().trim().isNotEmpty == true
-        ? 'USD ' + fee.toString() + ' / month'
-        : 'Price unavailable';
+    final currentPrice = _monthlyPrice(subscription);
     final approvalUrl =
         (pending['approval_url'] ?? checkout['approval_url'] ?? '').toString();
     final providerConfigured = provider['configured'] == true;
@@ -824,6 +821,44 @@ class _PlpPaypalBillingScreenState extends State<PlpPaypalBillingScreen> {
   Map<String, dynamic> _map(Object? value) => value is Map
       ? Map<String, dynamic>.from(value)
       : const <String, dynamic>{};
+
+  static num? _number(Object? value) {
+    if (value == null) return null;
+    if (value is num) return value;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : num.tryParse(text);
+  }
+
+  static String _formatAmount(num amount) {
+    final cents = (amount * 100).round();
+    final whole = cents ~/ 100;
+    final fraction = (cents % 100).abs();
+    return fraction == 0
+        ? whole.toString()
+        : '$whole.${fraction.toString().padLeft(2, '0')}';
+  }
+
+  /// Monthly price from the subscription row returned by owner-api. The DB
+  /// stores integer micros (monthly_fee_micros, discount_micros); decimal
+  /// fields are accepted only as fallbacks.
+  static String _monthlyPrice(Map<String, dynamic> subscription) {
+    num? amount;
+    final netMicros = _number(subscription['net_monthly_fee_micros']);
+    final feeMicros = _number(subscription['monthly_fee_micros']);
+    if (netMicros != null) {
+      amount = netMicros / 1000000;
+    } else if (feeMicros != null) {
+      final discountMicros = _number(subscription['discount_micros']) ?? 0;
+      amount = (feeMicros - discountMicros) / 1000000;
+    } else {
+      amount = _number(subscription['net_monthly_fee']) ??
+          _number(subscription['monthly_fee']);
+    }
+    if (amount == null || amount < 0) return 'Price unavailable';
+    final currency =
+        (subscription['currency'] ?? 'USD').toString().trim().toUpperCase();
+    return '${currency.isEmpty ? 'USD' : currency} ${_formatAmount(amount)} / month';
+  }
 
   String _planName(String code) =>
       _plans[code]?.$1 ?? (code.isEmpty ? '—' : code);

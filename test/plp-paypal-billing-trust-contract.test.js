@@ -48,3 +48,18 @@ test('an existing PayPal approval is resumed instead of creating another checkou
   assert.match(billing, /Continue your existing approval/);
   assert.match(billing, /_selectedPlanCode = loadedPlanCode/);
 });
+
+test('live price is read from DB micros before decimal fallbacks', () => {
+  assert.match(billing, /final currentPrice = _monthlyPrice\(subscription\);/);
+  const fn = billing.slice(billing.indexOf('static String _monthlyPrice('));
+  const net = fn.indexOf("subscription['net_monthly_fee_micros']");
+  const gross = fn.indexOf("subscription['monthly_fee_micros']");
+  const discount = fn.indexOf("subscription['discount_micros']");
+  const decimal = fn.indexOf("subscription['net_monthly_fee']");
+  const decimalGross = fn.indexOf("subscription['monthly_fee']");
+  assert.ok(net > 0 && gross > net && discount > gross && decimal > discount && decimalGross > decimal);
+  assert.match(fn, /\(feeMicros - discountMicros\) \/ 1000000/);
+  assert.match(fn, /\} \/ month';/);
+  assert.match(fn, /'Price unavailable'/);
+  assert.doesNotMatch(billing, /subscription\['net_monthly_fee'\] \?\? subscription\['monthly_fee'\];\s*final currentPrice = fee/);
+});
