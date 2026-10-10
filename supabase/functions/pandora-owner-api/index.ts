@@ -3269,9 +3269,39 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const context = await authenticate(req);
     const url = new URL(req.url);
     const route = normalizeOwnerRoute(url.pathname);
+
+    // PayPal sends server-to-server webhooks without an owner session. Verify
+    // the raw payload signature inside the database before accepting an event.
+    if (req.method === "POST" && route === "/billing/paypal/webhook") {
+      const rawBody = await req.text();
+      const admin = createOperationalAdminClient();
+      const { data, error } = await admin.rpc(
+        "pandora_plp_paypal_webhook_ingest_v1",
+        {
+          p_headers: Object.fromEntries(req.headers.entries()),
+          p_raw_body: rawBody,
+        },
+      );
+      if (error) {
+        return reject(503, "PAYPAL_WEBHOOK_UNAVAILABLE", "Webhook verification is temporarily unavailable.");
+      }
+      const result = asRecord(data);
+      if (result.accepted !== true) {
+        return send({
+          accepted: false,
+          code: textValue(result.code, "WEBHOOK_REJECTED"),
+        }, 400);
+      }
+      return send({
+        accepted: true,
+        duplicate: result.duplicate === true,
+        ignored: result.ignored === true,
+      });
+    }
+
+    const context = await authenticate(req);
     await enforceRateLimit(context, req.method);
 
     if (req.method === "GET" && route === "/home") {
