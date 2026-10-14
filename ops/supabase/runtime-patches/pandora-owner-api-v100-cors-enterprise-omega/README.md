@@ -1,4 +1,4 @@
-# pandora-owner-api v100 — allow https://enterprise-omega-five.vercel.app
+# pandora-owner-api v101 — allow Bubble Enterprise origin
 
 Deployed 2026-10-09 to Supabase project `jcyqixttuebxqqfkjonq` (verify_jwt=false,
 same as v99). These are the exact deployed files.
@@ -11,7 +11,7 @@ v100 keeps that shim byte-for-byte and adds only:
 - `deno.json`: one import-map entry that remaps that commit's `contract.ts`
   to the local `./contract.ts`.
 - `contract.ts`: the commit's file with one line added to
-  `DEFAULT_ALLOWED_ORIGINS`: `"https://enterprise-omega-five.vercel.app"`.
+  `DEFAULT_ALLOWED_ORIGINS`: `"https://enterprise-omega-five.vercel.app"` and `"https://pandora-enterprise.bubbleapps.io"`.
 
 Every other module (index.ts, paypal-billing.mjs, command-pipeline.mjs,
 operational-workspace.mjs) is still bundled from the immutable commit.

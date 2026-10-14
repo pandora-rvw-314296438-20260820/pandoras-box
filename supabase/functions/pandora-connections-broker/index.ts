@@ -28,7 +28,8 @@ const json = (status: number, body: Record<string, unknown>, origin = "") =>
 
 function allowedOrigin(origin: string): boolean {
   if (!origin) return false;
-  return origin === "https://mcpmaster.vercel.app" ||
+  return origin === "https://pandora-enterprise.bubbleapps.io" ||
+    origin === "https://mcpmaster.vercel.app" ||
     /^https:\/\/mcpmaster-[a-z0-9-]+\.vercel\.app$/.test(origin);
 }
 

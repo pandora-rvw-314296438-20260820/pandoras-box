@@ -4,6 +4,7 @@ export const DEFAULT_ALLOWED_ORIGINS = [
   "https://mcpmaster-hazel.vercel.app",
   "https://mcpmaster-mbanatao-dc676069.vercel.app",
   "https://enterprise-omega-five.vercel.app",
+  "https://pandora-enterprise.bubbleapps.io",
 ] as const;
 
 export function parseAllowedOrigins(
