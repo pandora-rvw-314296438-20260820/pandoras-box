@@ -1,0 +1,24 @@
+PANDORA ENTERPRISE — BUBBLE + SUPABASE + VERCEL PROMPT ADDENDUM
+
+Use these after the initial Bubble shell prompt, one at a time.
+
+STAGE 1 — STACK BOUNDARIES
+Build Pandora Enterprise using Bubble.io for the UI, Supabase for authentication and persistent tenant/control-plane data, and Vercel for server-side APIs and integrations. Keep the layers separate. Bubble must not contain privileged secrets. Vercel validates identity, role and tenant on every privileged request. Supabase RLS protects tenant data. No live calls yet; use labelled demo data. Do not repoint existing mcpmaster or PLP deployments.
+
+STAGE 2 — CONTROL-PLANE DATA
+Prepare views for Tenant, TenantMembership, PlatformRole, ProductTemplate, TenantModule, Entitlement, ProvisioningJob, IntegrationConnection and AuditEvent. Their persistent source of truth will be Supabase. Separate control-plane config from PLP hotel operations, restaurant orders, trade records and legal matters. Every tenant-owned record references a tenant. Do not guess a Supabase project ref. Pandora Memory is not customer operational storage.
+
+STAGE 3 — VERCEL API CONNECTOR
+Prepare Bubble API Connector groups for Pandora Enterprise API and later PLP Read API. Initial endpoints: GET /api/health, GET /api/me, GET /api/tenants, GET /api/product-templates, GET /api/tenants/:tenantId/modules, GET /api/tenants/:tenantId/activity and GET /api/integrations/status. Use distinct Development/Preview/Production base URLs. Initialize GET/read-only calls first; never initialize real production writes, deletes or payments.
+
+STAGE 4 — ROLE-AWARE EXPERIENCE
+Platform roles: platform_owner, platform_admin, platform_support, platform_auditor. Tenant roles: tenant_owner, tenant_manager, tenant_staff, tenant_auditor. Platform pages appear only for authorized platform roles; tenant users see only their tenant and modules. Support is restricted and audited; cross-tenant support needs reason, short duration and audit. UI conditions are not security; enforce in Vercel and Supabase RLS.
+
+STAGE 5 — PROVISIONING TIMELINE
+Add a clearly Demo-labelled timeline: Queued, Running, Needs attention, Completed, Failed; show per-step outcome, safe error summary and audit details. In prototype mode this is simulated. Do not claim an external Supabase project, Vercel deployment, domain or operational database was created. Production provisioning later needs durable jobs, idempotency and verified readback.
+
+STAGE 6 — PLP READ-ONLY FIRST
+Build PLP screens for Today, Stays, Rooms, Guests, Operations, Revenue/payment-reconciliation view, Experiences, Team and OTA readiness. Use sample data until the actual PLP Vercel/Supabase bindings and API/schema contracts are verified. Preserve existing booking, deposit, PayPal capture and payment-verification flows. A browser redirect is not payment proof.
+
+STAGE 7 — PREVIEW SECURITY QA
+When the separate Vercel Preview API exists, connect Bubble Development to Preview only. Test auth, tenant A/B denial, role/module gating, pagination, errors, loading states and responsive layout. Never place Supabase service-role/secret keys, GitHub PATs, PayPal secrets or OAuth tokens in Bubble custom states, URLs, client workflows or source. Keep simulated content marked Demo.
