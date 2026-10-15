@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "strict": true
+  },
+  "imports": {
+    "https://raw.githubusercontent.com/pandora-rvw-314296438-20260820/pandoras-box/8e53712b2f12a64de03c2b30bbd4f0f8a2943c98/ops/supabase/runtime-patches/pandora-owner-api-v101-plp-paypal-webhook-source/contract.ts": "./contract.ts"
+  }
+}
