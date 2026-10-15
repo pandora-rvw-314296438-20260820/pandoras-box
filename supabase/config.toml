@@ -90,4 +90,36 @@ enabled = false
 verify_jwt = false
 enabled = false
 
+# deploy-frozen: no automatic integration deploy; release only through governed exact-source path after owner approval
+[functions.pandora-connections-broker]
+enabled = false
 
+[functions.pandora-coordinator-gate]
+enabled = false
+
+[functions.pandora-facebook-signup-hook]
+enabled = false
+
+[functions.pandora-github-uiux-convergence-20260828]
+enabled = false
+
+[functions.pandora-google-workspace-oauth]
+enabled = false
+
+[functions.pandora-intelligence-review-attestation]
+enabled = false
+
+[functions.pandora-intelligence-router]
+enabled = false
+
+[functions.pandora-meta-oauth]
+enabled = false
+
+[functions.pandora-operations-runtime]
+enabled = false
+
+[functions.pandora-preview-content]
+enabled = false
+
+[functions.pandora-source-files]
+enabled = false

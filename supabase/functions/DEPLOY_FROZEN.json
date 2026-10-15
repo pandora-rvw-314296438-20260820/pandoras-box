@@ -1,0 +1,16 @@
+{
+  "reason": "deploy-frozen: no automatic integration deploy; release only through governed exact-source path after owner approval",
+  "slugs": [
+    "pandora-connections-broker",
+    "pandora-coordinator-gate",
+    "pandora-facebook-signup-hook",
+    "pandora-github-uiux-convergence-20260828",
+    "pandora-google-workspace-oauth",
+    "pandora-intelligence-review-attestation",
+    "pandora-intelligence-router",
+    "pandora-meta-oauth",
+    "pandora-operations-runtime",
+    "pandora-preview-content",
+    "pandora-source-files"
+  ]
+}
