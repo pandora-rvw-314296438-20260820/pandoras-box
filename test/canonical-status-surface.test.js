@@ -88,18 +88,20 @@ test('active master instruction cannot masquerade as current operational truth',
   );
 });
 
-test('Control Tower active bootstrap is Pandora owner-first, not the retired ProjectOS loader', () => {
+test('Control Tower bootstrap loads the single canonical owner app, not retired entrypoints', () => {
   const bootstrap = readFileSync(path.join(root, 'apps/control-tower/bootstrap.js'), 'utf8');
-  const ownerFirst = readFileSync(path.join(root, 'apps/control-tower/owner-first.js'), 'utf8');
+  const ownerApp = readFileSync(path.join(root, 'apps/control-tower/owner-app.js'), 'utf8');
   const ownerData = readFileSync(path.join(root, 'apps/control-tower/owner-data.js'), 'utf8');
 
-  assert.match(bootstrap, /owner-first\.js/);
-  assert.doesNotMatch(bootstrap, /projectos-live-fetch\.js/);
-  assert.equal(
-    existsSync(path.join(root, 'apps/control-tower/projectos-live-fetch.js')),
-    false,
-  );
-  assert.match(ownerFirst, /owner-data\.js/);
+  assert.ok(bootstrap.includes('owner-app.js'));
+  assert.ok(!bootstrap.includes('owner-first.js'));
+  assert.ok(!bootstrap.includes('/control-tower/app.js'));
+  assert.ok(!/projectos/i.test(bootstrap));
+  assert.equal(existsSync(path.join(root, 'apps/control-tower/projectos-live-fetch.js')), false);
+  assert.ok(ownerApp.includes('owner-data.js'));
+  assert.ok(ownerApp.includes('owner-runtime.js'));
+  assert.ok(!ownerApp.includes('window.PandorasOwnerScreens'));
+  assert.ok(!ownerApp.includes('window.PandorasOwnerDialogs'));
   assert.match(ownerData, /projection\.authoritative === true/);
   assert.match(ownerData, /projection\.status === 'current'/);
 });

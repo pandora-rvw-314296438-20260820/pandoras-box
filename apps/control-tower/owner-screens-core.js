@@ -112,6 +112,6 @@ function renderProjects() {
   </div>`;
 }
 
-window.PandorasOwnerScreenCore = Object.freeze({
+export const ownerScreenCore = Object.freeze({
   sectionHeader, decisionCard, overview, progressMarkup, projectRow, activityRow, renderHome, renderProjects
 });

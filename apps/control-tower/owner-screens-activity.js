@@ -1,9 +1,9 @@
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+import { ownerScreenCore } from './owner-screens-core.js?v=control-tower-esm-v1-20261015-1';
 const {
   icons, state, esc, normalizeStatus, cleanName, projectInitials, formatExpiry, formatTool, projectForPlan, timeAgo, eventKind, deriveProjects
 } = window.PandorasOwnerData;
 const { button, badge, statusSummary, pendingPlans } = window.PandorasOwnerRuntime;
-const { activityRow } = window.PandorasOwnerScreenCore;
+const { activityRow } = ownerScreenCore;
 
 function planCard(plan) {
   const project = projectForPlan(plan);
@@ -44,7 +44,6 @@ function renderActivity() {
   </div>`;
 }
 
-window.PandorasOwnerScreenActivity = Object.freeze({
+export const ownerScreenActivity = Object.freeze({
   planCard, renderApprovals, groupLogs, renderActivity
 });
-}

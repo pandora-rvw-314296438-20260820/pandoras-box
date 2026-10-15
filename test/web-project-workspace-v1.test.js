@@ -11,7 +11,6 @@ const data = read('apps/control-tower/owner-data.js');
 const app = read('apps/control-tower/owner-app.js');
 const workspace = read('apps/control-tower/owner-project-workspace.js');
 const experience = read('apps/control-tower/owner-screens-experience.js');
-const first = read('apps/control-tower/owner-first.js');
 const index = read('apps/control-tower/index.html');
 const ownerContract = read('supabase/functions/pandora-owner-api/contract.ts');
 const runtime = read('supabase/functions/pandora-project-runtime/index.ts');
@@ -110,8 +109,8 @@ test('Current, Live, and History are first-class workspace views', () => {
 });
 
 test('project workspace assets are loaded under a distinct cache revision', () => {
-  assert.ok(first.includes('owner-project-workspace.js'));
-  assert.ok(first.includes('web-theatre-status-truth-v1-20260910-1'));
+  assert.ok(app.includes('owner-project-workspace.js?v=control-tower-esm-v1-20261015-1'));
+  assert.ok(app.includes('control-tower-esm-v1-20261015-1'));
   assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
-  assert.ok(index.includes('bootstrap.js?v=web-theatre-status-truth-v1-20260910-1'));
+  assert.ok(index.includes('bootstrap.js?v=control-tower-esm-v1-20261015-1'));
 });

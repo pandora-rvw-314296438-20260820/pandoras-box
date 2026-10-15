@@ -1,7 +1,7 @@
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+import { ownerScreenCore } from './owner-screens-core.js?v=control-tower-esm-v1-20261015-1';
 const { icons, state, esc, normalizeStatus, isComplete, isBlocked, cleanName, timeAgo, formatPhase, formatExpiry, formatTool, projectForPlan, projectForEvent, eventMessage } = window.PandorasOwnerData;
 const { button, badge } = window.PandorasOwnerRuntime;
-const { progressMarkup } = window.PandorasOwnerScreens;
+const { progressMarkup } = ownerScreenCore;
 
 function approvalDialog(plan) {
   const project = projectForPlan(plan);
@@ -112,7 +112,6 @@ function toastMarkup() {
   return `<div class="owner-toast ${state.toast.kind}" role="status" aria-live="polite"><span>${icon}</span><p>${esc(state.toast.message)}</p><button type="button" data-action="close-toast" aria-label="Close notification">${icons.close}</button></div>`;
 }
 
-window.PandorasOwnerDialogs = Object.freeze({
+export const ownerDialogs = Object.freeze({
   approvalDialog, projectDialog, activityDialog, connectionDialog, systemDialog, dialogMarkup, toastMarkup
 });
-}

@@ -10,7 +10,7 @@ const ownerData = read('apps/control-tower/owner-data.js');
 const ownerExperience = read('apps/control-tower/owner-screens-experience.js');
 const ownerApp = read('apps/control-tower/owner-app.js');
 const ownerAuth = read('apps/control-tower/auth.js');
-const ownerFirst = read('apps/control-tower/owner-first.js');
+const bootstrap = read('apps/control-tower/bootstrap.js');
 const index = read('apps/control-tower/index.html');
 const design = read('docs/product/WEB_CONTROL_PLANE_V1.md');
 
@@ -55,8 +55,10 @@ test('web control plane design preserves verified Live semantics and Admin safet
   assert.match(design, /no provider credential in browser storage/);
 });
 
-test('experience assets are loaded through the owner-first shell', () => {
-  assert.match(ownerFirst, /owner-screens-experience\.js/);
-  assert.match(index, /owner-experience\.css/);
-  assert.match(index, /web-theatre-status-truth-v1-20260910-1/);
+test('experience modules are loaded through the canonical ES-module owner router', () => {
+  assert.ok(bootstrap.includes('owner-app.js'));
+  assert.ok(ownerApp.includes('owner-screens-experience.js?v=control-tower-esm-v1-20261015-1'));
+  assert.ok(ownerApp.includes('owner-project-workspace.js?v=control-tower-esm-v1-20261015-1'));
+  assert.ok(index.includes('owner-experience.css'));
+  assert.ok(index.includes('bootstrap.js?v=control-tower-esm-v1-20261015-1'));
 });

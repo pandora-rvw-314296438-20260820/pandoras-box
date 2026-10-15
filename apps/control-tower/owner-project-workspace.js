@@ -1,4 +1,3 @@
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 const { icons, state, esc, timeAgo } = window.PandorasOwnerData;
 const { button, badge } = window.PandorasOwnerRuntime;
 
@@ -405,7 +404,7 @@ function renderProjectWorkspace() {
   </div>`;
 }
 
-window.PandorasOwnerProjectWorkspace = Object.freeze({
+export const ownerProjectWorkspace = Object.freeze({
   renderProjectWorkspace,
   exactPreviewUrl,
   previewIdentity,
@@ -413,4 +412,3 @@ window.PandorasOwnerProjectWorkspace = Object.freeze({
   exactUndoIdentity,
   verifiedLiveUrl,
 });
-}

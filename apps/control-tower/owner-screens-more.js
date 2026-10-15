@@ -1,4 +1,3 @@
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 const { icons, state, esc, cleanName } = window.PandorasOwnerData;
 const { badge, statusSummary, pendingPlans } = window.PandorasOwnerRuntime;
 
@@ -52,5 +51,4 @@ function nav() {
   return `<nav class="owner-bottom-nav" aria-label="Primary navigation">${items.map(([route, label, icon]) => `<button type="button" data-route="${route}" class="${state.route === route ? 'active' : ''}" aria-current="${state.route === route ? 'page' : 'false'}"><span class="owner-nav-icon">${icon}${route === 'approvals' && approvalCount ? `<b>${approvalCount > 99 ? '99+' : approvalCount}</b>` : ''}</span><span>${label}</span></button>`).join('')}</nav>`;
 }
 
-window.PandorasOwnerScreenMore = Object.freeze({ connectionRows, renderMore, nav });
-}
+export const ownerScreenMore = Object.freeze({ connectionRows, renderMore, nav });

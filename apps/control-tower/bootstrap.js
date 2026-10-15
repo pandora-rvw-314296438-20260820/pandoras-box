@@ -1,10 +1,13 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   void (async () => {
-    const assetVersion = 'pandora-provider-policy-v1-20260919-1';
+    const assetVersion = 'control-tower-esm-v1-20261015-1';
     const versioned = (asset) => `${asset}?v=${assetVersion}`;
 
-    // The legacy advanced Control Tower depended on retired control-plane code.
-    // Keep the active web shell on the Pandora-native owner experience only.
-    await import(versioned('/control-tower/owner-first.js'));
+    // Load the single canonical owner application and its ES-module screens.
+    await import(versioned('/control-tower/owner-app.js'));
+    // Optional read-only telemetry never blocks the owner workspace.
+    void import(versioned('/control-tower/owner-operations-theatre.mjs'))
+      .then(() => window.PandoraOperationsTheatreMount?.update())
+      .catch(() => console.warn('Operations execution feed unavailable'));
   })();
 }

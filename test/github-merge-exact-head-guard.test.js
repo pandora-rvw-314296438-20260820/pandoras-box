@@ -121,13 +121,8 @@ test('generic repository API cannot bypass the exact-head pull request merge con
   }
 });
 
-test('Control Tower requires and hashes the reviewed head SHA in merge plans', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'apps', 'control-tower', 'app.js'), 'utf8');
-  assert.match(source, /expectedHeadSha: ""/);
-  assert.match(source, /args\.expectedHeadSha = String\(b\.expectedHeadSha \|\| ""\)\.trim\(\)/);
-  assert.match(source, /Reviewed head SHA/);
-  assert.match(
-    source,
-    /if \(b\.tool\?\.name === "github\.merge-pull-request"\) return Boolean\(b\.pullNumber\) && \/\^\[0-9a-fA-F\]\{40\}\$\/\.test\(String\(b\.expectedHeadSha \|\| ""\)\.trim\(\)\);/,
-  );
+test('active Control Tower owner shell cannot bypass exact-head GitHub merge policy', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'apps', 'control-tower', 'owner-app.js'), 'utf8');
+  assert.doesNotMatch(source, /github\\.merge-pull-request/);
+  assert.doesNotMatch(source, /expectedHeadSha\\s*:/);
 });

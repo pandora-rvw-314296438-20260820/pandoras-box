@@ -11,8 +11,6 @@ const runtime = read('apps/control-tower/owner-runtime.js');
 const app = read('apps/control-tower/owner-app.js');
 const professional = read('apps/control-tower/owner-professional.js');
 const experience = read('apps/control-tower/owner-screens-experience.js');
-const first = read('apps/control-tower/owner-first.js');
-const screens = read('apps/control-tower/owner-screens.js');
 const bootstrap = read('apps/control-tower/bootstrap.js');
 const index = read('apps/control-tower/index.html');
 
@@ -30,7 +28,7 @@ test('Professional Mode exposes exactly the nine canonical areas', () => {
 test('Simple Mode keeps its exact five-item primary navigation', () => {
   const nav = experience.slice(
     experience.indexOf('function nav()'),
-    experience.indexOf('window.PandorasOwnerExperience'),
+    experience.indexOf('export const ownerScreenExperience'),
   );
   const labels = [...nav.matchAll(/\['[^']+', '([^']+)'/g)].map((match) => match[1]);
   assert.deepEqual(labels, ['Home', 'Projects', 'Ask Pandora', 'Needs You', 'Business']);
@@ -108,17 +106,18 @@ test('Verify preserves READY versus LIVE semantics', () => {
 
 test('Admin advanced link resolves through the Pandora-native owner shell', () => {
   assert.ok(professional.includes('href="?advanced=1"'));
-  assert.match(bootstrap, /owner-first\.js/);
+  assert.match(bootstrap, /\/control-tower\/owner-app\.js/);
+  assert.doesNotMatch(bootstrap, /owner-first\.js/);
   assert.doesNotMatch(bootstrap, /\/control-tower\/app\.js/);
   assert.doesNotMatch(bootstrap, /projectos/i);
 });
 
-test('Professional Mode assets are composed under one distinct revision', () => {
-  assert.ok(first.includes('owner-professional.js'));
-  assert.ok(screens.includes('PandorasOwnerProfessional'));
-  assert.ok(first.includes('web-theatre-status-truth-v1-20260910-1'));
+test('Professional Mode screens are imported as named modules under one distinct revision', () => {
+  assert.ok(app.includes('owner-professional.js?v=control-tower-esm-v1-20261015-1'));
+  assert.ok(professional.includes('export const ownerProfessionalScreens'));
+  assert.ok(app.includes('control-tower-esm-v1-20261015-1'));
   assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
-  assert.ok(index.includes('bootstrap.js?v=web-theatre-status-truth-v1-20260910-1'));
+  assert.ok(index.includes('bootstrap.js?v=control-tower-esm-v1-20261015-1'));
 });
 
 test('shared project workspace returns to the active presentation mode', () => {

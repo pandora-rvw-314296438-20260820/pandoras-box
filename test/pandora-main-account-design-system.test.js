@@ -9,7 +9,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const index = read('apps/control-tower/index.html');
 const tokens = read('apps/control-tower/owner-design-system.css');
 const ownerFirst = read('apps/control-tower/owner-first.css');
-const ownerActions = read('apps/control-tower/owner-first-3.css');
+const ownerActions = read('apps/control-tower/owner-first.css');
 const ownerData = read('apps/control-tower/owner-data.js');
 const materializer = read('scripts/materialize-control-tower.mjs');
 

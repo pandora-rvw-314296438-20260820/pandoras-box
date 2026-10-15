@@ -36,8 +36,8 @@ test('active web shell never loads ProjectOS', () => {
   const bootstrap = read('apps', 'control-tower', 'bootstrap.js');
 
   assert.doesNotMatch(index, /projectos/i);
-  assert.doesNotMatch(bootstrap, /projectos|app\.js|simple-language\.js/i);
-  assert.match(bootstrap, /owner-first\.js/);
+  assert.doesNotMatch(bootstrap, /projectos|(?:^|\/)app\.js|simple-language\.js|owner-first\.js/i);
+  assert.match(bootstrap, /\/control-tower\/owner-app\.js/);
   assert.equal(
     fs.existsSync(path.join(root, 'apps', 'control-tower', 'projectos-live-fetch.js')),
     false,

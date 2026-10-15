@@ -1,13 +1,25 @@
+import './owner-data.js?v=control-tower-esm-v1-20261015-1';
+import './owner-runtime.js?v=control-tower-esm-v1-20261015-1';
+import { ownerScreenCore } from './owner-screens-core.js?v=control-tower-esm-v1-20261015-1';
+import { ownerScreenActivity } from './owner-screens-activity.js?v=control-tower-esm-v1-20261015-1';
+import { ownerScreenMore } from './owner-screens-more.js?v=control-tower-esm-v1-20261015-1';
+import { ownerScreenExperience } from './owner-screens-experience.js?v=control-tower-esm-v1-20261015-1';
+import { ownerProjectWorkspace } from './owner-project-workspace.js?v=control-tower-esm-v1-20261015-1';
+import { ownerProfessionalScreens } from './owner-professional.js?v=control-tower-esm-v1-20261015-1';
+import { ownerDialogs } from './owner-dialogs.js?v=control-tower-esm-v1-20261015-1';
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 const { icons, state, app, esc, normalizeStatus, deriveProjects, request, routeFromLocation, routeResourceFromLocation, timeAgo, PROFESSIONAL_ROUTES } = { ...window.PandorasOwnerData, ...window.PandorasOwnerRuntime };
 const { refresh, header, showToast, closeToast, navigate, openDialog, closeDialog, focusableInDialog } = window.PandorasOwnerRuntime;
+const { renderProjects } = ownerScreenCore;
+const { renderApprovals, renderActivity } = ownerScreenActivity;
+const { renderMore } = ownerScreenMore;
+const { renderHome, renderAsk, renderNeeds, renderBusiness, nav } = ownerScreenExperience;
+const { renderProjectWorkspace } = ownerProjectWorkspace;
 const {
-  renderHome, renderProjects, renderProjectWorkspace, renderAsk, renderNeeds, renderBusiness,
-  renderApprovals, renderActivity, renderMore, nav,
   professionalHome, professionalBuild, professionalRun, professionalConnect, professionalMemory,
   professionalVerify, professionalBusiness, professionalLibrary, professionalSettings, professionalNav,
-} = window.PandorasOwnerScreens;
-const { dialogMarkup, toastMarkup } = window.PandorasOwnerDialogs;
+} = ownerProfessionalScreens;
+const { dialogMarkup, toastMarkup } = ownerDialogs;
 
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
 
@@ -109,7 +121,7 @@ async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { qu
     item.runtime = runtime;
     item.experience = experience;
     item.theatre = theatre;
-    const previewIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+    const previewIdentity = ownerProjectWorkspace?.previewIdentity?.();
     if (item.focusToken && (!previewIdentity
       || item.focusToken.projectId !== previewIdentity.projectId
       || item.focusToken.versionId !== previewIdentity.versionId
@@ -361,7 +373,7 @@ async function focusHtmlFromEnvelope(payload, identity) {
 async function preparePreviewFocus() {
   const item = state.projectWorkspace;
   if (item.changing || item.focusPreviewLoading) return;
-  const identity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+  const identity = ownerProjectWorkspace?.previewIdentity?.();
   if (!identity || item.experience?.can_focus !== true) {
     showToast('Pandora has not marked this exact preview safe for object focus.', 'error');
     return;
@@ -371,7 +383,7 @@ async function preparePreviewFocus() {
   item.focusToken = null;
   item.focusPreviewError = null;
 
-  const proxyUrl = window.PandorasOwnerProjectWorkspace?.focusCapablePreviewUrl?.();
+  const proxyUrl = ownerProjectWorkspace?.focusCapablePreviewUrl?.();
   if (proxyUrl) {
     item.focusPreviewHtml = null;
     item.focusPreviewVersionId = null;
@@ -390,7 +402,7 @@ async function preparePreviewFocus() {
       method: 'POST',
       body: JSON.stringify({ versionId: identity.versionId }),
     });
-    const currentIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+    const currentIdentity = ownerProjectWorkspace?.previewIdentity?.();
     if (!currentIdentity
       || currentIdentity.projectId !== identity.projectId
       || currentIdentity.versionId !== identity.versionId
@@ -398,7 +410,7 @@ async function preparePreviewFocus() {
       throw new Error('The preview changed while Pandora was preparing object focus. Select Focus object again.');
     }
     const html = await focusHtmlFromEnvelope(payload, identity);
-    const finalIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+    const finalIdentity = ownerProjectWorkspace?.previewIdentity?.();
     if (!finalIdentity
       || finalIdentity.projectId !== identity.projectId
       || finalIdentity.versionId !== identity.versionId
@@ -467,7 +479,7 @@ function acceptPreviewSelection(value) {
   const item = state.projectWorkspace;
   if (!item.selectionMode || item.changing) return;
   const selected = normalizedPreviewSelection(value);
-  const identity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+  const identity = ownerProjectWorkspace?.previewIdentity?.();
   if (!selected || !identity) {
     clearPreparedFocusPreview();
     item.selectedTarget = null;
@@ -500,7 +512,7 @@ function acceptPreviewSelection(value) {
 function focusTokenMatchesVisible() {
   const token = state.projectWorkspace.focusToken;
   if (!token) return true;
-  const identity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+  const identity = ownerProjectWorkspace?.previewIdentity?.();
   return Boolean(identity
     && token.projectId === identity.projectId
     && token.versionId === identity.versionId
@@ -564,9 +576,9 @@ async function performWorkspaceChange(message) {
       const candidateVersion = experience.candidate_version_id || null;
       const currentVersion = experience.current_version_id || null;
       const verification = String(experience.candidate_verification_state || '').toLowerCase();
-      const previewIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+      const previewIdentity = ownerProjectWorkspace?.previewIdentity?.();
       const nextVersion = previewIdentity?.versionId || candidateVersion || currentVersion;
-      const preview = window.PandorasOwnerProjectWorkspace?.exactPreviewUrl?.();
+      const preview = ownerProjectWorkspace?.exactPreviewUrl?.();
       const versionVerified = (nextVersion === candidateVersion && verification === 'passed')
         || (nextVersion === currentVersion && experience.current_verified === true);
       if (nextVersion && nextVersion !== baselineVersion && preview && versionVerified) {
@@ -623,7 +635,7 @@ async function waitForUndoResolution(sourceId, identity, attempts = 12, delayMs 
 
     const currentVersionId = String(experience.current_version_id || '').toLowerCase();
     const runtimeVersionId = String(item.runtime?.candidate?.versionId || '').toLowerCase();
-    const previewIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+    const previewIdentity = ownerProjectWorkspace?.previewIdentity?.();
     const productionVersionId = String(
       experience.production_version_id || item.runtime?.production?.version_id || ''
     ).toLowerCase() || null;
@@ -632,7 +644,7 @@ async function waitForUndoResolution(sourceId, identity, attempts = 12, delayMs 
     if (currentVersionId === identity.parentVersionId
         && runtimeVersionId === identity.parentVersionId
         && previewIdentity?.versionId === identity.parentVersionId
-        && window.PandorasOwnerProjectWorkspace?.exactPreviewUrl?.()
+        && ownerProjectWorkspace?.exactPreviewUrl?.()
         && (experience.current_verified === true || String(item.runtime?.verification?.state || '').toLowerCase() === 'verified')) {
       return 'restored';
     }
@@ -649,7 +661,7 @@ async function performWorkspaceMutation(kind) {
   const projectKey = item.runtime?.project?.projectKey;
   const candidateVersionId = item.runtime?.candidate?.versionId;
   const undoIdentity = kind === 'undo'
-    ? window.PandorasOwnerProjectWorkspace?.exactUndoIdentity?.()
+    ? ownerProjectWorkspace?.exactUndoIdentity?.()
     : null;
   if (!projectKey || item.mutating) return;
   if (kind === 'publish' && !candidateVersionId) return;
@@ -887,7 +899,7 @@ app.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'prepare-workspace-undo') {
-    if (!window.PandorasOwnerProjectWorkspace?.exactUndoIdentity?.()) {
+    if (!ownerProjectWorkspace?.exactUndoIdentity?.()) {
       showToast('Undo is not available for this exact current version. Production rollback is a separate governed action.', 'error');
       render();
       return;
