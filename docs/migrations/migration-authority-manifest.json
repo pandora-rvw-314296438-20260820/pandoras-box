@@ -26,6 +26,23 @@
   "invariants": [
     "Every migration is classified exactly once.",
     "Receipt references must point at an existing source file.",
-    "Historical controls remain source history and are not silently deleted."
+    "Historical controls remain source history and are not silently deleted.",
+    "Provider-exact recovery files preserve ledger bytes and version identities; pending source-authority review is recorded in the separate provenance receipt."
+  ],
+  "providerExactRecoveries": [
+    {
+      "version": "20261003190317",
+      "path": "supabase/migrations/20261003190317_pandora_direct_tenant_owner_access_v1.sql",
+      "sha256": "adc35c58d30f5e7782dca2d66dfe4aa5eb1c459b104e9f14d388452f8fda45bc",
+      "provenance": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/20261003-source-parity-recovery.json",
+      "authorityState": "recovery_candidate"
+    },
+    {
+      "version": "20261003201314",
+      "path": "supabase/migrations/20261003201314_plp_production_activity_isolation_v1.sql",
+      "sha256": "49ab29aabded20e0f1eeddcfdafc3d3f1f9e9f166abd3682bf369478b035db17",
+      "provenance": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/20261003-source-parity-recovery.json",
+      "authorityState": "recovery_candidate"
+    }
   ]
 }
