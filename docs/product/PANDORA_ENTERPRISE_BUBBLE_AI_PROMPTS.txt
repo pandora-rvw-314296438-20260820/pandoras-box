@@ -1,0 +1,23 @@
+PANDORA ENTERPRISE — BUBBLE AI BUILDER PROMPTS
+Use one stage at a time, in order. Attach the Pandora/PLP screenshots for Stage 1.
+
+STAGE 1 — SHELL
+Build a new Bubble.io app called Pandora Enterprise. Create a mobile-first premium multi-tenant business control panel matching the attached screenshots: black/near-black shell, white/soft-grey typography, muted gold/bronze accent, Pandora mark/name, search, collapsible nav, Activity, Recent chats, privileged System/Developer group, tenant switcher and fixed New chat/Ask Pandora composer. Mobile drawer around 75% width with dark overlay; desktop sidebar and content workspace. Add reusable shell, sidebar, tenant header, page header, cards, status pills and composer. Do not recreate ProjectOS or replace existing GitHub apps. Demo data only.
+
+STAGE 2 — PLATFORM ADMIN
+Inside this app, build Pandora Enterprise Admin as the top-level control plane. Pages: Overview, Tenants, Create Tenant, Tenant Detail, Business Products, Provisioning, Plans & Entitlements, Users & Access, Integrations, Audit & Verification, Platform Settings and Activity. It manages multiple business tenants and reusable vertical templates, not only PLP. Create Tenant collects name, slug, vertical, owner, plan, modules, theme and domain; create demo tenant and display it in list. Simulated states visibly say Demo. Do not connect live APIs.
+
+STAGE 3 — PLP TENANT
+Add PLP Pandora Enterprise hotel/resort workspace from screenshot: Today, Stays, Rooms, Guests, Operations, Revenue, Experiences, Team, Activity, Recent chats, Settings. Premium quiet luxury: deep black, cream/white, muted gold, editorial headings. Use clearly labelled sample stays, rooms, guest profiles, concierge tasks and attention items. Add prototype reservation detail, guest profile, availability, operations, revenue/payment reconciliation view, experiences and OTA readiness/mapping/dry-run/conflict review. No live booking/payment/OTA writes; redirects never mean payment verified.
+
+STAGE 4 — OTHER VERTICALS
+Add demo templates: Restaurants (reservations, tables, orders, menu, inventory, suppliers, sales, staff); Import–Export (counterparties, orders, shipments, documents, customs, compliance, receivables/payables); Law (clients, matters, deadlines, documents, tasks, conflict-check placeholder, time/billing with strict matter-level access); Offices (teams, tasks, projects, assets, appointments, invoices, documents). Each tenant sees only its enabled vertical modules. Keep sensitive records isolated.
+
+STAGE 5 — DATA AND PRIVACY
+Create Tenant, TenantMembership, PlatformRole, ProductTemplate, TenantModule, ProvisioningJob, Entitlement, IntegrationConnection, AuditEvent, Conversation and ActivityEvent. PLP data objects remain demo/read-only placeholders. Use Bubble Privacy Rules and backend authorization; hidden UI is not security. Separate platform roles (owner/admin/support/auditor) from tenant roles (owner/manager/staff/auditor). All tenant-owned records reference a tenant. Support has no automatic tenant-data access; cross-tenant support needs reason and audit. Never store secrets or real customer data in demo records.
+
+STAGE 6 — WORKFLOWS AND QA
+Build demo workflows for creating tenant, memberships, applying templates, enabling modules, simulated provisioning, tenant switching and audit events. Confirm sensitive simulated actions. Test phone/tablet/desktop, nav/buttons, each template, module gating and tenant isolation. Composer must not cover content. Mark simulation as Demo. Do not claim external provisioning.
+
+STAGE 7 — INTEGRATION PREPARATION ONLY
+Create integration status screen with provider, scope, environment, non-secret state, capabilities/scopes summary and last verification time. Do not connect live systems or put GitHub PAT, Supabase service-role key, PayPal secret or OAuth tokens in Bubble client workflows. Integrate only after verifying server-side API contract, tenant scope, least-privilege auth, idempotency, audit, error handling, pre/post verification and rollback. Start with approved read-only endpoints and preserve existing PLP booking/payment services.
