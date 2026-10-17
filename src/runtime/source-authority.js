@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sourceAuthorityPolicy = void 0;
 exports.canonicalMemoryProjectKey = canonicalMemoryProjectKey;
 exports.memoryProjectKeyForProjectOsIntake = memoryProjectKeyForProjectOsIntake;
+exports.memoryProjectKeyForPlanArgs = memoryProjectKeyForPlanArgs;
 exports.repositorySourceStatus = repositorySourceStatus;
 exports.isOperationalRepository = isOperationalRepository;
 exports.assertOperationalRepository = assertOperationalRepository;
@@ -13,6 +14,7 @@ const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const PROJECT_KEY = /^[a-z0-9][a-z0-9._-]{0,79}$/;
 const POLICY_PATH = (0, path_1.resolve)(__dirname, '..', '..', 'SOURCE_AUTHORITY_POLICY.json');
 const TEMPORARY_MEMORY_BOOTSTRAP_KEYS = new Set(['pandoras-box-memory', 'plp-boracay']);
+const CANONICAL_SUPABASE_PROJECT_REF = 'jcyqixttuebxqqfkjonq';
 
 function loadPolicy() {
     const parsed = JSON.parse((0, fs_1.readFileSync)(POLICY_PATH, 'utf8'));
@@ -52,6 +54,50 @@ function memoryProjectKeyForProjectOsIntake(projectKey) {
         || TEMPORARY_MEMORY_BOOTSTRAP_KEYS.has(normalized)
         ? canonicalMemoryProjectKey()
         : normalized;
+}
+function memoryProjectKeyForPlanArgs(args) {
+    if (!args || typeof args !== 'object')
+        return undefined;
+    const explicitKey = typeof args.projectKey === 'string' && args.projectKey.trim()
+        ? args.projectKey
+        : (typeof args.project_key === 'string' && args.project_key.trim()
+            ? args.project_key
+            : undefined);
+    if (explicitKey !== undefined) {
+        try {
+            return memoryProjectKeyForProjectOsIntake(explicitKey);
+        }
+        catch {
+            return undefined;
+        }
+    }
+    const owner = typeof args.owner === 'string' ? args.owner.trim() : '';
+    const repo = typeof args.repo === 'string' ? args.repo.trim() : '';
+    const repoFromParts = owner && repo ? `${owner}/${repo}` : '';
+    const repoFromFull = typeof args.repository === 'string' && args.repository.includes('/')
+        ? args.repository.trim()
+        : (typeof args.repository_full_name === 'string' && args.repository_full_name.includes('/')
+            ? args.repository_full_name.trim()
+            : '');
+    const repository = (repoFromParts || repoFromFull).toLowerCase();
+    const canonicalSourceRepo = typeof exports.sourceAuthorityPolicy.canonical?.source_repository === 'string'
+        ? exports.sourceAuthorityPolicy.canonical.source_repository.trim().toLowerCase()
+        : '';
+    const canonicalMemoryRepo = typeof exports.sourceAuthorityPolicy.canonical?.memory_repository === 'string'
+        ? exports.sourceAuthorityPolicy.canonical.memory_repository.trim().toLowerCase()
+        : '';
+    if (repository && (repository === canonicalSourceRepo || repository === canonicalMemoryRepo)) {
+        return canonicalMemoryProjectKey();
+    }
+    const projectRef = typeof args.projectRef === 'string' && args.projectRef.trim()
+        ? args.projectRef.trim()
+        : (typeof args.project_ref === 'string' && args.project_ref.trim()
+            ? args.project_ref.trim()
+            : '');
+    if (projectRef === CANONICAL_SUPABASE_PROJECT_REF) {
+        return canonicalMemoryProjectKey();
+    }
+    return undefined;
 }
 
 function normalizedRepository(repository) {

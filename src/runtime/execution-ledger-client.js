@@ -337,7 +337,7 @@ class ExecutionLedgerClient {
         // receives its own canonical project scope derived from the fail-closed source authority policy.
         const memoryProjectKey = intake?.projectKey
             ? (0, source_authority_js_1.memoryProjectKeyForProjectOsIntake)(intake.projectKey)
-            : undefined;
+            : (0, source_authority_js_1.memoryProjectKeyForPlanArgs)(input.args);
         const contextArgs = memoryProjectKey
             ? { ...input.args, projectKey: memoryProjectKey }
             : input.args;
