@@ -251,6 +251,48 @@ function serviceRoleKey(): string | undefined {
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? undefined;
 }
 
+const MAX_RPC_ERROR_BYTES = 4_096;
+
+class ControlRpcConflict extends Error {
+  readonly errorCode: string;
+
+  constructor(errorCode: string) {
+    super(errorCode);
+    this.name = "ControlRpcConflict";
+    this.errorCode = errorCode;
+  }
+}
+
+async function throwIfMappedRpcConflict(rpcResponse: Response): Promise<void> {
+  const declaredLength = Number(rpcResponse.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_RPC_ERROR_BYTES) return;
+
+  let raw = "";
+  try {
+    raw = await rpcResponse.text();
+  } catch {
+    return;
+  }
+  if (!raw || new TextEncoder().encode(raw).byteLength > MAX_RPC_ERROR_BYTES) return;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!isRecord(parsed)) return;
+
+  const code = typeof parsed.code === "string" ? parsed.code : "";
+  const message = typeof parsed.message === "string" ? parsed.message : "";
+  if (
+    message === "projectos_memory_context_required_before_approval"
+    || (code === "55000" && message === "projectos_memory_context_required_before_approval")
+  ) {
+    throw new ControlRpcConflict("memory_context_required_before_approval");
+  }
+}
+
 async function fetchRpc(
   supabaseUrl: string,
   key: string,
@@ -272,7 +314,10 @@ async function fetchRpc(
     redirect: "error",
   });
 
-  if (!rpcResponse.ok) return undefined;
+  if (!rpcResponse.ok) {
+    await throwIfMappedRpcConflict(rpcResponse);
+    return undefined;
+  }
   return rpcResponse.json();
 }
 
@@ -1026,7 +1071,10 @@ Deno.serve(async (request: Request) => {
     }
 
     return response(200, { ok: true, [route.responseKey]: payload });
-  } catch {
+  } catch (error) {
+    if (error instanceof ControlRpcConflict) {
+      return response(409, { ok: false, error: error.errorCode });
+    }
     return response(502, { ok: false, error: "control_operation_unavailable" });
   }
 });
